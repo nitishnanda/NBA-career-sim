@@ -13,9 +13,23 @@
   // ---------------------------------------------------------------- creation
   function newCareer(o) {
     if (o.seed != null) NBA.setSeed(o.seed);
-    const stars = o.stars || +weighted(STAR_ODDS);
-    const ceiling = o.ceiling != null ? o.ceiling : NBA.rollCeiling(stars, o.arch);
-    const p = NBA.makePlayer({ id: 'user', name: o.name || 'Rookie', pos: o.pos, arch: o.arch, sec: o.sec && o.sec !== o.arch ? o.sec : null, home: o.home, ceiling, age: 18, stars, gap: 10 + rand() * 12 });
+    // Generational talents are almost always blue-chip, top-3 picks who dominate college.
+    // A rare "Jokic path" (~8%) keeps them under-scouted with a slow start but the same hidden ceiling.
+    const genLevel = o.arch === 'generational' ? 2 : o.sec === 'generational' ? 1 : 0;
+    const lateBloomer = genLevel > 0 && rand() < 0.08;
+    let stars = o.stars, ceiling = o.ceiling, gap = 10 + rand() * 12;
+    if (genLevel && !lateBloomer) {
+      if (!stars) stars = +weighted(genLevel === 2 ? { 5: 70, 4: 25, 3: 5 } : { 5: 40, 4: 35, 3: 25 });
+      if (ceiling == null) ceiling = (genLevel === 2 ? 86 : 82) + (genLevel === 2 ? 12 : 12) * Math.pow(rand(), 1.9);
+      gap = 6 + rand() * 7;
+    } else if (lateBloomer) {
+      if (!stars) stars = +weighted({ 1: 50, 2: 50 });
+      if (ceiling == null) ceiling = 88 + 8 * rand();
+      gap = 20 + rand() * 6;
+    }
+    if (!stars) stars = +weighted(STAR_ODDS);
+    if (ceiling == null) ceiling = NBA.rollCeiling(stars, o.arch);
+    const p = NBA.makePlayer({ id: 'user', name: o.name || 'Rookie', pos: o.pos, arch: o.arch, sec: o.sec && o.sec !== o.arch ? o.sec : null, home: o.home, ceiling, age: 18, stars, gap });
     const L = NBA.newLeague(2025);
     for (let i = 0; i < 3; i++) NBA.runYear(L);
     const st = {
