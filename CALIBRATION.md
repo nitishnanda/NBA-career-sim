@@ -183,3 +183,8 @@ Points noise was too tight (sd/mean 0.234 vs real 0.333, 40+/50+ games 3-8x too 
 Class year at declaration, by recruit rank: top 5 → 90% Fr; 6-10 → 54% Fr / 25% So; 11-25 → 36/28/18/19 (Fr/So/Jr/Sr); 26-50 → 15% Fr, 38% Sr; 51-100 → 5% Fr, 58% Sr. All prospects: Fr 17%, So 16%, Jr 19%, Sr 48%.
 The sim's draft-class age mix (19:46% 20:26% 21:16% 22:12%) is a mix of all draftees; it is young-heavy vs this table, but the table includes late/undrafted seniors, so it was left unchanged.
 Playoff runs: planned "legend" runs cut (70/27/3 → 88/12 for dominators); remaining 10/10/10 runs (26 per 1,668 star postseasons) track the sim's TD-average regular seasons, which the elite-only test sample inflates.
+
+## Using the prospect data (applied)
+- **Age at draft** now follows recruit tier: each class's college prospects are ranked by ceiling and mapped to the real RSCI tiers (top-5 → 90% freshmen … unranked → 75% seniors); 26% of each class are international/pro-pathway prospects with a young skew. Class quality is unchanged within noise (All-Stars per class 4.6 vs real 5.3; 3+ 3.4 vs 2.7).
+- **College lines** (`scripts/college-check.js`): real freshmen drafted from the top-5 recruits average 14.3 pts / 6.3 reb / 2.2 ast in 28 mpg (all freshmen 13.1 / 5.6 / 2.1). The sim's 5★ freshman was 10.0 / 7.2 / 1.8 in 27.7; after raising star-scaled minutes/usage and lowering the college rebound multiplier it is 12.9 / 6.9 / 2.1 in 29.6. 1-3★ lines are left low on purpose (most of them never get drafted, so the real file has no comparison).
+- Still unavailable: real star-rating odds (needs the cbbd API key via hoopR; no R in this environment).

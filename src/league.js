@@ -359,8 +359,8 @@
     return first.concat(second);
   }
 
-  function makeProspect(L, age) {
-    const ceiling = rollCeiling(0, null);
+  function makeProspect(L, age, ceil0) {
+    const ceiling = ceil0 != null ? ceil0 : rollCeiling(0, null);
     const arch = randomArch(ceiling);
     const p = makePlayer({ id: L.nextId++, pos: randomPos(arch), arch, sec: rand() < 0.14 ? 'scorer' : null, ceiling, age: 18, gap: 10 + rand() * 12 });
     if (p.sec === p.arch) p.sec = null;
@@ -375,13 +375,21 @@
   function projectStock(p) { // deterministic version for mock draft
     return 0.5 * ovr(p) + 0.5 * p.ceiling - 1.4 * (p.age - 19);
   }
+  // Age at draft by recruit tier (real 2009-24 college prospects, data/real-draft-prospects.csv): share of class, then % Fr/So/Jr/Sr
+  const RECRUIT_TIERS = [[0.052, [90, 9, 1, 0]], [0.055, [54, 25, 12, 8]], [0.126, [36, 28, 18, 19]], [0.155, [15, 21, 26, 38]], [0.159, [5, 17, 20, 58]], [0.296, [2, 13, 21, 63]], [0.158, [5, 6, 14, 75]]];
   function draftClass(L, n) {
     const out = [];
-    for (let i = 0; i < n; i++) {
-      const age = weighted({ 19: 46, 20: 26, 21: 16, 22: 12 });
-      const p = makeProspect(L, +age);
-      p.stock = stockOf(p);
-      out.push(p);
+    const nInt = Math.round(n * 0.26), nCol = n - nInt; // internationals / pro-pathway prospects skew young and are not in the college table
+    const ceils = []; for (let i = 0; i < nCol; i++) ceils.push(rollCeiling(0, null));
+    ceils.sort((a, b) => b - a);
+    ceils.forEach((c, i) => {
+      const q = (i + 0.5) / nCol; let acc = 0, tier = RECRUIT_TIERS[RECRUIT_TIERS.length - 1];
+      for (const t of RECRUIT_TIERS) { acc += t[0]; if (q <= acc / 1.0) { tier = t; break; } }
+      const yr = +weighted({ 0: tier[1][0], 1: tier[1][1], 2: tier[1][2], 3: tier[1][3] });
+      const p = makeProspect(L, 19 + yr, c); p.stock = stockOf(p); out.push(p);
+    });
+    for (let i = 0; i < nInt; i++) {
+      const p = makeProspect(L, +weighted({ 19: 45, 20: 30, 21: 18, 22: 7 })); p.stock = stockOf(p); out.push(p);
     }
     return out;
   }

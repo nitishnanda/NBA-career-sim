@@ -88,8 +88,8 @@
     const yr = st.collegeYears.length + 1;
     const o = ovr(p);
     const oEff = o + 5.5 + (5 - c.prestige) * 1.1;
-    const minsFixed = clamp(Math.round(19 + 0.85 * (oEff - 64) + ({ 1: 0, 2: 1, 3: 2.5, 4: 4.5, 5: 6.5 }[st.stars] || 0)), 16, 35);
-    const e = expLine(p, { pace: 81.6, minsFixed, usgMult: 1.03 + 0.02 * (5 - c.prestige) + (c.home ? 0.01 : 0), tsAdj: -0.012 + 0.003 * (oEff - 70) / 5, rebMult: 1.08, astMult: 1.05, coTax: 0 });
+    const minsFixed = clamp(Math.round(19 + 0.85 * (oEff - 64) + ({ 1: 0, 2: 1.5, 3: 3.5, 4: 6.5, 5: 9 }[st.stars] || 0)), 16, 35);
+    const e = expLine(p, { pace: 81.6, minsFixed, usgMult: 1.03 + ({ 1: 0, 2: 0.04, 3: 0.1, 4: 0.19, 5: 0.27 }[st.stars] || 0) + 0.02 * (5 - c.prestige) + (c.home ? 0.01 : 0), tsAdj: -0.012 + 0.003 * (oEff - 70) / 5, rebMult: 0.97, astMult: 1.05, coTax: 0 });
     const av = rollAvail(p, { noRest: true });
     const gp = clamp(34 - Math.round(av.miss * 0.35), 12, 36);
     const m = { pts: e.pts * (1 + 0.04 * randn()), reb: e.reb, ast: e.ast, stl: e.stl * 1.1, blk: e.blk * 1.1, tov: e.tov, mins: e.mins };
