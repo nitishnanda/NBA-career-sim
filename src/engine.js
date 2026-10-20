@@ -42,7 +42,7 @@
     usgBase: 0.195, usgPerSS: 0.0045, usgConvex: 0.00012,
     tsBase: 0.385, tsPerSkill: 0.0025, tsEra: 0.012, usgTax: 0.22,
     minsBase: 12, minsPerOvr: 0.95, minsCap: 36.5,
-    declineScale: 1.6,
+    declineScale: 1.15,
     ceilA: 55, ceilLambda: 13.1, ceilK: 1.51,
     winsPerPt: 0.62, winsCoreAvg: 48, ovrStretch: 1.3,
   };
@@ -106,20 +106,29 @@
   }
 
   function rollTdPlan(p) {
-    const tbl = (arch, sec) => {
-      if (arch === 'dominator') return { 0: 5, 1: 28, 2: 27, 3: 20, 4: 12, 5: 8 };
-      if (sec === 'dominator') return { 0: 60, 1: 28, 2: 12 };
-      if (arch === 'generational') return { 0: 78, 1: 18, 2: 4 };
-      return { 0: 100 };
-    };
-    p.tdPlan = +weighted(tbl(p.arch, p.sec));
+    const dom = p.arch === 'dominator', sdom = p.sec === 'dominator', gen = p.arch === 'generational';
+    // Triple-double seasons follow the Westbrook/Jokic shape: no early hints, then one contiguous
+    // window starting in the late 20s.
+    p.tdPlan = +weighted(dom ? { 1: 28, 2: 25, 3: 20, 4: 15, 5: 12 } : sdom ? (gen ? { 0: 20, 1: 35, 2: 25, 3: 20 } : { 0: 35, 1: 35, 2: 20, 3: 10 }) : gen ? { 0: 80, 1: 15, 2: 5 } : { 0: 100 });
+    p.tdStart = 26 + +weighted({ 0: 12, 1: 22, 2: 28, 3: 24, 4: 14 });
     p.td30Plan = p.tdPlan > 0 ? Math.min(p.tdPlan, rand() < 0.45 ? 2 : 1) : 0;
+    const win = []; for (let i = 0; i < p.tdPlan; i++) win.push(p.tdStart + i);
+    p.td30Ages = win.slice().sort(() => rand() - 0.5).slice(0, p.td30Plan);
     p.tdUsed = 0; p.td30Used = 0;
-    p.heaterPlan = (p.arch === 'dominator' || p.arch === 'generational' || p.sec === 'dominator') ? (rand() < 0.3 ? 0 : rand() < 0.55 ? 1 : 2) : (rand() < 0.65 ? 0 : 1);
+    p.heaterPlan = (dom || gen || sdom) ? (rand() < 0.3 ? 0 : rand() < 0.55 ? 1 : 2) : (rand() < 0.65 ? 0 : 1);
     p.heatersUsed = 0;
-    p.legendPlan = +weighted(p.arch === 'dominator' ? { 0: 25, 1: 45, 2: 30 } : p.sec === 'dominator' ? { 0: 70, 1: 25, 2: 5 } : p.arch === 'generational' ? { 0: 85, 1: 15 } : { 0: 100 });
+    p.legendPlan = +weighted(dom ? { 0: 25, 1: 45, 2: 30 } : sdom ? { 0: 70, 1: 25, 2: 5 } : gen ? { 0: 85, 1: 15 } : { 0: 100 });
     p.legendUsed = 0;
-    p.hist35 = false;
+    // one big scoring year (32-33 ppg) is common for elite scorers; a 34-36 ppg year is rare
+    const tier = { scorer: [0.88, 0.15], shooter: [0.7, 0.13], generational: [0.5, 0.06], dominator: [0.25, 0.03], twoway: [0.3, 0.02] }[p.arch] || [0, 0];
+    p.tier32 = rand() < tier[0]; p.tier34 = rand() < tier[1];
+    p.tier32Done = false; p.tier34Done = false;
+    // consistent scorers carry one or two real injury seasons
+    p.injYears = [];
+    if (p.arch === 'scorer') {
+      const n = +weighted({ 1: 35, 2: 45, 3: 20 });
+      while (p.injYears.length < n) { const ag = rint(24, 34); if (!p.injYears.includes(ag)) p.injYears.push(ag); }
+    }
   }
 
   function nameGen() { return pick(D.FIRST) + ' ' + pick(D.LAST); }
@@ -188,6 +197,7 @@
     const next = p.age + 1;
     const wk = 0.88 + 0.24 * p.work;
     const shock = randn() * (next <= 22 ? 1.9 : next <= 26 ? 1.1 : 0.7);
+    const before = ovrOf(p);
     ATTRS.forEach((a) => {
       let cur = p.attrs[a];
       const rate = growthRate(next) * wk;
@@ -196,6 +206,13 @@
       cur -= declineFor(a, next, p) * (0.85 + rand() * 0.3);
       p.attrs[a] = clamp(cur, 8, 99);
     });
+    // young players do not lose rating through noise alone; small dips only appear in the mid/late 20s
+    const gain = ovrOf(p) - before;
+    const floor = next <= 23 ? 0.3 : next <= 25 ? 0.1 : next <= 27 ? -0.3 : null;
+    if (floor != null && gain < floor) {
+      const add = (floor - gain) / T.ovrStretch;
+      ATTRS.forEach((a) => (p.attrs[a] = clamp(p.attrs[a] + add, 8, 99)));
+    }
     p.age = next;
   }
 
@@ -208,7 +225,7 @@
     ATTRS.forEach((a) => {
       const pts = alloc[a] || 0;
       if (!pts) return;
-      let eff = pts * (0.85 + 0.3 * p.work);
+      let eff = pts * (0.85 + 0.3 * p.work) * 0.7;
       if (p.attrs[a] > 92) eff *= 0.35; else if (p.attrs[a] > 85) eff *= 0.6;
       if (p.age >= 31) eff *= 0.8;
       p.attrs[a] = clamp(p.attrs[a] + eff, 8, 99);

@@ -97,7 +97,7 @@ main { padding-left: 0; padding-right: 0; }
       comps: 'Karl Malone · Durant · Kobe',
       boost: { inside: 14, mid: 22, three: 12, ft: 16, handling: 12, passing: -2, iq: 10, reb: 0, perD: -6, rimP: -4, ath: 8, dur: 12 },
       weights: { inside: .14, mid: .17, three: .13, ft: .09, handling: .1, passing: .03, iq: .1, reb: .03, perD: .03, rimP: .01, ath: .11, dur: .06 },
-      usg: 0.02, ts: 0.004, declineMult: 0.85, ceilingBonus: 0,
+      usg: 0.012, ts: 0.004, declineMult: 1.0, ceilingBonus: 0, injury: 1.35,
     },
     twoway: {
       name: 'Two-Way Demon', icon: '🔒',
@@ -219,7 +219,7 @@ main { padding-left: 0; padding-right: 0; }
     usgBase: 0.195, usgPerSS: 0.0045, usgConvex: 0.00012,
     tsBase: 0.385, tsPerSkill: 0.0025, tsEra: 0.012, usgTax: 0.22,
     minsBase: 12, minsPerOvr: 0.95, minsCap: 36.5,
-    declineScale: 1.6,
+    declineScale: 1.15,
     ceilA: 55, ceilLambda: 13.1, ceilK: 1.51,
     winsPerPt: 0.62, winsCoreAvg: 48, ovrStretch: 1.3,
   };
@@ -283,20 +283,29 @@ main { padding-left: 0; padding-right: 0; }
   }
 
   function rollTdPlan(p) {
-    const tbl = (arch, sec) => {
-      if (arch === 'dominator') return { 0: 5, 1: 28, 2: 27, 3: 20, 4: 12, 5: 8 };
-      if (sec === 'dominator') return { 0: 60, 1: 28, 2: 12 };
-      if (arch === 'generational') return { 0: 78, 1: 18, 2: 4 };
-      return { 0: 100 };
-    };
-    p.tdPlan = +weighted(tbl(p.arch, p.sec));
+    const dom = p.arch === 'dominator', sdom = p.sec === 'dominator', gen = p.arch === 'generational';
+    // Triple-double seasons follow the Westbrook/Jokic shape: no early hints, then one contiguous
+    // window starting in the late 20s.
+    p.tdPlan = +weighted(dom ? { 1: 28, 2: 25, 3: 20, 4: 15, 5: 12 } : sdom ? (gen ? { 0: 20, 1: 35, 2: 25, 3: 20 } : { 0: 35, 1: 35, 2: 20, 3: 10 }) : gen ? { 0: 80, 1: 15, 2: 5 } : { 0: 100 });
+    p.tdStart = 26 + +weighted({ 0: 12, 1: 22, 2: 28, 3: 24, 4: 14 });
     p.td30Plan = p.tdPlan > 0 ? Math.min(p.tdPlan, rand() < 0.45 ? 2 : 1) : 0;
+    const win = []; for (let i = 0; i < p.tdPlan; i++) win.push(p.tdStart + i);
+    p.td30Ages = win.slice().sort(() => rand() - 0.5).slice(0, p.td30Plan);
     p.tdUsed = 0; p.td30Used = 0;
-    p.heaterPlan = (p.arch === 'dominator' || p.arch === 'generational' || p.sec === 'dominator') ? (rand() < 0.3 ? 0 : rand() < 0.55 ? 1 : 2) : (rand() < 0.65 ? 0 : 1);
+    p.heaterPlan = (dom || gen || sdom) ? (rand() < 0.3 ? 0 : rand() < 0.55 ? 1 : 2) : (rand() < 0.65 ? 0 : 1);
     p.heatersUsed = 0;
-    p.legendPlan = +weighted(p.arch === 'dominator' ? { 0: 25, 1: 45, 2: 30 } : p.sec === 'dominator' ? { 0: 70, 1: 25, 2: 5 } : p.arch === 'generational' ? { 0: 85, 1: 15 } : { 0: 100 });
+    p.legendPlan = +weighted(dom ? { 0: 25, 1: 45, 2: 30 } : sdom ? { 0: 70, 1: 25, 2: 5 } : gen ? { 0: 85, 1: 15 } : { 0: 100 });
     p.legendUsed = 0;
-    p.hist35 = false;
+    // one big scoring year (32-33 ppg) is common for elite scorers; a 34-36 ppg year is rare
+    const tier = { scorer: [0.88, 0.15], shooter: [0.7, 0.13], generational: [0.5, 0.06], dominator: [0.25, 0.03], twoway: [0.3, 0.02] }[p.arch] || [0, 0];
+    p.tier32 = rand() < tier[0]; p.tier34 = rand() < tier[1];
+    p.tier32Done = false; p.tier34Done = false;
+    // consistent scorers carry one or two real injury seasons
+    p.injYears = [];
+    if (p.arch === 'scorer') {
+      const n = +weighted({ 1: 35, 2: 45, 3: 20 });
+      while (p.injYears.length < n) { const ag = rint(24, 34); if (!p.injYears.includes(ag)) p.injYears.push(ag); }
+    }
   }
 
   function nameGen() { return pick(D.FIRST) + ' ' + pick(D.LAST); }
@@ -365,6 +374,7 @@ main { padding-left: 0; padding-right: 0; }
     const next = p.age + 1;
     const wk = 0.88 + 0.24 * p.work;
     const shock = randn() * (next <= 22 ? 1.9 : next <= 26 ? 1.1 : 0.7);
+    const before = ovrOf(p);
     ATTRS.forEach((a) => {
       let cur = p.attrs[a];
       const rate = growthRate(next) * wk;
@@ -373,6 +383,13 @@ main { padding-left: 0; padding-right: 0; }
       cur -= declineFor(a, next, p) * (0.85 + rand() * 0.3);
       p.attrs[a] = clamp(cur, 8, 99);
     });
+    // young players do not lose rating through noise alone; small dips only appear in the mid/late 20s
+    const gain = ovrOf(p) - before;
+    const floor = next <= 23 ? 0.3 : next <= 25 ? 0.1 : next <= 27 ? -0.3 : null;
+    if (floor != null && gain < floor) {
+      const add = (floor - gain) / T.ovrStretch;
+      ATTRS.forEach((a) => (p.attrs[a] = clamp(p.attrs[a] + add, 8, 99)));
+    }
     p.age = next;
   }
 
@@ -385,7 +402,7 @@ main { padding-left: 0; padding-right: 0; }
     ATTRS.forEach((a) => {
       const pts = alloc[a] || 0;
       if (!pts) return;
-      let eff = pts * (0.85 + 0.3 * p.work);
+      let eff = pts * (0.85 + 0.3 * p.work) * 0.7;
       if (p.attrs[a] > 92) eff *= 0.35; else if (p.attrs[a] > 85) eff *= 0.6;
       if (p.age >= 31) eff *= 0.8;
       p.attrs[a] = clamp(p.attrs[a] + eff, 8, 99);
@@ -524,16 +541,20 @@ main { padding-left: 0; padding-right: 0; }
       const d = clamp(Math.round(Math.exp(1.6 + 0.9 * randn())), 1, 40);
       miss += d; list.push(d);
     }
-    let major = null;
+    let major = null, notable = null;
     const mp = 0.012 * p.prone * (A.injury || 1) * (1 + Math.max(0, p.age - 26) * 0.05) * (1 + clamp((p.target.ath - 70) / 60, 0, 0.5));
     if (rand() < mp) {
       major = pick(['torn ACL', 'torn Achilles', 'fractured foot', 'torn meniscus', 'ruptured patellar tendon']);
       miss = rint(48, 82);
     }
+    if (!major && (p.injYears || []).includes(p.age)) {
+      notable = pick(['stress fracture', 'high ankle sprain', 'torn labrum', 'sports hernia', 'knee sprain', 'broken hand']);
+      miss = Math.max(miss, rint(34, 70));
+    }
     const o = ovr(p);
     let rest = o >= 74 ? (p.age >= 30 ? rint(3, 7) : rint(0, 4)) : rint(0, 2);
     if (opts.noRest) rest = 0;
-    return { gp: clamp(82 - miss - rest - (opts.extraMiss || 0), 0, 82), miss, rest, injuries: list, major };
+    return { gp: clamp(82 - miss - rest - (opts.extraMiss || 0), 0, 82), miss, rest, injuries: list, major, notable };
   }
   function applyMajorInjury(p) {
     p.attrs.ath = clamp(p.attrs.ath - (3 + rand() * 4), 8, 99);
@@ -560,12 +581,13 @@ main { padding-left: 0; padding-right: 0; }
     }
   }
 
-  function newLeague(startYear) {
+  function newLeague(startYear, opts) {
     const L = {
       year: startYear || 2025, nextId: 1, players: {}, rookies: [], history: [], lines: {},
       teams: D.TEAMS.map((t) => Object.assign({}, t, { core: [], depth: randn() * 2.2, wins: 41, losses: 41, pace: 99 })),
       capBase: 154.6, lastLeaders: null,
     };
+    if (opts && opts.real && NBA.real) { buildReal(L); return L; }
     const cand = [];
     for (let i = 0; i < 560; i++) {
       const r = rand();
@@ -580,8 +602,35 @@ main { padding-left: 0; padding-right: 0; }
     });
     return L;
   }
-  L_proto();
-  function L_proto() {}
+
+  // put a real player on the scale: aim for the target overall, with a ceiling above it for the young
+  function makeReal(L, row, teamId, ceilOverride) {
+    const [name, pos, age, goal, arch, sec] = row;
+    const growth = age <= 20 ? 9 : age <= 22 ? 6 : age <= 24 ? 3.5 : age <= 27 ? 1.5 : 0.5;
+    const ceiling = clamp(ceilOverride != null ? ceilOverride : goal + growth, 55, 99);
+    const p = makePlayer({ id: L.nextId++, name, pos, arch, sec: sec && sec !== arch ? sec : null, ceiling, age, gap: Math.max(0, ceiling - goal) });
+    for (let i = 0; i < 4; i++) {
+      const d = (goal - ovr(p)) / T.ovrStretch;
+      ATTRS.forEach((a) => (p.attrs[a] = clamp(p.attrs[a] + d, 8, 99)));
+    }
+    p.yearsPro = Math.max(0, age - 19); p.teamId = teamId; p.real = true;
+    return p;
+  }
+  function buildReal(L) {
+    const R = NBA.real;
+    L.teams.forEach((t) => {
+      (R.TEAMS[t.nick] || []).forEach((row) => { const p = makeReal(L, row, t.id); L.players[p.id] = p; t.core.push(p.id); });
+      if (R.WINS[t.nick] != null) t.prevWins = R.WINS[t.nick];
+      fillCore(L, t);
+    });
+    R.ROOKIES.forEach((r) => {
+      const t = L.teams.find((x) => x.nick === r[1]);
+      if (!t) return;
+      const p = makeReal(L, [r[0], r[2], r[3], r[4], r[6], r[7]], t.id, r[5]);
+      p.yearsPro = 0; p.rookie = true; p.draftSlot = r[8];
+      L.players[p.id] = p;
+    });
+  }
 
   // ------------------------------------------------------------ helpers
   function teamRoster(L, t, user) {
@@ -686,7 +735,9 @@ main { padding-left: 0; padding-right: 0; }
       const vals = roster.map((p) => {
         const gp = p === (user && user.p) ? user.avail.gp : avail[p.id].gp;
         const x = ovr(p) - 60;
-        return (x <= 20 ? x : 20 + (x - 20) * 0.72) * (gp / 82);
+        // young players have a smaller impact on winning than their rating suggests
+        const expF = 0.55 + 0.15 * Math.min(3, p.yearsPro || 0);
+        return (x <= 20 ? x : 20 + (x - 20) * 0.72) * (gp / 82) * expF;
       }).sort((x, y) => y - x).slice(0, 4);
       t.S = sum(vals);
       t.pace = 99 + randn() * 1.4;
@@ -696,9 +747,11 @@ main { padding-left: 0; padding-right: 0; }
       t.depth = 0.55 * t.depth + randn() * 2.0;
       t.wins = 41 + T.winsPerPt * (t.S - meanS) + t.depth + randn() * 4.0;
     });
+    // roster continuity: a team does not flip from the lottery to the top seed in one summer
+    L.teams.forEach((t) => { t.wins = 0.7 * t.wins + 0.3 * (t.prevWins == null ? 41 : t.prevWins); });
     const mw = sum(L.teams.map((t) => t.wins)) / L.teams.length;
     L.teams.forEach((t) => { t.wins = clamp(Math.round(t.wins - (mw - 41)), 12, 70); t.losses = 82 - t.wins; });
-    L.teams.forEach((t) => { t.power = (t.wins - 41) / 2.7 + randn() * 0.8; });
+    L.teams.forEach((t) => { t.power = (t.wins - 41) / 2.7 + randn() * 0.8; t.prevWins = t.wins; });
 
     // user line (needs team context)
     if (user) {
@@ -728,11 +781,11 @@ main { padding-left: 0; padding-right: 0; }
 
     // awards
     const q65 = entries.filter((e) => e.l.gp >= 65);
-    const byMVP = q65.map((e) => ({ e, s: e.l.perf + 0.5 * e.l.pts + 0.35 * (e.l.wins - 41) + randn() * 6 - (e.p.mvpRecent || 0), ok: e.l.wins >= 36 })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
+    const byMVP = q65.map((e) => ({ e, s: e.l.perf + 1.0 * e.l.pts + 0.35 * (e.l.wins - 41) + randn() * 6 - (e.p.mvpRecent || 0), ok: e.l.wins >= 36 })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
     const dpoy = q65.map((e) => ({ e, s: defScore(e.p, e.l) + 0.12 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s);
     const roy = entries.filter((e) => e.p.rookie && e.l.gp >= 50).map((e) => ({ e, s: e.l.perf + 0.1 * (e.l.wins - 41) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
     const mip = q65.filter((e) => !e.p.rookie && e.p.prevPerf != null && e.p.age <= 28).map((e) => ({ e, s: (e.l.perf - e.p.prevPerf) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
-    const allNBA = q65.map((e) => ({ e, s: e.l.perf + 0.4 * e.l.pts + 0.15 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s).slice(0, 15);
+    const allNBA = q65.map((e) => ({ e, s: e.l.perf + 0.8 * e.l.pts + 0.15 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s).slice(0, 15);
     const allDef = dpoy.slice(0, 10);
     const stars = entries.filter((e) => e.l.gp >= 40).map((e) => ({ e, s: e.l.perf + randn() * 3 })).sort((a, b) => b.s - a.s).slice(0, 24);
     const qual = entries.filter((e) => e.l.gp >= 58);
@@ -766,11 +819,15 @@ main { padding-left: 0; padding-right: 0; }
     return res;
   }
 
-  // finals MVP: user entry optional {perf}
-  function finalsMVP(L, teamId, userPerf) {
+  // Finals MVP: best Finals line on the winning team. `user` is {pts, reb, ast} from the Finals series.
+  const finalsScore = (pts, reb, ast) => 1.9 * pts + 1.15 * reb + 1.5 * ast;
+  function finalsMVP(L, teamId, user) {
     const t = L.teams[teamId];
-    const cands = t.core.map((id) => ({ name: L.players[id].name, s: (L.lines[id] ? L.lines[id].perf : 20) * (1 + 0.12 * randn()) + ovr(L.players[id]) * 0.1 }));
-    if (userPerf != null) cands.push({ name: 'user', s: userPerf * 1.04 + 8 + 0.08 * randn() });
+    const cands = t.core.map((id) => {
+      const l = L.lines[id];
+      return { name: L.players[id].name, s: (l ? finalsScore(l.pts, l.reb, l.ast) : 30) * (1 + 0.07 * randn()) };
+    });
+    if (user) cands.push({ name: 'user', s: finalsScore(user.pts, user.reb, user.ast) * (1 + 0.03 * randn()) });
     cands.sort((a, b) => b.s - a.s);
     return cands[0].name;
   }
@@ -951,7 +1008,76 @@ main { padding-left: 0; padding-right: 0; }
 
 (function (g) {
   'use strict';
+  // Real league snapshot for the start of the 2026-27 season (20 Oct 2026).
+  // Built from preseason roster/lineup reporting; ratings are our own estimates on the game's 0-99 scale.
+  // Row: [name, pos, age, overall, archetype, secondary]
+  const TEAMS = {
+    Hawks: [['Jalen Johnson', 'PF', 24, 86, 'dominator'], ['Nickeil Alexander-Walker', 'SG', 28, 78, 'shooter'], ['Dyson Daniels', 'SG', 23, 78, 'twoway'], ['CJ McCollum', 'SG', 35, 77, 'scorer']],
+    Celtics: [['Jayson Tatum', 'SF', 28, 91, 'scorer', 'twoway'], ['Derrick White', 'SG', 32, 80, 'twoway'], ['Paul George', 'SF', 36, 80, 'scorer'], ['Payton Pritchard', 'PG', 28, 77, 'shooter']],
+    Nets: [['Michael Porter Jr.', 'SF', 28, 81, 'scorer'], ['Julius Randle', 'PF', 31, 80, 'scorer'], ['Egor Demin', 'PG', 21, 72, 'shooter'], ['Nolan Traore', 'PG', 20, 70, 'dominator']],
+    Hornets: [['Brandon Miller', 'SF', 24, 80, 'scorer'], ['Kon Knueppel', 'SG', 21, 79, 'shooter'], ['Coby White', 'PG', 26, 77, 'scorer'], ['Naz Reid', 'PF', 27, 77, 'shooter']],
+    Bulls: [['Josh Giddey', 'PG', 24, 79, 'dominator'], ['Norman Powell', 'SG', 33, 78, 'scorer'], ['Matas Buzelis', 'SF', 22, 76, 'twoway'], ['Nic Claxton', 'C', 27, 74, 'defender']],
+    Cavaliers: [['Donovan Mitchell', 'SG', 30, 88, 'scorer'], ['Evan Mobley', 'PF', 25, 87, 'twoway', 'defender'], ['James Harden', 'SG', 37, 83, 'dominator'], ['Jarrett Allen', 'C', 28, 80, 'defender']],
+    Pistons: [['Cade Cunningham', 'PG', 25, 91, 'dominator'], ['Jalen Duren', 'C', 22, 80, 'defender'], ['Ausar Thompson', 'SF', 23, 79, 'twoway'], ['John Collins', 'PF', 29, 74, 'scorer']],
+    Pacers: [['Tyrese Haliburton', 'PG', 26, 87, 'dominator'], ['Pascal Siakam', 'PF', 32, 81, 'scorer'], ['Ivica Zubac', 'C', 29, 78, 'defender'], ['Andrew Nembhard', 'PG', 27, 77, 'twoway']],
+    Heat: [['Giannis Antetokounmpo', 'PF', 31, 94, 'twoway', 'generational'], ['Bam Adebayo', 'C', 29, 85, 'twoway'], ['Bobby Portis', 'PF', 31, 74, 'scorer'], ['Klay Thompson', 'SG', 36, 72, 'shooter']],
+    Bucks: [['Tyler Herro', 'SG', 26, 80, 'scorer'], ['Myles Turner', 'C', 30, 76, 'shooter'], ['Kyle Kuzma', 'PF', 31, 72, 'scorer'], ['Jaime Jaquez Jr.', 'SF', 25, 73, 'scorer']],
+    Knicks: [['Jalen Brunson', 'PG', 30, 90, 'scorer'], ['Karl-Anthony Towns', 'C', 31, 86, 'shooter'], ['OG Anunoby', 'SF', 29, 82, 'twoway'], ['Mikal Bridges', 'SF', 30, 80, 'twoway']],
+    Magic: [['Paolo Banchero', 'PF', 24, 86, 'scorer'], ['Franz Wagner', 'SF', 25, 83, 'scorer'], ['Desmond Bane', 'SG', 28, 81, 'shooter'], ['Jalen Suggs', 'PG', 25, 77, 'twoway']],
+    '76ers': [['Joel Embiid', 'C', 32, 90, 'scorer'], ['Jaylen Brown', 'SF', 30, 89, 'twoway', 'scorer'], ['Tyrese Maxey', 'PG', 26, 88, 'scorer'], ['LeBron James', 'PF', 41, 82, 'generational', 'dominator'], ['VJ Edgecombe', 'SG', 21, 80, 'twoway']],
+    Raptors: [['Kawhi Leonard', 'SF', 35, 85, 'twoway'], ['Scottie Barnes', 'PF', 25, 85, 'dominator', 'twoway'], ['Immanuel Quickley', 'PG', 27, 80, 'shooter'], ['RJ Barrett', 'SF', 26, 77, 'scorer']],
+    Wizards: [['Trae Young', 'PG', 28, 80, 'dominator'], ['Anthony Davis', 'PF', 33, 80, 'defender'], ['Alex Sarr', 'C', 21, 76, 'defender'], ['Kyshawn George', 'SF', 22, 72, 'shooter']],
+    Mavericks: [['Kyrie Irving', 'PG', 34, 84, 'shooter'], ['Cooper Flagg', 'SF', 19, 82, 'twoway', 'generational'], ['P.J. Washington', 'PF', 28, 74, 'twoway'], ['Daniel Gafford', 'C', 28, 73, 'defender']],
+    Nuggets: [['Nikola Jokic', 'C', 31, 96, 'dominator', 'generational'], ['Jamal Murray', 'PG', 29, 85, 'scorer'], ['Aaron Gordon', 'PF', 31, 79, 'twoway'], ['Cameron Johnson', 'SF', 30, 75, 'shooter']],
+    Warriors: [['Stephen Curry', 'PG', 38, 88, 'shooter'], ['Jimmy Butler', 'SF', 37, 80, 'twoway'], ['Kristaps Porzingis', 'C', 31, 78, 'scorer'], ['Brandin Podziemski', 'SG', 23, 76, 'shooter']],
+    Rockets: [['Kevin Durant', 'SF', 38, 87, 'scorer'], ['Alperen Sengun', 'C', 24, 85, 'dominator'], ['Amen Thompson', 'SF', 23, 84, 'twoway'], ['Jabari Smith Jr.', 'PF', 23, 78, 'shooter']],
+    Clippers: [['Brandon Ingram', 'SF', 29, 82, 'scorer'], ['Darius Garland', 'PG', 26, 80, 'shooter'], ['Brook Lopez', 'C', 38, 73, 'defender'], ['Rui Hachimura', 'PF', 28, 74, 'scorer']],
+    Lakers: [['Luka Doncic', 'PG', 27, 94, 'dominator', 'scorer'], ['Austin Reaves', 'SG', 28, 80, 'scorer'], ['Walker Kessler', 'C', 25, 78, 'defender'], ['Quentin Grimes', 'SG', 26, 74, 'shooter']],
+    Grizzlies: [['Jerami Grant', 'PF', 32, 77, 'scorer'], ['Ty Jerome', 'PG', 29, 76, 'shooter'], ['Zach Edey', 'C', 24, 75, 'defender'], ['Cedric Coward', 'SF', 22, 74, 'twoway']],
+    Timberwolves: [['Anthony Edwards', 'SG', 25, 91, 'scorer', 'twoway'], ['LaMelo Ball', 'PG', 25, 84, 'dominator'], ['Rudy Gobert', 'C', 34, 80, 'defender'], ['Jaden McDaniels', 'SF', 26, 78, 'twoway']],
+    Pelicans: [['Zion Williamson', 'PF', 26, 83, 'scorer'], ['Trey Murphy III', 'SF', 26, 80, 'shooter'], ['Dejounte Murray', 'PG', 30, 76, 'twoway'], ['Derik Queen', 'C', 21, 75, 'dominator']],
+    Thunder: [['Shai Gilgeous-Alexander', 'PG', 28, 95, 'scorer'], ['Jalen Williams', 'SF', 25, 84, 'twoway'], ['Chet Holmgren', 'C', 24, 84, 'defender'], ['Isaiah Hartenstein', 'C', 28, 77, 'defender']],
+    Suns: [['Devin Booker', 'SG', 30, 88, 'scorer'], ['Jalen Green', 'SG', 24, 78, 'scorer'], ['Dillon Brooks', 'SF', 31, 76, 'twoway'], ['Miles Bridges', 'PF', 28, 76, 'scorer']],
+    'Trail Blazers': [['Ja Morant', 'PG', 27, 84, 'dominator'], ['Deni Avdija', 'SF', 25, 82, 'scorer'], ['Shaedon Sharpe', 'SG', 23, 78, 'scorer'], ['Donovan Clingan', 'C', 22, 78, 'defender']],
+    Kings: [['Domantas Sabonis', 'C', 30, 84, 'dominator'], ['Zach LaVine', 'SG', 31, 78, 'scorer'], ['Keegan Murray', 'PF', 26, 77, 'shooter'], ['Malik Monk', 'SG', 28, 76, 'scorer']],
+    Spurs: [['Victor Wembanyama', 'C', 22, 97, 'generational', 'defender'], ["De'Aaron Fox", 'PG', 28, 85, 'scorer'], ['Stephon Castle', 'SG', 21, 80, 'twoway'], ['Dylan Harper', 'PG', 20, 76, 'scorer']],
+    Jazz: [['Lauri Markkanen', 'PF', 29, 84, 'scorer'], ['Jaren Jackson Jr.', 'PF', 27, 82, 'defender'], ['Keyonte George', 'PG', 23, 76, 'shooter'], ['Ace Bailey', 'SF', 20, 74, 'scorer']],
+  };
+
+  // 2026 draft class: [name, team, pos, age, overall, ceiling, archetype, secondary, pick]
+  const ROOKIES = [
+    ['AJ Dybantsa', 'Wizards', 'SF', 19, 74, 95, 'scorer', 'generational', 1],
+    ['Darryn Peterson', 'Jazz', 'SG', 19, 73, 92, 'scorer', '', 2],
+    ['Cameron Boozer', 'Grizzlies', 'PF', 19, 74, 90, 'dominator', '', 3],
+    ['Caleb Wilson', 'Bulls', 'PF', 19, 70, 88, 'twoway', '', 4],
+    ['Keaton Wagler', 'Clippers', 'SG', 19, 69, 86, 'shooter', '', 5],
+    ['Mikel Brown Jr.', 'Nets', 'PG', 19, 68, 85, 'scorer', '', 6],
+    ['Darius Acuff Jr.', 'Kings', 'PG', 19, 68, 85, 'dominator', '', 7],
+    ['Kingston Flemings', 'Hawks', 'PG', 19, 67, 84, 'scorer', '', 8],
+    ['Morez Johnson Jr.', 'Mavericks', 'PF', 20, 66, 80, 'defender', '', 9],
+    ['Brayden Burries', 'Bucks', 'SG', 19, 66, 82, 'scorer', '', 10],
+    ['Yaxel Lendeborg', 'Warriors', 'PF', 23, 69, 76, 'twoway', '', 11],
+    ['Aday Mara', 'Thunder', 'C', 21, 66, 78, 'defender', '', 12],
+    ['Nate Ament', 'Bucks', 'SF', 19, 64, 82, 'scorer', '', 13],
+    ['Hannes Steinbach', 'Hornets', 'C', 20, 64, 78, 'dominator', '', 14],
+    ['Dailyn Swain', 'Bulls', 'SF', 21, 64, 76, 'twoway', '', 15],
+    ['Ebuka Okorie', 'Pistons', 'PG', 20, 62, 76, 'scorer', '', 17],
+    ['Jayden Quaintance', 'Spurs', 'PF', 19, 62, 80, 'defender', '', 20],
+    ['Zuby Ejiofor', 'Hawks', 'PF', 23, 62, 70, 'defender', '', 23],
+    ['Koa Peat', 'Suns', 'PF', 19, 60, 76, 'twoway', '', 30],
+  ];
+
+  // approximate 2025-26 records, used only so year-one win totals have some continuity
+  const WINS = { Spurs: 62, Pistons: 60, Thunder: 60, Knicks: 53, Cavaliers: 52, Magic: 45, Clippers: 42, Warriors: 37, Bucks: 32, Pelicans: 26, Grizzlies: 25, Pacers: 19, Wizards: 17 };
+
+  g.NBA.real = { TEAMS, ROOKIES, WINS, asOf: '2026-10-20' };
+  if (typeof module !== 'undefined') module.exports = g.NBA;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+(function (g) {
+  'use strict';
   const NBA = g.NBA;
+  if (typeof require !== 'undefined') { try { require('./real.js'); } catch (e) { /* browser build loads real.js separately */ } }
   const D = NBA.data;
   const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
   const ATTRS = D.ATTRS;
@@ -960,6 +1086,7 @@ main { padding-left: 0; padding-right: 0; }
   const STAR_ODDS = { 1: 38, 2: 28, 3: 20, 4: 10, 5: 4 };
   const STAR_NAMES = { 1: 'Zero-hype prospect', 2: 'Under-the-radar', 3: 'Solid recruit', 4: 'Blue-chip', 5: 'Five-star phenom' };
   const TD_CAP = 5;
+  const CAPG = 1.015; // salary cap growth per year
 
   // ---------------------------------------------------------------- creation
   function newCareer(o) {
@@ -981,8 +1108,7 @@ main { padding-left: 0; padding-right: 0; }
     if (!stars) stars = +weighted(STAR_ODDS);
     if (ceiling == null) ceiling = NBA.rollCeiling(stars, o.arch);
     const p = NBA.makePlayer({ id: 'user', name: o.name || 'Rookie', pos: o.pos, arch: o.arch, sec: o.sec && o.sec !== o.arch ? o.sec : null, home: o.home, ceiling, age: 18, stars, gap });
-    const L = NBA.newLeague(2025);
-    for (let i = 0; i < 3; i++) NBA.runYear(L);
+    const L = NBA.newLeague(2026, { real: true }); // the real league as of 20 Oct 2026
     const st = {
       v: 1, stage: 'scouting', player: p, league: L, stars,
       college: null, collegeYears: [], proSeasons: [], playoffLines: [],
@@ -1091,9 +1217,9 @@ main { padding-left: 0; padding-right: 0; }
     st.teamId = team.id; p.teamId = team.id;
     const cap = capNow(st.league);
     let sal, yrs;
-    if (slot && slot <= 30) { sal = 13.8 * Math.pow(0.958, slot - 1) * Math.pow(1.045, st.league.year - 2025); yrs = 4; }
-    else if (slot) { sal = Math.max(1.5, 2.3 - (slot - 31) * 0.035) * Math.pow(1.045, st.league.year - 2025); yrs = 3; }
-    else { sal = 1.3 * Math.pow(1.045, st.league.year - 2025); yrs = 2; }
+    if (slot && slot <= 30) { sal = 13.8 * Math.pow(0.958, slot - 1) * Math.pow(CAPG, st.league.year - 2025); yrs = 4; }
+    else if (slot) { sal = Math.max(1.5, 2.3 - (slot - 31) * 0.035) * Math.pow(CAPG, st.league.year - 2025); yrs = 3; }
+    else { sal = 1.3 * Math.pow(CAPG, st.league.year - 2025); yrs = 2; }
     st.contract = { salary: r1(sal), years: yrs, left: yrs, type: 'rookie' };
     st.stage = 'draft_night';
     return st.draft;
@@ -1140,7 +1266,7 @@ main { padding-left: 0; padding-right: 0; }
   }
 
   // ---------------------------------------------------------------- pro season
-  const capNow = (L) => L.capBase * Math.pow(1.045, L.year - 2025);
+  const capNow = (L) => L.capBase * Math.pow(CAPG, L.year - 2025);
 
   function rollEvents(st, p) {
     const fx = { form: 0, extraMiss: 0, minsMult: 1, depth: 0, bonusPts: 0, notes: [] };
@@ -1171,53 +1297,62 @@ main { padding-left: 0; padding-right: 0; }
     const e0 = expLine(p, { coTax: ctx.coTax, pace: ctx.pace, rookie, minsMult: fx.minsMult, minsFloor: rookie ? NBA.rookieFloor(st.draft && st.draft.slot) : 0 });
     const form = 1 + 0.045 * randn() + fx.form;
     const m = { mins: e0.mins, pts: e0.pts * form, reb: e0.reb * (1 + 0.03 * randn()), ast: e0.ast * (1 + 0.03 * randn()), stl: e0.stl * (1 + 0.05 * randn()), blk: e0.blk * (1 + 0.05 * randn()), tov: e0.tov };
-    // pts cap: 35+ only once per career, and rarely
-    let cap = 34.2;
-    if (!p.hist35 && e0.ovr >= 93 && rand() < 0.05) cap = 36.8;
-    m.pts = Math.min(m.pts, cap);
-    const elite = e0.ovr >= 86 && p.age >= 23 && p.age <= 33;
+    const age = p.age, gp = avail.gp;
+    // everyday scoring is soft-capped; big years (32-33, rarely 34-36) come from the career plan
+    const SOFT = 30.2;
+    if (m.pts > SOFT) m.pts = SOFT + (m.pts - SOFT) * 0.25;
+    let tierMode = null;
+    const bigOK = e0.ovr >= 88 && age >= 24 && age <= 32 && gp >= 60;
+
+    // triple-double window: no hints before it, one contiguous run of seasons starting in the late 20s
+    // the window rolls forward (to 34) if injury or form wrecked it before the first triple-double year
+    const inWin = p.tdPlan > 0 && age >= p.tdStart && age <= 34 && (age < p.tdStart + p.tdPlan || p.tdUsed === 0);
+    const preWin = p.tdPlan > 0 && age < p.tdStart;
     let surge = null;
-    const wantTD = p.tdUsed < p.tdPlan && elite && m.pts >= 19 && m.reb >= 6.8 && m.ast >= 6.6 && rand() < 0.5;
-    const wantBig = p.td30Used < p.td30Plan && elite && p.age <= 32 && m.pts >= 25 && m.reb >= 7.5 && m.ast >= 7 && p.tdUsed < TD_CAP && rand() < 0.55;
-    if (wantTD || wantBig) surge = { big: wantBig || (p.td30Used < p.td30Plan && m.pts >= 25.3 && rand() < 0.65) };
-    if (!surge && p.tdUsed >= TD_CAP) { m.ast = Math.min(m.ast, 9.4); m.reb = Math.min(m.reb, 9.4); }
-    if (!surge && m.reb >= 8 && m.ast >= 7) {
-      // keep natural triple-double rates in the real-world 17-27% band
-      if (m.ast > 8.6) m.ast = 8.6 + (m.ast - 8.6) * 0.3;
-      if (m.reb > 10.6) m.reb = 10.6 + (m.reb - 10.6) * 0.35;
+    if (inWin && p.tdUsed < p.tdPlan && e0.ovr >= 82 && m.pts >= 16 && rand() < 0.92) {
+      surge = { big: p.td30Ages.includes(age) && p.td30Used < p.td30Plan && e0.ovr >= 86 && m.pts >= 24.5 };
     }
+    if (surge && surge.big) m.pts = Math.max(m.pts, 30.3 + rand() * 1);
     if (!surge) {
-      // career TD rate guard: once a player is running hot over a long stretch, regress toward the 17-27% band
-      const gpSoFar = sum(st.proSeasons.map((s) => s.gp));
+      if (preWin && m.ast > 7.2) m.ast = 7.2 + (m.ast - 7.2) * 0.25;
+      if (p.tdUsed >= TD_CAP) { m.ast = Math.min(m.ast, 9.4); m.reb = Math.min(m.reb, 9.4); }
+      if (m.reb >= 8 && m.ast >= 7) {
+        // keep natural triple-double rates in the real-world 17-27% band
+        if (m.ast > 8.6) m.ast = 8.6 + (m.ast - 8.6) * 0.3;
+        if (m.reb > 10.6) m.reb = 10.6 + (m.reb - 10.6) * 0.35;
+      }
+      const gpSoFar = sum(st.proSeasons.map((x) => x.gp));
       if (gpSoFar > 200 && st.career.td / gpSoFar > 0.255) { m.reb = Math.min(m.reb, 9.8); m.ast = Math.min(m.ast, 8.2); }
-    }
-    if (surge) {
+      if (bigOK && p.tier34 && !p.tier34Done && m.pts >= 28 && rand() < 0.3) tierMode = { lo: 34.0, hi: 36.6 };
+      else if (bigOK && p.tier32 && !p.tier32Done && m.pts >= 27 && rand() < 0.3) tierMode = { lo: 32.0, hi: 33.9 };
+      if (tierMode) m.pts = Math.max(m.pts, tierMode.lo + 0.3 + rand() * (tierMode.lo >= 34 ? 1.6 : 0.9));
+    } else {
       m.reb = Math.max(m.reb, 10.25 + rand() * 0.9);
       m.ast = Math.max(m.ast, 10.25 + rand() * 0.9);
-      if (surge.big) m.pts = Math.max(m.pts, 30.3 + rand() * 1);
     }
-    const gp = avail.gp;
     let games, s;
-    for (let tries = 0; tries < 14; tries++) {
+    for (let tries = 0; tries < 16; tries++) {
       games = []; for (let i = 0; i < gp; i++) games.push(genGame(m));
       s = summarize(games);
-      if (!surge || gp < 50) break;
-      if (s.pts >= (surge.big ? 30 : 10) && s.reb >= 10 && s.ast >= 10) break;
+      if (gp < 50 || (!surge && !tierMode)) break;
+      if (surge && s.pts >= (surge.big ? 30 : 10) && s.reb >= 10 && s.ast >= 10) break;
+      if (tierMode && s.pts >= tierMode.lo && s.pts <= tierMode.hi) break;
     }
+    if (s.pts >= 34) p.tier34Done = true;
+    if (s.pts >= 32) p.tier32Done = true;
     const used = e0.usg * (s.pts / Math.max(1, e0.pts));
     const tsRaw = clamp(e0.ts * (0.5 + 0.5 * (s.pts / Math.max(1, m.pts))), 0.44, 0.72);
     const sl = shootingLine(p, s.pts, tsRaw, e0.usg);
     const avgTD = gp >= 30 && s.pts >= 10 && s.reb >= 10 && s.ast >= 10;
     if (avgTD) { p.tdUsed++; if (s.pts >= 30) p.td30Used++; }
-    if (s.pts >= 35) p.hist35 = true;
     return Object.assign({ gp, usg: e0.usg, ovr: e0.ovr, fga: sl.fga, fgp: sl.fgp, tpa: sl.tpa, tpp: sl.tpp, ftp: sl.ftp, fta: sl.fta, ts: sl.ts, avgTD, games: games.length }, s, { pts: s.pts, reb: s.reb, ast: s.ast });
   }
 
   function playoffLine(st, ctx, seriesList, base, mode) {
     const p = st.player;
     const mult = { mins: 1.06, pts: 1.06, reb: 1.04, ast: 1.08, stl: 1.05, blk: 1.05, tov: 1.1 };
-    let cap = 33.8, maxAvg = 35.8;
-    if (mode === 'heater') { const h = 1.15 + rand() * 0.07; mult.pts *= h; mult.reb *= 1.08; mult.ast *= 1.12; mult.mins *= 1.03; cap = 35.4; maxAvg = 37.4; }
+    let cap = Math.max(33.8, base.pts + 1), maxAvg = Math.max(35.8, base.pts + 2.5);
+    if (mode === 'heater') { const h = 1.15 + rand() * 0.07; mult.pts *= h; mult.reb *= 1.08; mult.ast *= 1.12; mult.mins *= 1.03; cap = Math.min(37.2, Math.max(35.4, base.pts + 2)); maxAvg = Math.min(38.6, Math.max(37.4, base.pts + 3.5)); }
     if (mode === 'legend') { mult.pts *= 1.22; mult.reb *= 1.15; mult.ast *= 1.2; mult.mins *= 1.04; cap = 37.2; maxAvg = 38.6; }
     const m = { mins: Math.min(base.mins * mult.mins, 43), pts: Math.min(base.pts * mult.pts, cap), reb: base.reb * mult.reb, ast: base.ast * mult.ast, stl: base.stl * mult.stl, blk: base.blk * mult.blk, tov: base.tov * mult.tov };
     if (mode === 'legend') { m.reb = Math.max(m.reb, 10.6); m.ast = Math.max(m.ast, 10.6); m.pts = Math.max(m.pts, 36.2); }
@@ -1295,8 +1430,8 @@ main { padding-left: 0; padding-right: 0; }
     } else if (po.userOut === null) resultText = 'Missed the playoffs';
     if (po.champion.id === st.teamId) {
       st.career.titles++; cnt('Championships'); awardsHere.push('NBA Champion');
-      const pf = pline ? perfOf(Object.assign({}, pline, { tov: pline.tov })) : 0;
-      const who = NBA.finalsMVP(L, st.teamId, pline ? pf : 8);
+      const fin = perSeries.find((x) => x.round === 'NBA Finals');
+      const who = NBA.finalsMVP(L, st.teamId, fin ? { pts: fin.pts, reb: fin.reb, ast: fin.ast } : null);
       if (who === 'user') { cnt('Finals MVP'); awardsHere.push('Finals MVP'); fmvp = true; }
     }
 
@@ -1307,7 +1442,7 @@ main { padding-left: 0; padding-right: 0; }
       fgp: l.fgp, tpp: l.tpp, ftp: l.ftp, ts: l.ts, td: l.td, dd: l.dd, g40: l.g40, g50: l.g50, high: l.high, ovr: Math.round(l.ovr), usg: l.usg,
       avgTD: l.avgTD, totPts: l.totPts, totReb: l.totReb, totAst: l.totAst,
       awards: awardsHere, playoffText: resultText, playoff: pline ? { gp: pline.gp, pts: pline.pts, reb: pline.reb, ast: pline.ast, stl: pline.stl, blk: pline.blk, mins: pline.mins, fgp: pline.fgp, tpp: pline.tpp, ts: pline.ts, td: pline.td, high: pline.high } : null,
-      perSeries, heater, legend, ranks: res.ranks, events: fx.notes, injury: avail.major ? 'Suffered a ' + avail.major + ' and missed ' + avail.miss + ' games.' : avail.miss >= 12 ? 'Missed ' + avail.miss + ' games with injuries.' : null,
+      perSeries, heater, legend, ranks: res.ranks, events: fx.notes, injury: avail.major ? 'Suffered a ' + avail.major + ' and missed ' + avail.miss + ' games.' : avail.notable ? 'Missed ' + avail.miss + ' games with a ' + avail.notable + '.' : avail.miss >= 12 ? 'Missed ' + avail.miss + ' games with injuries.' : null,
       salary: st.contract.salary, mvp: A.mvp ? A.mvp.name + ' (' + r1(A.mvp.pts) + '/' + r1(A.mvp.reb) + '/' + r1(A.mvp.ast) + ')' : '', champion: po.champion.name, league: res.league,
       rookie: p.rookie, leaders: res.leaders,
     };
@@ -1327,7 +1462,7 @@ main { padding-left: 0; padding-right: 0; }
   function marketPct(st) {
     const p = st.player;
     let v = ovr(p) - (p.age >= 33 ? 2 * (p.age - 32) : 0);
-    const raw = 0.015 + Math.pow(clamp((v - 60) / 32, 0, 1.2), 1.5) * 0.35;
+    const raw = (0.015 + Math.pow(clamp((v - 60) / 32, 0, 1.2), 1.5) * 0.35) * 0.8;
     const yrs = p.yearsPro;
     const maxPct = yrs >= 10 ? 0.35 : yrs >= 7 ? 0.3 : 0.25;
     return { pct: Math.min(raw, maxPct), v, maxPct };
@@ -1349,12 +1484,12 @@ main { padding-left: 0; padding-right: 0; }
     if (out.expiring) {
       const own = L.teams[st.teamId];
       const maxYrsOwn = p.age >= 36 ? 1 : p.age >= 33 ? 2 : 5;
-      out.resign = { teamId: own.id, name: own.name, salary: r1(Math.max(2.3 * Math.pow(1.045, L.year - 2025), baseSal * (1.0 + 0.04))), maxYears: maxYrsOwn, role: role(st, own), label: teamLabel(own, own.wins) };
+      out.resign = { teamId: own.id, name: own.name, salary: r1(Math.max(2.3 * Math.pow(CAPG, L.year - 2025), baseSal)), maxYears: maxYrsOwn, role: role(st, own), label: teamLabel(own, own.wins) };
       let offers = [];
       const n = mk.v >= 76 ? 6 : mk.v >= 68 ? 4 : mk.v >= 60 ? 3 : 1;
       const teams = L.teams.filter((t) => t.id !== st.teamId).sort(() => rand() - 0.5).slice(0, n);
       teams.forEach((t) => {
-        const sal = Math.max(2.3 * Math.pow(1.045, L.year - 2025), baseSal * (0.88 + rand() * 0.17) * (t.wins < 33 ? 1.04 : 1));
+        const sal = Math.max(2.3 * Math.pow(CAPG, L.year - 2025), baseSal * (0.88 + rand() * 0.17) * (t.wins < 33 ? 1.04 : 1));
         offers.push({ teamId: t.id, name: t.name, salary: r1(sal), maxYears: p.age >= 36 ? 1 : p.age >= 33 ? 2 : 4, role: role(st, t), label: teamLabel(t, t.wins), wins: t.wins });
       });
       out.offers = offers.sort((a, b) => b.salary - a.salary);
@@ -1696,14 +1831,20 @@ main { padding-left: 0; padding-right: 0; }
   function careerTotals() {
     const ps = S.proSeasons; if (!ps.length) return null;
     const gp = ps.reduce((a, s) => a + s.gp, 0), tot = (k) => ps.reduce((a, s) => a + s[k] * s.gp, 0);
-    return { gp, pts: tot('pts') / gp, reb: tot('reb') / gp, ast: tot('ast') / gp, totPts: Math.round(tot('pts')), totReb: Math.round(tot('reb')), totAst: Math.round(tot('ast')), td: S.career.td };
+    return { gp, pts: tot('pts') / gp, reb: tot('reb') / gp, ast: tot('ast') / gp, totPts: Math.round(tot('pts')), totReb: Math.round(tot('reb')), totAst: Math.round(tot('ast')), totStl: Math.round(tot('stl')), totBlk: Math.round(tot('blk')), td: S.career.td };
+  }
+  function playoffTotals() {
+    const pl = S.playoffLines; if (!pl.length) return null;
+    const gp = pl.reduce((a, s) => a + s.gp, 0), tot = (k) => pl.reduce((a, s) => a + (s[k] || 0) * s.gp, 0);
+    return { gp, pts: tot('pts') / gp, reb: tot('reb') / gp, ast: tot('ast') / gp, stl: tot('stl') / gp, blk: tot('blk') / gp, totPts: Math.round(tot('pts')), totReb: Math.round(tot('reb')), totAst: Math.round(tot('ast')), td: pl.reduce((a, s) => a + (s.td || 0), 0), runs: pl.length };
   }
 
   function careerBody() {
     const ps = S.proSeasons, ct = careerTotals(), aw = S.career.awards;
     const wrap = h('div');
     if (!ct) { wrap.append(h('p', { class: 'muted' }, 'No NBA games yet.'), S.collegeYears.length ? collegeTable() : null); return wrap; }
-    wrap.append(h('div', { class: 'grid stats' }, statBox(f1(ct.pts), 'Career PPG'), statBox(f1(ct.reb), 'Career RPG'), statBox(f1(ct.ast), 'Career APG'), statBox(ct.totPts.toLocaleString(), 'Total points'), statBox(ct.td, 'Triple-doubles (' + (100 * ct.td / ct.gp).toFixed(1) + '% of games)'), statBox(money(S.earnings), 'Career earnings')),
+    wrap.append(h('h3', null, 'Regular season career'), h('div', { class: 'grid stats' }, statBox(f1(ct.pts), 'PPG'), statBox(f1(ct.reb), 'RPG'), statBox(f1(ct.ast), 'APG'), statBox(ct.totPts.toLocaleString(), 'Total points'), statBox(ct.totReb.toLocaleString(), 'Total rebounds'), statBox(ct.totAst.toLocaleString(), 'Total assists'), statBox(ct.totStl.toLocaleString(), 'Total steals'), statBox(ct.totBlk.toLocaleString(), 'Total blocks'), statBox(ct.gp.toLocaleString(), 'Games'), statBox(ct.td, 'Triple-doubles (' + (100 * ct.td / ct.gp).toFixed(1) + '%)'), statBox(money(S.earnings), 'Career earnings')),
+      (() => { const pt = playoffTotals(); return pt ? h('div', null, h('h3', null, 'Playoff career'), h('div', { class: 'grid stats' }, statBox(f1(pt.pts), 'PPG'), statBox(f1(pt.reb), 'RPG'), statBox(f1(pt.ast), 'APG'), statBox(f1(pt.stl), 'SPG'), statBox(f1(pt.blk), 'BPG'), statBox(pt.gp.toLocaleString(), 'Playoff games'), statBox(pt.totPts.toLocaleString(), 'Playoff points'), statBox(pt.totReb.toLocaleString(), 'Playoff rebounds'), statBox(pt.totAst.toLocaleString(), 'Playoff assists'), statBox(S.career.titles || 0, 'Championships'))) : null; })(),
       h('div', { style: 'margin-top:8px' }, Object.keys(aw).map((k) => h('span', { class: 'pill gold' }, aw[k] + '× ' + k))),
       h('p', { class: 'muted small' }, 'Seasons averaging a triple-double: ' + S.career.tdSeasons + (S.career.td30Seasons ? ' (' + S.career.td30Seasons + ' with 30+ ppg)' : '')),
       h('h3', null, 'Regular season'), seasonTable(ps, false));

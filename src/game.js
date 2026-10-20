@@ -1,6 +1,7 @@
 (function (g) {
   'use strict';
   const NBA = g.NBA;
+  if (typeof require !== 'undefined') { try { require('./real.js'); } catch (e) { /* browser build loads real.js separately */ } }
   const D = NBA.data;
   const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
   const ATTRS = D.ATTRS;
@@ -9,6 +10,7 @@
   const STAR_ODDS = { 1: 38, 2: 28, 3: 20, 4: 10, 5: 4 };
   const STAR_NAMES = { 1: 'Zero-hype prospect', 2: 'Under-the-radar', 3: 'Solid recruit', 4: 'Blue-chip', 5: 'Five-star phenom' };
   const TD_CAP = 5;
+  const CAPG = 1.015; // salary cap growth per year
 
   // ---------------------------------------------------------------- creation
   function newCareer(o) {
@@ -30,8 +32,7 @@
     if (!stars) stars = +weighted(STAR_ODDS);
     if (ceiling == null) ceiling = NBA.rollCeiling(stars, o.arch);
     const p = NBA.makePlayer({ id: 'user', name: o.name || 'Rookie', pos: o.pos, arch: o.arch, sec: o.sec && o.sec !== o.arch ? o.sec : null, home: o.home, ceiling, age: 18, stars, gap });
-    const L = NBA.newLeague(2025);
-    for (let i = 0; i < 3; i++) NBA.runYear(L);
+    const L = NBA.newLeague(2026, { real: true }); // the real league as of 20 Oct 2026
     const st = {
       v: 1, stage: 'scouting', player: p, league: L, stars,
       college: null, collegeYears: [], proSeasons: [], playoffLines: [],
@@ -140,9 +141,9 @@
     st.teamId = team.id; p.teamId = team.id;
     const cap = capNow(st.league);
     let sal, yrs;
-    if (slot && slot <= 30) { sal = 13.8 * Math.pow(0.958, slot - 1) * Math.pow(1.045, st.league.year - 2025); yrs = 4; }
-    else if (slot) { sal = Math.max(1.5, 2.3 - (slot - 31) * 0.035) * Math.pow(1.045, st.league.year - 2025); yrs = 3; }
-    else { sal = 1.3 * Math.pow(1.045, st.league.year - 2025); yrs = 2; }
+    if (slot && slot <= 30) { sal = 13.8 * Math.pow(0.958, slot - 1) * Math.pow(CAPG, st.league.year - 2025); yrs = 4; }
+    else if (slot) { sal = Math.max(1.5, 2.3 - (slot - 31) * 0.035) * Math.pow(CAPG, st.league.year - 2025); yrs = 3; }
+    else { sal = 1.3 * Math.pow(CAPG, st.league.year - 2025); yrs = 2; }
     st.contract = { salary: r1(sal), years: yrs, left: yrs, type: 'rookie' };
     st.stage = 'draft_night';
     return st.draft;
@@ -189,7 +190,7 @@
   }
 
   // ---------------------------------------------------------------- pro season
-  const capNow = (L) => L.capBase * Math.pow(1.045, L.year - 2025);
+  const capNow = (L) => L.capBase * Math.pow(CAPG, L.year - 2025);
 
   function rollEvents(st, p) {
     const fx = { form: 0, extraMiss: 0, minsMult: 1, depth: 0, bonusPts: 0, notes: [] };
@@ -220,53 +221,62 @@
     const e0 = expLine(p, { coTax: ctx.coTax, pace: ctx.pace, rookie, minsMult: fx.minsMult, minsFloor: rookie ? NBA.rookieFloor(st.draft && st.draft.slot) : 0 });
     const form = 1 + 0.045 * randn() + fx.form;
     const m = { mins: e0.mins, pts: e0.pts * form, reb: e0.reb * (1 + 0.03 * randn()), ast: e0.ast * (1 + 0.03 * randn()), stl: e0.stl * (1 + 0.05 * randn()), blk: e0.blk * (1 + 0.05 * randn()), tov: e0.tov };
-    // pts cap: 35+ only once per career, and rarely
-    let cap = 34.2;
-    if (!p.hist35 && e0.ovr >= 93 && rand() < 0.05) cap = 36.8;
-    m.pts = Math.min(m.pts, cap);
-    const elite = e0.ovr >= 86 && p.age >= 23 && p.age <= 33;
+    const age = p.age, gp = avail.gp;
+    // everyday scoring is soft-capped; big years (32-33, rarely 34-36) come from the career plan
+    const SOFT = 30.2;
+    if (m.pts > SOFT) m.pts = SOFT + (m.pts - SOFT) * 0.25;
+    let tierMode = null;
+    const bigOK = e0.ovr >= 88 && age >= 24 && age <= 32 && gp >= 60;
+
+    // triple-double window: no hints before it, one contiguous run of seasons starting in the late 20s
+    // the window rolls forward (to 34) if injury or form wrecked it before the first triple-double year
+    const inWin = p.tdPlan > 0 && age >= p.tdStart && age <= 34 && (age < p.tdStart + p.tdPlan || p.tdUsed === 0);
+    const preWin = p.tdPlan > 0 && age < p.tdStart;
     let surge = null;
-    const wantTD = p.tdUsed < p.tdPlan && elite && m.pts >= 19 && m.reb >= 6.8 && m.ast >= 6.6 && rand() < 0.5;
-    const wantBig = p.td30Used < p.td30Plan && elite && p.age <= 32 && m.pts >= 25 && m.reb >= 7.5 && m.ast >= 7 && p.tdUsed < TD_CAP && rand() < 0.55;
-    if (wantTD || wantBig) surge = { big: wantBig || (p.td30Used < p.td30Plan && m.pts >= 25.3 && rand() < 0.65) };
-    if (!surge && p.tdUsed >= TD_CAP) { m.ast = Math.min(m.ast, 9.4); m.reb = Math.min(m.reb, 9.4); }
-    if (!surge && m.reb >= 8 && m.ast >= 7) {
-      // keep natural triple-double rates in the real-world 17-27% band
-      if (m.ast > 8.6) m.ast = 8.6 + (m.ast - 8.6) * 0.3;
-      if (m.reb > 10.6) m.reb = 10.6 + (m.reb - 10.6) * 0.35;
+    if (inWin && p.tdUsed < p.tdPlan && e0.ovr >= 82 && m.pts >= 16 && rand() < 0.92) {
+      surge = { big: p.td30Ages.includes(age) && p.td30Used < p.td30Plan && e0.ovr >= 86 && m.pts >= 24.5 };
     }
+    if (surge && surge.big) m.pts = Math.max(m.pts, 30.3 + rand() * 1);
     if (!surge) {
-      // career TD rate guard: once a player is running hot over a long stretch, regress toward the 17-27% band
-      const gpSoFar = sum(st.proSeasons.map((s) => s.gp));
+      if (preWin && m.ast > 7.2) m.ast = 7.2 + (m.ast - 7.2) * 0.25;
+      if (p.tdUsed >= TD_CAP) { m.ast = Math.min(m.ast, 9.4); m.reb = Math.min(m.reb, 9.4); }
+      if (m.reb >= 8 && m.ast >= 7) {
+        // keep natural triple-double rates in the real-world 17-27% band
+        if (m.ast > 8.6) m.ast = 8.6 + (m.ast - 8.6) * 0.3;
+        if (m.reb > 10.6) m.reb = 10.6 + (m.reb - 10.6) * 0.35;
+      }
+      const gpSoFar = sum(st.proSeasons.map((x) => x.gp));
       if (gpSoFar > 200 && st.career.td / gpSoFar > 0.255) { m.reb = Math.min(m.reb, 9.8); m.ast = Math.min(m.ast, 8.2); }
-    }
-    if (surge) {
+      if (bigOK && p.tier34 && !p.tier34Done && m.pts >= 28 && rand() < 0.3) tierMode = { lo: 34.0, hi: 36.6 };
+      else if (bigOK && p.tier32 && !p.tier32Done && m.pts >= 27 && rand() < 0.3) tierMode = { lo: 32.0, hi: 33.9 };
+      if (tierMode) m.pts = Math.max(m.pts, tierMode.lo + 0.3 + rand() * (tierMode.lo >= 34 ? 1.6 : 0.9));
+    } else {
       m.reb = Math.max(m.reb, 10.25 + rand() * 0.9);
       m.ast = Math.max(m.ast, 10.25 + rand() * 0.9);
-      if (surge.big) m.pts = Math.max(m.pts, 30.3 + rand() * 1);
     }
-    const gp = avail.gp;
     let games, s;
-    for (let tries = 0; tries < 14; tries++) {
+    for (let tries = 0; tries < 16; tries++) {
       games = []; for (let i = 0; i < gp; i++) games.push(genGame(m));
       s = summarize(games);
-      if (!surge || gp < 50) break;
-      if (s.pts >= (surge.big ? 30 : 10) && s.reb >= 10 && s.ast >= 10) break;
+      if (gp < 50 || (!surge && !tierMode)) break;
+      if (surge && s.pts >= (surge.big ? 30 : 10) && s.reb >= 10 && s.ast >= 10) break;
+      if (tierMode && s.pts >= tierMode.lo && s.pts <= tierMode.hi) break;
     }
+    if (s.pts >= 34) p.tier34Done = true;
+    if (s.pts >= 32) p.tier32Done = true;
     const used = e0.usg * (s.pts / Math.max(1, e0.pts));
     const tsRaw = clamp(e0.ts * (0.5 + 0.5 * (s.pts / Math.max(1, m.pts))), 0.44, 0.72);
     const sl = shootingLine(p, s.pts, tsRaw, e0.usg);
     const avgTD = gp >= 30 && s.pts >= 10 && s.reb >= 10 && s.ast >= 10;
     if (avgTD) { p.tdUsed++; if (s.pts >= 30) p.td30Used++; }
-    if (s.pts >= 35) p.hist35 = true;
     return Object.assign({ gp, usg: e0.usg, ovr: e0.ovr, fga: sl.fga, fgp: sl.fgp, tpa: sl.tpa, tpp: sl.tpp, ftp: sl.ftp, fta: sl.fta, ts: sl.ts, avgTD, games: games.length }, s, { pts: s.pts, reb: s.reb, ast: s.ast });
   }
 
   function playoffLine(st, ctx, seriesList, base, mode) {
     const p = st.player;
     const mult = { mins: 1.06, pts: 1.06, reb: 1.04, ast: 1.08, stl: 1.05, blk: 1.05, tov: 1.1 };
-    let cap = 33.8, maxAvg = 35.8;
-    if (mode === 'heater') { const h = 1.15 + rand() * 0.07; mult.pts *= h; mult.reb *= 1.08; mult.ast *= 1.12; mult.mins *= 1.03; cap = 35.4; maxAvg = 37.4; }
+    let cap = Math.max(33.8, base.pts + 1), maxAvg = Math.max(35.8, base.pts + 2.5);
+    if (mode === 'heater') { const h = 1.15 + rand() * 0.07; mult.pts *= h; mult.reb *= 1.08; mult.ast *= 1.12; mult.mins *= 1.03; cap = Math.min(37.2, Math.max(35.4, base.pts + 2)); maxAvg = Math.min(38.6, Math.max(37.4, base.pts + 3.5)); }
     if (mode === 'legend') { mult.pts *= 1.22; mult.reb *= 1.15; mult.ast *= 1.2; mult.mins *= 1.04; cap = 37.2; maxAvg = 38.6; }
     const m = { mins: Math.min(base.mins * mult.mins, 43), pts: Math.min(base.pts * mult.pts, cap), reb: base.reb * mult.reb, ast: base.ast * mult.ast, stl: base.stl * mult.stl, blk: base.blk * mult.blk, tov: base.tov * mult.tov };
     if (mode === 'legend') { m.reb = Math.max(m.reb, 10.6); m.ast = Math.max(m.ast, 10.6); m.pts = Math.max(m.pts, 36.2); }
@@ -344,8 +354,8 @@
     } else if (po.userOut === null) resultText = 'Missed the playoffs';
     if (po.champion.id === st.teamId) {
       st.career.titles++; cnt('Championships'); awardsHere.push('NBA Champion');
-      const pf = pline ? perfOf(Object.assign({}, pline, { tov: pline.tov })) : 0;
-      const who = NBA.finalsMVP(L, st.teamId, pline ? pf : 8);
+      const fin = perSeries.find((x) => x.round === 'NBA Finals');
+      const who = NBA.finalsMVP(L, st.teamId, fin ? { pts: fin.pts, reb: fin.reb, ast: fin.ast } : null);
       if (who === 'user') { cnt('Finals MVP'); awardsHere.push('Finals MVP'); fmvp = true; }
     }
 
@@ -356,7 +366,7 @@
       fgp: l.fgp, tpp: l.tpp, ftp: l.ftp, ts: l.ts, td: l.td, dd: l.dd, g40: l.g40, g50: l.g50, high: l.high, ovr: Math.round(l.ovr), usg: l.usg,
       avgTD: l.avgTD, totPts: l.totPts, totReb: l.totReb, totAst: l.totAst,
       awards: awardsHere, playoffText: resultText, playoff: pline ? { gp: pline.gp, pts: pline.pts, reb: pline.reb, ast: pline.ast, stl: pline.stl, blk: pline.blk, mins: pline.mins, fgp: pline.fgp, tpp: pline.tpp, ts: pline.ts, td: pline.td, high: pline.high } : null,
-      perSeries, heater, legend, ranks: res.ranks, events: fx.notes, injury: avail.major ? 'Suffered a ' + avail.major + ' and missed ' + avail.miss + ' games.' : avail.miss >= 12 ? 'Missed ' + avail.miss + ' games with injuries.' : null,
+      perSeries, heater, legend, ranks: res.ranks, events: fx.notes, injury: avail.major ? 'Suffered a ' + avail.major + ' and missed ' + avail.miss + ' games.' : avail.notable ? 'Missed ' + avail.miss + ' games with a ' + avail.notable + '.' : avail.miss >= 12 ? 'Missed ' + avail.miss + ' games with injuries.' : null,
       salary: st.contract.salary, mvp: A.mvp ? A.mvp.name + ' (' + r1(A.mvp.pts) + '/' + r1(A.mvp.reb) + '/' + r1(A.mvp.ast) + ')' : '', champion: po.champion.name, league: res.league,
       rookie: p.rookie, leaders: res.leaders,
     };
@@ -376,7 +386,7 @@
   function marketPct(st) {
     const p = st.player;
     let v = ovr(p) - (p.age >= 33 ? 2 * (p.age - 32) : 0);
-    const raw = 0.015 + Math.pow(clamp((v - 60) / 32, 0, 1.2), 1.5) * 0.35;
+    const raw = (0.015 + Math.pow(clamp((v - 60) / 32, 0, 1.2), 1.5) * 0.35) * 0.8;
     const yrs = p.yearsPro;
     const maxPct = yrs >= 10 ? 0.35 : yrs >= 7 ? 0.3 : 0.25;
     return { pct: Math.min(raw, maxPct), v, maxPct };
@@ -398,12 +408,12 @@
     if (out.expiring) {
       const own = L.teams[st.teamId];
       const maxYrsOwn = p.age >= 36 ? 1 : p.age >= 33 ? 2 : 5;
-      out.resign = { teamId: own.id, name: own.name, salary: r1(Math.max(2.3 * Math.pow(1.045, L.year - 2025), baseSal * (1.0 + 0.04))), maxYears: maxYrsOwn, role: role(st, own), label: teamLabel(own, own.wins) };
+      out.resign = { teamId: own.id, name: own.name, salary: r1(Math.max(2.3 * Math.pow(CAPG, L.year - 2025), baseSal)), maxYears: maxYrsOwn, role: role(st, own), label: teamLabel(own, own.wins) };
       let offers = [];
       const n = mk.v >= 76 ? 6 : mk.v >= 68 ? 4 : mk.v >= 60 ? 3 : 1;
       const teams = L.teams.filter((t) => t.id !== st.teamId).sort(() => rand() - 0.5).slice(0, n);
       teams.forEach((t) => {
-        const sal = Math.max(2.3 * Math.pow(1.045, L.year - 2025), baseSal * (0.88 + rand() * 0.17) * (t.wins < 33 ? 1.04 : 1));
+        const sal = Math.max(2.3 * Math.pow(CAPG, L.year - 2025), baseSal * (0.88 + rand() * 0.17) * (t.wins < 33 ? 1.04 : 1));
         offers.push({ teamId: t.id, name: t.name, salary: r1(sal), maxYears: p.age >= 36 ? 1 : p.age >= 33 ? 2 : 4, role: role(st, t), label: teamLabel(t, t.wins), wins: t.wins });
       });
       out.offers = offers.sort((a, b) => b.salary - a.salary);

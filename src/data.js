@@ -34,7 +34,7 @@
       comps: 'Karl Malone · Durant · Kobe',
       boost: { inside: 14, mid: 22, three: 12, ft: 16, handling: 12, passing: -2, iq: 10, reb: 0, perD: -6, rimP: -4, ath: 8, dur: 12 },
       weights: { inside: .14, mid: .17, three: .13, ft: .09, handling: .1, passing: .03, iq: .1, reb: .03, perD: .03, rimP: .01, ath: .11, dur: .06 },
-      usg: 0.02, ts: 0.004, declineMult: 0.85, ceilingBonus: 0,
+      usg: 0.012, ts: 0.004, declineMult: 1.0, ceilingBonus: 0, injury: 1.35,
     },
     twoway: {
       name: 'Two-Way Demon', icon: '🔒',

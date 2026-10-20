@@ -21,16 +21,20 @@
       const d = clamp(Math.round(Math.exp(1.6 + 0.9 * randn())), 1, 40);
       miss += d; list.push(d);
     }
-    let major = null;
+    let major = null, notable = null;
     const mp = 0.012 * p.prone * (A.injury || 1) * (1 + Math.max(0, p.age - 26) * 0.05) * (1 + clamp((p.target.ath - 70) / 60, 0, 0.5));
     if (rand() < mp) {
       major = pick(['torn ACL', 'torn Achilles', 'fractured foot', 'torn meniscus', 'ruptured patellar tendon']);
       miss = rint(48, 82);
     }
+    if (!major && (p.injYears || []).includes(p.age)) {
+      notable = pick(['stress fracture', 'high ankle sprain', 'torn labrum', 'sports hernia', 'knee sprain', 'broken hand']);
+      miss = Math.max(miss, rint(34, 70));
+    }
     const o = ovr(p);
     let rest = o >= 74 ? (p.age >= 30 ? rint(3, 7) : rint(0, 4)) : rint(0, 2);
     if (opts.noRest) rest = 0;
-    return { gp: clamp(82 - miss - rest - (opts.extraMiss || 0), 0, 82), miss, rest, injuries: list, major };
+    return { gp: clamp(82 - miss - rest - (opts.extraMiss || 0), 0, 82), miss, rest, injuries: list, major, notable };
   }
   function applyMajorInjury(p) {
     p.attrs.ath = clamp(p.attrs.ath - (3 + rand() * 4), 8, 99);
@@ -57,12 +61,13 @@
     }
   }
 
-  function newLeague(startYear) {
+  function newLeague(startYear, opts) {
     const L = {
       year: startYear || 2025, nextId: 1, players: {}, rookies: [], history: [], lines: {},
       teams: D.TEAMS.map((t) => Object.assign({}, t, { core: [], depth: randn() * 2.2, wins: 41, losses: 41, pace: 99 })),
       capBase: 154.6, lastLeaders: null,
     };
+    if (opts && opts.real && NBA.real) { buildReal(L); return L; }
     const cand = [];
     for (let i = 0; i < 560; i++) {
       const r = rand();
@@ -77,8 +82,35 @@
     });
     return L;
   }
-  L_proto();
-  function L_proto() {}
+
+  // put a real player on the scale: aim for the target overall, with a ceiling above it for the young
+  function makeReal(L, row, teamId, ceilOverride) {
+    const [name, pos, age, goal, arch, sec] = row;
+    const growth = age <= 20 ? 9 : age <= 22 ? 6 : age <= 24 ? 3.5 : age <= 27 ? 1.5 : 0.5;
+    const ceiling = clamp(ceilOverride != null ? ceilOverride : goal + growth, 55, 99);
+    const p = makePlayer({ id: L.nextId++, name, pos, arch, sec: sec && sec !== arch ? sec : null, ceiling, age, gap: Math.max(0, ceiling - goal) });
+    for (let i = 0; i < 4; i++) {
+      const d = (goal - ovr(p)) / T.ovrStretch;
+      ATTRS.forEach((a) => (p.attrs[a] = clamp(p.attrs[a] + d, 8, 99)));
+    }
+    p.yearsPro = Math.max(0, age - 19); p.teamId = teamId; p.real = true;
+    return p;
+  }
+  function buildReal(L) {
+    const R = NBA.real;
+    L.teams.forEach((t) => {
+      (R.TEAMS[t.nick] || []).forEach((row) => { const p = makeReal(L, row, t.id); L.players[p.id] = p; t.core.push(p.id); });
+      if (R.WINS[t.nick] != null) t.prevWins = R.WINS[t.nick];
+      fillCore(L, t);
+    });
+    R.ROOKIES.forEach((r) => {
+      const t = L.teams.find((x) => x.nick === r[1]);
+      if (!t) return;
+      const p = makeReal(L, [r[0], r[2], r[3], r[4], r[6], r[7]], t.id, r[5]);
+      p.yearsPro = 0; p.rookie = true; p.draftSlot = r[8];
+      L.players[p.id] = p;
+    });
+  }
 
   // ------------------------------------------------------------ helpers
   function teamRoster(L, t, user) {
@@ -183,7 +215,9 @@
       const vals = roster.map((p) => {
         const gp = p === (user && user.p) ? user.avail.gp : avail[p.id].gp;
         const x = ovr(p) - 60;
-        return (x <= 20 ? x : 20 + (x - 20) * 0.72) * (gp / 82);
+        // young players have a smaller impact on winning than their rating suggests
+        const expF = 0.55 + 0.15 * Math.min(3, p.yearsPro || 0);
+        return (x <= 20 ? x : 20 + (x - 20) * 0.72) * (gp / 82) * expF;
       }).sort((x, y) => y - x).slice(0, 4);
       t.S = sum(vals);
       t.pace = 99 + randn() * 1.4;
@@ -193,9 +227,11 @@
       t.depth = 0.55 * t.depth + randn() * 2.0;
       t.wins = 41 + T.winsPerPt * (t.S - meanS) + t.depth + randn() * 4.0;
     });
+    // roster continuity: a team does not flip from the lottery to the top seed in one summer
+    L.teams.forEach((t) => { t.wins = 0.7 * t.wins + 0.3 * (t.prevWins == null ? 41 : t.prevWins); });
     const mw = sum(L.teams.map((t) => t.wins)) / L.teams.length;
     L.teams.forEach((t) => { t.wins = clamp(Math.round(t.wins - (mw - 41)), 12, 70); t.losses = 82 - t.wins; });
-    L.teams.forEach((t) => { t.power = (t.wins - 41) / 2.7 + randn() * 0.8; });
+    L.teams.forEach((t) => { t.power = (t.wins - 41) / 2.7 + randn() * 0.8; t.prevWins = t.wins; });
 
     // user line (needs team context)
     if (user) {
@@ -225,11 +261,11 @@
 
     // awards
     const q65 = entries.filter((e) => e.l.gp >= 65);
-    const byMVP = q65.map((e) => ({ e, s: e.l.perf + 0.5 * e.l.pts + 0.35 * (e.l.wins - 41) + randn() * 6 - (e.p.mvpRecent || 0), ok: e.l.wins >= 36 })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
+    const byMVP = q65.map((e) => ({ e, s: e.l.perf + 1.0 * e.l.pts + 0.35 * (e.l.wins - 41) + randn() * 6 - (e.p.mvpRecent || 0), ok: e.l.wins >= 36 })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
     const dpoy = q65.map((e) => ({ e, s: defScore(e.p, e.l) + 0.12 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s);
     const roy = entries.filter((e) => e.p.rookie && e.l.gp >= 50).map((e) => ({ e, s: e.l.perf + 0.1 * (e.l.wins - 41) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
     const mip = q65.filter((e) => !e.p.rookie && e.p.prevPerf != null && e.p.age <= 28).map((e) => ({ e, s: (e.l.perf - e.p.prevPerf) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
-    const allNBA = q65.map((e) => ({ e, s: e.l.perf + 0.4 * e.l.pts + 0.15 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s).slice(0, 15);
+    const allNBA = q65.map((e) => ({ e, s: e.l.perf + 0.8 * e.l.pts + 0.15 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s).slice(0, 15);
     const allDef = dpoy.slice(0, 10);
     const stars = entries.filter((e) => e.l.gp >= 40).map((e) => ({ e, s: e.l.perf + randn() * 3 })).sort((a, b) => b.s - a.s).slice(0, 24);
     const qual = entries.filter((e) => e.l.gp >= 58);
@@ -263,11 +299,15 @@
     return res;
   }
 
-  // finals MVP: user entry optional {perf}
-  function finalsMVP(L, teamId, userPerf) {
+  // Finals MVP: best Finals line on the winning team. `user` is {pts, reb, ast} from the Finals series.
+  const finalsScore = (pts, reb, ast) => 1.9 * pts + 1.15 * reb + 1.5 * ast;
+  function finalsMVP(L, teamId, user) {
     const t = L.teams[teamId];
-    const cands = t.core.map((id) => ({ name: L.players[id].name, s: (L.lines[id] ? L.lines[id].perf : 20) * (1 + 0.12 * randn()) + ovr(L.players[id]) * 0.1 }));
-    if (userPerf != null) cands.push({ name: 'user', s: userPerf * 1.04 + 8 + 0.08 * randn() });
+    const cands = t.core.map((id) => {
+      const l = L.lines[id];
+      return { name: L.players[id].name, s: (l ? finalsScore(l.pts, l.reb, l.ast) : 30) * (1 + 0.07 * randn()) };
+    });
+    if (user) cands.push({ name: 'user', s: finalsScore(user.pts, user.reb, user.ast) * (1 + 0.03 * randn()) });
     cands.sort((a, b) => b.s - a.s);
     return cands[0].name;
   }

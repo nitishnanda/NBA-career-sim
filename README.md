@@ -50,6 +50,20 @@ points = usage% × (minutes / 48) × team pace × (1.82 × TS%)
 
 Dominators' triple-double seasons are guaranteed by a hidden per-career plan (`tdPlan`, `td30Plan`, `legendPlan`) that only fires for genuinely elite players in their prime; a rate guard pulls the career TD% back into the 17-27% band if it runs hot.
 
+## Real league (as of 20 Oct 2026)
+
+The league starts from the real 2026-27 preseason: rosters, the 2026 draft class (Dybantsa, Peterson, Boozer...) and approximate ratings (`src/real.js`, built from preseason reporting, so some depth-chart details may be off). Everyone around your player after that is simulated, with generated names for future draft classes.
+
+## Career-shape rules
+
+- **Consistent scorers** carry 1-3 real injury seasons, get a 32-33 ppg year (~90% of elites) and rarely a 34-36 ppg year (~15-20%). Everyday seasons are soft-capped near 30
+- **Box-score dominators** follow the Westbrook/Jokic path: no triple-double hints early, then one contiguous run of 1-5 seasons starting around 26-30
+- **Generational talents** (primary or secondary) are almost always 4-5★ and top-3 picks, except an ~8% "Jokic path"
+- Finals MVP goes to the best Finals line on the winning team
+- Young players never lose rating from noise, and aging is gentler (about -0.5 at 30, -1.6 at 33, -3 at 36+)
+- A star helps a bad team gradually: a #1 pick adds ~4 wins in year one, ~8 in year two
+- Salaries: cap grows 1.5%/yr; a journeyman earns ~$100M over a career, a Hall of Famer ~$650M
+
 ## Archetypes
 
 Generational Talent · Consistent Scorer · Two-Way Demon · Defensive Anchor · Lethal Shooter · Box-Score Dominator (from the MVP spec). A secondary tag blends 40% of another archetype's attributes into yours.
