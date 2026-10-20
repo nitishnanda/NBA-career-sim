@@ -31,6 +31,14 @@
   function load() { try { const r = localStorage.getItem(KEY); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
   function wipe() { try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ } }
   function go() { save(); render(); window.scrollTo(0, 0); }
+  function confirmBtn(label, cls, fn) {
+    let armed = false, t = null;
+    const b = h('button', { class: cls, onclick: () => {
+      if (!armed) { armed = true; b.textContent = 'Tap again to confirm'; t = setTimeout(() => { armed = false; b.textContent = label; }, 3500); return; }
+      clearTimeout(t); fn();
+    } }, label);
+    return b;
+  }
   function statBox(v, l) { return h('div', { class: 'statbox' }, h('div', { class: 'big' }, v), h('div', { class: 'lbl' }, l)); }
 
   function attrBars(p, deltas) {
@@ -49,7 +57,7 @@
     let ctx = p.name + ' · ' + D.ARCHETYPES[p.arch].name + ' · ' + p.pos + ' · age ' + p.age + ' · OVR ' + Math.round(NBA.ovr(p));
     if (S.proSeasons.length || S.draft) ctx += ' · ' + S.league.teams[S.teamId].nick;
     who.textContent = ctx;
-    btns.append(h('button', { onclick: showCareer }, '📋 Career'), h('button', { class: 'danger', onclick: () => { if (confirm('Abandon this career and start a new one?')) { wipe(); S = null; boot(); } } }, 'New'));
+    btns.append(h('button', { onclick: showCareer }, '📋 Career'), confirmBtn('New', 'danger', () => { wipe(); S = null; boot(); }));
   }
 
   // ------------------------------------------------------------ screens
@@ -165,7 +173,7 @@
     return h('div', null, h('h1', null, 'Offseason training'),
       h('p', { class: 'muted' }, 'Spend upgrade points (max +4 per attribute). Gains shrink at high ratings and after 31. Natural development and aging happen after you confirm.'),
       h('div', { class: 'card' }, h('div', { class: 'row' }, h('h2', { style: 'margin:0' }, left + ' / ' + info.points + ' points left'), h('span', { class: 'spacer' }), h('button', { onclick: () => { alloc = G.autoAlloc(S.player, info.points); render(); } }, 'Auto-allocate'), h('button', { onclick: () => { alloc = {}; render(); } }, 'Reset')), rows,
-        h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { try { report = G.train(S, alloc); alloc = {}; go(); } catch (e) { alert(e.message); } } }, 'Confirm & advance the offseason'))));
+        h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { try { report = G.train(S, alloc); alloc = {}; go(); } catch (e) { console.error(e); } } }, 'Confirm & advance the offseason'))));
   }
 
   function screenReport() {
@@ -218,7 +226,7 @@
       out.push(h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('b', null, 'Stay with the ' + d.team), h('div', { class: 'small muted' }, 'Contract: ' + money(d.contract.salary) + ' · ' + d.contract.left + ' more year(s)')), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => done(G.decide(S, 'stay')) }, 'Stay'))),
         h('h3', null, 'Demand a trade (pick a destination)'), d.tradeOptions.map((o) => h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('b', null, o.name), h('div', { class: 'small muted' }, o.label + ' (' + o.wins + ' wins last year) · you would be a ' + o.role)), h('span', { class: 'spacer' }), h('button', { onclick: () => done(G.decide(S, 'trade', { teamId: o.teamId })) }, 'Request trade')))));
     }
-    out.push(h('div', { class: 'row', style: 'margin-top:14px' }, h('button', { class: 'danger', onclick: () => { if (confirm('Retire for good?')) { G.retire(S); S.decision = null; go(); } } }, 'Retire from basketball')));
+    out.push(h('div', { class: 'row', style: 'margin-top:14px' }, confirmBtn('Retire from basketball', 'danger', () => { G.retire(S); S.decision = null; go(); })));
     return h('div', null, out);
   }
 

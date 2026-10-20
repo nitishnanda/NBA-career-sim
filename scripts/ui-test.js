@@ -41,7 +41,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
     await page.click('text=Offseason decisions');
     if (i === 0) await shot('08-decision');
     const retire = await page.$('text=No team has an offer');
-    if (retire || i >= 5) { await page.click('text=Retire from basketball'); break; }
+    if (retire || i >= 5) { await page.click('text=Retire from basketball'); await page.click('text=Tap again to confirm'); break; }
     const btn = (await page.$('button:has-text("Stay")')) || (await page.$('button:has-text("Re-sign")'));
     await btn.click();
     await trainLoop();

@@ -1,0 +1,1730 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>NBA Career Sim</title>
+<style>
+:root { --bg: #0e1117; --panel: #171b24; --panel2: #1f2531; --line: #2a3140; --text: #e8ebf2; --muted: #8b94a7; --accent: #ff7a1a; --accent2: #ffb347; --good: #3ddc97; --bad: #ff5c6c; --gold: #ffd54a; color-scheme: dark; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg: #f3f4f7; --panel: #fff; --panel2: #eef0f5; --line: #d9dde6; --text: #1a1f2b; --muted: #667085; --accent: #e8590c; --accent2: #f08c00; --good: #15935f; --bad: #d6293e; --gold: #b8860b; color-scheme: light; } }
+:root[data-theme="light"] { --bg: #f3f4f7; --panel: #fff; --panel2: #eef0f5; --line: #d9dde6; --text: #1a1f2b; --muted: #667085; --accent: #e8590c; --accent2: #f08c00; --good: #15935f; --bad: #d6293e; --gold: #b8860b; color-scheme: light; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 5; flex-wrap: wrap; }
+.brand { font-weight: 800; letter-spacing: .3px; }
+#who { flex: 1; color: var(--muted); font-size: 13px; min-width: 120px; }
+main { max-width: 980px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 26px; margin: 4px 0 6px; } h2 { font-size: 19px; margin: 0 0 10px; } h3 { font-size: 15px; margin: 14px 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+p { margin: 6px 0; } .muted { color: var(--muted); } .small { font-size: 12.5px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin: 12px 0; }
+.grid { display: grid; gap: 10px; } .g2 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); } .g3 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.spacer { flex: 1; }
+button { font: inherit; cursor: pointer; border-radius: 9px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); padding: 9px 14px; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+button.primary:hover { filter: brightness(1.08); }
+button.danger { border-color: var(--bad); color: var(--bad); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=text], select { font: inherit; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 9px; padding: 9px 12px; width: 100%; }
+.pill { display: inline-block; padding: 2px 9px; border-radius: 99px; background: var(--panel2); border: 1px solid var(--line); font-size: 12px; margin: 2px 4px 2px 0; }
+.pill.gold { border-color: var(--gold); color: var(--gold); } .pill.good { border-color: var(--good); color: var(--good); } .pill.bad { border-color: var(--bad); color: var(--bad); }
+.opt { border: 1px solid var(--line); background: var(--panel2); border-radius: 11px; padding: 12px; cursor: pointer; text-align: left; }
+.opt.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.opt:hover { border-color: var(--accent); }
+.opt b { display: block; } .opt .comps { color: var(--muted); font-size: 12px; margin-top: 4px; }
+.stars { font-size: 38px; letter-spacing: 4px; color: var(--gold); min-height: 48px; }
+.stars .off { color: var(--line); }
+.bar { height: 8px; background: var(--panel2); border-radius: 5px; overflow: hidden; } .bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+.attr { display: grid; grid-template-columns: 130px 1fr 44px; gap: 10px; align-items: center; margin: 5px 0; font-size: 13px; }
+.attr.train { grid-template-columns: 130px 1fr 40px 110px; }
+.ctl { display: flex; gap: 4px; align-items: center; justify-content: flex-end; } .ctl button { padding: 2px 9px; }
+.big { font-size: 34px; font-weight: 800; line-height: 1; } .statbox { text-align: center; padding: 10px; background: var(--panel2); border-radius: 10px; border: 1px solid var(--line); }
+.statbox .lbl { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .6px; margin-top: 4px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { padding: 6px 8px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; } th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; } td:first-child, th:first-child, td.l, th.l { text-align: left; }
+.scroll { overflow-x: auto; }
+.tick { font-size: 14px; padding: 7px 10px; border-bottom: 1px solid var(--line); display: flex; gap: 10px; }
+.tick.me { background: color-mix(in srgb, var(--accent) 22%, transparent); font-weight: 700; border-radius: 8px; }
+.tick .n { width: 34px; color: var(--muted); }
+.callout { border-left: 3px solid var(--accent); padding: 8px 12px; background: var(--panel2); border-radius: 0 8px 8px 0; margin: 8px 0; }
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: flex-start; justify-content: center; padding: 30px 12px; overflow: auto; z-index: 20; }
+.modal.hidden { display: none; } .modal .box { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; max-width: 980px; width: 100%; }
+.reveal { animation: pop .5s ease both; } @keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: none; } }
+.pos { color: var(--good); } .neg { color: var(--bad); }
+.tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; } .tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+@media (max-width: 560px) { .attr { grid-template-columns: 96px 1fr 34px; } .attr.train { grid-template-columns: 96px 1fr 34px 96px; } h1 { font-size: 22px; } .big { font-size: 28px; } }
+.stats { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
+.stats .big { font-size: 26px; }
+
+body { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header { margin-left: -16px; margin-right: -16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); top: env(safe-area-inset-top, 0px); }
+main { padding-left: 0; padding-right: 0; }
+
+</style>
+<header id="top"><div class="brand">🏀 NBA Career Sim</div><div id="who"></div><div id="topbtns"></div></header>
+<main id="app"></main>
+<div id="modal" class="modal hidden"></div>
+<script>
+(function (g) {
+  'use strict';
+  const NBA = (g.NBA = g.NBA || {});
+
+  const ATTRS = ['inside', 'mid', 'three', 'ft', 'handling', 'passing', 'iq', 'reb', 'perD', 'rimP', 'ath', 'dur'];
+  const ATTR_LABELS = {
+    inside: 'Inside Scoring', mid: 'Mid-Range', three: '3PT Shooting', ft: 'Free Throw',
+    handling: 'Ball Handling', passing: 'Passing', iq: 'Basketball IQ', reb: 'Rebounding',
+    perD: 'Perimeter D', rimP: 'Rim Protection', ath: 'Athleticism', dur: 'Durability',
+  };
+
+  // Offsets from a flat 50 baseline for each position.
+  const POSITIONS = {
+    PG: { inside: -8, mid: 2, three: 6, ft: 6, handling: 22, passing: 22, iq: 4, reb: -4, perD: 4, rimP: -35, ath: 2, dur: 0 },
+    SG: { inside: -4, mid: 6, three: 8, ft: 5, handling: 10, passing: 4, iq: 0, reb: -6, perD: 4, rimP: -32, ath: 4, dur: 0 },
+    SF: { inside: 2, mid: 2, three: 2, ft: 0, handling: -2, passing: -2, iq: 0, reb: 4, perD: 4, rimP: -22, ath: 6, dur: 0 },
+    PF: { inside: 8, mid: -2, three: -6, ft: -4, handling: -14, passing: -8, iq: 0, reb: 16, perD: -2, rimP: 4, ath: 4, dur: 0 },
+    C: { inside: 12, mid: -10, three: -18, ft: -10, handling: -24, passing: -10, iq: 0, reb: 26, perD: -8, rimP: 26, ath: -2, dur: 0 },
+  };
+
+  // Boosts layered on top of the position baseline.
+  const ARCHETYPES = {
+    generational: {
+      name: 'Generational Talent', icon: '👑',
+      blurb: 'Elite at everything from day one. Multiple MVP-level seasons, still great at 35+.',
+      comps: 'LeBron · Jordan · Jokic · Wembanyama',
+      boost: { inside: 14, mid: 12, three: 10, ft: 10, handling: 8, passing: 8, iq: 20, reb: 5, perD: 8, rimP: 8, ath: 12, dur: 6 },
+      weights: { inside: .11, mid: .08, three: .08, ft: .04, handling: .09, passing: .1, iq: .14, reb: .08, perD: .07, rimP: .05, ath: .12, dur: .04 },
+      usg: 0.01, ts: 0.012, declineMult: 0.75, ceilingBonus: 3,
+    },
+    scorer: {
+      name: 'Consistent Scorer', icon: '🎯',
+      blurb: '25-28 a night for 15+ seasons. All-NBA every year, 30k points through durability.',
+      comps: 'Karl Malone · Durant · Kobe',
+      boost: { inside: 14, mid: 22, three: 12, ft: 16, handling: 12, passing: -2, iq: 10, reb: 0, perD: -6, rimP: -4, ath: 8, dur: 12 },
+      weights: { inside: .14, mid: .17, three: .13, ft: .09, handling: .1, passing: .03, iq: .1, reb: .03, perD: .03, rimP: .01, ath: .11, dur: .06 },
+      usg: 0.02, ts: 0.004, declineMult: 0.85, ceilingBonus: 0,
+    },
+    twoway: {
+      name: 'Two-Way Demon', icon: '🔒',
+      blurb: 'Lockdown defence plus real scoring. Titles and Finals MVPs, but injury risk is higher.',
+      comps: 'Kawhi · Giannis · Jordan · Pippen',
+      boost: { inside: 14, mid: 10, three: 2, ft: 0, handling: 6, passing: 4, iq: 12, reb: 8, perD: 30, rimP: 8, ath: 24, dur: -8 },
+      weights: { inside: .12, mid: .08, three: .05, ft: .03, handling: .06, passing: .05, iq: .1, reb: .07, perD: .17, rimP: .05, ath: .18, dur: .04 },
+      usg: 0.0, ts: 0.0, declineMult: 1.15, ceilingBonus: 0, injury: 1.35,
+    },
+    defender: {
+      name: 'Defensive Anchor', icon: '🧱',
+      blurb: 'Rebounds, blocks, DPOYs. Little offence, cheaper contracts, huge impact.',
+      comps: 'Russell · Mutombo · Ben Wallace · Gobert',
+      boost: { inside: 10, mid: -14, three: -24, ft: -16, handling: -20, passing: -6, iq: 8, reb: 30, perD: 10, rimP: 36, ath: 10, dur: 8 },
+      weights: { inside: .1, mid: .02, three: .02, ft: .03, handling: .02, passing: .04, iq: .1, reb: .16, perD: .1, rimP: .2, ath: .11, dur: .06 },
+      usg: -0.045, ts: 0.02, declineMult: 1.1, ceilingBonus: -1,
+    },
+    shooter: {
+      name: 'Lethal Shooter', icon: '🎳',
+      blurb: '40%+ from three on volume and 90% at the line. Ages best of all, defence is the weakness.',
+      comps: 'Curry · Klay · Reggie Miller · Ray Allen',
+      boost: { inside: -2, mid: 20, three: 38, ft: 32, handling: 14, passing: 6, iq: 14, reb: -8, perD: -10, rimP: -14, ath: 2, dur: 4 },
+      weights: { inside: .04, mid: .14, three: .26, ft: .1, handling: .1, passing: .06, iq: .12, reb: .01, perD: .02, rimP: 0, ath: .08, dur: .07 },
+      usg: -0.022, ts: 0.028, declineMult: 0.55, ceilingBonus: -1,
+    },
+    dominator: {
+      name: 'Box-Score Dominator', icon: '📊',
+      blurb: 'Near triple-double every night. Needs the ball and the usage; athletic types burn out faster.',
+      comps: 'Oscar · Westbrook · Magic · Luka · Jokic',
+      boost: { inside: 12, mid: 6, three: 4, ft: 2, handling: 22, passing: 30, iq: 18, reb: 30, perD: 0, rimP: -10, ath: 18, dur: 6 },
+      weights: { inside: .09, mid: .06, three: .06, ft: .03, handling: .1, passing: .16, iq: .14, reb: .15, perD: .03, rimP: .01, ath: .12, dur: .05 },
+      usg: 0.025, ts: -0.004, declineMult: 1.0, ceilingBonus: 0,
+    },
+  };
+
+  const TEAMS = [
+    ['Atlanta', 'Hawks', 'E'], ['Boston', 'Celtics', 'E'], ['Brooklyn', 'Nets', 'E'], ['Charlotte', 'Hornets', 'E'],
+    ['Chicago', 'Bulls', 'E'], ['Cleveland', 'Cavaliers', 'E'], ['Detroit', 'Pistons', 'E'], ['Indiana', 'Pacers', 'E'],
+    ['Miami', 'Heat', 'E'], ['Milwaukee', 'Bucks', 'E'], ['New York', 'Knicks', 'E'], ['Orlando', 'Magic', 'E'],
+    ['Philadelphia', '76ers', 'E'], ['Toronto', 'Raptors', 'E'], ['Washington', 'Wizards', 'E'],
+    ['Dallas', 'Mavericks', 'W'], ['Denver', 'Nuggets', 'W'], ['Golden State', 'Warriors', 'W'], ['Houston', 'Rockets', 'W'],
+    ['Los Angeles', 'Clippers', 'W'], ['Los Angeles', 'Lakers', 'W'], ['Memphis', 'Grizzlies', 'W'], ['Minnesota', 'Timberwolves', 'W'],
+    ['New Orleans', 'Pelicans', 'W'], ['Oklahoma City', 'Thunder', 'W'], ['Phoenix', 'Suns', 'W'], ['Portland', 'Trail Blazers', 'W'],
+    ['Sacramento', 'Kings', 'W'], ['San Antonio', 'Spurs', 'W'], ['Utah', 'Jazz', 'W'],
+  ].map((t, i) => ({ id: i, city: t[0], nick: t[1], conf: t[2], name: t[0] + ' ' + t[1] }));
+
+  // tilt: small attribute nudge for where you grew up
+  const REGIONS = {
+    Northeast: { tilt: { handling: 3, passing: 2 }, states: ['New York', 'New Jersey', 'Pennsylvania', 'Massachusetts', 'Connecticut', 'Maryland', 'Washington D.C.', 'Rhode Island', 'Delaware', 'Maine', 'Vermont', 'New Hampshire'] },
+    Midwest: { tilt: { iq: 3, ft: 2 }, states: ['Illinois', 'Ohio', 'Michigan', 'Indiana', 'Wisconsin', 'Minnesota', 'Missouri', 'Iowa', 'Kansas', 'Nebraska', 'Oklahoma', 'South Dakota', 'North Dakota'] },
+    South: { tilt: { ath: 3, perD: 2 }, states: ['Georgia', 'Florida', 'North Carolina', 'South Carolina', 'Virginia', 'Tennessee', 'Alabama', 'Louisiana', 'Mississippi', 'Kentucky', 'Arkansas', 'West Virginia'] },
+    Texas: { tilt: { reb: 3, inside: 2 }, states: ['Texas'] },
+    West: { tilt: { three: 3, mid: 2 }, states: ['California', 'Washington', 'Oregon', 'Arizona', 'Nevada', 'Utah', 'Colorado', 'New Mexico', 'Idaho', 'Montana', 'Wyoming', 'Hawaii', 'Alaska'] },
+  };
+  const STATE_ABBR = {
+    'New York': 'NY', 'New Jersey': 'NJ', 'Pennsylvania': 'PA', 'Massachusetts': 'MA', 'Connecticut': 'CT', 'Maryland': 'MD', 'Washington D.C.': 'DC', 'Rhode Island': 'RI', 'Delaware': 'DE', 'Maine': 'ME', 'Vermont': 'VT', 'New Hampshire': 'NH',
+    'Illinois': 'IL', 'Ohio': 'OH', 'Michigan': 'MI', 'Indiana': 'IN', 'Wisconsin': 'WI', 'Minnesota': 'MN', 'Missouri': 'MO', 'Iowa': 'IA', 'Kansas': 'KS', 'Nebraska': 'NE', 'Oklahoma': 'OK', 'South Dakota': 'SD', 'North Dakota': 'ND',
+    'Georgia': 'GA', 'Florida': 'FL', 'North Carolina': 'NC', 'South Carolina': 'SC', 'Virginia': 'VA', 'Tennessee': 'TN', 'Alabama': 'AL', 'Louisiana': 'LA', 'Mississippi': 'MS', 'Kentucky': 'KY', 'Arkansas': 'AR', 'West Virginia': 'WV',
+    'Texas': 'TX', 'California': 'CA', 'Washington': 'WA', 'Oregon': 'OR', 'Arizona': 'AZ', 'Nevada': 'NV', 'Utah': 'UT', 'Colorado': 'CO', 'New Mexico': 'NM', 'Idaho': 'ID', 'Montana': 'MT', 'Wyoming': 'WY', 'Hawaii': 'HI', 'Alaska': 'AK',
+  };
+
+  // [name, state abbr, prestige 1-5]
+  const COLLEGES = [
+    ['Duke', 'NC', 5], ['Kentucky', 'KY', 5], ['Kansas', 'KS', 5], ['North Carolina', 'NC', 5], ['UConn', 'CT', 5], ['Gonzaga', 'WA', 5],
+    ['UCLA', 'CA', 4], ['Michigan State', 'MI', 4], ['Villanova', 'PA', 4], ['Arizona', 'AZ', 4], ['Houston', 'TX', 4], ['Texas', 'TX', 4], ['Alabama', 'AL', 4], ['Tennessee', 'TN', 4], ['Purdue', 'IN', 4], ['Baylor', 'TX', 4],
+    ['Florida', 'FL', 3], ['Arkansas', 'AR', 3], ['Illinois', 'IL', 3], ['Creighton', 'NE', 3], ['Marquette', 'WI', 3], ['Oregon', 'OR', 3], ['USC', 'CA', 3], ['Louisville', 'KY', 3], ['Syracuse', 'NY', 3], ['Georgetown', 'DC', 3], ['Memphis', 'TN', 3], ['Auburn', 'AL', 3], ['Indiana', 'IN', 3], ['Ohio State', 'OH', 3],
+    ['Wake Forest', 'NC', 2], ['Utah', 'UT', 2], ['Colorado', 'CO', 2], ['Seton Hall', 'NJ', 2], ["St. John's", 'NY', 2], ['Dayton', 'OH', 2], ['San Diego State', 'CA', 2], ['Virginia Tech', 'VA', 2], ['TCU', 'TX', 2], ['Cincinnati', 'OH', 2], ['Xavier', 'OH', 2], ['Butler', 'IN', 2],
+    ['Davidson', 'NC', 1], ["Saint Mary's", 'CA', 1], ['VCU', 'VA', 1], ['Loyola Chicago', 'IL', 1], ['Wichita State', 'KS', 1], ['Belmont', 'TN', 1], ['Santa Clara', 'CA', 1], ['Murray State', 'KY', 1], ['Northern Iowa', 'IA', 1], ['Drake', 'IA', 1], ['Weber State', 'UT', 1], ['South Dakota State', 'SD', 1], ['Furman', 'SC', 1], ['Oral Roberts', 'OK', 1],
+  ].map((c, i) => ({ id: i, name: c[0], state: c[1], prestige: c[2] }));
+
+  const FIRST = ['Marcus', 'Jalen', 'Devin', 'Tyrese', 'Darius', 'Cam', 'Trey', 'Isaiah', 'Malik', 'Jaylen', 'Zion', 'Ant', 'Josh', 'Kyle', 'Brandon', 'Terrence', 'Caleb', 'Donovan', 'Elijah', 'Xavier', 'Reggie', 'Andre', 'Nico', 'Luka', 'Tobias', 'Jamal', 'Rashad', 'Dominic', 'Mason', 'Ty', 'Corey', 'Jordan', 'Derrick', 'Jabari', 'Kelvin', 'Omar', 'Shai', 'Paolo', 'Victor', 'Chet', 'Cooper', 'Amari', 'Keegan', 'Bryce', 'Dyson', 'Kobe', 'Lonzo', 'Immanuel'];
+  const LAST = ['Johnson', 'Williams', 'Brown', 'Davis', 'Miller', 'Wilson', 'Moore', 'Taylor', 'Anderson', 'Thomas', 'Jackson', 'White', 'Harris', 'Martin', 'Thompson', 'Robinson', 'Clark', 'Lewis', 'Walker', 'Hall', 'Young', 'King', 'Wright', 'Scott', 'Green', 'Baker', 'Adams', 'Nelson', 'Hill', 'Campbell', 'Mitchell', 'Carter', 'Roberts', 'Phillips', 'Evans', 'Turner', 'Parker', 'Collins', 'Edwards', 'Stewart', 'Morris', 'Murphy', 'Cook', 'Rogers', 'Reed', 'Bailey', 'Cooper', 'Howard', 'Ward', 'Brooks', 'Sanders', 'Price', 'Bennett', 'Wood', 'Barnes', 'Ross', 'Henderson', 'Coleman', 'Jenkins', 'Perry', 'Powell', 'Long', 'Patterson', 'Hughes', 'Flores', 'Washington', 'Butler', 'Simmons', 'Foster', 'Bryant', 'Alexander', 'Russell', 'Griffin', 'Hayes'];
+
+  NBA.data = { ATTRS, ATTR_LABELS, POSITIONS, ARCHETYPES, TEAMS, REGIONS, STATE_ABBR, COLLEGES, FIRST, LAST };
+  if (typeof module !== 'undefined') module.exports = NBA;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+(function (g) {
+  'use strict';
+  const NBA = g.NBA;
+  const D = NBA.data;
+  const { ATTRS, POSITIONS, ARCHETYPES } = D;
+
+  // ---------------------------------------------------------------- RNG
+  let _rng = Math.random;
+  function setSeed(s) {
+    let a = s >>> 0;
+    _rng = function () {
+      a |= 0; a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const rand = () => _rng();
+  function randn() {
+    let u = 0, v = 0;
+    while (!u) u = rand();
+    while (!v) v = rand();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  const rint = (a, b) => a + Math.floor(rand() * (b - a + 1));
+  const pick = (arr) => arr[Math.floor(rand() * arr.length)];
+  const r1 = (x) => Math.round(x * 10) / 10;
+  function weighted(obj) {
+    const keys = Object.keys(obj);
+    let tot = 0;
+    keys.forEach((k) => (tot += obj[k]));
+    let r = rand() * tot;
+    for (const k of keys) { r -= obj[k]; if (r <= 0) return k; }
+    return keys[keys.length - 1];
+  }
+  const sum = (a) => a.reduce((s, x) => s + x, 0);
+
+  // ---------------------------------------------------------------- tuning knobs
+  const T = {
+    pace: 99,            // possessions per game, 2025-ish
+    usgBase: 0.195, usgPerSS: 0.0045, usgConvex: 0.00012,
+    tsBase: 0.385, tsPerSkill: 0.0025, tsEra: 0.012, usgTax: 0.22,
+    minsBase: 12, minsPerOvr: 0.95, minsCap: 36.5,
+    declineScale: 1.6,
+    ceilA: 55, ceilLambda: 13.1, ceilK: 1.51,
+    winsPerPt: 0.62, winsCoreAvg: 48, ovrStretch: 1.3,
+  };
+  NBA.tuning = T;
+
+  // ---------------------------------------------------------------- ratings
+  function weightsFor(arch, sec) {
+    const w = ARCHETYPES[arch].weights;
+    if (!sec) return w;
+    const s = ARCHETYPES[sec].weights, out = {};
+    ATTRS.forEach((a) => (out[a] = 0.88 * w[a] + 0.12 * s[a]));
+    return out;
+  }
+  function ovrOf(p) {
+    const w = weightsFor(p.arch, p.sec);
+    let s = 0, ws = 0;
+    ATTRS.forEach((a) => { s += w[a] * p.attrs[a]; ws += w[a]; });
+    const avg = s / ws;
+    return avg < 52 ? avg : Math.min(99, 52 + T.ovrStretch * (avg - 52));
+  }
+  const ovr = (p) => ovrOf(p);
+
+  function fitOvr(attrs, p, goal) {
+    const w = weightsFor(p.arch, p.sec);
+    for (let i = 0; i < 40; i++) {
+      const cur = ovrOf({ attrs, arch: p.arch, sec: p.sec });
+      const d = goal - cur;
+      if (Math.abs(d) < 0.2) break;
+      let norm = 0;
+      const m = {};
+      ATTRS.forEach((a) => { m[a] = 0.5 + w[a] * 12; norm += w[a] * m[a]; });
+      ATTRS.forEach((a) => {
+        let step = (d * m[a]) / norm;
+        if (step > 0 && attrs[a] > 92) step *= 0.3;
+        attrs[a] = clamp(attrs[a] + step, 12, 99);
+      });
+    }
+  }
+
+  function regionOf(state) {
+    for (const r in D.REGIONS) if (D.REGIONS[r].states.includes(state)) return r;
+    return 'Midwest';
+  }
+
+  function buildTarget(p, ceiling) {
+    const P = POSITIONS[p.pos], A = ARCHETYPES[p.arch], S = p.sec ? ARCHETYPES[p.sec] : null;
+    const tilt = p.home ? D.REGIONS[regionOf(p.home)].tilt : {};
+    const t = {};
+    ATTRS.forEach((a) => {
+      t[a] = clamp(50 + P[a] + A.boost[a] + (S ? 0.4 * S.boost[a] : 0) + (tilt[a] || 0) + randn() * 4.5, 12, 99);
+    });
+    fitOvr(t, p, ceiling);
+    return t;
+  }
+
+  function rollCeiling(stars, arch) {
+    const nudge = { 1: -2, 2: 1, 3: 4.5, 4: 10, 5: 16 }[stars] || 0;
+    const base = T.ceilA + T.ceilLambda * Math.pow(-Math.log(1 - rand()), 1 / T.ceilK);
+    const bonus = arch ? ARCHETYPES[arch].ceilingBonus : 0;
+    return clamp(base + nudge + bonus, 55, 99);
+  }
+
+  function rollTdPlan(p) {
+    const tbl = (arch, sec) => {
+      if (arch === 'dominator') return { 0: 5, 1: 28, 2: 27, 3: 20, 4: 12, 5: 8 };
+      if (sec === 'dominator') return { 0: 60, 1: 28, 2: 12 };
+      if (arch === 'generational') return { 0: 78, 1: 18, 2: 4 };
+      return { 0: 100 };
+    };
+    p.tdPlan = +weighted(tbl(p.arch, p.sec));
+    p.td30Plan = p.tdPlan > 0 ? Math.min(p.tdPlan, rand() < 0.45 ? 2 : 1) : 0;
+    p.tdUsed = 0; p.td30Used = 0;
+    p.heaterPlan = (p.arch === 'dominator' || p.arch === 'generational' || p.sec === 'dominator') ? (rand() < 0.3 ? 0 : rand() < 0.55 ? 1 : 2) : (rand() < 0.65 ? 0 : 1);
+    p.heatersUsed = 0;
+    p.legendPlan = +weighted(p.arch === 'dominator' ? { 0: 25, 1: 45, 2: 30 } : p.sec === 'dominator' ? { 0: 70, 1: 25, 2: 5 } : p.arch === 'generational' ? { 0: 85, 1: 15 } : { 0: 100 });
+    p.legendUsed = 0;
+    p.hist35 = false;
+  }
+
+  function nameGen() { return pick(D.FIRST) + ' ' + pick(D.LAST); }
+
+  function makePlayer(o) {
+    const p = {
+      id: o.id, name: o.name || nameGen(), pos: o.pos, arch: o.arch, sec: o.sec || null,
+      home: o.home || pick(Object.keys(D.STATE_ABBR)), age: o.age || 18,
+      ceiling: o.ceiling, work: o.work != null ? o.work : clamp(0.5 + randn() * 0.22, 0, 1),
+      prone: o.prone != null ? o.prone : clamp(1 + randn() * 0.3, 0.5, 1.8),
+      stars: o.stars || 0, yearsPro: 0, teamId: -1, injuries: [],
+    };
+    p.target = buildTarget(p, p.ceiling);
+    const gap = o.gap != null ? o.gap : 10 + rand() * 12;
+    p.attrs = {};
+    ATTRS.forEach((a) => {
+      const k = a === 'ath' ? 0.55 : a === 'dur' ? 0.2 : 1;
+      p.attrs[a] = clamp(p.target[a] - gap * k * (0.7 + rand() * 0.6), 10, 99);
+    });
+    rollTdPlan(p);
+    return p;
+  }
+
+  function randomArch(ceiling) {
+    if (ceiling >= 90 && rand() < 0.5) return 'generational';
+    return weighted({ scorer: 22, twoway: 16, defender: 12, shooter: 17, dominator: 13, generational: 4 });
+  }
+  function randomPos(arch) {
+    if (arch === 'defender') return weighted({ C: 60, PF: 30, SF: 6, SG: 2, PG: 2 });
+    if (arch === 'shooter') return weighted({ SG: 40, SF: 22, PG: 28, PF: 8, C: 2 });
+    if (arch === 'dominator') return weighted({ PG: 30, SG: 10, SF: 16, PF: 14, C: 30 });
+    return weighted({ PG: 20, SG: 22, SF: 22, PF: 18, C: 18 });
+  }
+
+  // ---------------------------------------------------------------- progression
+  function growthRate(age) {
+    if (age <= 19) return 0.3; if (age === 20) return 0.3; if (age === 21) return 0.28;
+    if (age === 22) return 0.27; if (age === 23) return 0.25; if (age === 24) return 0.23;
+    if (age === 25) return 0.2; if (age === 26) return 0.17; if (age === 27) return 0.13;
+    return 0;
+  }
+  const ATH_DEC = { 28: 0.3, 29: 0.9, 30: 1.4, 31: 1.7, 32: 2.1, 33: 2.5, 34: 2.9, 35: 3.5 };
+  const PHY_DEC = { 29: 0.2, 30: 0.5, 31: 0.8, 32: 1.1, 33: 1.5, 34: 1.9, 35: 2.5 };
+  const SKL_DEC = { 31: 0.3, 32: 0.5, 33: 0.9, 34: 1.3, 35: 1.8 };
+  function decAt(tbl, age, max) {
+    if (age < +Object.keys(tbl)[0]) return 0;
+    return tbl[Math.min(age, 35)] * (age > 35 ? 1 + (age - 35) * 0.1 : 1);
+  }
+  function declineFor(a, age, p) {
+    const A = ARCHETYPES[p.arch];
+    let m = A.declineMult * (p.sec ? 0.9 * A.declineMult + 0.1 * ARCHETYPES[p.sec].declineMult : 1) / (p.sec ? A.declineMult : 1);
+    if (!p.sec) m = A.declineMult;
+    const athRel = clamp((p.target.ath - 50) / 45, 0, 1.25);
+    let base = 0;
+    if (a === 'ath') base = decAt(ATH_DEC, age) * (0.7 + 0.5 * athRel);
+    else if (a === 'reb' || a === 'perD' || a === 'rimP') base = decAt(PHY_DEC, age) * (0.8 + 0.4 * athRel);
+    else if (a === 'dur') base = age >= 30 ? 0.7 + (age - 30) * 0.3 : 0;
+    else if (a === 'ft' || a === 'iq') base = age >= 34 ? decAt(SKL_DEC, age) * 0.5 : 0;
+    else if (a === 'three' || a === 'passing') base = decAt(SKL_DEC, age) * 0.7;
+    else if (a === 'inside') base = decAt(SKL_DEC, age) * 1.1 + decAt(ATH_DEC, age) * 0.15;
+    else base = decAt(SKL_DEC, age);
+    return base * m * T.declineScale;
+  }
+
+  function progress(p) {
+    const next = p.age + 1;
+    const wk = 0.88 + 0.24 * p.work;
+    const shock = randn() * (next <= 22 ? 1.9 : next <= 26 ? 1.1 : 0.7);
+    ATTRS.forEach((a) => {
+      let cur = p.attrs[a];
+      const rate = growthRate(next) * wk;
+      if (rate > 0) cur += (p.target[a] - cur) * rate + randn() * (next <= 21 ? 1.6 : 0.9) + shock;
+      else cur += shock * 0.35;
+      cur -= declineFor(a, next, p) * (0.85 + rand() * 0.3);
+      p.attrs[a] = clamp(cur, 8, 99);
+    });
+    p.age = next;
+  }
+
+  const rookieFloor = (slot) => (!slot ? 8 : slot <= 3 ? 29 : slot <= 5 ? 27 : slot <= 10 ? 24 : slot <= 14 ? 21 : slot <= 30 ? 14 : 8);
+  function trainPoints(p) {
+    const a = p.age;
+    return a <= 21 ? 9 : a <= 25 ? 7 : a <= 29 ? 5 : 4;
+  }
+  function applyTraining(p, alloc) {
+    ATTRS.forEach((a) => {
+      const pts = alloc[a] || 0;
+      if (!pts) return;
+      let eff = pts * (0.85 + 0.3 * p.work);
+      if (p.attrs[a] > 92) eff *= 0.35; else if (p.attrs[a] > 85) eff *= 0.6;
+      if (p.age >= 31) eff *= 0.8;
+      p.attrs[a] = clamp(p.attrs[a] + eff, 8, 99);
+      p.target[a] = clamp(p.target[a] + eff * 0.8, 8, 99);
+    });
+  }
+
+  // ---------------------------------------------------------------- stat model
+  function top3shots(a) {
+    const s = [a.inside, a.mid, a.three].sort((x, y) => y - x);
+    return s;
+  }
+  function expLine(p, c) {
+    c = c || {};
+    const a = p.attrs, A = ARCHETYPES[p.arch], S = p.sec ? ARCHETYPES[p.sec] : null;
+    const o = ovrOf(p);
+    const sh = top3shots(a);
+    const SS = 0.34 * sh[0] + 0.14 * sh[1] + 0.12 * a.ft + 0.12 * a.handling + 0.1 * a.iq + 0.18 * a.ath;
+    let usg = T.usgBase + T.usgPerSS * (SS - 55) + T.usgConvex * Math.pow(Math.max(0, SS - 70), 2) + A.usg + (S ? 0.4 * S.usg : 0) - (c.coTax || 0);
+    usg = clamp(usg * (c.usgMult || 1), 0.12, 0.362);
+    let mins = clamp(T.minsBase + T.minsPerOvr * (o - 58), 8, T.minsCap);
+    if (p.age >= 33) mins -= (p.age - 32) * 0.6;
+    if (c.rookie && o < 84) mins *= 0.93;
+    if (c.rookie) { usg *= 0.96; }
+    mins = clamp(mins * (c.minsMult || 1), 6, c.minsMax || 38);
+    if (c.minsFixed) mins = c.minsFixed;
+    else if (c.minsFloor) mins = Math.max(mins, c.minsFloor);
+
+    const skillShoot = 0.5 * sh[0] + 0.2 * sh[1] + 0.2 * a.ft + 0.1 * a.iq;
+    let ts = T.tsBase + T.tsPerSkill * skillShoot + T.tsEra - T.usgTax * (usg - 0.2) * 1.0 + A.ts + (S ? 0.4 * S.ts : 0);
+    ts += 0.5 * Math.max(0, 0.2 - usg);
+    ts += (c.tsAdj || 0) - (c.rookie ? 0.012 : 0);
+    ts = clamp(ts, 0.44, 0.7);
+
+    const pace = c.pace || T.pace;
+    const used = usg * (mins / 48) * pace;
+    let pts = used * 1.82 * ts;
+    const pm = 0.65 * a.passing + 0.35 * a.handling;
+    const soft = (x, knee, k) => (x > knee ? knee + (x - knee) * k : x);
+    const reb36 = soft(Math.max(1.6, 0.18 * a.reb - 3.8), 9, 0.6);
+    const ast36 = soft(Math.max(1.0, 0.125 * (pm - 30) + 10 * (usg - 0.2)), 8.5, 0.62);
+    const defx = 0.65 * a.perD + 0.35 * a.ath;
+    const stl36 = Math.max(0.55, 0.031 * (defx - 33));
+    const blk36 = Math.max(0.15, 0.043 * (a.rimP - 28));
+    const tov36 = 0.8 + 10.5 * usg;
+    const k = mins / 36;
+    return {
+      ovr: o, usg, ts, mins, pace,
+      pts, reb: reb36 * k * (c.rebMult || 1), ast: ast36 * k * (c.astMult || 1),
+      stl: stl36 * k, blk: blk36 * k, tov: tov36 * k,
+    };
+  }
+
+  // Convert a points figure into a full shooting line.
+  function shootingLine(p, pts, ts, usg) {
+    const a = p.attrs;
+    if (pts < 0.05) return { fga: 0, fgm: 0, fgp: 0, tpa: 0, tpm: 0, tpp: 0, fta: 0, ftm: 0, ftp: 0, ts: 0 };
+    const S = pts / (2 * ts);
+    const ftRate = clamp(0.16 + 0.0016 * (a.inside - 50) + 0.0012 * (a.ath - 50) + 0.001 * (usg * 100 - 20), 0.08, 0.5);
+    let fga = S / (1 + 0.44 * ftRate);
+    const fta = fga * ftRate;
+    const ftp = clamp(0.33 + 0.0062 * a.ft + randn() * 0.006, 0.45, 0.95);
+    const ftm = fta * ftp;
+    const tr = clamp(0.02 + 0.0085 * (a.three - 30), 0.02, 0.6);
+    const tpa = fga * tr;
+    const tpp = clamp(0.22 + 0.0024 * a.three + randn() * 0.006, 0.2, 0.47);
+    const tpm = tpa * tpp;
+    const fgm = (pts - ftm - tpm) / 2;
+    let fgp = fgm / fga;
+    if (fgp > 0.68) { fga = fgm / 0.68; fgp = 0.68; } else if (fgp < 0.37) { fga = fgm / 0.37; fgp = 0.37; }
+    const fta2 = fta, tsReal = pts / (2 * (fga + 0.44 * fta2));
+    return { fga, fgm, fgp, tpa, tpm, tpp: tpa > 0.3 ? tpm / tpa : 0, fta: fta2, ftm, ftp, ts: tsReal };
+  }
+
+  // ---------------------------------------------------------------- per-game box scores
+  function genGame(m) {
+    const gs = randn();
+    const mm = clamp(1 + 0.085 * gs, 0.55, 1.28);
+    const hot = rand() < 0.06 ? 1.28 : 0.9825;
+    let pts = Math.max(0, Math.round(m.pts * mm * (1 + 0.205 * randn()) * hot));
+    const ctr = (mean, extra) => {
+      const lam = mean * mm;
+      return Math.max(0, Math.round(lam + (Math.sqrt(lam) * 0.95 + 0.04 * lam) * randn() * (extra || 1)));
+    };
+    const reb = ctr(m.reb), ast = ctr(m.ast);
+    const stl = Math.max(0, Math.round(m.stl * mm + Math.sqrt(m.stl * mm) * 0.9 * randn()));
+    const blk = Math.max(0, Math.round(m.blk * mm + Math.sqrt(m.blk * mm) * 0.95 * randn()));
+    const tov = Math.max(0, Math.round(m.tov * mm + Math.sqrt(m.tov * mm) * 0.8 * randn()));
+    return { min: m.mins * mm, pts, reb, ast, stl, blk, tov };
+  }
+  function summarize(games) {
+    const n = games.length || 1;
+    const s = { gp: games.length, pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, tov: 0, mins: 0, td: 0, dd: 0, g40: 0, g50: 0, high: 0 };
+    games.forEach((g1) => {
+      s.pts += g1.pts; s.reb += g1.reb; s.ast += g1.ast; s.stl += g1.stl; s.blk += g1.blk; s.tov += g1.tov; s.mins += g1.min;
+      const cats = [g1.pts, g1.reb, g1.ast, g1.stl, g1.blk].filter((x) => x >= 10).length;
+      if (cats >= 3) s.td++;
+      if (cats >= 2) s.dd++;
+      if (g1.pts >= 40) s.g40++;
+      if (g1.pts >= 50) s.g50++;
+      if (g1.pts > s.high) s.high = g1.pts;
+    });
+    s.totPts = s.pts; s.totReb = s.reb; s.totAst = s.ast;
+    ['pts', 'reb', 'ast', 'stl', 'blk', 'tov', 'mins'].forEach((k) => (s[k] = s[k] / n));
+    return s;
+  }
+
+  Object.assign(NBA, {
+    rand, randn, clamp, rint, pick, r1, weighted, sum, setSeed,
+    ovr, ovrOf, makePlayer, buildTarget, rollCeiling, rollTdPlan, randomArch, randomPos, nameGen, regionOf,
+    progress, applyTraining, trainPoints, rookieFloor, expLine, shootingLine, genGame, summarize,
+  });
+  if (typeof module !== 'undefined') module.exports = NBA;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+(function (g) {
+  'use strict';
+  const NBA = g.NBA;
+  const D = NBA.data;
+  const { rand, randn, clamp, rint, pick, weighted, sum, ovr, makePlayer, rollCeiling, randomArch, randomPos, progress, expLine, ATTRS } = Object.assign({ ATTRS: D.ATTRS }, NBA);
+  const T = NBA.tuning;
+
+  const seasonLabel = (y) => y + '-' + String((y + 1) % 100).padStart(2, '0');
+
+  function poisson(l) { let L = Math.exp(-l), k = 0, p = 1; do { k++; p *= rand(); } while (p > L); return k - 1; }
+
+  // ------------------------------------------------------------ availability
+  function rollAvail(p, opts) {
+    opts = opts || {};
+    const A = D.ARCHETYPES[p.arch];
+    const lam = 0.8 * p.prone * (A.injury || 1) * clamp(1.25 - p.attrs.dur / 110, 0.35, 1.2) * (1 + Math.max(0, p.age - 28) * 0.04);
+    const n = poisson(lam);
+    let miss = 0;
+    const list = [];
+    for (let i = 0; i < n; i++) {
+      const d = clamp(Math.round(Math.exp(1.6 + 0.9 * randn())), 1, 40);
+      miss += d; list.push(d);
+    }
+    let major = null;
+    const mp = 0.012 * p.prone * (A.injury || 1) * (1 + Math.max(0, p.age - 26) * 0.05) * (1 + clamp((p.target.ath - 70) / 60, 0, 0.5));
+    if (rand() < mp) {
+      major = pick(['torn ACL', 'torn Achilles', 'fractured foot', 'torn meniscus', 'ruptured patellar tendon']);
+      miss = rint(48, 82);
+    }
+    const o = ovr(p);
+    let rest = o >= 74 ? (p.age >= 30 ? rint(3, 7) : rint(0, 4)) : rint(0, 2);
+    if (opts.noRest) rest = 0;
+    return { gp: clamp(82 - miss - rest - (opts.extraMiss || 0), 0, 82), miss, rest, injuries: list, major };
+  }
+  function applyMajorInjury(p) {
+    p.attrs.ath = clamp(p.attrs.ath - (3 + rand() * 4), 8, 99);
+    p.attrs.dur = clamp(p.attrs.dur - (2 + rand() * 4), 8, 99);
+    p.target.ath = clamp(p.target.ath - 3, 8, 99);
+  }
+
+  // ------------------------------------------------------------ NPC creation
+  function makeNPC(L, age, opts) {
+    opts = opts || {};
+    const ceiling = opts.ceiling != null ? opts.ceiling : clamp(rollCeiling(0, null) + (opts.bonus || 0), 55, 99);
+    const arch = opts.arch || randomArch(ceiling);
+    const pos = opts.pos || randomPos(arch);
+    const sec = rand() < 0.14 ? weighted({ generational: 1, scorer: 3, twoway: 3, defender: 2, shooter: 3, dominator: 2 }) : null;
+    const p = makePlayer({ id: L.nextId++, pos, arch, sec: sec === arch ? null : sec, ceiling, age: 18, gap: 14 + rand() * 10 });
+    while (p.age < age) progress(p);
+    p.yearsPro = Math.max(0, age - 19);
+    return p;
+  }
+  function fillCore(L, t) {
+    while (t.core.length < 4) {
+      const p = makeNPC(L, rint(23, 30), { ceiling: 67 + rand() * 9, bonus: 0 });
+      p.teamId = t.id; L.players[p.id] = p; t.core.push(p.id);
+    }
+  }
+
+  function newLeague(startYear) {
+    const L = {
+      year: startYear || 2025, nextId: 1, players: {}, rookies: [], history: [], lines: {},
+      teams: D.TEAMS.map((t) => Object.assign({}, t, { core: [], depth: randn() * 2.2, wins: 41, losses: 41, pace: 99 })),
+      capBase: 154.6, lastLeaders: null,
+    };
+    const cand = [];
+    for (let i = 0; i < 560; i++) {
+      const r = rand();
+      const age = r < 0.3 ? rint(20, 22) : r < 0.62 ? rint(23, 26) : r < 0.86 ? rint(27, 30) : rint(31, 35);
+      cand.push(makeNPC(L, age));
+    }
+    cand.sort((a, b) => ovr(b) - ovr(a));
+    const chosen = cand.slice(0, 120).sort(() => rand() - 0.5);
+    chosen.forEach((p, i) => {
+      const t = L.teams[i % 30];
+      p.teamId = t.id; L.players[p.id] = p; t.core.push(p.id);
+    });
+    return L;
+  }
+  L_proto();
+  function L_proto() {}
+
+  // ------------------------------------------------------------ helpers
+  function teamRoster(L, t, user) {
+    const r = t.core.map((id) => L.players[id]);
+    if (user && user.teamId === t.id) r.push(user.p);
+    return r;
+  }
+  function coTaxFor(self, roster) {
+    let tax = 0;
+    roster.forEach((q) => {
+      if (q === self) return;
+      const o = ovr(q);
+      tax += 0.0022 * Math.max(0, o - 72) - 0.0008 * Math.max(0, 70 - o);
+    });
+    return clamp(tax, -0.03, 0.05);
+  }
+  const perfOf = (l) => l.pts * (1 + 2.2 * (l.ts - 0.57)) + 1.15 * l.reb + 1.5 * l.ast + 2 * (l.stl + l.blk) - 1.1 * l.tov;
+  function defScore(p, l) {
+    return 4 * l.blk + 3.5 * l.stl + 0.12 * Math.max(p.attrs.rimP, p.attrs.perD);
+  }
+  function lineFromExp(p, e, gp, form) {
+    const k = form || 1;
+    const l = { gp, mins: e.mins, pts: e.pts * k, reb: e.reb * (0.97 + 0.06 * rand()), ast: e.ast * (0.97 + 0.06 * rand()), stl: e.stl, blk: e.blk, tov: e.tov, ts: e.ts, usg: e.usg };
+    l.perf = perfOf(l);
+    return l;
+  }
+
+  // ------------------------------------------------------------ playoffs
+  function playGame(pa, pb, hcaA) { return rand() < 1 / (1 + Math.exp(-0.145 * (pa - pb + (hcaA ? 2.5 : -2.5)))); }
+  function series(L, a, b) {
+    // a is the higher seed (home court)
+    const ra = a.power, rb = b.power;
+    let wa = 0, wb = 0, g = 0;
+    const hc = [1, 1, 0, 0, 1, 0, 1];
+    while (wa < 4 && wb < 4) {
+      if (playGame(ra, rb, hc[g++])) wa++; else wb++;
+    }
+    return { a, b, wa, wb, winner: wa > wb ? a : b, loser: wa > wb ? b : a, games: wa + wb };
+  }
+  function simPlayoffs(L, userTeamId) {
+    const out = { rounds: [], playin: [], champion: null, userSeries: [], userMade: false, userOut: null };
+    const confs = { E: [], W: [] };
+    L.teams.forEach((t) => confs[t.conf].push(t));
+    const seeds = {};
+    ['E', 'W'].forEach((c) => {
+      const s = confs[c].slice().sort((x, y) => y.wins - x.wins || rand() - 0.5);
+      // play-in
+      const pi = (hi, lo) => { const r = playGame(hi.power, lo.power, true) ? [hi, lo] : [lo, hi]; out.playin.push({ w: r[0].name, l: r[1].name }); return r; };
+      const g78 = pi(s[6], s[7]), g910 = pi(s[8], s[9]);
+      const g8 = pi(g78[1], g910[0]);
+      seeds[c] = s.slice(0, 6).concat([g78[0], g8[0]]);
+    });
+    if (userTeamId != null) out.userMade = ['E', 'W'].some((c) => seeds[c].some((t) => t.id === userTeamId));
+    const runConf = (c) => {
+      let rd = [[0, 7], [3, 4], [2, 5], [1, 6]].map(([i, j]) => [seeds[c][i], seeds[c][j]]);
+      const results = [];
+      for (let r = 0; r < 3; r++) {
+        const winners = [];
+        const rr = rd.map((m) => {
+          const hi = m[0].wins >= m[1].wins ? m[0] : m[1], lo = hi === m[0] ? m[1] : m[0];
+          const s = series(L, hi, lo); winners.push(s.winner); return s;
+        });
+        results.push(rr);
+        rd = []; for (let i = 0; i < winners.length; i += 2) rd.push([winners[i], winners[i + 1]]);
+        if (winners.length === 1) return { results, champ: winners[0] };
+      }
+    };
+    const east = runConf('E'), west = runConf('W');
+    const roundNames = ['First Round', 'Conference Semifinals', 'Conference Finals'];
+    const all = [];
+    for (let r = 0; r < 3; r++) {
+      all.push({ name: roundNames[r], series: east.results[r].concat(west.results[r]) });
+    }
+    const hi = east.champ.wins >= west.champ.wins ? east.champ : west.champ, lo = hi === east.champ ? west.champ : east.champ;
+    const fin = series(L, hi, lo);
+    all.push({ name: 'NBA Finals', series: [fin] });
+    out.rounds = all; out.champion = fin.winner;
+    all.forEach((rd) => rd.series.forEach((s) => {
+      if (userTeamId != null && (s.a.id === userTeamId || s.b.id === userTeamId)) {
+        const mine = s.a.id === userTeamId ? s.a : s.b, opp = mine === s.a ? s.b : s.a;
+        const myW = mine === s.a ? s.wa : s.wb, opW = mine === s.a ? s.wb : s.wa;
+        out.userSeries.push({ round: rd.name, opp: opp.name, w: myW, l: opW, games: s.games, won: myW > opW });
+      }
+    }));
+    return out;
+  }
+
+  // ------------------------------------------------------------ season
+  function simSeason(L, user) {
+    const entries = [];
+    const avail = {};
+    const allPlayers = Object.values(L.players);
+    allPlayers.forEach((p) => {
+      const a = rollAvail(p);
+      avail[p.id] = a;
+      if (a.major) applyMajorInjury(p);
+    });
+    if (user) avail.user = user.avail;
+    // team strength
+    L.teams.forEach((t) => {
+      const roster = teamRoster(L, t, user);
+      const vals = roster.map((p) => {
+        const gp = p === (user && user.p) ? user.avail.gp : avail[p.id].gp;
+        const x = ovr(p) - 60;
+        return (x <= 20 ? x : 20 + (x - 20) * 0.72) * (gp / 82);
+      }).sort((x, y) => y - x).slice(0, 4);
+      t.S = sum(vals);
+      t.pace = 99 + randn() * 1.4;
+    });
+    const meanS = sum(L.teams.map((t) => t.S)) / L.teams.length;
+    L.teams.forEach((t) => {
+      t.depth = 0.55 * t.depth + randn() * 2.0;
+      t.wins = 41 + T.winsPerPt * (t.S - meanS) + t.depth + randn() * 4.0;
+    });
+    const mw = sum(L.teams.map((t) => t.wins)) / L.teams.length;
+    L.teams.forEach((t) => { t.wins = clamp(Math.round(t.wins - (mw - 41)), 12, 70); t.losses = 82 - t.wins; });
+    L.teams.forEach((t) => { t.power = (t.wins - 41) / 2.7 + randn() * 0.8; });
+
+    // user line (needs team context)
+    if (user) {
+      const t = L.teams[user.teamId];
+      const roster = teamRoster(L, t, user);
+      user.ctx = { coTax: coTaxFor(user.p, roster), pace: t.pace, wins: t.wins };
+      user.line = user.getLine(user.ctx);
+    }
+    // everyone else
+    const lines = {};
+    allPlayers.forEach((p) => {
+      const t = L.teams[p.teamId];
+      const roster = teamRoster(L, t, user);
+      const e = expLine(p, { coTax: coTaxFor(p, roster), pace: t.pace, rookie: p.rookie, minsFloor: p.rookie ? NBA.rookieFloor(p.draftSlot) : 0 });
+      const l = lineFromExp(p, e, avail[p.id].gp, 1 + 0.05 * randn());
+      l.id = p.id; l.teamId = p.teamId; l.wins = t.wins;
+      lines[p.id] = l;
+      entries.push({ p, l, t, id: p.id });
+    });
+    if (user) {
+      const l = Object.assign({}, user.line);
+      l.perf = perfOf(l); l.id = 'user'; l.teamId = user.teamId; l.wins = L.teams[user.teamId].wins;
+      entries.push({ p: user.p, l, t: L.teams[user.teamId], id: 'user', isUser: true });
+      user.line.perf = l.perf;
+    }
+    L.lines = lines;
+
+    // awards
+    const q65 = entries.filter((e) => e.l.gp >= 65);
+    const byMVP = q65.map((e) => ({ e, s: e.l.perf + 0.5 * e.l.pts + 0.35 * (e.l.wins - 41) + randn() * 6 - (e.p.mvpRecent || 0), ok: e.l.wins >= 36 })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
+    const dpoy = q65.map((e) => ({ e, s: defScore(e.p, e.l) + 0.12 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s);
+    const roy = entries.filter((e) => e.p.rookie && e.l.gp >= 50).map((e) => ({ e, s: e.l.perf + 0.1 * (e.l.wins - 41) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
+    const mip = q65.filter((e) => !e.p.rookie && e.p.prevPerf != null && e.p.age <= 28).map((e) => ({ e, s: (e.l.perf - e.p.prevPerf) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
+    const allNBA = q65.map((e) => ({ e, s: e.l.perf + 0.4 * e.l.pts + 0.15 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s).slice(0, 15);
+    const allDef = dpoy.slice(0, 10);
+    const stars = entries.filter((e) => e.l.gp >= 40).map((e) => ({ e, s: e.l.perf + randn() * 3 })).sort((a, b) => b.s - a.s).slice(0, 24);
+    const qual = entries.filter((e) => e.l.gp >= 58);
+    const lead = (k) => qual.slice().sort((a, b) => b.l[k] - a.l[k]);
+    const scoring = lead('pts');
+    const ref = (x) => (x ? { id: x.e.id, name: x.e.p.name, team: x.e.t.nick, isUser: !!x.e.isUser, pts: x.e.l.pts, reb: x.e.l.reb, ast: x.e.l.ast } : null);
+    const awards = {
+      mvp: ref(byMVP[0]), mvpRunner: ref(byMVP[1]), dpoy: ref(dpoy[0]), roy: ref(roy[0]), mip: ref(mip[0]),
+      scoring: scoring[0] ? { id: scoring[0].id, name: scoring[0].p.name, ppg: scoring[0].l.pts, isUser: !!scoring[0].isUser } : null,
+      allNBA: allNBA.map((x) => x.e.id), allDef: allDef.map((x) => x.e.id), allStar: stars.map((x) => x.e.id),
+      mvpIds: byMVP.slice(0, 5).map((x) => x.e.id),
+    };
+    awards.allNBATeams = [0, 1, 2].map((i) => allNBA.slice(i * 5, i * 5 + 5).map((x) => x.e.id));
+    awards.allDefTeams = [0, 1].map((i) => allDef.slice(i * 5, i * 5 + 5).map((x) => x.e.id));
+    const rankOf = (k, id) => { const i = lead(k).findIndex((e) => e.id === id); return i < 0 ? null : i + 1; };
+    const leaders = {};
+    ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k) => (leaders[k] = lead(k).slice(0, 5).map((e) => ({ name: e.p.name, team: e.t.nick, v: e.l[k], isUser: !!e.isUser }))));
+    L.lastLeaders = leaders;
+    const league = {
+      n30: qual.filter((e) => e.l.pts >= 30).length, n25: qual.filter((e) => e.l.pts >= 25).length,
+      topScorers: scoring.slice(0, 5).map((e) => ({ name: e.p.name, ppg: e.l.pts })),
+    };
+    const playoffs = simPlayoffs(L, user ? user.teamId : null);
+    // remember perf for MIP, and voter fatigue for repeat MVPs
+    entries.forEach((e) => { e.p.prevPerf = e.l.perf; e.p.mvpRecent = (e.p.mvpRecent || 0) * 0.55 + (awards.mvp && awards.mvp.id === e.id ? 4 : 0); });
+    const stand = L.teams.map((t) => ({ id: t.id, name: t.name, nick: t.nick, conf: t.conf, wins: t.wins, losses: t.losses }));
+    const res = { year: L.year, label: seasonLabel(L.year), awards, playoffs, standings: stand, leaders, league, ranks: user ? { pts: rankOf('pts', 'user'), reb: rankOf('reb', 'user'), ast: rankOf('ast', 'user'), stl: rankOf('stl', 'user'), blk: rankOf('blk', 'user') } : null, entries };
+    // history record
+    L.history.push({ year: L.year, champion: playoffs.champion.name, mvp: awards.mvp && awards.mvp.name, dpoy: awards.dpoy && awards.dpoy.name, roy: awards.roy && awards.roy.name, scoring: awards.scoring && (awards.scoring.name + ' ' + awards.scoring.ppg.toFixed(1)) });
+    if (L.history.length > 60) L.history.shift();
+    return res;
+  }
+
+  // finals MVP: user entry optional {perf}
+  function finalsMVP(L, teamId, userPerf) {
+    const t = L.teams[teamId];
+    const cands = t.core.map((id) => ({ name: L.players[id].name, s: (L.lines[id] ? L.lines[id].perf : 20) * (1 + 0.12 * randn()) + ovr(L.players[id]) * 0.1 }));
+    if (userPerf != null) cands.push({ name: 'user', s: userPerf * 1.04 + 8 + 0.08 * randn() });
+    cands.sort((a, b) => b.s - a.s);
+    return cands[0].name;
+  }
+
+  // ------------------------------------------------------------ retirement / offseason
+  function retireP(p) {
+    let h = p.age < 32 ? 0 : p.age < 34 ? 0.04 : p.age < 36 ? 0.14 : p.age < 38 ? 0.3 : p.age < 40 ? 0.55 : 0.9;
+    const o = ovr(p);
+    if (p.age >= 30 && o < 64) h += 0.18;
+    return rand() < h;
+  }
+
+  function lotteryOrder(L) {
+    const ranked = L.teams.slice().sort((a, b) => a.wins - b.wins || rand() - 0.5);
+    const lot = ranked.slice(0, 14), rest = ranked.slice(14);
+    const odds = [14, 14, 14, 12.5, 10.5, 9, 7.5, 6, 4.5, 3, 2, 1.5, 1, 0.5];
+    const pool = lot.map((t, i) => ({ t, w: odds[i] }));
+    const top4 = [];
+    for (let k = 0; k < 4; k++) {
+      const tot = sum(pool.map((x) => x.w));
+      let r = rand() * tot, idx = 0;
+      for (; idx < pool.length; idx++) { r -= pool[idx].w; if (r <= 0) break; }
+      idx = Math.min(idx, pool.length - 1);
+      top4.push(pool[idx].t); pool.splice(idx, 1);
+    }
+    const lotRest = pool.map((x) => x.t);
+    const mid = rest.slice().sort((a, b) => a.wins - b.wins);
+    const first = top4.concat(lotRest, mid);
+    // round 2: reverse of record
+    const second = L.teams.slice().sort((a, b) => a.wins - b.wins || rand() - 0.5);
+    return first.concat(second);
+  }
+
+  function makeProspect(L, age) {
+    const ceiling = rollCeiling(0, null);
+    const arch = randomArch(ceiling);
+    const p = makePlayer({ id: L.nextId++, pos: randomPos(arch), arch, sec: rand() < 0.14 ? 'scorer' : null, ceiling, age: 18, gap: 10 + rand() * 12 });
+    if (p.sec === p.arch) p.sec = null;
+    while (p.age < age) progress(p);
+    return p;
+  }
+  function stockOf(p, bonus) {
+    const o = ovr(p);
+    const est = p.ceiling + randn() * 4;
+    return 0.5 * o + 0.5 * est - 1.4 * (p.age - 19) + (bonus || 0) + randn() * 2.5;
+  }
+  function projectStock(p) { // deterministic version for mock draft
+    return 0.5 * ovr(p) + 0.5 * p.ceiling - 1.4 * (p.age - 19);
+  }
+  function draftClass(L, n) {
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const age = weighted({ 19: 46, 20: 26, 21: 16, 22: 12 });
+      const p = makeProspect(L, +age);
+      p.stock = stockOf(p);
+      out.push(p);
+    }
+    return out;
+  }
+  function addRookies(L, picks, order) {
+    // picks: array of {p, slot}
+    picks.forEach(({ p, slot }) => {
+      if (slot > 24 && ovr(p) < 66) return;
+      const t = order[slot - 1];
+      p.teamId = t.id; p.rookie = true; p.draftSlot = slot; p.yearsPro = 0;
+      L.players[p.id] = p;
+    });
+  }
+  function npcDraft(L) {
+    const order = lotteryOrder(L);
+    const cls = draftClass(L, 72).sort((a, b) => b.stock - a.stock);
+    addRookies(L, cls.slice(0, 60).map((p, i) => ({ p, slot: i + 1 })), order);
+    return { order };
+  }
+  // user draft: user ranked among a class
+  function userDraft(L, user, bonus) {
+    const order = lotteryOrder(L);
+    const cls = draftClass(L, 72);
+    user.stock = stockOf(user, bonus);
+    const all = cls.concat([user]).sort((a, b) => b.stock - a.stock);
+    const slot = all.indexOf(user) + 1;
+    const picks = [];
+    all.forEach((p, i) => { if (p !== user && i < 60) picks.push({ p, slot: i + 1 }); });
+    addRookies(L, picks, order);
+    const board = all.slice(0, 30).map((p, i) => ({ slot: i + 1, name: p === user ? user.name : p.name, pos: p.pos, age: p.age, team: order[i] ? order[i].name : '', isUser: p === user, ovr: Math.round(ovr(p)) }));
+    return { slot: slot > 60 ? null : slot, team: slot > 60 ? null : order[slot - 1], board, order, classSize: all.length };
+  }
+  function mockRange(L, user, bonus) {
+    // rough projection: run a few class simulations
+    // cheap approximation of the class (no full player objects) so this stays fast
+    const rem = { 19: 0.7, 20: 0.49, 21: 0.35, 22: 0.26 };
+    const ranks = [];
+    for (let k = 0; k < 16; k++) {
+      const s = stockOf(user, bonus);
+      let better = 0;
+      for (let i = 0; i < 72; i++) {
+        const age = +weighted({ 19: 46, 20: 26, 21: 16, 22: 12 });
+        const c = rollCeiling(0, null);
+        const o = c - (10 + 12 * rand()) * rem[age];
+        const st = 0.5 * o + 0.5 * (c + randn() * 4) - 1.4 * (age - 19) + randn() * 2.5;
+        if (st > s) better++;
+      }
+      ranks.push(1 + better);
+    }
+    ranks.sort((a, b) => a - b);
+    return { lo: ranks[2], mid: ranks[8], hi: ranks[13] };
+  }
+
+  function settleRookies(L) {
+    const rooks = Object.values(L.players).filter((p) => p.rookie);
+    const ovrB = (p) => ovr(p) + (p.draftSlot <= 10 ? 3 : p.draftSlot <= 20 ? 1 : 0);
+    rooks.sort((a, b) => ovrB(b) - ovrB(a));
+    rooks.forEach((p) => (p.rookie = false));
+    const placed = new Set();
+    // own team first if it has a vacancy
+    rooks.forEach((p) => {
+      const t = L.teams[p.teamId];
+      if (t.core.length < 4) { t.core.push(p.id); placed.add(p.id); }
+    });
+    // leftover talent goes to whichever teams still have holes (trades / draft-day deals)
+    rooks.forEach((p) => {
+      if (placed.has(p.id)) return;
+      const t = L.teams.find((x) => x.core.length < 4);
+      if (!t) return;
+      p.teamId = t.id; t.core.push(p.id); placed.add(p.id);
+    });
+    // a top pick can still take a starting spot from the worst core guy
+    rooks.forEach((p) => {
+      if (placed.has(p.id)) return;
+      const t = L.teams[p.teamId];
+      const worst = t.core.map((id) => L.players[id]).sort((a, b) => ovr(a) - ovr(b))[0];
+      if (p.draftSlot <= 6 && worst && ovr(p) > ovr(worst) + 3) {
+        t.core.splice(t.core.indexOf(worst.id), 1); delete L.players[worst.id];
+        t.core.push(p.id); placed.add(p.id);
+      }
+    });
+    rooks.forEach((p) => { if (!placed.has(p.id)) delete L.players[p.id]; });
+  }
+
+  function offseason(L, opts) {
+    opts = opts || {};
+    Object.values(L.players).forEach((p) => {
+      progress(p); p.yearsPro++;
+      if (retireP(p)) {
+        const t = L.teams[p.teamId];
+        t.core = t.core.filter((id) => id !== p.id);
+        delete L.players[p.id];
+      }
+    });
+    settleRookies(L);
+    for (let i = 0; i < 6; i++) {
+      const a = pick(L.teams), b = pick(L.teams);
+      if (a === b || !a.core.length || !b.core.length) continue;
+      const ia = rint(0, a.core.length - 1), ib = rint(0, b.core.length - 1);
+      const pa = L.players[a.core[ia]], pb = L.players[b.core[ib]];
+      a.core[ia] = pb.id; b.core[ib] = pa.id; pa.teamId = b.id; pb.teamId = a.id;
+    }
+    L.teams.forEach((t) => fillCore(L, t));
+    if (opts.draft !== false) npcDraft(L);
+    L.year++;
+  }
+
+  // run one season with no user (used while the player is in college and for warm-up)
+  function runYear(L, opts) {
+    const res = simSeason(L, null);
+    offseason(L, opts);
+    return res;
+  }
+
+  function poolStats(L) {
+    const o = Object.values(L.players).filter((p) => !p.rookie).map(ovr).sort((a, b) => b - a);
+    return { n90: o.filter((x) => x >= 90).length, n85: o.filter((x) => x >= 85).length, n80: o.filter((x) => x >= 80).length, mean: sum(o) / o.length, top: o.slice(0, 6).map((x) => Math.round(x)) };
+  }
+
+  Object.assign(NBA, { seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, userDraft, npcDraft, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
+  if (typeof module !== 'undefined') module.exports = NBA;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+(function (g) {
+  'use strict';
+  const NBA = g.NBA;
+  const D = NBA.data;
+  const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
+  const ATTRS = D.ATTRS;
+  const r1 = (x) => Math.round(x * 10) / 10;
+
+  const STAR_ODDS = { 1: 38, 2: 28, 3: 20, 4: 10, 5: 4 };
+  const STAR_NAMES = { 1: 'Zero-hype prospect', 2: 'Under-the-radar', 3: 'Solid recruit', 4: 'Blue-chip', 5: 'Five-star phenom' };
+  const TD_CAP = 5;
+
+  // ---------------------------------------------------------------- creation
+  function newCareer(o) {
+    if (o.seed != null) NBA.setSeed(o.seed);
+    const stars = o.stars || +weighted(STAR_ODDS);
+    const ceiling = o.ceiling != null ? o.ceiling : NBA.rollCeiling(stars, o.arch);
+    const p = NBA.makePlayer({ id: 'user', name: o.name || 'Rookie', pos: o.pos, arch: o.arch, sec: o.sec && o.sec !== o.arch ? o.sec : null, home: o.home, ceiling, age: 18, stars, gap: 10 + rand() * 12 });
+    const L = NBA.newLeague(2025);
+    for (let i = 0; i < 3; i++) NBA.runYear(L);
+    const st = {
+      v: 1, stage: 'scouting', player: p, league: L, stars,
+      college: null, collegeYears: [], proSeasons: [], playoffLines: [],
+      contract: null, teamId: -1, earnings: 0, draft: null,
+      career: { awards: {}, td: 0, td30Seasons: 0, tdSeasons: 0, titles: 0 },
+      log: [], retired: false, hof: null, pendingEvents: [],
+    };
+    return st;
+  }
+
+  function scoutReport(st) {
+    const p = st.player;
+    const pot = p.ceiling + randn() * 3;
+    const grade = pot >= 92 ? 'A+' : pot >= 88 ? 'A' : pot >= 84 ? 'A-' : pot >= 80 ? 'B+' : pot >= 76 ? 'B' : pot >= 72 ? 'B-' : pot >= 69 ? 'C+' : pot >= 66 ? 'C' : 'C-';
+    return { stars: st.stars, label: STAR_NAMES[st.stars], ovr: Math.round(ovr(p)), potential: grade };
+  }
+
+  // ---------------------------------------------------------------- college
+  function collegeOptions(st) {
+    const s = st.stars, p = st.player;
+    const maxP = s === 1 ? 2 : s === 2 ? 3 : s === 3 ? 4 : 5;
+    const minP = s === 5 ? 4 : s === 4 ? 3 : 1;
+    const homeAbbr = D.STATE_ABBR[p.home];
+    let list = D.COLLEGES.filter((c) => c.prestige <= maxP && c.prestige >= minP);
+    // a handful, always including a home-state school if one is eligible
+    const home = list.filter((c) => c.state === homeAbbr);
+    const rest = list.filter((c) => c.state !== homeAbbr).sort(() => rand() - 0.5);
+    const picks = home.slice(0, 2).concat(rest).slice(0, s >= 4 ? 9 : 8);
+    return picks.sort((a, b) => b.prestige - a.prestige).map((c) => Object.assign({ home: c.state === homeAbbr }, c));
+  }
+  function chooseCollege(st, id) {
+    const c = D.COLLEGES[id];
+    st.college = { id: c.id, name: c.name, state: c.state, prestige: c.prestige, home: c.state === D.STATE_ABBR[st.player.home] };
+    st.stage = 'college_ready';
+    return st.college;
+  }
+
+  function collegeSeason(st) {
+    const p = st.player, c = st.college;
+    const yr = st.collegeYears.length + 1;
+    const o = ovr(p);
+    const oEff = o + 5.5 + (5 - c.prestige) * 1.1;
+    const minsFixed = clamp(Math.round(19 + 0.85 * (oEff - 64) + ({ 1: 0, 2: 1, 3: 2.5, 4: 4.5, 5: 6.5 }[st.stars] || 0)), 16, 35);
+    const e = expLine(p, { pace: 81.6, minsFixed, usgMult: 1.03 + 0.02 * (5 - c.prestige) + (c.home ? 0.01 : 0), tsAdj: -0.012 + 0.003 * (oEff - 70) / 5, rebMult: 1.08, astMult: 1.05, coTax: 0 });
+    const av = rollAvail(p, { noRest: true });
+    const gp = clamp(34 - Math.round(av.miss * 0.35), 12, 36);
+    const m = { pts: e.pts * (1 + 0.04 * randn()), reb: e.reb, ast: e.ast, stl: e.stl * 1.1, blk: e.blk * 1.1, tov: e.tov, mins: e.mins };
+    const games = []; for (let i = 0; i < gp; i++) games.push(genGame(m));
+    const s = summarize(games);
+    const sl = shootingLine(p, s.pts, e.ts, e.usg);
+    const line = { gp, mins: s.mins, pts: s.pts, reb: s.reb, ast: s.ast, stl: s.stl, blk: s.blk, tov: s.tov, fgp: sl.fgp, tpp: sl.tpp, ftp: sl.ftp, ts: sl.ts, td: s.td, high: s.high };
+    const pf = perfOf({ pts: s.pts, reb: s.reb, ast: s.ast, stl: s.stl, blk: s.blk, tov: s.tov, ts: sl.ts });
+    const games2 = 33;
+    const wins = clamp(Math.round(22 + (c.prestige - 3) * 2.6 + (oEff - 70) * 0.22 + randn() * 3.4), 8, 37);
+    const rounds = ['Lost in the First Round', 'Lost in the Round of 32', 'Lost in the Sweet 16', 'Lost in the Elite Eight', 'Lost in the Final Four', 'Lost in the National Championship', 'Won the National Championship'];
+    let tourney = 'Missed the NCAA Tournament';
+    if (wins >= 20) {
+      const rw = clamp(Math.floor((wins - 21) / 3.2 + randn() * 1.15), 0, 6);
+      tourney = rounds[rw]; if (rw === 6) st.career.collegeTitle = true;
+    }
+    const honors = [];
+    if (pf >= 40) honors.push('National Player of the Year'); else if (pf >= 33) honors.push('Consensus All-American'); else if (pf >= 26) honors.push('All-Conference');
+    if (yr === 1 && pf >= 29) honors.push('Freshman of the Year');
+    const rec = { year: yr, label: ['Freshman', 'Sophomore', 'Junior', 'Senior'][yr - 1], age: p.age, school: c.name, record: wins + '-' + (games2 - wins), tourney, honors, line, ovr: Math.round(o), pf };
+    st.collegeYears.push(rec);
+    return rec;
+  }
+
+  function stockBonus(st) {
+    const c = st.college, last = st.collegeYears[st.collegeYears.length - 1];
+    let b = (c.prestige - 3) * 0.9;
+    if (last.honors.includes('National Player of the Year')) b += 3;
+    else if (last.honors.includes('Consensus All-American')) b += 1.5;
+    if (st.collegeYears.some((y) => y.tourney.includes('Won the National'))) b += 0.8;
+    return b;
+  }
+
+  // run the league for the season the player just spent in college; returns season result and a mock-draft range
+  function playCollege(st) {
+    const p = st.player;
+    const rec = collegeSeason(st);
+    NBA.runYear(st.league, { draft: false });
+    const mock = NBA.mockRange(st.league, p, stockBonus(st));
+    rec.mock = mock;
+    rec.mustDeclare = rec.year >= 4;
+    st.stage = 'college_decision';
+    return rec;
+  }
+  function stayInCollege(st) {
+    NBA.npcDraft(st.league);
+    st.league.year; // year already advanced by the league sim
+    st.stage = 'training'; st.afterTraining = 'college';
+    return trainingInfo(st);
+  }
+  function declare(st) {
+    const p = st.player;
+    const res = NBA.userDraft(st.league, p, stockBonus(st));
+    p.rookie = false; p.isPro = true;
+    let slot = res.slot, team = res.team;
+    if (!slot) {
+      // undrafted: sign a two-way-turned-min deal
+      slot = null;
+      team = pick(st.league.teams);
+    }
+    st.draft = { slot, team: team.name, teamId: team.id, year: st.league.year, board: res.board, college: st.college.name };
+    st.teamId = team.id; p.teamId = team.id;
+    const cap = capNow(st.league);
+    let sal, yrs;
+    if (slot && slot <= 30) { sal = 13.8 * Math.pow(0.958, slot - 1) * Math.pow(1.045, st.league.year - 2025); yrs = 4; }
+    else if (slot) { sal = Math.max(1.5, 2.3 - (slot - 31) * 0.035) * Math.pow(1.045, st.league.year - 2025); yrs = 3; }
+    else { sal = 1.3 * Math.pow(1.045, st.league.year - 2025); yrs = 2; }
+    st.contract = { salary: r1(sal), years: yrs, left: yrs, type: 'rookie' };
+    st.stage = 'draft_night';
+    return st.draft;
+  }
+  function startPro(st) {
+    st.stage = 'training'; st.afterTraining = 'pro_first';
+    return trainingInfo(st);
+  }
+
+  // ---------------------------------------------------------------- training / progression
+  function trainingInfo(st) {
+    const p = st.player;
+    return { points: trainPoints(p) + (st.bonusPoints || 0), attrs: ATTRS.map((a) => ({ key: a, label: D.ATTR_LABELS[a], v: Math.round(p.attrs[a]) })), ovr: Math.round(ovr(p)), age: p.age };
+  }
+  function autoAlloc(p, points) {
+    const w = D.ARCHETYPES[p.arch].weights;
+    const alloc = {};
+    ATTRS.forEach((a) => (alloc[a] = 0));
+    let left = points;
+    const order = ATTRS.slice().sort((a, b) => w[b] * (100 - p.attrs[b]) - w[a] * (100 - p.attrs[a]));
+    for (let i = 0; left > 0 && i < 40; i++) {
+      const a = order[i % 5];
+      if (alloc[a] < 4 && p.attrs[a] < 97) { alloc[a]++; left--; }
+    }
+    return alloc;
+  }
+  function train(st, alloc) {
+    const p = st.player;
+    const before = {}; ATTRS.forEach((a) => (before[a] = p.attrs[a]));
+    const ovr0 = ovr(p);
+    const cap = trainPoints(p) + (st.bonusPoints || 0);
+    const total = sum(ATTRS.map((a) => alloc[a] || 0));
+    if (total > cap) throw new Error('too many training points');
+    applyTraining(p, alloc);
+    const ovrAfterTrain = ovr(p);
+    progress(p);
+    st.bonusPoints = 0;
+    const rep = { age: p.age, ovr0: Math.round(ovr0), ovr1: Math.round(ovr(p)), trainGain: r1(ovrAfterTrain - ovr0), changes: ATTRS.map((a) => ({ key: a, label: D.ATTR_LABELS[a], from: Math.round(before[a]), to: Math.round(p.attrs[a]) })) };
+    const next = st.afterTraining;
+    if (next === 'college') st.stage = 'college_ready';
+    else if (next === 'pro_first') st.stage = 'pro_ready';
+    else { NBA.offseason(st.league, { draft: true }); st.stage = 'pro_ready'; }
+    return rep;
+  }
+
+  // ---------------------------------------------------------------- pro season
+  const capNow = (L) => L.capBase * Math.pow(1.045, L.year - 2025);
+
+  function rollEvents(st, p) {
+    const fx = { form: 0, extraMiss: 0, minsMult: 1, depth: 0, bonusPts: 0, notes: [] };
+    const n = rand() < 0.4 ? 0 : rand() < 0.8 ? 1 : 2;
+    const pool = [
+      ['hot', 'Player of the Month — you went nuclear in January 🔥', () => (fx.form += 0.03)],
+      ['slump', 'Brutal shooting slump in February. Twitter was not kind.', () => (fx.form -= 0.025)],
+      ['scare', 'Ankle scare mid-season. Missed a few games but nothing serious.', () => (fx.extraMiss += rint(2, 7))],
+      ['coach', 'Coach put the ball in your hands more after a team meeting.', () => (fx.minsMult *= 1.04)],
+      ['drama', 'Locker room drama dragged the team down a bit.', () => (fx.depth -= 2.5)],
+      ['chem', 'Team chemistry clicked after a players-only dinner.', () => (fx.depth += 2.5)],
+      ['trainer', 'Worked with a skills trainer in-season. +1 upgrade point in the offseason.', () => (fx.bonusPts += 1)],
+      ['viral', 'Viral dunk/clutch shot all over social media. Jersey sales up.', () => {}],
+      ['rumor', 'Trade rumors swirled around you at the deadline. Nothing happened.', () => {}],
+    ];
+    const used = new Set();
+    for (let i = 0; i < n; i++) {
+      const e = pick(pool);
+      if (used.has(e[0])) continue;
+      used.add(e[0]); e[2](); fx.notes.push(e[1]);
+    }
+    return fx;
+  }
+
+  function userSeasonLine(st, ctx, avail, fx) {
+    const p = st.player;
+    const rookie = p.yearsPro === 0;
+    const e0 = expLine(p, { coTax: ctx.coTax, pace: ctx.pace, rookie, minsMult: fx.minsMult, minsFloor: rookie ? NBA.rookieFloor(st.draft && st.draft.slot) : 0 });
+    const form = 1 + 0.045 * randn() + fx.form;
+    const m = { mins: e0.mins, pts: e0.pts * form, reb: e0.reb * (1 + 0.03 * randn()), ast: e0.ast * (1 + 0.03 * randn()), stl: e0.stl * (1 + 0.05 * randn()), blk: e0.blk * (1 + 0.05 * randn()), tov: e0.tov };
+    // pts cap: 35+ only once per career, and rarely
+    let cap = 34.2;
+    if (!p.hist35 && e0.ovr >= 93 && rand() < 0.05) cap = 36.8;
+    m.pts = Math.min(m.pts, cap);
+    const elite = e0.ovr >= 86 && p.age >= 23 && p.age <= 33;
+    let surge = null;
+    const wantTD = p.tdUsed < p.tdPlan && elite && m.pts >= 19 && m.reb >= 6.8 && m.ast >= 6.6 && rand() < 0.5;
+    const wantBig = p.td30Used < p.td30Plan && elite && p.age <= 32 && m.pts >= 25 && m.reb >= 7.5 && m.ast >= 7 && p.tdUsed < TD_CAP && rand() < 0.55;
+    if (wantTD || wantBig) surge = { big: wantBig || (p.td30Used < p.td30Plan && m.pts >= 25.3 && rand() < 0.65) };
+    if (!surge && p.tdUsed >= TD_CAP) { m.ast = Math.min(m.ast, 9.4); m.reb = Math.min(m.reb, 9.4); }
+    if (!surge && m.reb >= 8 && m.ast >= 7) {
+      // keep natural triple-double rates in the real-world 17-27% band
+      if (m.ast > 8.6) m.ast = 8.6 + (m.ast - 8.6) * 0.3;
+      if (m.reb > 10.6) m.reb = 10.6 + (m.reb - 10.6) * 0.35;
+    }
+    if (!surge) {
+      // career TD rate guard: once a player is running hot over a long stretch, regress toward the 17-27% band
+      const gpSoFar = sum(st.proSeasons.map((s) => s.gp));
+      if (gpSoFar > 200 && st.career.td / gpSoFar > 0.255) { m.reb = Math.min(m.reb, 9.8); m.ast = Math.min(m.ast, 8.2); }
+    }
+    if (surge) {
+      m.reb = Math.max(m.reb, 10.25 + rand() * 0.9);
+      m.ast = Math.max(m.ast, 10.25 + rand() * 0.9);
+      if (surge.big) m.pts = Math.max(m.pts, 30.3 + rand() * 1);
+    }
+    const gp = avail.gp;
+    let games, s;
+    for (let tries = 0; tries < 14; tries++) {
+      games = []; for (let i = 0; i < gp; i++) games.push(genGame(m));
+      s = summarize(games);
+      if (!surge || gp < 50) break;
+      if (s.pts >= (surge.big ? 30 : 10) && s.reb >= 10 && s.ast >= 10) break;
+    }
+    const used = e0.usg * (s.pts / Math.max(1, e0.pts));
+    const tsRaw = clamp(e0.ts * (0.5 + 0.5 * (s.pts / Math.max(1, m.pts))), 0.44, 0.72);
+    const sl = shootingLine(p, s.pts, tsRaw, e0.usg);
+    const avgTD = gp >= 30 && s.pts >= 10 && s.reb >= 10 && s.ast >= 10;
+    if (avgTD) { p.tdUsed++; if (s.pts >= 30) p.td30Used++; }
+    if (s.pts >= 35) p.hist35 = true;
+    return Object.assign({ gp, usg: e0.usg, ovr: e0.ovr, fga: sl.fga, fgp: sl.fgp, tpa: sl.tpa, tpp: sl.tpp, ftp: sl.ftp, fta: sl.fta, ts: sl.ts, avgTD, games: games.length }, s, { pts: s.pts, reb: s.reb, ast: s.ast });
+  }
+
+  function playoffLine(st, ctx, seriesList, base, mode) {
+    const p = st.player;
+    const mult = { mins: 1.06, pts: 1.06, reb: 1.04, ast: 1.08, stl: 1.05, blk: 1.05, tov: 1.1 };
+    let cap = 33.8, maxAvg = 35.8;
+    if (mode === 'heater') { const h = 1.15 + rand() * 0.07; mult.pts *= h; mult.reb *= 1.08; mult.ast *= 1.12; mult.mins *= 1.03; cap = 35.4; maxAvg = 37.4; }
+    if (mode === 'legend') { mult.pts *= 1.22; mult.reb *= 1.15; mult.ast *= 1.2; mult.mins *= 1.04; cap = 37.2; maxAvg = 38.6; }
+    const m = { mins: Math.min(base.mins * mult.mins, 43), pts: Math.min(base.pts * mult.pts, cap), reb: base.reb * mult.reb, ast: base.ast * mult.ast, stl: base.stl * mult.stl, blk: base.blk * mult.blk, tov: base.tov * mult.tov };
+    if (mode === 'legend') { m.reb = Math.max(m.reb, 10.6); m.ast = Math.max(m.ast, 10.6); m.pts = Math.max(m.pts, 36.2); }
+    let all, s, perSeries;
+    for (let tries = 0; tries < 24; tries++) {
+      all = [];
+      perSeries = seriesList.map((sr) => {
+        const gs = []; for (let i = 0; i < sr.games; i++) gs.push(genGame(m));
+        all.push.apply(all, gs);
+        const ss = summarize(gs);
+        return { round: sr.round, opp: sr.opp, result: (sr.won ? 'W ' : 'L ') + sr.w + '-' + sr.l, pts: ss.pts, reb: ss.reb, ast: ss.ast, gp: sr.games };
+      });
+      s = summarize(all);
+      const ok = s.pts <= maxAvg && (mode !== 'legend' || (s.pts >= 35.5 && s.reb >= 10 && s.ast >= 10));
+      if (ok) break;
+    }
+    const legendHit = mode === 'legend' && s.pts >= 35.5 && s.reb >= 10 && s.ast >= 10;
+    const sl = shootingLine(p, s.pts, clamp(base.ts - 0.014, 0.44, 0.7), base.usg * 1.03);
+    return { line: Object.assign({}, s, { fgp: sl.fgp, tpp: sl.tpp, ftp: sl.ftp, ts: sl.ts }), perSeries, heater: mode !== 'normal', legend: legendHit };
+  }
+
+  function playSeason(st) {
+    const L = st.league, p = st.player;
+    const age = p.age;
+    const fx = rollEvents(st, p);
+    const avail = rollAvail(p, { extraMiss: fx.extraMiss });
+    if (avail.major) applyMajorInjury(p);
+    p.rookie = p.yearsPro === 0;
+    L.teams[st.teamId].depth += fx.depth;
+    let userLine = null;
+    const user = {
+      p, teamId: st.teamId, avail,
+      getLine: (ctx) => (userLine = userSeasonLine(st, ctx, avail, fx)),
+    };
+    const res = NBA.simSeason(L, user);
+    const t = L.teams[st.teamId];
+    const awardsHere = [];
+    const A = res.awards;
+    const mine = (x) => x && x.isUser;
+    const cnt = (k, n) => { st.career.awards[k] = (st.career.awards[k] || 0) + (n || 1); };
+    if (mine(A.mvp)) { cnt('MVP'); awardsHere.push('MVP'); }
+    if (mine(A.dpoy)) { cnt('DPOY'); awardsHere.push('Defensive Player of the Year'); }
+    if (mine(A.roy)) { cnt('ROY'); awardsHere.push('Rookie of the Year'); }
+    if (mine(A.mip)) { cnt('MIP'); awardsHere.push('Most Improved Player'); }
+    if (A.scoring && A.scoring.isUser) { cnt('Scoring titles'); awardsHere.push('Scoring Champion (' + r1(A.scoring.ppg) + ')'); }
+    const tIdx = A.allNBATeams.findIndex((tm) => tm.includes('user'));
+    if (tIdx >= 0) { cnt('All-NBA ' + ['1st', '2nd', '3rd'][tIdx] + ' Team'); cnt('All-NBA'); awardsHere.push('All-NBA ' + ['First', 'Second', 'Third'][tIdx] + ' Team'); }
+    const dIdx = A.allDefTeams.findIndex((tm) => tm.includes('user'));
+    if (dIdx >= 0) { cnt('All-Defense'); awardsHere.push('All-Defensive ' + ['First', 'Second'][dIdx] + ' Team'); }
+    if (A.allStar.includes('user')) { cnt('All-Star'); awardsHere.push('All-Star'); }
+    const mvpPlace = A.mvpIds.indexOf('user');
+    if (mvpPlace > 0) awardsHere.push('MVP voting: #' + (mvpPlace + 1));
+
+    // playoffs
+    const po = res.playoffs;
+    let pline = null, perSeries = [], fmvp = false, heater = false, legend = false, resultText = 'Missed the playoffs';
+    if (po.userMade && avail.gp < 15) {
+      resultText = (po.champion.id === st.teamId ? 'NBA Champions 🏆' : 'Team made the playoffs') + ' (you were injured)';
+    } else if (po.userMade) {
+      const series = po.userSeries;
+      const lost = series.find((s) => !s.won);
+      const last = series[series.length - 1];
+      resultText = po.champion.id === st.teamId ? 'NBA Champions 🏆' : lost ? 'Lost in the ' + lost.round + ' to ' + lost.opp + ' (' + lost.w + '-' + lost.l + ')' : '';
+      if (!series.length) resultText = 'Lost in the play-in';
+      if (series.length && avail.gp >= 30 || series.length) {
+        const elite = userLine.ovr >= 85;
+        const domish = p.arch === 'dominator' || p.sec === 'dominator' || p.arch === 'generational';
+        const wantLegend = p.legendUsed < p.legendPlan && elite && domish && p.age >= 23 && userLine.pts >= 25.5 && userLine.reb >= 8 && userLine.ast >= 7.5 && rand() < 0.4;
+        const wantHeater = !wantLegend && p.heatersUsed < p.heaterPlan && elite && p.age >= 23 && rand() < 0.3;
+        const out = playoffLine(st, user.ctx, series, userLine, wantLegend ? 'legend' : wantHeater ? 'heater' : 'normal');
+        pline = out.line; perSeries = out.perSeries; heater = out.heater; legend = out.legend;
+        if (wantLegend && out.legend) p.legendUsed++;
+        else if (heater) p.heatersUsed++;
+      }
+    } else if (po.userOut === null) resultText = 'Missed the playoffs';
+    if (po.champion.id === st.teamId) {
+      st.career.titles++; cnt('Championships'); awardsHere.push('NBA Champion');
+      const pf = pline ? perfOf(Object.assign({}, pline, { tov: pline.tov })) : 0;
+      const who = NBA.finalsMVP(L, st.teamId, pline ? pf : 8);
+      if (who === 'user') { cnt('Finals MVP'); awardsHere.push('Finals MVP'); fmvp = true; }
+    }
+
+    const l = userLine;
+    const rec = {
+      label: res.label, year: L.year, age, team: t.name, teamId: t.id, wins: t.wins, losses: t.losses,
+      gp: l.gp, mins: l.mins, pts: l.pts, reb: l.reb, ast: l.ast, stl: l.stl, blk: l.blk, tov: l.tov,
+      fgp: l.fgp, tpp: l.tpp, ftp: l.ftp, ts: l.ts, td: l.td, dd: l.dd, g40: l.g40, g50: l.g50, high: l.high, ovr: Math.round(l.ovr), usg: l.usg,
+      avgTD: l.avgTD, totPts: l.totPts, totReb: l.totReb, totAst: l.totAst,
+      awards: awardsHere, playoffText: resultText, playoff: pline ? { gp: pline.gp, pts: pline.pts, reb: pline.reb, ast: pline.ast, stl: pline.stl, blk: pline.blk, mins: pline.mins, fgp: pline.fgp, tpp: pline.tpp, ts: pline.ts, td: pline.td, high: pline.high } : null,
+      perSeries, heater, legend, ranks: res.ranks, events: fx.notes, injury: avail.major ? 'Suffered a ' + avail.major + ' and missed ' + avail.miss + ' games.' : avail.miss >= 12 ? 'Missed ' + avail.miss + ' games with injuries.' : null,
+      salary: st.contract.salary, mvp: A.mvp ? A.mvp.name + ' (' + r1(A.mvp.pts) + '/' + r1(A.mvp.reb) + '/' + r1(A.mvp.ast) + ')' : '', champion: po.champion.name, league: res.league,
+      rookie: p.rookie, leaders: res.leaders,
+    };
+    st.proSeasons.push(rec);
+    st.earnings += st.contract.salary;
+    st.career.td += l.td;
+    if (rec.avgTD) { st.career.tdSeasons++; if (l.pts >= 30) st.career.td30Seasons++; }
+    if (pline) st.playoffLines.push(Object.assign({ label: res.label, age, team: t.name }, rec.playoff, { heater, text: resultText }));
+    p.yearsPro++;
+    st.contract.left--;
+    st.bonusPoints = fx.bonusPts;
+    st.stage = 'season_recap';
+    return rec;
+  }
+
+  // ---------------------------------------------------------------- contracts and decisions
+  function marketPct(st) {
+    const p = st.player;
+    let v = ovr(p) - (p.age >= 33 ? 2 * (p.age - 32) : 0);
+    const raw = 0.015 + Math.pow(clamp((v - 60) / 32, 0, 1.2), 1.5) * 0.35;
+    const yrs = p.yearsPro;
+    const maxPct = yrs >= 10 ? 0.35 : yrs >= 7 ? 0.3 : 0.25;
+    return { pct: Math.min(raw, maxPct), v, maxPct };
+  }
+  function teamLabel(t, lastWins) { return lastWins >= 50 ? 'Contender' : lastWins >= 41 ? 'Playoff team' : lastWins >= 33 ? 'Fringe team' : 'Rebuilding'; }
+  function role(st, t) {
+    const L = st.league, o = ovr(st.player);
+    const core = t.core.map((id) => ovr(L.players[id])).sort((a, b) => b - a);
+    return o >= core[0] ? 'Franchise player' : o >= core[1] ? 'Co-star' : o >= core[3] ? 'Starter' : 'Role player';
+  }
+  function decisionOptions(st) {
+    const L = st.league, p = st.player, c = st.contract;
+    const cap = capNow(L);
+    const mk = marketPct(st);
+    const baseSal = mk.pct * cap;
+    const out = { age: p.age, ovr: Math.round(ovr(p)), expiring: c.left <= 0, contract: c, cap: r1(cap), marketSalary: r1(baseSal), team: L.teams[st.teamId].name };
+    const forceRetire = p.age >= 41 || (p.age >= 35 && mk.v < 57) || (p.age >= 25 && mk.v < 55) || (p.age >= 31 && mk.v < 60) || (c.left <= 0 && p.age >= 26 && mk.v < (p.age <= 27 ? 62 : 62 + (p.age - 27) * 1.7));
+    out.mustRetire = forceRetire;
+    if (out.expiring) {
+      const own = L.teams[st.teamId];
+      const maxYrsOwn = p.age >= 36 ? 1 : p.age >= 33 ? 2 : 5;
+      out.resign = { teamId: own.id, name: own.name, salary: r1(Math.max(2.3 * Math.pow(1.045, L.year - 2025), baseSal * (1.0 + 0.04))), maxYears: maxYrsOwn, role: role(st, own), label: teamLabel(own, own.wins) };
+      let offers = [];
+      const n = mk.v >= 76 ? 6 : mk.v >= 68 ? 4 : mk.v >= 60 ? 3 : 1;
+      const teams = L.teams.filter((t) => t.id !== st.teamId).sort(() => rand() - 0.5).slice(0, n);
+      teams.forEach((t) => {
+        const sal = Math.max(2.3 * Math.pow(1.045, L.year - 2025), baseSal * (0.88 + rand() * 0.17) * (t.wins < 33 ? 1.04 : 1));
+        offers.push({ teamId: t.id, name: t.name, salary: r1(sal), maxYears: p.age >= 36 ? 1 : p.age >= 33 ? 2 : 4, role: role(st, t), label: teamLabel(t, t.wins), wins: t.wins });
+      });
+      out.offers = offers.sort((a, b) => b.salary - a.salary);
+    } else {
+      const dest = L.teams.filter((t) => t.id !== st.teamId).sort(() => rand() - 0.5).slice(0, 3);
+      out.tradeOptions = dest.map((t) => ({ teamId: t.id, name: t.name, wins: t.wins, label: teamLabel(t, t.wins), role: role(st, t) }));
+    }
+    return out;
+  }
+  function decide(st, action, arg) {
+    const L = st.league, p = st.player, c = st.contract;
+    const note = (s) => st.log.push(L.year + ': ' + s);
+    if (action === 'retire') { return retire(st); }
+    if (action === 'stay') {
+      if (c.left <= 0) throw new Error('contract expired: choose resign or switch');
+      st.stage = 'training'; st.afterTraining = 'pro';
+      return { text: 'Staying put with the ' + L.teams[st.teamId].nick + '.' };
+    }
+    if (action === 'trade') {
+      const t = L.teams[arg.teamId];
+      st.teamId = t.id; p.teamId = t.id;
+      note('Traded to ' + t.name);
+      st.stage = 'training'; st.afterTraining = 'pro';
+      return { text: 'Trade request granted. You are now a ' + t.nick + '.' };
+    }
+    if (action === 'resign' || action === 'switch') {
+      const years = arg.years;
+      const t = L.teams[arg.teamId];
+      st.teamId = t.id; p.teamId = t.id;
+      st.contract = { salary: arg.salary, years, left: years, type: 'veteran' };
+      note((action === 'switch' ? 'Signed with ' : 'Re-signed with ') + t.name + ' (' + years + 'y, $' + arg.salary + 'M)');
+      st.stage = 'training'; st.afterTraining = 'pro';
+      return { text: (action === 'switch' ? 'Signed with the ' : 'Re-signed with the ') + t.nick + ' for ' + years + ' years, $' + arg.salary + 'M/yr.' };
+    }
+    throw new Error('bad action');
+  }
+
+  // after training/progress the league rolls into the next year
+  function rollLeague(st) {
+    NBA.offseason(st.league, { draft: true });
+  }
+
+  // ---------------------------------------------------------------- retirement and HOF
+  function hofScore(st) {
+    const a = st.career.awards, seasons = st.proSeasons;
+    const pts = sum(seasons.map((s) => s.totPts || 0)), reb = sum(seasons.map((s) => s.totReb || 0)), ast = sum(seasons.map((s) => s.totAst || 0));
+    let sc = 0;
+    sc += 14 * (a.MVP || 0) + 7 * (a['Finals MVP'] || 0) + 6 * (a.Championships || 0) + 7 * (a.DPOY || 0);
+    sc += 6 * (a['All-NBA 1st Team'] || 0) + 4 * (a['All-NBA 2nd Team'] || 0) + 3 * (a['All-NBA 3rd Team'] || 0);
+    sc += 1.5 * (a['All-Defense'] || 0) + 2 * (a['All-Star'] || 0) + 3 * (a['Scoring titles'] || 0) + 3 * (a.ROY || 0);
+    sc += pts / 1500 + reb / 900 + ast / 600;
+    return { score: Math.round(sc), pts, reb, ast };
+  }
+  function retire(st) {
+    st.retired = true; st.stage = 'retired';
+    const h = hofScore(st);
+    const tier = h.score >= 220 ? 'Top-10 All-Time Great' : h.score >= 140 ? 'First-Ballot Hall of Famer' : h.score >= 85 ? 'Hall of Famer' : h.score >= 60 ? 'Borderline Hall of Fame case' : h.score >= 35 ? 'Multiple-time All-Star' : h.score >= 15 ? 'Solid long-time starter' : 'Journeyman';
+    st.hof = { score: h.score, tier, totals: h, hall: h.score >= 85 };
+    return st.hof;
+  }
+
+  // ---------------------------------------------------------------- auto-play for testing / examples
+  function auto(st, opt) {
+    opt = opt || {};
+    const lines = [];
+    // pick college: most prestigious we can
+    const opts = collegeOptions(st);
+    chooseCollege(st, opts[0].id);
+    for (;;) {
+      const rec = playCollege(st);
+      const slot = rec.mock.mid;
+      if (rec.mustDeclare || slot <= (opt.declareAt || 22) || (rec.year >= 2 && slot <= 40)) break;
+      stayInCollege(st);
+      train(st, autoAlloc(st.player, trainingInfo(st).points));
+    }
+    declare(st);
+    startPro(st);
+    train(st, autoAlloc(st.player, trainingInfo(st).points));
+    for (let guard = 0; guard < 30; guard++) {
+      const rec = playSeason(st);
+      const d = decisionOptions(st);
+      const p = st.player;
+      const retireNow = d.mustRetire || (p.age >= 36 && ovr(p) < 72 && rand() < 0.5) || (p.age >= 38 && rand() < 0.45);
+      if (retireNow) { retire(st); break; }
+      if (d.expiring) {
+        const best = d.offers && d.offers[0];
+        if (best && best.salary > d.resign.salary * 1.15 && rand() < 0.5) decide(st, 'switch', { teamId: best.teamId, salary: best.salary, years: Math.min(3, best.maxYears) });
+        else decide(st, 'resign', { teamId: d.resign.teamId, salary: d.resign.salary, years: Math.min(4, d.resign.maxYears) });
+      } else decide(st, 'stay');
+      train(st, autoAlloc(st.player, trainingInfo(st).points));
+    }
+    if (!st.retired) retire(st);
+    return st;
+  }
+
+  Object.assign(NBA, { Game: { newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, startPro, trainingInfo, autoAlloc, train, playSeason, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  if (typeof module !== 'undefined') module.exports = NBA;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+(function () {
+  'use strict';
+  const NBA = window.NBA, D = NBA.data, G = NBA.Game;
+  const KEY = 'nba-career-sim-save-v1';
+  const app = document.getElementById('app');
+  let S = null;           // game state
+  let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
+  let alloc = {};
+  let report = null;
+  let tab = 'overview';
+
+  // ------------------------------------------------------------ helpers
+  function h(tag, props, ...kids) {
+    const el = document.createElement(tag);
+    for (const k in props || {}) {
+      const v = props[k];
+      if (k === 'class') el.className = v;
+      else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+      else if (k === 'html') el.innerHTML = v;
+      else if (v !== false && v != null) el.setAttribute(k, v === true ? '' : v);
+    }
+    kids.flat(Infinity).forEach((c) => { if (c != null && c !== false) el.append(c.nodeType ? c : document.createTextNode(c)); });
+    return el;
+  }
+  const f1 = (x) => (x == null ? '–' : x.toFixed(1));
+  const pct = (x) => (x == null ? '–' : (x * 100).toFixed(1));
+  const ord = (n) => { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
+  const money = (m) => '$' + (m >= 100 ? Math.round(m) : m.toFixed(1)) + 'M';
+  const stars = (n, off) => h('div', { class: 'stars' }, '★'.repeat(n), off ? h('span', { class: 'off' }, '★'.repeat(5 - n)) : '');
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* storage may be unavailable */ } }
+  function load() { try { const r = localStorage.getItem(KEY); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
+  function wipe() { try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ } }
+  function go() { save(); render(); window.scrollTo(0, 0); }
+  function confirmBtn(label, cls, fn) {
+    let armed = false, t = null;
+    const b = h('button', { class: cls, onclick: () => {
+      if (!armed) { armed = true; b.textContent = 'Tap again to confirm'; t = setTimeout(() => { armed = false; b.textContent = label; }, 3500); return; }
+      clearTimeout(t); fn();
+    } }, label);
+    return b;
+  }
+  function statBox(v, l) { return h('div', { class: 'statbox' }, h('div', { class: 'big' }, v), h('div', { class: 'lbl' }, l)); }
+
+  function attrBars(p, deltas) {
+    return h('div', null, D.ATTRS.map((a) => {
+      const v = Math.round(p.attrs[a]);
+      return h('div', { class: 'attr' }, h('span', null, D.ATTR_LABELS[a]), h('div', { class: 'bar' }, h('i', { style: 'width:' + v + '%' })), h('b', null, v));
+    }));
+  }
+
+  // ------------------------------------------------------------ header
+  function renderHeader() {
+    const who = document.getElementById('who'), btns = document.getElementById('topbtns');
+    who.textContent = ''; btns.textContent = '';
+    if (!S || S.stage === 'create') return;
+    const p = S.player;
+    let ctx = p.name + ' · ' + D.ARCHETYPES[p.arch].name + ' · ' + p.pos + ' · age ' + p.age + ' · OVR ' + Math.round(NBA.ovr(p));
+    if (S.proSeasons.length || S.draft) ctx += ' · ' + S.league.teams[S.teamId].nick;
+    who.textContent = ctx;
+    btns.append(h('button', { onclick: showCareer }, '📋 Career'), confirmBtn('New', 'danger', () => { wipe(); S = null; boot(); }));
+  }
+
+  // ------------------------------------------------------------ screens
+  function screenCreate() {
+    const regions = D.REGIONS;
+    const stateOptions = [];
+    Object.keys(regions).forEach((r) => regions[r].states.slice().sort().forEach((s) => stateOptions.push(h('option', { value: s, selected: s === draft.home }, s + ' (' + r + ')'))));
+    const archCards = Object.keys(D.ARCHETYPES).map((k) => {
+      const a = D.ARCHETYPES[k];
+      return h('div', { class: 'opt' + (draft.arch === k ? ' sel' : ''), onclick: () => { draft.arch = k; if (draft.sec === k) draft.sec = ''; render(); } },
+        h('b', null, a.icon + ' ' + a.name), h('div', { class: 'small' }, a.blurb), h('div', { class: 'comps' }, a.comps));
+    });
+    const nameIn = h('input', { type: 'text', placeholder: 'Your name', value: draft.name, maxlength: 28, oninput: (e) => (draft.name = e.target.value) });
+    const saved = load();
+    return h('div', null,
+      h('h1', null, 'Build your NBA legend'),
+      h('p', { class: 'muted' }, 'Pick a name, position, archetype and where you grew up. Scouts will rate you, you choose a college, then it is draft night. Stats are tuned to the real NBA: nobody averages 35 for a decade.'),
+      saved && saved.stage !== 'create' ? h('div', { class: 'callout row' }, h('span', null, 'Saved career found: ', h('b', null, saved.player.name), ' (' + saved.stage.replace(/_/g, ' ') + ')'), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => { S = saved; render(); } }, 'Continue')) : null,
+      h('div', { class: 'card' }, h('h2', null, '1. Who are you?'), h('div', { class: 'grid g2' }, h('div', null, h('label', { class: 'small muted' }, 'Name'), nameIn), h('div', null, h('label', { class: 'small muted' }, 'Where in the US are you from?'), h('select', { onchange: (e) => (draft.home = e.target.value) }, stateOptions))),
+        h('h3', null, 'Position'), h('div', { class: 'row' }, Object.keys(D.POSITIONS).map((p) => h('button', { class: draft.pos === p ? 'primary' : '', onclick: () => { draft.pos = p; render(); } }, p)))),
+      h('div', { class: 'card' }, h('h2', null, '2. Archetype'), h('div', { class: 'grid g3' }, archCards),
+        h('h3', null, 'Secondary tag (optional, small bonus)'), h('select', { onchange: (e) => (draft.sec = e.target.value) }, h('option', { value: '' }, 'None'), Object.keys(D.ARCHETYPES).filter((k) => k !== draft.arch).map((k) => h('option', { value: k, selected: draft.sec === k }, D.ARCHETYPES[k].name)))),
+      h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { S = G.newCareer({ name: (draft.name || '').trim() || 'Rookie', pos: draft.pos, arch: draft.arch, sec: draft.sec, home: draft.home }); S.stage = 'scouting'; S.revealed = false; go(); } }, 'Get scouted →')));
+  }
+
+  function screenScouting() {
+    const rep = G.scoutReport(S);
+    const box = h('div', { class: 'card' });
+    const holder = h('div');
+    const info = h('div', { class: 'hidden', style: 'display:none' });
+    function fill(n) { holder.replaceChildren(stars(n, true)); }
+    box.append(h('h2', null, 'Scouting report'), h('p', { class: 'muted' }, S.player.name + ' · ' + S.player.pos + ' · ' + S.player.home), holder, info);
+    const details = () => {
+      info.style.display = ''; info.className = 'reveal';
+      info.replaceChildren(h('h2', { style: 'color:var(--gold)' }, rep.label), h('div', { class: 'row' }, h('span', { class: 'pill' }, 'Current OVR ' + rep.ovr), h('span', { class: 'pill' }, 'Potential grade ' + rep.potential)),
+        h('p', { class: 'muted small' }, 'Scouts are not always right. Potential is an estimate; your real ceiling is hidden, and draft slot only loosely predicts it (Jokic went #41).'),
+        h('h3', null, 'Current ratings'), attrBars(S.player), h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { S.stage = 'college_pick'; go(); } }, 'Choose my college →')));
+    };
+    if (S.revealed) { fill(rep.stars); details(); } else {
+      let i = 0; fill(0);
+      const t = setInterval(() => { i++; fill(i); if (i >= S.stars) { clearInterval(t); S.revealed = true; save(); setTimeout(details, 350); } }, 520);
+    }
+    return h('div', null, box);
+  }
+
+  function screenCollegePick() {
+    S.collegeOpts = S.collegeOpts || G.collegeOptions(S);
+    return h('div', null, h('h1', null, 'Pick your college'),
+      h('p', { class: 'muted' }, 'Your ' + S.stars + '★ rating decides who recruits you. Bigger programs give more draft hype but fewer shots; smaller schools mean more usage and stats, less exposure. Home-state schools get a small role bump.'),
+      h('div', { class: 'grid g2' }, S.collegeOpts.map((c) => h('div', { class: 'opt', onclick: () => { G.chooseCollege(S, c.id); S.collegeOpts = null; go(); } },
+        h('b', null, c.name + (c.home ? ' 🏠' : '')), h('div', { class: 'small muted' }, c.state + ' · program ' + '★'.repeat(c.prestige) + ' · ' + ['', 'Mid-major', 'Rising program', 'Power conference', 'Elite program', 'Blue blood'][c.prestige])))));
+  }
+
+  function collegeTable() {
+    return h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, ['Year', 'School', 'Record', 'GP', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', '3P%', 'FT%'].map((x) => h('th', null, x)))),
+      h('tbody', null, S.collegeYears.map((y) => h('tr', null, h('td', null, y.label), h('td', { class: 'l' }, y.school), h('td', null, y.record), h('td', null, y.line.gp), h('td', null, f1(y.line.mins)), h('td', null, f1(y.line.pts)), h('td', null, f1(y.line.reb)), h('td', null, f1(y.line.ast)), h('td', null, f1(y.line.stl)), h('td', null, f1(y.line.blk)), h('td', null, pct(y.line.fgp)), h('td', null, pct(y.line.tpp)), h('td', null, pct(y.line.ftp)))))));
+  }
+
+  function screenCollegeReady() {
+    const yr = S.collegeYears.length + 1;
+    return h('div', null, h('h1', null, S.college.name + ' · ' + ['Freshman', 'Sophomore', 'Junior', 'Senior'][yr - 1] + ' year'),
+      h('div', { class: 'card' }, h('p', null, 'Age ' + S.player.age + ' · OVR ' + Math.round(NBA.ovr(S.player))), attrBars(S.player), h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { G.playCollege(S); go(); } }, 'Play the season →'))),
+      S.collegeYears.length ? h('div', { class: 'card' }, h('h2', null, 'College stats so far'), collegeTable()) : null);
+  }
+
+  function screenCollegeDecision() {
+    const y = S.collegeYears[S.collegeYears.length - 1], l = y.line;
+    const mock = y.mock;
+    const proj = mock.lo > 60 ? 'Undrafted risk' : '#' + mock.lo + ' – #' + Math.min(60, mock.hi) + ' (most likely ~#' + Math.min(60, mock.mid) + ')';
+    return h('div', null, h('h1', null, y.label + ' season complete'),
+      h('div', { class: 'card' }, h('div', { class: 'grid stats' }, statBox(f1(l.pts), 'PPG'), statBox(f1(l.reb), 'RPG'), statBox(f1(l.ast), 'APG'), statBox(f1(l.stl), 'SPG'), statBox(f1(l.blk), 'BPG'), statBox(pct(l.ts) + '%', 'TS%')),
+        h('p', { style: 'margin-top:12px' }, h('b', null, y.record), ' · ' + y.tourney), y.honors.length ? h('div', null, y.honors.map((x) => h('span', { class: 'pill gold' }, '🏅 ' + x))) : null),
+      h('div', { class: 'card' }, h('h2', null, 'Draft stock'), h('p', null, 'Mock draft range: ', h('b', null, proj)),
+        h('p', { class: 'muted small' }, 'Staying develops your game (and adds upgrade points) but draft boards move on, and you only get so many years of eligibility.'),
+        h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { G.declare(S); go(); } }, 'Declare for the NBA Draft'),
+          y.mustDeclare ? h('span', { class: 'muted' }, 'Senior year: eligibility is up.') : h('button', { onclick: () => { G.stayInCollege(S); alloc = {}; go(); } }, 'Stay another year'))),
+      h('div', { class: 'card' }, h('h2', null, 'College stats'), collegeTable()));
+  }
+
+  function screenDraft() {
+    const d = S.draft;
+    const board = d.board.slice();
+    const host = h('div', { class: 'card' });
+    const list = h('div'); const footer = h('div');
+    host.append(h('h2', null, d.year + ' NBA Draft · Night of'), h('p', { class: 'muted' }, S.player.name + ' · ' + d.college), list, footer);
+    const finish = () => {
+      footer.replaceChildren(h('div', { class: 'callout reveal' }, d.slot ? h('div', null, h('div', { class: 'big' }, '#' + d.slot + ' pick'), h('p', null, 'With the ' + ord(d.slot) + ' pick in the ' + d.year + ' NBA Draft, the ' + d.team + ' select ', h('b', null, S.player.name), ' of ' + d.college + '.')) : h('div', null, h('div', { class: 'big' }, 'Undrafted'), h('p', null, 'Your name was never called. You signed a minimum deal with the ' + d.team + ' right after the draft. Prove them wrong.')),
+        h('p', null, 'Rookie contract: ' + money(S.contract.salary) + ' × ' + S.contract.years + ' years'), h('button', { class: 'primary', onclick: () => { G.startPro(S); alloc = {}; go(); } }, 'Start my NBA career →')));
+    };
+    const limit = d.slot ? Math.min(d.slot, board.length) : board.length;
+    if (S.draftSeen) { board.slice(0, limit).forEach((r) => list.append(tick(r))); finish(); } else {
+      let i = 0;
+      const t = setInterval(() => {
+        const r = board[i]; list.append(tick(r)); i++;
+        if (i >= limit) { clearInterval(t); S.draftSeen = true; save(); setTimeout(finish, 700); }
+      }, d.slot && d.slot <= 5 ? 700 : 220);
+    }
+    return h('div', null, host);
+    function tick(r) { return h('div', { class: 'tick reveal' + (r.isUser ? ' me' : '') }, h('span', { class: 'n' }, '#' + r.slot), h('span', null, r.isUser ? '⭐ ' + r.name : r.name), h('span', { class: 'muted' }, r.pos + ' · ' + r.team)); }
+  }
+
+  function screenTraining() {
+    const info = G.trainingInfo(S);
+    if (report) return screenReport();
+    const used = D.ATTRS.reduce((s, a) => s + (alloc[a] || 0), 0);
+    const left = info.points - used;
+    const rows = D.ATTRS.map((a) => {
+      const v = Math.round(S.player.attrs[a]);
+      const add = alloc[a] || 0;
+      return h('div', { class: 'attr train' }, h('span', null, D.ATTR_LABELS[a]), h('div', { class: 'bar' }, h('i', { style: 'width:' + Math.min(100, v + add) + '%' })), h('b', null, v + (add ? ' +' + add : '')),
+        h('div', { class: 'ctl' }, h('button', { disabled: !add, onclick: () => { alloc[a] = add - 1; render(); } }, '−'), h('button', { disabled: left <= 0 || add >= 4, onclick: () => { alloc[a] = add + 1; render(); } }, '+')));
+    });
+    return h('div', null, h('h1', null, 'Offseason training'),
+      h('p', { class: 'muted' }, 'Spend upgrade points (max +4 per attribute). Gains shrink at high ratings and after 31. Natural development and aging happen after you confirm.'),
+      h('div', { class: 'card' }, h('div', { class: 'row' }, h('h2', { style: 'margin:0' }, left + ' / ' + info.points + ' points left'), h('span', { class: 'spacer' }), h('button', { onclick: () => { alloc = G.autoAlloc(S.player, info.points); render(); } }, 'Auto-allocate'), h('button', { onclick: () => { alloc = {}; render(); } }, 'Reset')), rows,
+        h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { try { report = G.train(S, alloc); alloc = {}; go(); } catch (e) { console.error(e); } } }, 'Confirm & advance the offseason'))));
+  }
+
+  function screenReport() {
+    const r = report;
+    return h('div', null, h('h1', null, 'Offseason report · age ' + r.age),
+      h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', { class: 'big' }, r.ovr0 + ' → ' + r.ovr1), h('span', { class: r.ovr1 >= r.ovr0 ? 'pos' : 'neg' }, (r.ovr1 - r.ovr0 >= 0 ? '+' : '') + (r.ovr1 - r.ovr0) + ' OVR'), h('span', { class: 'muted small' }, 'upgrades contributed ' + (r.trainGain >= 0 ? '+' : '') + r.trainGain)),
+        h('div', { class: 'grid g2', style: 'margin-top:10px' }, r.changes.map((c) => { const d = c.to - c.from; return h('div', { class: 'row small' }, h('span', { style: 'width:130px' }, c.label), h('span', null, c.from + ' → ' + c.to), h('span', { class: d > 0 ? 'pos' : d < 0 ? 'neg' : 'muted' }, d ? (d > 0 ? '+' : '') + d : '–')); })),
+        h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { report = null; go(); } }, 'Continue →'))));
+  }
+
+  function screenProReady() {
+    const L = S.league, t = L.teams[S.teamId], p = S.player, c = S.contract;
+    const isRook = S.proSeasons.length === 0;
+    return h('div', null, h('h1', null, NBA.seasonLabel(L.year) + (isRook ? ' · Rookie season' : ' season')),
+      h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('div', { class: 'big' }, Math.round(NBA.ovr(p))), h('div', { class: 'muted small' }, 'OVERALL')), h('div', null, h('b', null, t.name), h('div', { class: 'muted small' }, 'Last season: ' + t.wins + '-' + t.losses + ' · age ' + p.age)), h('div', null, h('b', null, money(c.salary) + ' / yr'), h('div', { class: 'muted small' }, c.type === 'rookie' ? 'Rookie deal' : 'Contract') + ' · ' + (c.left) + ' yr left')), h('h3', null, 'Ratings'), attrBars(p),
+        h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { G.playSeason(S); go(); } }, 'Sim the ' + NBA.seasonLabel(L.year) + ' season →'))));
+  }
+
+  function screenRecap() {
+    const r = S.proSeasons[S.proSeasons.length - 1];
+    const p = S.player;
+    const awardPills = r.awards.map((a) => h('span', { class: 'pill gold' }, '🏅 ' + a));
+    const ranks = r.ranks ? ['pts', 'reb', 'ast', 'stl', 'blk'].filter((k) => r.ranks[k] && r.ranks[k] <= 5).map((k) => h('span', { class: 'pill good' }, '#' + r.ranks[k] + ' in ' + { pts: 'scoring', reb: 'rebounding', ast: 'assists', stl: 'steals', blk: 'blocks' }[k])) : [];
+    return h('div', null, h('h1', null, r.label + ' season recap'),
+      h('div', { class: 'card' }, h('p', { class: 'muted' }, r.team + ' · age ' + r.age + ' · OVR ' + r.ovr + ' · ' + money(r.salary)),
+        h('div', { class: 'grid stats' }, statBox(f1(r.pts), 'PPG'), statBox(f1(r.reb), 'RPG'), statBox(f1(r.ast), 'APG'), statBox(f1(r.stl), 'SPG'), statBox(f1(r.blk), 'BPG'), statBox(r.gp, 'Games')),
+        h('p', { style: 'margin-top:10px' }, 'FG ' + pct(r.fgp) + '% · 3P ' + pct(r.tpp) + '% · FT ' + pct(r.ftp) + '% · TS ' + pct(r.ts) + '% · ' + f1(r.mins) + ' mpg · High game ' + r.high),
+        h('p', null, 'Triple-doubles: ', h('b', null, r.td), ' · Double-doubles: ', h('b', null, r.dd), r.g40 ? ' · 40-pt games: ' + r.g40 : '', r.avgTD ? ' · 🔥 AVERAGED A TRIPLE-DOUBLE' : ''),
+        h('p', null, h('b', null, r.wins + '-' + r.losses), ' · ' + r.playoffText), awardPills, ranks, r.injury ? h('div', { class: 'callout' }, '🩹 ' + r.injury) : null, r.events.map((e) => h('div', { class: 'callout' }, e))),
+      r.playoff ? h('div', { class: 'card' }, h('h2', null, 'Playoffs' + (r.legend ? ' 🔥 LEGENDARY RUN' : r.heater ? ' 🔥 on a heater' : '')), h('div', { class: 'grid stats' }, statBox(f1(r.playoff.pts), 'PPG'), statBox(f1(r.playoff.reb), 'RPG'), statBox(f1(r.playoff.ast), 'APG')), h('p', { class: 'muted small' }, r.playoff.gp + ' games · ' + pct(r.playoff.ts) + ' TS% · ' + r.playoff.td + ' triple-doubles · high ' + r.playoff.high),
+        h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, ['Round', 'Opponent', 'Result', 'PTS', 'REB', 'AST'].map((x, i) => h('th', { class: i < 3 ? 'l' : '' }, x)))), h('tbody', null, r.perSeries.map((s) => h('tr', null, h('td', { class: 'l' }, s.round), h('td', { class: 'l' }, s.opp), h('td', { class: 'l' }, s.result), h('td', null, f1(s.pts)), h('td', null, f1(s.reb)), h('td', null, f1(s.ast)))))))) : null,
+      h('div', { class: 'card' }, h('h2', null, 'Around the league'), h('p', null, 'Champion: ', h('b', null, r.champion), ' · MVP: ', h('b', null, r.mvp)), h('p', { class: 'muted small' }, r.league.n30 + ' players averaged 30+ this year, ' + r.league.n25 + ' averaged 25+. Top scorers: ' + r.league.topScorers.map((s) => s.name + ' ' + f1(s.ppg)).join(' · '))),
+      h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { S.stage = 'decision'; S.decision = G.decisionOptions(S); go(); } }, 'Offseason decisions →')));
+  }
+
+  function screenDecision() {
+    const d = S.decision || (S.decision = G.decisionOptions(S));
+    const done = (res) => { S.decision = null; alloc = {}; S.flash = res && res.text; go(); };
+    const out = [h('h1', null, 'Offseason: what now?'), h('p', { class: 'muted' }, 'Age ' + d.age + ' · OVR ' + d.ovr + ' · ' + d.team + ' · market value ~' + money(d.marketSalary) + ' (cap ' + money(d.cap) + ')')];
+    if (d.mustRetire) out.push(h('div', { class: 'callout' }, 'No team has an offer for you and your body says it is time. This is the end of the road.'));
+    if (d.expiring && !d.mustRetire) {
+      const mkOffer = (o, kind) => {
+        let yrs = Math.min(3, o.maxYears);
+        const lab = h('b', null);
+        const sel = h('select', { onchange: (e) => (yrs = +e.target.value) }, Array.from({ length: o.maxYears }, (_, i) => h('option', { value: i + 1, selected: i + 1 === yrs }, (i + 1) + ' year' + (i ? 's' : ''))));
+        return h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('b', null, o.name), h('div', { class: 'small muted' }, o.label + ' · you would be a ' + o.role)), h('span', { class: 'spacer' }), h('b', null, money(o.salary) + ' / yr'), sel, h('button', { class: 'primary', onclick: () => done(G.decide(S, kind, { teamId: o.teamId, salary: o.salary, years: yrs })) }, kind === 'resign' ? 'Re-sign' : 'Sign')));
+      };
+      out.push(h('h3', null, 'Your contract expired · stay'), mkOffer(d.resign, 'resign'), h('h3', null, 'Test free agency · switch teams'), d.offers.length ? d.offers.map((o) => mkOffer(o, 'switch')) : h('p', { class: 'muted' }, 'No other team made an offer.'));
+    } else if (!d.mustRetire) {
+      out.push(h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('b', null, 'Stay with the ' + d.team), h('div', { class: 'small muted' }, 'Contract: ' + money(d.contract.salary) + ' · ' + d.contract.left + ' more year(s)')), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => done(G.decide(S, 'stay')) }, 'Stay'))),
+        h('h3', null, 'Demand a trade (pick a destination)'), d.tradeOptions.map((o) => h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('b', null, o.name), h('div', { class: 'small muted' }, o.label + ' (' + o.wins + ' wins last year) · you would be a ' + o.role)), h('span', { class: 'spacer' }), h('button', { onclick: () => done(G.decide(S, 'trade', { teamId: o.teamId })) }, 'Request trade')))));
+    }
+    out.push(h('div', { class: 'row', style: 'margin-top:14px' }, confirmBtn('Retire from basketball', 'danger', () => { G.retire(S); S.decision = null; go(); })));
+    return h('div', null, out);
+  }
+
+  function seasonTable(rows, playoffs) {
+    const head = playoffs ? ['Season', 'Age', 'Team', 'GP', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', '3P%', 'TS%', 'TD'] : ['Season', 'Age', 'Team', 'W-L', 'GP', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', '3P%', 'FT%', 'TS%', 'TD', 'OVR'];
+    return h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, head.map((x, i) => h('th', { class: i === 2 ? 'l' : '' }, x)))),
+      h('tbody', null, rows.map((s) => playoffs
+        ? h('tr', null, h('td', null, s.label), h('td', null, s.age), h('td', { class: 'l' }, s.team), h('td', null, s.gp), h('td', null, f1(s.mins)), h('td', null, f1(s.pts)), h('td', null, f1(s.reb)), h('td', null, f1(s.ast)), h('td', null, f1(s.stl)), h('td', null, f1(s.blk)), h('td', null, pct(s.fgp)), h('td', null, pct(s.tpp)), h('td', null, pct(s.ts)), h('td', null, s.td))
+        : h('tr', null, h('td', null, s.label), h('td', null, s.age), h('td', { class: 'l' }, s.team), h('td', null, s.wins + '-' + s.losses), h('td', null, s.gp), h('td', null, f1(s.mins)), h('td', null, f1(s.pts)), h('td', null, f1(s.reb)), h('td', null, f1(s.ast)), h('td', null, f1(s.stl)), h('td', null, f1(s.blk)), h('td', null, pct(s.fgp)), h('td', null, pct(s.tpp)), h('td', null, pct(s.ftp)), h('td', null, pct(s.ts)), h('td', null, s.td), h('td', null, s.ovr))))));
+  }
+  function careerTotals() {
+    const ps = S.proSeasons; if (!ps.length) return null;
+    const gp = ps.reduce((a, s) => a + s.gp, 0), tot = (k) => ps.reduce((a, s) => a + s[k] * s.gp, 0);
+    return { gp, pts: tot('pts') / gp, reb: tot('reb') / gp, ast: tot('ast') / gp, totPts: Math.round(tot('pts')), totReb: Math.round(tot('reb')), totAst: Math.round(tot('ast')), td: S.career.td };
+  }
+
+  function careerBody() {
+    const ps = S.proSeasons, ct = careerTotals(), aw = S.career.awards;
+    const wrap = h('div');
+    if (!ct) { wrap.append(h('p', { class: 'muted' }, 'No NBA games yet.'), S.collegeYears.length ? collegeTable() : null); return wrap; }
+    wrap.append(h('div', { class: 'grid stats' }, statBox(f1(ct.pts), 'Career PPG'), statBox(f1(ct.reb), 'Career RPG'), statBox(f1(ct.ast), 'Career APG'), statBox(ct.totPts.toLocaleString(), 'Total points'), statBox(ct.td, 'Triple-doubles (' + (100 * ct.td / ct.gp).toFixed(1) + '% of games)'), statBox(money(S.earnings), 'Career earnings')),
+      h('div', { style: 'margin-top:8px' }, Object.keys(aw).map((k) => h('span', { class: 'pill gold' }, aw[k] + '× ' + k))),
+      h('p', { class: 'muted small' }, 'Seasons averaging a triple-double: ' + S.career.tdSeasons + (S.career.td30Seasons ? ' (' + S.career.td30Seasons + ' with 30+ ppg)' : '')),
+      h('h3', null, 'Regular season'), seasonTable(ps, false));
+    if (S.playoffLines.length) wrap.append(h('h3', null, 'Playoffs'), seasonTable(S.playoffLines, true));
+    if (S.collegeYears.length) wrap.append(h('h3', null, 'College'), collegeTable());
+    return wrap;
+  }
+  function showCareer() {
+    const m = document.getElementById('modal');
+    m.classList.remove('hidden'); m.replaceChildren(h('div', { class: 'box' }, h('div', { class: 'row' }, h('h2', { style: 'margin:0' }, S.player.name + ' · Career'), h('span', { class: 'spacer' }), h('button', { onclick: () => m.classList.add('hidden') }, 'Close ✕')), careerBody()));
+    m.onclick = (e) => { if (e.target === m) m.classList.add('hidden'); };
+  }
+
+  function screenRetired() {
+    const hof = S.hof, p = S.player;
+    return h('div', null, h('h1', null, p.name + ' retires'),
+      h('div', { class: 'card' }, h('div', { class: 'big', style: 'color:' + (hof.hall ? 'var(--gold)' : 'inherit') }, hof.hall ? '🏛️ ' + hof.tier : hof.tier), h('p', { class: 'muted' }, 'Legacy score ' + hof.score + ' (Hall of Fame line: 85) · ' + S.proSeasons.length + ' seasons · ' + D.ARCHETYPES[p.arch].name + ' · hidden ceiling was ' + Math.round(p.ceiling) + ' · ' + S.stars + '★ recruit' + (S.draft && S.draft.slot ? ' · drafted #' + S.draft.slot : ' · undrafted'))),
+      h('div', { class: 'card' }, careerBody()),
+      h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { wipe(); S = null; boot(); } }, 'Start a new career')));
+  }
+
+  // ------------------------------------------------------------ router
+  function render() {
+    renderHeader();
+    app.replaceChildren();
+    if (!S) { app.append(screenCreate()); return; }
+    if (report) { app.append(screenReport()); return; }
+    const st = S.stage;
+    const m = { scouting: screenScouting, college_pick: screenCollegePick, college_ready: screenCollegeReady, college_decision: screenCollegeDecision, draft_night: screenDraft, training: screenTraining, pro_ready: screenProReady, season_recap: screenRecap, decision: screenDecision, retired: screenRetired };
+    if (S.flash && st !== 'decision') { app.append(h('div', { class: 'callout' }, S.flash)); S.flash = null; }
+    app.append((m[st] || screenCreate)());
+  }
+  function boot() { S = null; draft.name = ''; render(); }
+  window.__NBA_UI = { get state() { return S; } };
+  boot();
+})();
+
+</script>
