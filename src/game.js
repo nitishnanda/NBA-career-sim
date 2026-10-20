@@ -10,7 +10,19 @@
   const STAR_ODDS = { 1: 38, 2: 28, 3: 20, 4: 10, 5: 4 };
   const STAR_NAMES = { 1: 'Zero-hype prospect', 2: 'Under-the-radar', 3: 'Solid recruit', 4: 'Blue-chip', 5: 'Five-star phenom' };
   const TD_CAP = 5;
-  const CAPG = 1.015; // salary cap growth per year
+  // Salary cap by season start year, $M: real history and the official projection through 2034-35
+  // (gabriel1200/site_data cap.csv); after that we keep growing 5% a year, the projected pace.
+  const CAP_M = { 2005: 49.5, 2010: 58.0, 2015: 70.0, 2016: 94.1, 2017: 99.1, 2018: 101.9, 2019: 109.1, 2020: 109.1, 2021: 112.4, 2022: 123.7, 2023: 136.0, 2024: 140.6, 2025: 154.6, 2026: 165.0, 2027: 174.0, 2028: 182.7, 2029: 191.8, 2030: 201.4, 2031: 211.5, 2032: 222.1, 2033: 233.2, 2034: 244.8 };
+  const capFor = (y) => (CAP_M[y] != null ? CAP_M[y] : y > 2034 ? 244.8 * Math.pow(1.05, y - 2034) : CAP_M[2005] * Math.pow(1.04, Math.max(0, y - 2005)));
+  // Veteran salary as a share of the cap by rating (real medians by production rank, 2012-26)
+  const MARKET = [[56, 0.02], [60, 0.035], [65, 0.06], [68, 0.085], [70.5, 0.095], [72.9, 0.12], [74.9, 0.134], [77.3, 0.17], [80, 0.225], [82.2, 0.24], [84.9, 0.245], [87.8, 0.25], [91.2, 0.31], [94.4, 0.335], [98, 0.35]];
+  function marketCurve(v) {
+    if (v <= MARKET[0][0]) return MARKET[0][1];
+    for (let i = 1; i < MARKET.length; i++) {
+      if (v <= MARKET[i][0]) { const [x0, y0] = MARKET[i - 1], [x1, y1] = MARKET[i]; return y0 + ((v - x0) / (x1 - x0)) * (y1 - y0); }
+    }
+    return MARKET[MARKET.length - 1][1];
+  }
 
   // ---------------------------------------------------------------- creation
   function newCareer(o) {
@@ -37,7 +49,7 @@
     const st = {
       v: 1, stage: 'scouting', player: p, league: L, stars,
       genBonus, college: null, collegeYears: [], proSeasons: [], playoffLines: [],
-      contract: null, teamId: -1, earnings: 0, draft: null,
+      contract: null, teamId: -1, earnings: 0, earnings26: 0, capYears: 0, draft: null,
       career: { awards: {}, td: 0, td30Seasons: 0, tdSeasons: 0, titles: 0 },
       log: [], retired: false, hof: null, pendingEvents: [],
     };
@@ -142,9 +154,11 @@
     st.teamId = team.id; p.teamId = team.id;
     const cap = capNow(st.league);
     let sal, yrs;
-    if (slot && slot <= 30) { sal = 13.8 * Math.pow(0.958, slot - 1) * Math.pow(CAPG, st.league.year - 2025); yrs = 4; }
-    else if (slot) { sal = Math.max(1.5, 2.3 - (slot - 31) * 0.035) * Math.pow(CAPG, st.league.year - 2025); yrs = 3; }
-    else { sal = 1.3 * Math.pow(CAPG, st.league.year - 2025); yrs = 2; }
+    // rookie scale as a share of the cap: the #1 pick earns ~9% of it, then -4.2% per slot
+    const capY = capFor(st.league.year);
+    if (slot && slot <= 30) { sal = capY * 0.0892 * Math.pow(0.958, slot - 1); yrs = 4; }
+    else if (slot) { sal = capY * Math.max(0.0097, 0.0149 - (slot - 31) * 0.00023); yrs = 3; }
+    else { sal = capY * 0.0084; yrs = 2; }
     st.contract = { salary: r1(sal), years: yrs, left: yrs, type: 'rookie' };
     st.stage = 'draft_night';
     return st.draft;
@@ -191,7 +205,7 @@
   }
 
   // ---------------------------------------------------------------- pro season
-  const capNow = (L) => L.capBase * Math.pow(CAPG, L.year - 2025);
+  const capNow = (L) => capFor(L.year);
 
   function rollEvents(st, p) {
     const fx = { form: 0, extraMiss: 0, minsMult: 1, depth: 0, bonusPts: 0, notes: [] };
@@ -276,8 +290,13 @@
 
   function playoffLine(st, ctx, seriesList, base, mode) {
     const p = st.player;
-    const mult = { mins: 1.06, pts: 1.06, reb: 1.04, ast: 1.08, stl: 1.05, blk: 1.05, tov: 1.1 };
-    let cap = Math.max(33.8, base.pts + 1), maxAvg = Math.max(35.8, base.pts + 2.5);
+    // real stars (n=202, 2001-26): minutes x1.086, points x1.005, rebounds x1.055, assists x0.944, steals x0.98, blocks x1.15, turnovers x1.09
+    const mult = { mins: 1.085, pts: 1.0, reb: 1.055, ast: 0.95, stl: 0.98, blk: 1.15, tov: 1.09 };
+    // a postseason's overall form varies far more than a single game's noise (real sd of the points ratio is 0.155)
+    const fp = clamp(1 + 0.13 * randn(), 0.7, 1.34), fo = clamp(1 + 0.07 * randn(), 0.8, 1.22);
+    mult.ast = clamp(0.95 - 0.015 * (base.ast - 5), 0.85, 0.95); // real 7+ apg players lose ~10% of their assists in the playoffs
+    mult.pts *= fp; mult.reb *= fo; mult.ast *= fo; mult.stl *= fo; mult.blk *= fo;
+    let cap = Math.max(35.5, base.pts + 2.2), maxAvg = Math.max(35.8, base.pts + 2.6);
     if (mode === 'heater') { const h = 1.15 + rand() * 0.07; mult.pts *= h; mult.reb *= 1.08; mult.ast *= 1.12; mult.mins *= 1.03; cap = Math.min(37.2, Math.max(35.4, base.pts + 2)); maxAvg = Math.min(38.6, Math.max(37.4, base.pts + 3.5)); }
     if (mode === 'legend') { mult.pts *= 1.22; mult.reb *= 1.15; mult.ast *= 1.2; mult.mins *= 1.04; cap = 37.2; maxAvg = 38.6; }
     const m = { mins: Math.min(base.mins * mult.mins, 43), pts: Math.min(base.pts * mult.pts, cap), reb: base.reb * mult.reb, ast: base.ast * mult.ast, stl: base.stl * mult.stl, blk: base.blk * mult.blk, tov: base.tov * mult.tov };
@@ -374,6 +393,9 @@
     };
     st.proSeasons.push(rec);
     st.earnings += st.contract.salary;
+    st.earnings26 = (st.earnings26 || 0) + (st.contract.salary / capFor(L.year)) * capFor(2026); // in 2026 cap dollars
+    st.capYears = (st.capYears || 0) + st.contract.salary / capFor(L.year);
+    rec.capM = capFor(L.year);
     st.career.td += l.td;
     if (rec.avgTD) { st.career.tdSeasons++; if (l.pts >= 30) st.career.td30Seasons++; }
     if (pline) st.playoffLines.push(Object.assign({ label: res.label, age, team: t.name }, rec.playoff, { heater, text: resultText }));
@@ -388,7 +410,7 @@
   function marketPct(st) {
     const p = st.player;
     let v = ovr(p) - (p.age >= 33 ? 2 * (p.age - 32) : 0);
-    const raw = (0.015 + Math.pow(clamp((v - 60) / 32, 0, 1.2), 1.5) * 0.35) * 0.8;
+    const raw = marketCurve(v);
     const yrs = p.yearsPro;
     const maxPct = yrs >= 10 ? 0.35 : yrs >= 7 ? 0.3 : 0.25;
     return { pct: Math.min(raw, maxPct), v, maxPct };
@@ -410,12 +432,12 @@
     if (out.expiring) {
       const own = L.teams[st.teamId];
       const maxYrsOwn = p.age >= 36 ? 1 : p.age >= 33 ? 2 : 5;
-      out.resign = { teamId: own.id, name: own.name, salary: r1(Math.max(2.3 * Math.pow(CAPG, L.year - 2025), baseSal)), maxYears: maxYrsOwn, role: role(st, own), label: teamLabel(own, own.wins) };
+      out.resign = { teamId: own.id, name: own.name, salary: r1(Math.max(2.3 * capFor(L.year) / 154.6, baseSal)), maxYears: maxYrsOwn, role: role(st, own), label: teamLabel(own, own.wins) };
       let offers = [];
       const n = mk.v >= 76 ? 6 : mk.v >= 68 ? 4 : mk.v >= 60 ? 3 : 1;
       const teams = L.teams.filter((t) => t.id !== st.teamId).sort(() => rand() - 0.5).slice(0, n);
       teams.forEach((t) => {
-        const sal = Math.max(2.3 * Math.pow(CAPG, L.year - 2025), baseSal * (0.88 + rand() * 0.17) * (t.wins < 33 ? 1.04 : 1));
+        const sal = Math.max(2.3 * capFor(L.year) / 154.6, baseSal * (0.88 + rand() * 0.17) * (t.wins < 33 ? 1.04 : 1));
         offers.push({ teamId: t.id, name: t.name, salary: r1(sal), maxYears: p.age >= 36 ? 1 : p.age >= 33 ? 2 : 4, role: role(st, t), label: teamLabel(t, t.wins), wins: t.wins });
       });
       out.offers = offers.sort((a, b) => b.salary - a.salary);

@@ -117,9 +117,9 @@
     const win = []; for (let i = 0; i < p.tdPlan; i++) win.push(p.tdStart + i);
     p.td30Ages = win.slice().sort(() => rand() - 0.5).slice(0, p.td30Plan);
     p.tdUsed = 0; p.td30Used = 0;
-    p.heaterPlan = (dom || gen || sdom) ? (rand() < 0.3 ? 0 : rand() < 0.55 ? 1 : 2) : (rand() < 0.65 ? 0 : 1);
+    p.heaterPlan = 0; // real playoff scoring variance is already covered by series-level form noise
     p.heatersUsed = 0;
-    p.legendPlan = +weighted(dom ? { 0: 25, 1: 45, 2: 30 } : sdom ? { 0: 70, 1: 25, 2: 5 } : gen ? { 0: 85, 1: 15 } : { 0: 100 });
+    p.legendPlan = +weighted(dom ? { 0: 70, 1: 27, 2: 3 } : sdom ? { 0: 90, 1: 10 } : gen ? { 0: 95, 1: 5 } : { 0: 100 });
     p.legendUsed = 0;
     // one big scoring year (32-33 ppg) is common for elite scorers; a 34-36 ppg year is rare
     const tier = { scorer: [0.62, 0.12], shooter: [0.5, 0.11], generational: [0.35, 0.05], dominator: [0.2, 0.03], twoway: [0.2, 0.02] }[p.arch] || [0, 0];
@@ -309,7 +309,7 @@
     const gs = randn();
     const mm = clamp(1 + 0.085 * gs, 0.55, 1.28);
     const hot = rand() < 0.06 ? 1.28 : 0.9825;
-    let pts = Math.max(0, Math.round(m.pts * mm * (1 + 0.205 * randn()) * hot));
+    let pts = Math.max(0, Math.round(m.pts * mm * (1 + 0.29 * randn()) * hot));
     const ctr = (mean, extra) => {
       const lam = mean * mm;
       return Math.max(0, Math.round(lam + (Math.sqrt(lam) * 0.95 + 0.04 * lam) * randn() * (extra || 1)));
