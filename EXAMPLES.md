@@ -10,28 +10,29 @@ Columns: OVR = overall that season, TD = triple-doubles, PO = playoff line, (C) 
 ```
 
 ==== Test Player | Box-Score Dominator | C | Illinois | 5★ | hidden ceiling 93 ====
-College: Duke (1y) 17.8/11.5/6.8 | drafted #2 by Los Angeles Clippers
+College: Kentucky (1y) 15.4/10.1/5.7 | drafted #3 by Memphis Grizzlies
 yr  age team                    ovr  GP  MIN  PTS  REB  AST  STL BLK  TS%   TD  W-L   playoffs
- 1   19 Los Angeles Clippers    80  73  31.0  14.5  8.8  6.2  0.5 1.6  54.2   4 39-43  Missed the playoffs  [Rookie of the Year]
- 2   20 Los Angeles Clippers    81  78  34.4  16.8 10.6  6.8  0.6 1.4  55.3  10 40-42  Missed the playoffs
- 3   21 Los Angeles Clippers    85  82  36.5  20.5 10.6  7.2  0.7 2.0  54.1  18 42-40  Missed the playoffs  [All-NBA Third Team, All-Star]
- 4   22 Los Angeles Clippers    87  69  36.4  19.6 11.0  7.0  0.8 2.2  53.7   7 34-48  Missed the playoffs  [All-Star]
- 5   23 Los Angeles Clippers    88  82  36.7  21.8 11.7  7.5  1.0 2.0  53.9  17 34-48  Lost in the First Round to Houston Rocke | PO 27.3/12.3/9.0  [All-Star]
- 6   24 Los Angeles Clippers    92  80  36.8  27.9 10.9  7.5  1.2 1.9  56.4  12 39-43  Missed the playoffs  [All-NBA First Team, All-Star]
- 7   25 Los Angeles Clippers    92  81  36.3  25.6 10.2  7.7  1.1 1.9  55.1  16 37-45  Missed the playoffs  [All-NBA Second Team, All-Star]
- 8   26 Los Angeles Clippers    94  80  36.7  23.4 10.5  7.1  1.1 2.3  56.9   7 50-32  NBA Champions(C) | PO 25.8/10.4/7.3  [All-NBA Second Team, All-Star, NBA Champion, Finals MVP]
- 9   27 Los Angeles Clippers    94  80  36.7  21.5 10.9  7.5  0.9 2.1  56.7  15 49-33  Lost in the Conference Finals to Houston | PO 23.2/11.0/7.8  [All-NBA Second Team, All-Star]
-10   28 Los Angeles Clippers    94  81  37.0  23.0 11.6  7.6  1.2 2.2  57.1  16 47-35  Lost in the First Round to Memphis Grizz | PO 33.4/12.4/8.2 🔥  [All-NBA Second Team, All-Defensive Second Team, All-Star]
-11   29 Los Angeles Clippers    94  79  36.5  24.1 11.1  7.6  0.8 2.2  55.2   9 44-38  Lost in the Conference Semifinals to San | PO 24.3/9.9/7.4  [All-NBA Second Team, All-Star]
-12   30 Los Angeles Clippers    93  75  36.7  25.5 11.8 10.7  0.8 1.8  56.0  33 42-40  Missed the playoffs  [All-NBA First Team, All-Star]
-13   31 Los Angeles Clippers    92  78  36.9  23.9 11.8 11.0  1.0 1.6  55.8  33 47-35  Lost in the First Round to Golden State  | PO 26.6/13.1/13.0  [All-NBA First Team, All-Star]
-14   32 Los Angeles Clippers    91  64  36.9  30.8 11.1 10.5  0.9 1.8  55.6  26 44-38  Missed the playoffs  [Scoring Champion (30.8), All-Star]
-15   33 Los Angeles Clippers    89  78  36.2  24.6 10.8 10.7  0.9 1.8  57.1  35 45-37  Lost in the First Round to Utah Jazz (3- | PO 28.3/9.4/10.3  [All-NBA First Team, All-Star]
-16   34 Los Angeles Clippers    88  75  35.1  19.1 10.6  8.1  0.6 1.6  56.3  13 41-41  Lost in the First Round to Sacramento Ki | PO 21.4/12.4/10.6 🔥  [All-Star]
-17   35 Los Angeles Clippers    84  74  34.6  21.1 10.4  8.3  0.6 1.3  53.3  15 28-54  Missed the playoffs
-18   36 Los Angeles Clippers    81  75  31.4  17.4  8.4  7.2  0.6 1.0  54.6   6 30-52  Missed the playoffs
-CAREER: 1384 GP  22.3/10.7/8.1 | 30,826 pts | TD 292 (21.1%) | TD-avg seasons 4 (30pt: 1) | $725M
-AWARDS: {"ROY":1,"All-NBA 3rd Team":1,"All-NBA":10,"All-Star":14,"All-NBA 1st Team":4,"All-NBA 2nd Team":5,"Championships":1,"Finals MVP":1,"All-Defense":1,"Scoring titles":1} | HOF 151 — First-Ballot Hall of Famer
+ 1   19 Memphis Grizzlies       86  64  35.5  17.6  9.5  6.7  0.6 1.5  55.4   8 41-41  Lost in the First Round to Minnesota Tim | PO 18.1/12.3/8.9  [Rookie of the Year]
+ 2   20 Memphis Grizzlies       87  52  35.3  20.1 10.8  7.1  0.7 1.7  56.2   6 46-36  Missed the playoffs
+ 3   21 Memphis Grizzlies       88  78  35.7  21.1 10.9  7.6  0.8 1.8  57.6  12 66-16  NBA Champions(C) | PO 20.7/10.4/8.5  [All-NBA First Team, All-Defensive Second Team, All-Star, NBA Champion, Finals MVP]
+ 4   22 Memphis Grizzlies       90  79  35.8  19.6  9.5  7.1  0.8 1.8  57.8   5 51-31  Lost in the Conference Semifinals to New | PO 23.2/11.0/6.9  [All-Star]
+ 5   23 Memphis Grizzlies       92  80  35.6  23.9 10.2  7.3  0.9 1.9  58.4  14 63-19  Lost in the First Round to Dallas Maveri | PO 22.2/7.7/7.7  [MVP, All-NBA First Team, All-Star]
+ 6   24 Memphis Grizzlies       92  80  35.2  20.4  8.7  6.7  0.8 1.6  57.3   6 44-38  Lost in the First Round to Portland Trai | PO 24.6/11.0/9.3 🔥  [All-Star]
+ 7   25 Memphis Grizzlies       93  79  35.5  22.0  9.1  7.4  0.9 2.0  57.0   6 50-32  Lost in the First Round to New Orleans P | PO 26.2/9.6/10.6 🔥  [All-NBA First Team, All-Star]
+ 8   26 Memphis Grizzlies       93  71  37.0  26.2  9.8  7.8  0.8 1.9  58.5  14 47-35  Lost in the First Round to Utah Jazz (2- | PO 27.5/9.0/7.8  [All-NBA First Team, All-Star]
+ 9   27 Memphis Grizzlies       94  81  35.4  28.0 10.6  8.4  1.0 2.3  57.8  18 44-38  Lost in the First Round to Portland Trai | PO 36.3/12.7/11.3 🔥  [All-NBA First Team, All-Defensive Second Team, All-Star]
+10   28 Memphis Grizzlies       94  80  35.2  24.4  9.9  7.1  0.8 1.8  55.7   8 26-56  Missed the playoffs  [All-NBA Third Team, All-Star]
+11   29 Memphis Grizzlies       95  71  34.9  22.2 10.2  7.5  0.9 1.4  55.1   9 26-56  Missed the playoffs  [All-NBA Second Team, All-Star]
+12   30 Memphis Grizzlies       95  76  35.0  24.9 11.6 10.7  0.8 1.6  57.7  33 21-61  Missed the playoffs  [All-NBA First Team, All-Star]
+13   31 Memphis Grizzlies       94  72  35.6  26.5 11.5 10.3  0.8 2.2  57.4  27 39-43  Missed the playoffs  [All-NBA First Team, All-Star]
+14   32 Memphis Grizzlies       94  71  35.7  31.1 10.9 10.9  0.8 2.1  58.1  26 43-39  Lost in the Conference Semifinals to Okl | PO 29.2/10.1/12.5  [All-NBA First Team, All-Star]
+15   33 Memphis Grizzlies       93  63  35.0  23.2 11.3 10.1  0.7 1.6  58.2  23 37-45  Missed the playoffs  [All-Star]
+16   34 Memphis Grizzlies       91  72  34.4  22.1  8.8  7.5  0.8 1.6  57.2   7 54-28  Lost in the Conference Semifinals to New | PO 24.9/9.3/7.7  [All-NBA First Team, All-Star]
+17   35 Memphis Grizzlies       89  68  33.9  22.5  8.9  7.6  0.6 1.3  57.8   7 42-40  Missed the playoffs  [All-NBA Third Team, All-Star]
+18   36 Memphis Grizzlies       86  75  33.2  17.6  7.1  5.8  0.5 1.3  58.1   1 38-44  Missed the playoffs
+19   37 Memphis Grizzlies       84  72  32.6  18.7  9.4  7.6  0.5 1.5  56.2   8 27-55  Missed the playoffs  [All-Star]
+CAREER: 1384 GP  22.8/9.9/7.9 | 31,568 pts | TD 238 (17.2%) | TD-avg seasons 4 (30pt: 1) | $799M
+AWARDS: {"ROY":1,"All-NBA 1st Team":9,"All-NBA":12,"All-Defense":2,"All-Star":16,"Championships":1,"Finals MVP":1,"MVP":1,"All-NBA 3rd Team":2,"All-NBA 2nd Team":1} | HOF 184 — First-Ballot Hall of Famer
 ```
 
 ## KD/Kobe-style consistent scorer (5★)
@@ -41,28 +42,30 @@ AWARDS: {"ROY":1,"All-NBA 3rd Team":1,"All-NBA":10,"All-Star":14,"All-NBA 1st Te
 ```
 
 ==== Test Player | Consistent Scorer | SF | Illinois | 5★ | hidden ceiling 91 ====
-College: Gonzaga (1y) 21.6/4.2/3.5 | drafted #1 by Los Angeles Clippers
+College: Duke (1y) 21.6/3.7/3.9 | drafted #4 by Dallas Mavericks
 yr  age team                    ovr  GP  MIN  PTS  REB  AST  STL BLK  TS%   TD  W-L   playoffs
- 1   19 Los Angeles Clippers    79  68  29.8  18.3  3.0  3.3  0.6 0.1  56.7   0 31-51  Missed the playoffs
- 2   20 Los Angeles Clippers    86  76  36.4  26.4  3.7  5.0  1.0 0.1  59.5   0 48-34  Lost in the Conference Semifinals to Dal | PO 29.3/4.2/4.2  [Most Improved Player]
- 3   21 Los Angeles Clippers    87  80  36.3  26.5  4.0  5.5  1.1 0.2  57.7   0 53-29  NBA Champions(C) | PO 29.2/4.1/5.7  [All-NBA Third Team, All-Star, NBA Champion, Finals MVP]
- 4   22 Los Angeles Clippers    88  70  37.7  29.6  5.3  6.3  1.0 0.2  60.4   0 50-32  Lost in the First Round to Portland Trai | PO 30.6/6.6/7.7  [All-NBA First Team, All-Star]
- 5   23 Los Angeles Clippers    89  78  36.7  28.1  4.8  5.4  1.1 0.3  58.9   0 54-28  Lost in the Conference Finals to San Ant | PO 30.2/4.6/5.4  [All-NBA Second Team, All-Star]
- 6   24 Los Angeles Clippers    90  81  36.6  32.4  4.8  5.7  1.2 0.2  58.9   0 51-31  Lost in the NBA Finals to Atlanta Hawks  | PO 32.2/4.8/6.3  [Scoring Champion (32.4), All-NBA First Team, All-Star]
- 7   25 Los Angeles Clippers    93  78  38.0  28.5  5.9  6.4  1.2 0.3  58.7   1 59-23  Lost in the First Round to Oklahoma City | PO 30.5/7.3/6.5 🔥  [All-NBA Second Team, All-Star]
- 8   26 Los Angeles Clippers    94  79  36.7  30.2  5.0  7.2  0.9 0.3  59.2   0 55-27  Lost in the Conference Finals to Los Ang | PO 32.0/5.2/7.6  [All-NBA Second Team, All-Star]
- 9   27 Los Angeles Clippers    94  82  36.5  29.3  5.3  6.2  1.0 0.4  59.2   0 53-29  Lost in the Conference Finals to Los Ang | PO 29.6/6.6/6.7  [All-NBA Third Team, All-Star]
-10   28 Los Angeles Clippers    94  59  38.0  28.0  5.2  6.9  1.0 0.3  58.0   1 59-23  Lost in the Conference Finals to Los Ang | PO 29.7/4.6/6.9  [All-Star]
-11   29 Los Angeles Clippers    94  75  36.6  36.5  5.4  5.9  1.1 0.4  59.8   1 64-18  Lost in the First Round to Phoenix Suns  | PO 37.1/4.7/7.3  [MVP, Scoring Champion (36.5), All-NBA First Team, All-Star]
-12   30 Los Angeles Clippers    93  78  37.0  27.0  5.6  6.2  1.2 0.2  59.0   0 57-25  Lost in the Conference Finals to Los Ang | PO 27.0/5.3/6.2  [All-NBA Second Team, All-Star]
-13   31 Los Angeles Clippers    92  69  36.3  28.3  6.3  5.8  0.9 0.2  60.3   1 67-15  Lost in the First Round to Denver Nugget | PO 25.8/4.2/6.3  [All-NBA First Team]
-14   32 Los Angeles Clippers    91  39  37.3  29.6  5.5  4.9  1.2 0.1  61.7   0 64-18  NBA Champions(C) | PO 30.6/5.8/5.4  [NBA Champion, Finals MVP]
-15   33 Los Angeles Clippers    89  76  35.8  23.9  5.0  5.6  0.9 0.2  60.1   0 54-28  NBA Champions(C) | PO 23.3/5.0/5.6  [NBA Champion]
-16   34 Los Angeles Clippers    88   7  36.9  25.1  3.7  4.3  0.6 0.1  60.9   0 48-34  Team made the playoffs (you were injured
-17   35 Los Angeles Clippers    85  65  34.5  21.5  4.1  5.0  0.9 0.2  57.8   0 54-28  Lost in the Conference Semifinals to Los | PO 21.8/3.8/5.4
-18   36 Los Angeles Clippers    82  51  32.5  19.9  2.7  4.6  0.5 0.2  60.1   0 49-33  Lost in the Conference Semifinals to Hou | PO 19.2/3.5/4.8
-CAREER: 1211 GP  27.5/4.8/5.7 | 33,271 pts | TD 4 (0.3%) | TD-avg seasons 0 (30pt: 0) | $739M
-AWARDS: {"MIP":1,"All-NBA 3rd Team":2,"All-NBA":10,"All-Star":10,"Championships":3,"Finals MVP":2,"All-NBA 1st Team":4,"All-NBA 2nd Team":4,"Scoring titles":2,"MVP":1} | HOF 158 — First-Ballot Hall of Famer
+ 1   19 Dallas Mavericks        81  77  31.9  17.4  3.3  3.2  0.6 0.1  59.5   0 45-37  Lost in the First Round to Los Angeles C | PO 19.4/4.4/4.6
+ 2   20 Dallas Mavericks        94  80  35.5  26.3  5.0  6.2  0.9 0.4  60.2   0 49-33  Lost in the First Round to Oklahoma City | PO 24.2/6.0/4.2  [Most Improved Player, All-NBA First Team]
+ 3   21 Dallas Mavericks        95  77  35.6  30.5  5.4  6.2  1.2 0.4  61.8   0 49-33  Lost in the First Round to New Orleans P | PO 30.6/5.4/6.7  [MVP, All-NBA First Team, All-Star]
+ 4   22 Dallas Mavericks        96  68  34.8  27.8  4.9  5.7  0.9 0.3  61.1   0 40-42  Missed the playoffs  [All-NBA Third Team, All-Star]
+ 5   23 Dallas Mavericks        97  80  35.5  27.4  7.0  6.1  1.2 0.5  61.6   1 63-19  NBA Champions(C) | PO 30.0/7.0/7.5  [All-NBA First Team, All-Star, NBA Champion]
+ 6   24 Dallas Mavericks        97  76  35.3  25.3  6.3  5.8  1.2 0.4  60.1   1 65-17  NBA Champions(C) | PO 26.6/6.4/5.9  [All-NBA Second Team, NBA Champion]
+ 7   25 Dallas Mavericks        98  69  35.0  30.5  6.6  5.4  1.3 0.5  62.5   1 73-9  Lost in the Conference Finals to Oklahom | PO 31.0/6.3/5.5  [Scoring Champion (30.5), All-NBA First Team, All-Star]
+ 8   26 Dallas Mavericks        98  76  35.4  30.7  6.6  6.1  1.4 0.7  62.6   2 73-9  NBA Champions(C) | PO 33.4/6.5/6.3  [All-NBA First Team, All-Star, NBA Champion]
+ 9   27 Dallas Mavericks        98  81  36.8  30.9  7.8  7.2  1.3 0.7  62.0   6 67-15  Lost in the Conference Finals to San Ant | PO 31.7/8.8/6.9  [MVP, Scoring Champion (30.9), All-NBA First Team, All-Star]
+10   28 Dallas Mavericks        99  71  35.6  31.1  6.6  6.5  1.1 0.4  62.8   3 73-9  Lost in the NBA Finals to Toronto Raptor | PO 33.3/7.8/7.3 🔥  [Scoring Champion (31.1), All-NBA First Team, All-Star]
+11   29 Dallas Mavericks        99  79  35.7  30.6  6.8  5.9  1.2 0.5  62.3   2 56-26  Lost in the Conference Finals to San Ant | PO 32.0/6.4/6.7  [Scoring Champion (30.6), All-NBA First Team, All-Star]
+12   30 Dallas Mavericks        99  72  37.4  32.8  7.1  5.6  1.2 0.5  62.2   0 63-19  Lost in the NBA Finals to Chicago Bulls  | PO 34.0/7.3/5.8  [All-NBA First Team, All-Star]
+13   31 Dallas Mavericks        99  74  35.7  24.2  5.2  5.2  0.9 0.4  62.8   0 55-27  Lost in the Conference Semifinals to Min | PO 24.8/6.2/6.5  [All-Star]
+14   32 Dallas Mavericks        99  32  35.0  27.8  5.8  5.2  1.4 0.5  61.4   0 48-34  Lost in the NBA Finals to Chicago Bulls  | PO 29.0/5.6/6.5
+15   33 Dallas Mavericks        98  73  34.8  30.6  8.1  7.2  1.2 0.5  63.2   6 72-10  Lost in the Conference Finals to Golden  | PO 33.3/9.0/8.2  [MVP, Scoring Champion (30.6), All-NBA First Team, All-Star]
+16   34 Dallas Mavericks        96  72  33.7  26.1  6.2  6.1  0.8 0.3  60.9   0 68-14  Lost in the NBA Finals to Boston Celtics | PO 30.9/6.4/7.2  [All-NBA Third Team, All-Star]
+17   35 Dallas Mavericks        94  65  33.2  29.7  6.9  6.1  0.9 0.2  62.2   0 52-30  Lost in the Conference Finals to Phoenix | PO 32.9/6.5/6.8  [All-NBA Second Team, All-Star]
+18   36 Dallas Mavericks        92  65  33.3  23.1  4.8  5.5  0.7 0.2  61.4   0 63-19  NBA Champions(C) | PO 28.6/5.2/6.1  [All-NBA Second Team, All-Star, NBA Champion]
+19   37 Dallas Mavericks        90  73  32.0  22.7  4.6  4.8  0.7 0.2  60.5   0 58-24  Lost in the Conference Finals to Phoenix | PO 23.7/5.2/5.5  [All-Star]
+20   38 Dallas Mavericks        87  68  31.7  19.8  3.3  4.0  0.5 0.1  61.6   0 53-29  Lost in the First Round to Golden State  | PO 16.6/4.0/3.6
+CAREER: 1428 GP  27.3/5.9/5.7 | 38,940 pts | TD 22 (1.5%) | TD-avg seasons 0 (30pt: 0) | $879M
+AWARDS: {"MIP":1,"All-NBA 1st Team":10,"All-NBA":15,"MVP":3,"All-Star":15,"All-NBA 3rd Team":2,"Championships":4,"All-NBA 2nd Team":3,"Scoring titles":5} | HOF 238 — Top-10 All-Time Great
 ```
 
 ## LeBron-style generational + dominator hybrid (5★)
@@ -72,29 +75,30 @@ AWARDS: {"MIP":1,"All-NBA 3rd Team":2,"All-NBA":10,"All-Star":10,"Championships"
 ```
 
 ==== Test Player | Generational Talent + dominator | SF | Illinois | 5★ | hidden ceiling 95 ====
-College: Duke (1y) 22.4/9.9/6.6 | drafted #1 by Washington Wizards
+College: Kentucky (1y) 20.5/8.9/6.6 | drafted #1 by Phoenix Suns
 yr  age team                    ovr  GP  MIN  PTS  REB  AST  STL BLK  TS%   TD  W-L   playoffs
- 1   19 Washington Wizards      90  79  36.9  24.0  9.8  7.4  1.6 0.6  56.8   6 37-45  Missed the playoffs  [Rookie of the Year, All-NBA Second Team, All-Star]
- 2   20 Washington Wizards      93  74  36.2  26.2 10.6  7.3  1.6 0.7  58.1  14 42-40  Lost in the First Round to Atlanta Hawks | PO 29.0/12.4/9.7  [All-NBA First Team, All-Star]
- 3   21 Washington Wizards      93  30  36.3  28.7 10.1  7.1  1.6 1.0  58.5   3 41-41  Missed the playoffs
- 4   22 Washington Wizards      94  42  36.4  29.7 10.2  6.9  1.5 0.8  58.6   6 44-38  Lost in the Conference Finals to Detroit | PO 31.8/10.2/7.7  [All-Star]
- 5   23 Washington Wizards      95  81  36.7  28.8 10.1  7.4  1.8 1.0  58.9  13 51-31  Lost in the Conference Finals to Detroit | PO 31.6/8.7/8.0  [All-NBA First Team, All-Star]
- 6   24 Washington Wizards      96  81  35.9  27.3  9.8  7.8  1.8 1.0  58.1   9 49-33  Lost in the Conference Finals to Detroit | PO 31.5/9.4/8.8  [All-NBA First Team, All-Star]
- 7   25 Washington Wizards      98  73  38.2  33.2 10.9  7.2  1.6 1.4  59.3   7 47-35  Lost in the First Round to Cleveland Cav | PO 34.6/12.4/7.2  [Scoring Champion (33.2), All-NBA First Team, All-Defensive First Team, All-Star]
- 8   26 Washington Wizards      98  82  36.3  29.9 12.1 10.9  2.0 1.4  58.6  39 49-33  Lost in the First Round to Boston Celtic | PO 31.7/11.3/9.0  [MVP, All-NBA First Team, All-Defensive Second Team, All-Star]
- 9   27 Washington Wizards      98  79  36.6  30.3 10.9 10.9  1.7 1.3  58.6  28 58-24  NBA Champions(C) | PO 34.9/12.3/12.3  [Scoring Champion (30.3), All-NBA First Team, All-Defensive Second Team, All-Star, NBA Champion, Finals MVP]
-10   28 Washington Wizards      98  77  36.6  28.9 10.5  8.9  1.7 1.4  59.7  20 63-19  NBA Champions(C) | PO 33.2/11.0/8.6  [MVP, All-NBA First Team, All-Defensive First Team, All-Star, NBA Champion, Finals MVP]
-11   29 Washington Wizards      98  79  37.2  31.3 11.3  8.5  1.9 1.4  61.0  20 63-19  Lost in the Conference Finals to Atlanta | PO 34.4/12.1/8.6  [Scoring Champion (31.3), All-NBA First Team, All-Star]
-12   30 Washington Wizards      98  60  36.8  30.4 10.8  8.6  1.9 1.1  60.0  14 51-31  Lost in the Conference Semifinals to Cle | PO 32.0/11.3/9.2  [All-Star]
-13   31 Washington Wizards      97  73  36.3  30.5 10.9  8.8  1.9 1.3  59.5  19 54-28  Lost in the Conference Semifinals to New | PO 33.2/12.6/11.1  [All-NBA First Team, All-Star]
-14   32 Washington Wizards      96  75  35.7  27.9  9.1  8.4  1.5 0.9  59.4  15 54-28  Lost in the First Round to Atlanta Hawks | PO 30.2/8.2/12.5  [All-NBA First Team, All-Star]
-15   33 Washington Wizards      95  75  35.9  26.0 10.3  8.7  1.6 1.3  58.9  22 65-17  Lost in the First Round to Toronto Rapto | PO 36.6/11.0/11.4 🔥  [All-NBA First Team, All-Star]
-16   34 Washington Wizards      93  77  35.1  24.8 10.8  8.8  1.6 1.1  58.9  24 67-15  NBA Champions(C) | PO 25.9/12.7/8.5  [MVP, All-NBA First Team, All-Star, NBA Champion, Finals MVP]
-17   35 Washington Wizards      91  69  34.3  23.3  9.8  7.5  1.5 0.9  58.9   9 62-20  Lost in the Conference Semifinals to Mia | PO 23.4/10.9/9.2  [All-NBA Second Team, All-Star]
-18   36 Washington Wizards      89  64  34.3  25.8  8.1  7.4  1.1 0.8  61.0   4 65-17  Lost in the Conference Finals to Clevela | PO 31.7/8.8/7.5  [All-Star]
-19   37 Washington Wizards      86  72  33.6  22.1  8.3  6.3  1.0 0.9  59.3   3 49-33  Lost in the Conference Semifinals to Cle | PO 26.2/9.2/6.5 🔥  [All-Star]
-CAREER: 1342 GP  27.8/10.3/8.2 | 37,313 pts | TD 275 (20.5%) | TD-avg seasons 2 (30pt: 1) | $833M
-AWARDS: {"ROY":1,"All-NBA 2nd Team":2,"All-NBA":14,"All-Star":18,"All-NBA 1st Team":12,"Scoring titles":3,"All-Defense":4,"MVP":3,"Championships":3,"Finals MVP":3} | HOF 274 — Top-10 All-Time Great
+ 1   19 Phoenix Suns            88  76  35.3  20.8  8.0  5.2  1.3 0.5  58.9   1 44-38  Lost in the Conference Semifinals to Den | PO 21.8/7.8/5.8  [Rookie of the Year]
+ 2   20 Phoenix Suns            92  67  35.4  31.4 11.1  8.1  1.8 0.6  61.2  13 54-28  Lost in the Conference Semifinals to Hou | PO 30.3/10.6/8.8  [MVP, Most Improved Player, Scoring Champion (31.4), All-NBA First Team, All-Star]
+ 3   21 Phoenix Suns            96  24  36.4  24.8  8.0  8.0  1.5 0.6  59.8   3 39-43  Missed the playoffs
+ 4   22 Phoenix Suns            97  50  37.6  30.9 10.9  8.3  1.8 1.1  62.1  11 38-44  Lost in the First Round to Denver Nugget | PO 27.0/12.8/8.0  [All-Star]
+ 5   23 Phoenix Suns            98  76  35.1  30.8 10.2  8.0  1.8 1.2  61.3  11 56-26  Lost in the Conference Finals to Houston | PO 33.5/12.1/8.9  [MVP, All-NBA First Team, All-Star]
+ 6   24 Phoenix Suns            99  67  36.8  27.9  9.7  8.1  1.4 0.9  61.6  12 61-21  Lost in the Conference Finals to Houston | PO 36.5/12.6/12.1 🔥  [All-NBA First Team, All-Star]
+ 7   25 Phoenix Suns            99  62  34.9  28.1  9.2  7.3  1.8 1.0  61.8   6 70-12  Lost in the NBA Finals to Boston Celtics | PO 31.8/7.9/8.0  [All-Star]
+ 8   26 Phoenix Suns            99  74  35.8  30.4 11.1 10.5  2.0 1.3  61.3  26 65-17  Lost in the Conference Finals to Minneso | PO 33.7/12.4/12.2  [MVP, All-NBA First Team, All-Star]
+ 9   27 Phoenix Suns            99  67  35.2  28.6 10.6 11.1  1.9 1.2  60.1  26 67-15  Lost in the NBA Finals to Washington Wiz | PO 30.3/11.9/12.4  [All-NBA First Team, All-Defensive Second Team, All-Star]
+10   28 Phoenix Suns            99  77  35.6  33.9  9.6  8.3  1.5 1.2  61.4  14 66-16  NBA Champions(C) | PO 33.3/10.4/9.3  [MVP, Scoring Champion (33.9), All-NBA First Team, All-Defensive Second Team, All-Star, NBA Champion, Finals MVP]
+11   29 Phoenix Suns            98  76  35.0  27.9  8.8  7.7  1.7 1.3  61.0  12 62-20  NBA Champions(C) | PO 37.4/9.6/8.6 🔥  [All-NBA First Team, All-Defensive Second Team, All-Star, NBA Champion, Finals MVP]
+12   30 Phoenix Suns            98  58  35.7  26.2  9.8  7.8  1.5 1.2  62.4   5 60-22  Lost in the Conference Finals to Utah Ja | PO 26.8/10.4/7.7  [All-Star]
+13   31 Phoenix Suns            98  77  35.2  26.2  8.5  7.4  1.3 1.1  60.9   9 67-15  NBA Champions(C) | PO 26.9/8.7/9.1  [MVP, All-NBA First Team, All-Defensive Second Team, All-Star, NBA Champion, Finals MVP]
+14   32 Phoenix Suns            97  73  35.2  24.1  8.7  6.8  1.2 1.2  61.7   3 73-9  NBA Champions(C) | PO 26.8/9.1/7.7  [MVP, All-NBA First Team, All-Star, NBA Champion, Finals MVP]
+15   33 Phoenix Suns            97  72  34.1  26.2  9.4  7.8  1.5 1.2  61.3  11 73-9  Lost in the Conference Semifinals to Uta | PO 28.5/10.3/8.2  [All-NBA First Team, All-Defensive First Team, All-Star]
+16   34 Phoenix Suns            96  55  33.9  27.3 10.4  8.1  1.9 1.1  60.3  12 70-12  NBA Champions(C) | PO 28.8/11.5/9.1  [All-Star, NBA Champion, Finals MVP]
+17   35 Phoenix Suns            94  56  34.9  25.4  8.7  6.9  1.5 1.2  62.6   3 72-10  Lost in the NBA Finals to Brooklyn Nets  | PO 26.9/7.9/6.2  [All-Star]
+18   36 Phoenix Suns            93  72  32.1  21.3  8.4  5.8  1.4 1.0  60.9   0 62-20  NBA Champions(C) | PO 21.3/8.3/6.6  [All-NBA Third Team, All-Defensive Second Team, All-Star, NBA Champion, Finals MVP]
+19   37 Phoenix Suns            90  70  32.0  20.0  7.8  6.1  1.0 0.6  61.0   5 59-23  Lost in the NBA Finals to Toronto Raptor | PO 21.0/8.2/6.6  [All-NBA Second Team]
+20   38 Phoenix Suns            87  71  31.6  18.5  6.9  5.8  0.9 0.8  60.2   0 59-23  Lost in the NBA Finals to Brooklyn Nets  | PO 19.8/6.3/6.2
+CAREER: 1320 GP  26.5/9.3/7.6 | 35,014 pts | TD 183 (13.9%) | TD-avg seasons 2 (30pt: 1) | $887M
+AWARDS: {"ROY":1,"MVP":6,"MIP":1,"Scoring titles":2,"All-NBA 1st Team":10,"All-NBA":12,"All-Star":16,"All-Defense":6,"Championships":6,"Finals MVP":6,"All-NBA 3rd Team":1,"All-NBA 2nd Team":1} | HOF 333 — Top-10 All-Time Great
 ```
 
 ## Defensive anchor (3★)
@@ -104,26 +108,21 @@ AWARDS: {"ROY":1,"All-NBA 2nd Team":2,"All-NBA":14,"All-Star":18,"All-NBA 1st Te
 ```
 
 ==== Test Player | Defensive Anchor | C | Illinois | 3★ | hidden ceiling 67 ====
-College: Villanova (2y) 3.5/4.4/0.5 , 3.7/6.8/0.4 | drafted #20 by Houston Rockets
+College: Michigan State (4y) 3.1/4.5/0.5 , 3.5/4.6/0.6 , 3.4/4.9/0.5 , 3.9/6.0/0.7 | drafted #42 by Detroit Pistons
 yr  age team                    ovr  GP  MIN  PTS  REB  AST  STL BLK  TS%   TD  W-L   playoffs
- 1   20 Houston Rockets         57  72  14.2   3.4  3.7  0.5  0.3 1.0  58.8   0 38-44  Missed the playoffs
- 2   21 Houston Rockets         59  81  12.5   3.1  3.5  0.4  0.1 0.7  56.5   0 44-38  Lost in the Conference Semifinals to Den | PO 3.1/3.6/0.5
- 3   22 Houston Rockets         63  72  16.5   4.4  4.4  0.5  0.4 1.2  59.2   0 50-32  Lost in the Conference Semifinals to San | PO 5.1/5.4/0.7
- 4   23 Houston Rockets         65  75  18.1   4.6  4.9  0.6  0.4 1.3  57.4   0 51-31  Lost in the Conference Finals to San Ant | PO 5.3/5.1/0.6
- 5   24 Houston Rockets         69  81  22.4   6.7  6.7  0.8  0.5 1.5  59.9   0 41-41  Missed the playoffs
- 6   25 Houston Rockets         70  81  23.3   6.3  7.1  0.9  0.8 2.0  60.0   0 35-47  Missed the playoffs
- 7   26 Houston Rockets         70  81  23.6   6.5  7.6  0.7  0.7 1.9  59.4   0 36-46  Missed the playoffs
- 8   27 Houston Rockets         72  80  24.6   6.9  7.5  0.8  0.6 2.1  60.7   0 48-34  Lost in the NBA Finals to Washington Wiz | PO 7.4/7.8/1.0
- 9   28 Houston Rockets         72  82  25.1   6.3  7.7  0.7  0.8 2.3  59.9   0 46-36  Lost in the First Round to Golden State  | PO 6.7/8.1/1.0
-10   29 Houston Rockets         73  80  25.9   7.7  7.3  0.8  0.9 1.9  61.4   0 39-43  Missed the playoffs
-11   30 Houston Rockets         72  80  25.0   6.5  6.9  0.8  0.7 1.6  59.4   0 33-49  Missed the playoffs
-12   31 Houston Rockets         71  81  24.6   6.7  7.1  0.8  0.6 1.8  61.5   0 29-53  Missed the playoffs
-13   32 Houston Rockets         70  82  23.9   6.4  7.0  0.9  0.6 2.0  60.2   0 35-47  Missed the playoffs
-14   33 Houston Rockets         68  81  21.1   5.8  5.7  0.8  0.5 1.7  58.7   0 34-48  Missed the playoffs
-15   34 Houston Rockets         66  60  18.8   4.5  5.5  0.7  0.5 1.3  58.7   0 39-43  Lost in the First Round to Denver Nugget | PO 5.0/4.3/0.8
-16   35 Houston Rockets         63  80  15.4   3.9  4.3  0.5  0.3 0.9  58.2   0 41-41  Lost in the First Round to San Antonio S | PO 3.4/3.4/0.6
-CAREER: 1249 GP  5.7/6.1/0.7 | 7,058 pts | TD 0 (0.0%) | TD-avg seasons 0 (30pt: 0) | $148M
-AWARDS: {} | HOF 15 — Solid long-time starter
+ 1   22 Detroit Pistons         62  72  14.5   3.7  4.7  0.5  0.2 0.9  58.8   0 52-30  Lost in the Conference Semifinals to Cha | PO 3.4/4.8/0.5
+ 2   23 Detroit Pistons         64  76  17.9   5.2  5.5  0.5  0.4 1.2  63.7   0 41-41  Missed the playoffs
+ 3   24 Detroit Pistons         65  80  18.9   5.2  5.5  0.8  0.4 1.2  60.7   0 22-60  Missed the playoffs
+ 4   25 Detroit Pistons         69  79  23.6   6.4  7.1  0.5  0.5 1.4  62.2   0 23-59  Missed the playoffs
+ 5   26 Detroit Pistons         70  82  24.4   5.9  6.4  0.6  0.5 1.7  61.3   0 31-51  Missed the playoffs
+ 6   27 Detroit Pistons         70  81  23.7   7.2  7.9  0.7  0.8 1.7  62.6   0 37-45  Missed the playoffs
+ 7   28 Detroit Pistons         71  79  24.2   6.6  7.6  0.8  0.8 1.8  62.9   0 43-39  Lost in the Conference Semifinals to Ind | PO 6.6/8.1/0.8
+ 8   29 Detroit Pistons         70  77  23.5   6.9  7.2  0.8  0.8 1.6  61.2   0 43-39  Lost in the Conference Semifinals to Bos | PO 8.0/7.0/0.9
+ 9   30 Detroit Pistons         70  82  23.6   7.0  6.9  0.8  0.6 1.6  62.7   0 54-28  Lost in the Conference Semifinals to Tor | PO 7.3/6.6/0.9
+10   31 Detroit Pistons         69  78  22.7   5.7  5.8  0.7  0.5 1.7  62.3   0 44-38  Lost in the First Round to Boston Celtic | PO 7.0/6.3/1.0
+11   32 Detroit Pistons         69  78  22.2   7.2  7.6  0.7  0.6 1.5  62.1   0 33-49  Missed the playoffs
+CAREER: 864 GP  6.1/6.6/0.7 | 5,285 pts | TD 0 (0.0%) | TD-avg seasons 0 (30pt: 0) | $75M
+AWARDS: {} | HOF 11 — Journeyman
 ```
 
 ## 1★ underdog shooter
@@ -133,22 +132,24 @@ AWARDS: {} | HOF 15 — Solid long-time starter
 ```
 
 ==== Test Player | Lethal Shooter | SG | Illinois | 1★ | hidden ceiling 68 ====
-College: Dayton (4y) 4.6/1.0/0.6 , 4.8/0.7/1.0 , 6.8/0.8/1.3 , 8.6/1.1/1.6 | drafted #19 by Houston Rockets
+College: Butler (3y) 5.9/0.7/0.7 , 5.9/0.8/0.9 , 9.5/1.2/2.0 | drafted #11 by Milwaukee Bucks
 yr  age team                    ovr  GP  MIN  PTS  REB  AST  STL BLK  TS%   TD  W-L   playoffs
- 1   22 Houston Rockets         60  81  13.9   4.9  0.8  0.8  0.3 0.0  62.4   0 49-33  Lost in the First Round to Los Angeles L | PO 4.7/0.3/1.1
- 2   23 Houston Rockets         61  66  15.3   5.5  0.7  0.9  0.3 0.1  62.4   0 45-37  Lost in the First Round to Minnesota Tim | PO 5.6/1.0/0.9
- 3   24 Houston Rockets         65  63  18.7   8.0  0.9  1.7  0.3 0.0  63.7   0 36-46  Missed the playoffs
- 4   25 Houston Rockets         69  82  22.7  10.4  1.0  2.1  0.5 0.1  63.0   0 40-42  Missed the playoffs
- 5   26 Houston Rockets         72  82  25.6  12.5  1.4  2.5  0.5 0.1  62.2   0 44-38  Lost in the Conference Semifinals to San | PO 12.3/0.8/3.1
- 6   27 Houston Rockets         74  71  26.6  13.9  1.4  2.8  0.4 0.1  63.0   0 50-32  Lost in the First Round to Los Angeles C | PO 15.0/1.6/3.6
- 7   28 Houston Rockets         74  80  27.3  13.8  1.3  2.9  0.3 0.1  62.1   0 45-37  Missed the playoffs
- 8   29 Houston Rockets         74  74  27.3  13.4  1.1  2.5  0.5 0.1  61.4   0 45-37  Lost in the First Round to Phoenix Suns  | PO 15.2/1.2/3.0
- 9   30 Houston Rockets         75  76  29.6  15.4  1.4  3.2  0.4 0.2  62.7   0 46-36  Lost in the First Round to Minnesota Tim | PO 15.6/1.0/3.7
-10   31 Houston Rockets         76  77  29.2  15.0  1.4  3.1  0.6 0.1  63.2   0 43-39  Missed the playoffs
-11   32 Houston Rockets         76  60  29.2  14.2  1.3  3.0  0.3 0.2  61.3   0 41-41  Missed the playoffs
-12   33 Houston Rockets         76  68  28.4  15.7  1.4  3.4  0.4 0.1  61.1   0 40-42  Missed the playoffs
-13   34 Houston Rockets         75  77  27.2  15.3  1.4  2.9  0.4 0.1  61.4   0 33-49  Missed the playoffs
-14   35 Houston Rockets         74  65  25.4  14.0  1.4  2.8  0.5 0.1  61.0   0 30-52  Missed the playoffs
-CAREER: 1022 GP  12.3/1.2/2.5 | 12,557 pts | TD 0 (0.0%) | TD-avg seasons 0 (30pt: 0) | $175M
-AWARDS: {} | HOF 14 — Journeyman
+ 1   21 Milwaukee Bucks         60  73  18.9   7.5  0.8  1.4  0.4 0.1  61.3   0 36-46  Missed the playoffs
+ 2   22 Milwaukee Bucks         64  77  17.8  11.9  0.9  1.7  0.3 0.1  62.6   0 17-65  Missed the playoffs
+ 3   23 Milwaukee Bucks         69  43  22.2  10.8  1.1  2.1  0.3 0.2  62.6   0 43-39  Lost in the First Round to Brooklyn Nets | PO 11.6/1.0/2.7
+ 4   24 Milwaukee Bucks         70  81  23.0  12.0  1.1  2.5  0.4 0.1  63.5   0 37-45  Lost in the First Round to Brooklyn Nets | PO 11.8/2.0/2.6
+ 5   25 Milwaukee Bucks         71  74  23.9  12.6  1.0  2.9  0.5 0.1  63.2   0 39-43  Missed the playoffs
+ 6   26 Milwaukee Bucks         72  76  25.3  14.6  1.3  2.9  0.4 0.0  63.9   0 44-38  Lost in the First Round to Boston Celtic | PO 12.5/1.3/3.0
+ 7   27 Milwaukee Bucks         72  82  26.5  12.2  1.1  3.1  0.4 0.1  64.1   0 55-27  Lost in the Conference Semifinals to Bro | PO 13.3/1.0/3.6
+ 8   28 Milwaukee Bucks         73  73  26.7  13.8  1.2  3.0  0.4 0.2  64.1   0 51-31  Lost in the Conference Semifinals to Phi | PO 16.2/1.5/3.2
+ 9   29 Milwaukee Bucks         73  64  26.9  14.5  1.6  2.7  0.4 0.1  63.6   0 53-29  Lost in the Conference Semifinals to Cha | PO 15.3/1.6/2.9
+10   30 Milwaukee Bucks         74  71  27.2  12.5  1.2  3.4  0.5 0.1  63.9   0 50-32  Lost in the First Round to Indiana Pacer | PO 12.9/1.1/4.0
+11   31 Milwaukee Bucks         74  79  26.9  13.2  1.3  2.7  0.5 0.1  63.8   0 63-19  NBA Champions(C) | PO 13.6/1.0/2.9  [NBA Champion]
+12   32 Milwaukee Bucks         73  63  26.5  13.8  1.1  2.4  0.6 0.1  65.0   0 58-24  Lost in the First Round to Atlanta Hawks | PO 14.3/1.2/2.7
+13   33 Milwaukee Bucks         74  71  26.0  14.3  1.2  3.5  0.6 0.1  65.4   0 40-42  Missed the playoffs
+14   34 Milwaukee Bucks         73  67  25.1  14.0  1.4  3.1  0.5 0.1  63.0   0 48-34  Lost in the First Round to Toronto Rapto | PO 13.2/1.8/3.5
+15   35 Milwaukee Bucks         73  73  24.3  11.8  1.0  2.2  0.5 0.0  65.6   0 43-39  Lost in the First Round to Boston Celtic | PO 11.3/0.7/3.0
+16   36 Milwaukee Bucks         72  78  22.7  11.1  1.2  2.6  0.5 0.1  63.5   0 57-25  Lost in the Conference Finals to Miami H | PO 11.1/1.0/2.9
+CAREER: 1145 GP  12.5/1.2/2.6 | 14,367 pts | TD 0 (0.0%) | TD-avg seasons 0 (30pt: 0) | $209M
+AWARDS: {"Championships":1} | HOF 22 — Solid long-time starter
 ```

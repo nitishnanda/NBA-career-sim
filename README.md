@@ -32,23 +32,22 @@ points = usage% × (minutes / 48) × team pace × (1.82 × TS%)
 - **A real league**: 30 teams, NPC stars who age, retire and get replaced by draft classes. Awards, scoring titles and MVP odds come from competing against them. MVPs need 65+ games and mostly come off 50+ win teams
 - **Draft slot only loosely predicts ceiling** (hidden ceiling rolled independently; late picks can become stars)
 
-### Calibration (run `npm run league`, `npm run scoring`, `npm run elite`, `npm run batch`)
+### Calibration
 
-| Target | Result |
-|---|---|
-| 30+ ppg scorers per season | ~1.5-2.5 (spec: 2-5) |
-| 25+ ppg scorers | ~10-13 (spec: 8-12) |
-| Top scorer | ~30-32 |
-| 35+ ppg seasons | ~1 in 2,000 player-seasons (a "Harden once" event) |
-| Elite scorer career | ~26-28 ppg, a few 30+ seasons, none at 35 |
-| Box-score dominator TD rate | 19-27% of games (mean ~23%) |
-| Dominator seasons averaging a triple-double | 1-5 (mean ~2.7), ~1.3 of them at 30+ ppg |
-| 36+ ppg triple-double postseasons | 0-2 per elite dominator ("legend runs") |
-| MVP age / team wins | mean ~27.5 / median ~58 |
-| Rookies | top-5 picks ~14 ppg; elite scorers ~20 from year 1 |
-| Aging | +5 at 19-20, ~0 at 28-29, about -1/yr at 30-32, -2 to -4 at 33-35 |
+Calibrated against real Basketball-Reference data through 2025-26. See [CALIBRATION.md](CALIBRATION.md) for the full real-vs-sim report, what changed and the known gaps. Highlights:
 
-Dominators' triple-double seasons are guaranteed by a hidden per-career plan (`tdPlan`, `td30Plan`, `legendPlan`) that only fires for genuinely elite players in their prime; a rate guard pulls the career TD% back into the 17-27% band if it runs hot.
+| Metric | Real (2016-26) | Sim |
+|---|---|---|
+| Players at 25+ / 28+ / 30+ ppg per season | 11.3 / 4.1 / 2.1 | 11.2 / 4.6 / 1.9 |
+| Top scorer / mean of top 5 | 32.6 / 29.6 | 31.8 / 29.6 |
+| Star minutes / usage / TS% | 34.8 / 30.7% / 61% | 35.1 / 30.5% / 61% |
+| Team wins: sd, year-to-year change | 12.5, 8.5 | 12.4, 9.0 |
+| Top-3 pick lifts team wins (yr 1 / yr 2) | +8.3 / +13.7 | +6.7 / +11.9 |
+| MVP age, wins, ppg, usage | 26.5, 60, 27.3, 31.7% | 26.6, 57, 28.4, 33.0% |
+| Players who ever hit 30 ppg: avg 30+ seasons, share reaching 32+ / 34+ | 2.35, 52% / 13% | 2.5, 58% / 18% (elite scorers) |
+| P(All-Star) by draft slot (#1 / #4-5 / #11-14 / #21-30) | 73 / 35 / 9 / 5% | 80 / 42 / 11 / 4% |
+
+Triple-double seasons (real: Westbrook 28-32, Jokic 29-30, Oscar 23) are planned per career in a contiguous late-20s window; the season CSVs have no game logs, so per-game TD rates still come from known career figures, not the files.
 
 ## Real league (as of 20 Oct 2026)
 

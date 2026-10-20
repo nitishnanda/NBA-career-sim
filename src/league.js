@@ -13,7 +13,7 @@
   function rollAvail(p, opts) {
     opts = opts || {};
     const A = D.ARCHETYPES[p.arch];
-    const lam = 0.8 * p.prone * (A.injury || 1) * clamp(1.25 - p.attrs.dur / 110, 0.35, 1.2) * (1 + Math.max(0, p.age - 28) * 0.04);
+    const lam = 1.45 * p.prone * (A.injury || 1) * clamp(1.25 - p.attrs.dur / 110, 0.35, 1.2) * (1 + Math.max(0, p.age - 28) * 0.04);
     const n = poisson(lam);
     let miss = 0;
     const list = [];
@@ -22,7 +22,7 @@
       miss += d; list.push(d);
     }
     let major = null, notable = null;
-    const mp = 0.012 * p.prone * (A.injury || 1) * (1 + Math.max(0, p.age - 26) * 0.05) * (1 + clamp((p.target.ath - 70) / 60, 0, 0.5));
+    const mp = 0.02 * p.prone * (A.injury || 1) * (1 + Math.max(0, p.age - 26) * 0.05) * (1 + clamp((p.target.ath - 70) / 60, 0, 0.5));
     if (rand() < mp) {
       major = pick(['torn ACL', 'torn Achilles', 'fractured foot', 'torn meniscus', 'ruptured patellar tendon']);
       miss = rint(48, 82);
@@ -32,7 +32,7 @@
       miss = Math.max(miss, rint(34, 70));
     }
     const o = ovr(p);
-    let rest = o >= 74 ? (p.age >= 30 ? rint(3, 7) : rint(0, 4)) : rint(0, 2);
+    let rest = o >= 74 ? (p.age >= 30 ? rint(4, 10) : rint(1, 6)) : rint(0, 3);
     if (opts.noRest) rest = 0;
     return { gp: clamp(82 - miss - rest - (opts.extraMiss || 0), 0, 82), miss, rest, injuries: list, major, notable };
   }
@@ -132,8 +132,9 @@
     return 4 * l.blk + 3.5 * l.stl + 0.12 * Math.max(p.attrs.rimP, p.attrs.perD);
   }
   function lineFromExp(p, e, gp, form) {
-    const k = form || 1;
-    const l = { gp, mins: e.mins, pts: e.pts * k, reb: e.reb * (0.97 + 0.06 * rand()), ast: e.ast * (0.97 + 0.06 * rand()), stl: e.stl, blk: e.blk, tov: e.tov, ts: e.ts, usg: e.usg };
+    const sh = 1 + T.formSd * randn();
+    const ind = () => 1 + 0.035 * randn();
+    const l = { gp, mins: e.mins, pts: e.pts * sh * ind(), reb: e.reb * sh * ind(), ast: e.ast * sh * ind(), stl: e.stl * sh * ind(), blk: e.blk * sh * ind(), tov: e.tov, ts: e.ts, usg: e.usg };
     l.perf = perfOf(l);
     return l;
   }
@@ -216,7 +217,7 @@
         const gp = p === (user && user.p) ? user.avail.gp : avail[p.id].gp;
         const x = ovr(p) - 60;
         // young players have a smaller impact on winning than their rating suggests
-        const expF = 0.55 + 0.15 * Math.min(3, p.yearsPro || 0);
+        const expF = 0.85 + 0.05 * Math.min(3, p.yearsPro || 0);
         return (x <= 20 ? x : 20 + (x - 20) * 0.72) * (gp / 82) * expF;
       }).sort((x, y) => y - x).slice(0, 4);
       t.S = sum(vals);
@@ -224,13 +225,14 @@
     });
     const meanS = sum(L.teams.map((t) => t.S)) / L.teams.length;
     L.teams.forEach((t) => {
-      t.depth = 0.55 * t.depth + randn() * 2.0;
-      t.wins = 41 + T.winsPerPt * (t.S - meanS) + t.depth + randn() * 4.0;
+      t.depth = 0.5 * t.depth + randn() * 3.2;
+      t.wins = 41 + T.winsPerPt * (t.S - meanS) + t.depth + randn() * 5.5;
     });
     // roster continuity: a team does not flip from the lottery to the top seed in one summer
-    L.teams.forEach((t) => { t.wins = 0.7 * t.wins + 0.3 * (t.prevWins == null ? 41 : t.prevWins); });
+    L.teams.forEach((t) => { t.wins = 0.9 * t.wins + 0.1 * (t.prevWins == null ? 41 : t.prevWins); });
     const mw = sum(L.teams.map((t) => t.wins)) / L.teams.length;
-    L.teams.forEach((t) => { t.wins = clamp(Math.round(t.wins - (mw - 41)), 12, 70); t.losses = 82 - t.wins; });
+    // real tails: more truly bad teams, fewer 60+ juggernauts
+    L.teams.forEach((t) => { let w = t.wins - (mw - 41); if (w < 33) w -= (33 - w) * 0.22; if (w > 54) w -= (w - 54) * 0.2; t.wins = clamp(Math.round(w), 12, 73); t.losses = 82 - t.wins; });
     L.teams.forEach((t) => { t.power = (t.wins - 41) / 2.7 + randn() * 0.8; t.prevWins = t.wins; });
 
     // user line (needs team context)
@@ -246,7 +248,7 @@
       const t = L.teams[p.teamId];
       const roster = teamRoster(L, t, user);
       const e = expLine(p, { coTax: coTaxFor(p, roster), pace: t.pace, rookie: p.rookie, minsFloor: p.rookie ? NBA.rookieFloor(p.draftSlot) : 0 });
-      const l = lineFromExp(p, e, avail[p.id].gp, 1 + 0.05 * randn());
+      const l = lineFromExp(p, e, avail[p.id].gp);
       l.id = p.id; l.teamId = p.teamId; l.wins = t.wins;
       lines[p.id] = l;
       entries.push({ p, l, t, id: p.id });
@@ -261,11 +263,11 @@
 
     // awards
     const q65 = entries.filter((e) => e.l.gp >= 65);
-    const byMVP = q65.map((e) => ({ e, s: e.l.perf + 1.0 * e.l.pts + 0.35 * (e.l.wins - 41) + randn() * 6 - (e.p.mvpRecent || 0), ok: e.l.wins >= 36 })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
+    const byMVP = q65.map((e) => ({ e, s: e.l.perf + 0.25 * e.l.pts + 0.5 * (e.l.wins - 41) + randn() * 6.5 - (e.p.mvpRecent || 0), ok: e.l.wins >= 36 })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
     const dpoy = q65.map((e) => ({ e, s: defScore(e.p, e.l) + 0.12 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s);
     const roy = entries.filter((e) => e.p.rookie && e.l.gp >= 50).map((e) => ({ e, s: e.l.perf + 0.1 * (e.l.wins - 41) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
     const mip = q65.filter((e) => !e.p.rookie && e.p.prevPerf != null && e.p.age <= 28).map((e) => ({ e, s: (e.l.perf - e.p.prevPerf) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
-    const allNBA = q65.map((e) => ({ e, s: e.l.perf + 0.8 * e.l.pts + 0.15 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s).slice(0, 15);
+    const allNBA = q65.map((e) => ({ e, s: e.l.perf + 0.2 * e.l.pts + 0.25 * (e.l.wins - 41) + randn() * 3 })).sort((a, b) => b.s - a.s).slice(0, 15);
     const allDef = dpoy.slice(0, 10);
     const stars = entries.filter((e) => e.l.gp >= 40).map((e) => ({ e, s: e.l.perf + randn() * 3 })).sort((a, b) => b.s - a.s).slice(0, 24);
     const qual = entries.filter((e) => e.l.gp >= 58);
@@ -351,8 +353,8 @@
   }
   function stockOf(p, bonus) {
     const o = ovr(p);
-    const est = p.ceiling + randn() * 4;
-    return 0.5 * o + 0.5 * est - 1.4 * (p.age - 19) + (bonus || 0) + randn() * 2.5;
+    const est = p.ceiling + randn() * 9 + (rand() < 0.12 ? randn() * 16 : 0);
+    return 0.5 * o + 0.5 * est - 1.4 * (p.age - 19) + (bonus || 0) + randn() * 5;
   }
   function projectStock(p) { // deterministic version for mock draft
     return 0.5 * ovr(p) + 0.5 * p.ceiling - 1.4 * (p.age - 19);
@@ -407,7 +409,7 @@
         const age = +weighted({ 19: 46, 20: 26, 21: 16, 22: 12 });
         const c = rollCeiling(0, null);
         const o = c - (10 + 12 * rand()) * rem[age];
-        const st = 0.5 * o + 0.5 * (c + randn() * 4) - 1.4 * (age - 19) + randn() * 2.5;
+        const st = 0.5 * o + 0.5 * (c + randn() * 9) - 1.4 * (age - 19) + randn() * 5;
         if (st > s) better++;
       }
       ranks.push(1 + better);
@@ -482,6 +484,6 @@
     return { n90: o.filter((x) => x >= 90).length, n85: o.filter((x) => x >= 85).length, n80: o.filter((x) => x >= 80).length, mean: sum(o) / o.length, top: o.slice(0, 6).map((x) => Math.round(x)) };
   }
 
-  Object.assign(NBA, { seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, userDraft, npcDraft, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
+  Object.assign(NBA, { seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, userDraft, npcDraft, draftClass, makeProspect, retireP, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

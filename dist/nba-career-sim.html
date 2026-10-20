@@ -97,7 +97,7 @@ main { padding-left: 0; padding-right: 0; }
       comps: 'Karl Malone · Durant · Kobe',
       boost: { inside: 14, mid: 22, three: 12, ft: 16, handling: 12, passing: -2, iq: 10, reb: 0, perD: -6, rimP: -4, ath: 8, dur: 12 },
       weights: { inside: .14, mid: .17, three: .13, ft: .09, handling: .1, passing: .03, iq: .1, reb: .03, perD: .03, rimP: .01, ath: .11, dur: .06 },
-      usg: 0.012, ts: 0.004, declineMult: 1.0, ceilingBonus: 0, injury: 1.35,
+      usg: 0.012, ts: 0.004, declineMult: 1.0, ceilingBonus: 0, injury: 1.05,
     },
     twoway: {
       name: 'Two-Way Demon', icon: '🔒',
@@ -216,12 +216,12 @@ main { padding-left: 0; padding-right: 0; }
   // ---------------------------------------------------------------- tuning knobs
   const T = {
     pace: 99,            // possessions per game, 2025-ish
-    usgBase: 0.195, usgPerSS: 0.0045, usgConvex: 0.00012,
-    tsBase: 0.385, tsPerSkill: 0.0025, tsEra: 0.012, usgTax: 0.22,
-    minsBase: 12, minsPerOvr: 0.95, minsCap: 36.5,
+    usgBase: 0.203, usgPerSS: 0.0045, usgConvex: 0.00012,
+    tsBase: 0.402, tsPerSkill: 0.0025, tsEra: 0.012, usgTax: 0.22,
+    minsBase: 12, minsPerOvr: 0.95, minsCap: 35.4,
     declineScale: 1.15,
     ceilA: 55, ceilLambda: 13.1, ceilK: 1.51,
-    winsPerPt: 0.62, winsCoreAvg: 48, ovrStretch: 1.3,
+    winsPerPt: 0.8, formSd: 0.07, winsCoreAvg: 48, ovrStretch: 1.3,
   };
   NBA.tuning = T;
 
@@ -233,12 +233,14 @@ main { padding-left: 0; padding-right: 0; }
     ATTRS.forEach((a) => (out[a] = 0.88 * w[a] + 0.12 * s[a]));
     return out;
   }
+  const OVR_OFFSET = { scorer: 0.8, shooter: -2, dominator: 2, generational: 2.9, twoway: 0.1, defender: -2.4 };
   function ovrOf(p) {
     const w = weightsFor(p.arch, p.sec);
     let s = 0, ws = 0;
     ATTRS.forEach((a) => { s += w[a] * p.attrs[a]; ws += w[a]; });
     const avg = s / ws;
-    return avg < 52 ? avg : Math.min(99, 52 + T.ovrStretch * (avg - 52));
+    const raw = avg < 52 ? avg : 52 + T.ovrStretch * (avg - 52);
+    return Math.min(99, raw + (OVR_OFFSET[p.arch] || 0));
   }
   const ovr = (p) => ovrOf(p);
 
@@ -297,13 +299,13 @@ main { padding-left: 0; padding-right: 0; }
     p.legendPlan = +weighted(dom ? { 0: 25, 1: 45, 2: 30 } : sdom ? { 0: 70, 1: 25, 2: 5 } : gen ? { 0: 85, 1: 15 } : { 0: 100 });
     p.legendUsed = 0;
     // one big scoring year (32-33 ppg) is common for elite scorers; a 34-36 ppg year is rare
-    const tier = { scorer: [0.88, 0.15], shooter: [0.7, 0.13], generational: [0.5, 0.06], dominator: [0.25, 0.03], twoway: [0.3, 0.02] }[p.arch] || [0, 0];
+    const tier = { scorer: [0.62, 0.12], shooter: [0.5, 0.11], generational: [0.35, 0.05], dominator: [0.2, 0.03], twoway: [0.2, 0.02] }[p.arch] || [0, 0];
     p.tier32 = rand() < tier[0]; p.tier34 = rand() < tier[1];
     p.tier32Done = false; p.tier34Done = false;
     // consistent scorers carry one or two real injury seasons
     p.injYears = [];
     if (p.arch === 'scorer') {
-      const n = +weighted({ 1: 35, 2: 45, 3: 20 });
+      const n = +weighted({ 1: 50, 2: 38, 3: 12 });
       while (p.injYears.length < n) { const ag = rint(24, 34); if (!p.injYears.includes(ag)) p.injYears.push(ag); }
     }
   }
@@ -330,8 +332,8 @@ main { padding-left: 0; padding-right: 0; }
   }
 
   function randomArch(ceiling) {
-    if (ceiling >= 90 && rand() < 0.5) return 'generational';
-    return weighted({ scorer: 22, twoway: 16, defender: 12, shooter: 17, dominator: 13, generational: 4 });
+    if (ceiling >= 93 && rand() < 0.45) return 'generational';
+    return weighted({ scorer: 24, twoway: 18, defender: 12, shooter: 18, dominator: 14, generational: 0.4 });
   }
   function randomPos(arch) {
     if (arch === 'defender') return weighted({ C: 60, PF: 30, SF: 6, SG: 2, PG: 2 });
@@ -367,7 +369,7 @@ main { padding-left: 0; padding-right: 0; }
     else if (a === 'three' || a === 'passing') base = decAt(SKL_DEC, age) * 0.7;
     else if (a === 'inside') base = decAt(SKL_DEC, age) * 1.1 + decAt(ATH_DEC, age) * 0.15;
     else base = decAt(SKL_DEC, age);
-    return base * m * T.declineScale;
+    return base * m * T.declineScale * (age >= 31 ? 0.78 : 1);
   }
 
   function progress(p) {
@@ -393,7 +395,7 @@ main { padding-left: 0; padding-right: 0; }
     p.age = next;
   }
 
-  const rookieFloor = (slot) => (!slot ? 8 : slot <= 3 ? 29 : slot <= 5 ? 27 : slot <= 10 ? 24 : slot <= 14 ? 21 : slot <= 30 ? 14 : 8);
+  const rookieFloor = (slot) => (!slot ? 9 : slot === 1 ? 27 : slot <= 3 ? 24 : slot <= 5 ? 22 : slot <= 10 ? 20 : slot <= 14 ? 19 : slot <= 30 ? 16 : 12);
   function trainPoints(p) {
     const a = p.age;
     return a <= 21 ? 9 : a <= 25 ? 7 : a <= 29 ? 5 : 4;
@@ -415,6 +417,8 @@ main { padding-left: 0; padding-right: 0; }
     const s = [a.inside, a.mid, a.three].sort((x, y) => y - x);
     return s;
   }
+  // real 25-ppg scorers keep ~90% of their peak scoring at 30, ~85% at 32, ~80% at 34 (Basketball-Reference)
+  const AGE_USG = { 28: 1, 29: 0.96, 30: 0.91, 31: 0.9, 32: 0.89, 33: 0.9, 34: 0.92, 35: 0.93, 36: 0.93, 37: 0.93, 38: 0.93 };
   function expLine(p, c) {
     c = c || {};
     const a = p.attrs, A = ARCHETYPES[p.arch], S = p.sec ? ARCHETYPES[p.sec] : null;
@@ -422,7 +426,7 @@ main { padding-left: 0; padding-right: 0; }
     const sh = top3shots(a);
     const SS = 0.34 * sh[0] + 0.14 * sh[1] + 0.12 * a.ft + 0.12 * a.handling + 0.1 * a.iq + 0.18 * a.ath;
     let usg = T.usgBase + T.usgPerSS * (SS - 55) + T.usgConvex * Math.pow(Math.max(0, SS - 70), 2) + A.usg + (S ? 0.4 * S.usg : 0) - (c.coTax || 0);
-    usg = clamp(usg * (c.usgMult || 1), 0.12, 0.362);
+    usg = clamp(usg * (c.usgMult || 1) * (AGE_USG[Math.min(Math.max(p.age, 28), 38)] || 1), 0.12, 0.354);
     let mins = clamp(T.minsBase + T.minsPerOvr * (o - 58), 8, T.minsCap);
     if (p.age >= 33) mins -= (p.age - 32) * 0.6;
     if (c.rookie && o < 84) mins *= 0.93;
@@ -442,12 +446,12 @@ main { padding-left: 0; padding-right: 0; }
     let pts = used * 1.82 * ts;
     const pm = 0.65 * a.passing + 0.35 * a.handling;
     const soft = (x, knee, k) => (x > knee ? knee + (x - knee) * k : x);
-    const reb36 = soft(Math.max(1.6, 0.18 * a.reb - 3.8), 9, 0.6);
-    const ast36 = soft(Math.max(1.0, 0.125 * (pm - 30) + 10 * (usg - 0.2)), 8.5, 0.62);
+    const reb36 = soft(Math.max(1.6, 0.18 * a.reb - 3.8), 8.2, 0.52);
+    const ast36 = soft(Math.max(1.0, 0.125 * (pm - 30) + 10 * (usg - 0.2)), 7.4, 0.55);
     const defx = 0.65 * a.perD + 0.35 * a.ath;
     const stl36 = Math.max(0.55, 0.031 * (defx - 33));
-    const blk36 = Math.max(0.15, 0.043 * (a.rimP - 28));
-    const tov36 = 0.8 + 10.5 * usg;
+    const blk36 = soft(Math.max(0.15, 0.043 * (a.rimP - 28)), 1.7, 0.5);
+    const tov36 = 0.55 + 8.2 * usg;
     const k = mins / 36;
     return {
       ovr: o, usg, ts, mins, pace,
@@ -533,7 +537,7 @@ main { padding-left: 0; padding-right: 0; }
   function rollAvail(p, opts) {
     opts = opts || {};
     const A = D.ARCHETYPES[p.arch];
-    const lam = 0.8 * p.prone * (A.injury || 1) * clamp(1.25 - p.attrs.dur / 110, 0.35, 1.2) * (1 + Math.max(0, p.age - 28) * 0.04);
+    const lam = 1.45 * p.prone * (A.injury || 1) * clamp(1.25 - p.attrs.dur / 110, 0.35, 1.2) * (1 + Math.max(0, p.age - 28) * 0.04);
     const n = poisson(lam);
     let miss = 0;
     const list = [];
@@ -542,7 +546,7 @@ main { padding-left: 0; padding-right: 0; }
       miss += d; list.push(d);
     }
     let major = null, notable = null;
-    const mp = 0.012 * p.prone * (A.injury || 1) * (1 + Math.max(0, p.age - 26) * 0.05) * (1 + clamp((p.target.ath - 70) / 60, 0, 0.5));
+    const mp = 0.02 * p.prone * (A.injury || 1) * (1 + Math.max(0, p.age - 26) * 0.05) * (1 + clamp((p.target.ath - 70) / 60, 0, 0.5));
     if (rand() < mp) {
       major = pick(['torn ACL', 'torn Achilles', 'fractured foot', 'torn meniscus', 'ruptured patellar tendon']);
       miss = rint(48, 82);
@@ -552,7 +556,7 @@ main { padding-left: 0; padding-right: 0; }
       miss = Math.max(miss, rint(34, 70));
     }
     const o = ovr(p);
-    let rest = o >= 74 ? (p.age >= 30 ? rint(3, 7) : rint(0, 4)) : rint(0, 2);
+    let rest = o >= 74 ? (p.age >= 30 ? rint(4, 10) : rint(1, 6)) : rint(0, 3);
     if (opts.noRest) rest = 0;
     return { gp: clamp(82 - miss - rest - (opts.extraMiss || 0), 0, 82), miss, rest, injuries: list, major, notable };
   }
@@ -652,8 +656,9 @@ main { padding-left: 0; padding-right: 0; }
     return 4 * l.blk + 3.5 * l.stl + 0.12 * Math.max(p.attrs.rimP, p.attrs.perD);
   }
   function lineFromExp(p, e, gp, form) {
-    const k = form || 1;
-    const l = { gp, mins: e.mins, pts: e.pts * k, reb: e.reb * (0.97 + 0.06 * rand()), ast: e.ast * (0.97 + 0.06 * rand()), stl: e.stl, blk: e.blk, tov: e.tov, ts: e.ts, usg: e.usg };
+    const sh = 1 + T.formSd * randn();
+    const ind = () => 1 + 0.035 * randn();
+    const l = { gp, mins: e.mins, pts: e.pts * sh * ind(), reb: e.reb * sh * ind(), ast: e.ast * sh * ind(), stl: e.stl * sh * ind(), blk: e.blk * sh * ind(), tov: e.tov, ts: e.ts, usg: e.usg };
     l.perf = perfOf(l);
     return l;
   }
@@ -736,7 +741,7 @@ main { padding-left: 0; padding-right: 0; }
         const gp = p === (user && user.p) ? user.avail.gp : avail[p.id].gp;
         const x = ovr(p) - 60;
         // young players have a smaller impact on winning than their rating suggests
-        const expF = 0.55 + 0.15 * Math.min(3, p.yearsPro || 0);
+        const expF = 0.85 + 0.05 * Math.min(3, p.yearsPro || 0);
         return (x <= 20 ? x : 20 + (x - 20) * 0.72) * (gp / 82) * expF;
       }).sort((x, y) => y - x).slice(0, 4);
       t.S = sum(vals);
@@ -744,13 +749,14 @@ main { padding-left: 0; padding-right: 0; }
     });
     const meanS = sum(L.teams.map((t) => t.S)) / L.teams.length;
     L.teams.forEach((t) => {
-      t.depth = 0.55 * t.depth + randn() * 2.0;
-      t.wins = 41 + T.winsPerPt * (t.S - meanS) + t.depth + randn() * 4.0;
+      t.depth = 0.5 * t.depth + randn() * 3.2;
+      t.wins = 41 + T.winsPerPt * (t.S - meanS) + t.depth + randn() * 5.5;
     });
     // roster continuity: a team does not flip from the lottery to the top seed in one summer
-    L.teams.forEach((t) => { t.wins = 0.7 * t.wins + 0.3 * (t.prevWins == null ? 41 : t.prevWins); });
+    L.teams.forEach((t) => { t.wins = 0.9 * t.wins + 0.1 * (t.prevWins == null ? 41 : t.prevWins); });
     const mw = sum(L.teams.map((t) => t.wins)) / L.teams.length;
-    L.teams.forEach((t) => { t.wins = clamp(Math.round(t.wins - (mw - 41)), 12, 70); t.losses = 82 - t.wins; });
+    // real tails: more truly bad teams, fewer 60+ juggernauts
+    L.teams.forEach((t) => { let w = t.wins - (mw - 41); if (w < 33) w -= (33 - w) * 0.22; if (w > 54) w -= (w - 54) * 0.2; t.wins = clamp(Math.round(w), 12, 73); t.losses = 82 - t.wins; });
     L.teams.forEach((t) => { t.power = (t.wins - 41) / 2.7 + randn() * 0.8; t.prevWins = t.wins; });
 
     // user line (needs team context)
@@ -766,7 +772,7 @@ main { padding-left: 0; padding-right: 0; }
       const t = L.teams[p.teamId];
       const roster = teamRoster(L, t, user);
       const e = expLine(p, { coTax: coTaxFor(p, roster), pace: t.pace, rookie: p.rookie, minsFloor: p.rookie ? NBA.rookieFloor(p.draftSlot) : 0 });
-      const l = lineFromExp(p, e, avail[p.id].gp, 1 + 0.05 * randn());
+      const l = lineFromExp(p, e, avail[p.id].gp);
       l.id = p.id; l.teamId = p.teamId; l.wins = t.wins;
       lines[p.id] = l;
       entries.push({ p, l, t, id: p.id });
@@ -781,11 +787,11 @@ main { padding-left: 0; padding-right: 0; }
 
     // awards
     const q65 = entries.filter((e) => e.l.gp >= 65);
-    const byMVP = q65.map((e) => ({ e, s: e.l.perf + 1.0 * e.l.pts + 0.35 * (e.l.wins - 41) + randn() * 6 - (e.p.mvpRecent || 0), ok: e.l.wins >= 36 })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
+    const byMVP = q65.map((e) => ({ e, s: e.l.perf + 0.25 * e.l.pts + 0.5 * (e.l.wins - 41) + randn() * 6.5 - (e.p.mvpRecent || 0), ok: e.l.wins >= 36 })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
     const dpoy = q65.map((e) => ({ e, s: defScore(e.p, e.l) + 0.12 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s);
     const roy = entries.filter((e) => e.p.rookie && e.l.gp >= 50).map((e) => ({ e, s: e.l.perf + 0.1 * (e.l.wins - 41) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
     const mip = q65.filter((e) => !e.p.rookie && e.p.prevPerf != null && e.p.age <= 28).map((e) => ({ e, s: (e.l.perf - e.p.prevPerf) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
-    const allNBA = q65.map((e) => ({ e, s: e.l.perf + 0.8 * e.l.pts + 0.15 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s).slice(0, 15);
+    const allNBA = q65.map((e) => ({ e, s: e.l.perf + 0.2 * e.l.pts + 0.25 * (e.l.wins - 41) + randn() * 3 })).sort((a, b) => b.s - a.s).slice(0, 15);
     const allDef = dpoy.slice(0, 10);
     const stars = entries.filter((e) => e.l.gp >= 40).map((e) => ({ e, s: e.l.perf + randn() * 3 })).sort((a, b) => b.s - a.s).slice(0, 24);
     const qual = entries.filter((e) => e.l.gp >= 58);
@@ -871,8 +877,8 @@ main { padding-left: 0; padding-right: 0; }
   }
   function stockOf(p, bonus) {
     const o = ovr(p);
-    const est = p.ceiling + randn() * 4;
-    return 0.5 * o + 0.5 * est - 1.4 * (p.age - 19) + (bonus || 0) + randn() * 2.5;
+    const est = p.ceiling + randn() * 9 + (rand() < 0.12 ? randn() * 16 : 0);
+    return 0.5 * o + 0.5 * est - 1.4 * (p.age - 19) + (bonus || 0) + randn() * 5;
   }
   function projectStock(p) { // deterministic version for mock draft
     return 0.5 * ovr(p) + 0.5 * p.ceiling - 1.4 * (p.age - 19);
@@ -927,7 +933,7 @@ main { padding-left: 0; padding-right: 0; }
         const age = +weighted({ 19: 46, 20: 26, 21: 16, 22: 12 });
         const c = rollCeiling(0, null);
         const o = c - (10 + 12 * rand()) * rem[age];
-        const st = 0.5 * o + 0.5 * (c + randn() * 4) - 1.4 * (age - 19) + randn() * 2.5;
+        const st = 0.5 * o + 0.5 * (c + randn() * 9) - 1.4 * (age - 19) + randn() * 5;
         if (st > s) better++;
       }
       ranks.push(1 + better);
@@ -1002,7 +1008,7 @@ main { padding-left: 0; padding-right: 0; }
     return { n90: o.filter((x) => x >= 90).length, n85: o.filter((x) => x >= 85).length, n80: o.filter((x) => x >= 80).length, mean: sum(o) / o.length, top: o.slice(0, 6).map((x) => Math.round(x)) };
   }
 
-  Object.assign(NBA, { seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, userDraft, npcDraft, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
+  Object.assign(NBA, { seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, userDraft, npcDraft, draftClass, makeProspect, retireP, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -1107,11 +1113,12 @@ main { padding-left: 0; padding-right: 0; }
     }
     if (!stars) stars = +weighted(STAR_ODDS);
     if (ceiling == null) ceiling = NBA.rollCeiling(stars, o.arch);
+    const genBonus = genLevel && !lateBloomer ? (genLevel === 2 ? 8 : 4) : 0; // true generational talents are seen as such by scouts
     const p = NBA.makePlayer({ id: 'user', name: o.name || 'Rookie', pos: o.pos, arch: o.arch, sec: o.sec && o.sec !== o.arch ? o.sec : null, home: o.home, ceiling, age: 18, stars, gap });
     const L = NBA.newLeague(2026, { real: true }); // the real league as of 20 Oct 2026
     const st = {
       v: 1, stage: 'scouting', player: p, league: L, stars,
-      college: null, collegeYears: [], proSeasons: [], playoffLines: [],
+      genBonus, college: null, collegeYears: [], proSeasons: [], playoffLines: [],
       contract: null, teamId: -1, earnings: 0, draft: null,
       career: { awards: {}, td: 0, td30Seasons: 0, tdSeasons: 0, titles: 0 },
       log: [], retired: false, hof: null, pendingEvents: [],
@@ -1179,7 +1186,7 @@ main { padding-left: 0; padding-right: 0; }
 
   function stockBonus(st) {
     const c = st.college, last = st.collegeYears[st.collegeYears.length - 1];
-    let b = (c.prestige - 3) * 0.9;
+    let b = (c.prestige - 3) * 0.9 + (st.genBonus || 0);
     if (last.honors.includes('National Player of the Year')) b += 3;
     else if (last.honors.includes('Consensus All-American')) b += 1.5;
     if (st.collegeYears.some((y) => y.tourney.includes('Won the National'))) b += 0.8;
@@ -1295,8 +1302,9 @@ main { padding-left: 0; padding-right: 0; }
     const p = st.player;
     const rookie = p.yearsPro === 0;
     const e0 = expLine(p, { coTax: ctx.coTax, pace: ctx.pace, rookie, minsMult: fx.minsMult, minsFloor: rookie ? NBA.rookieFloor(st.draft && st.draft.slot) : 0 });
-    const form = 1 + 0.045 * randn() + fx.form;
-    const m = { mins: e0.mins, pts: e0.pts * form, reb: e0.reb * (1 + 0.03 * randn()), ast: e0.ast * (1 + 0.03 * randn()), stl: e0.stl * (1 + 0.05 * randn()), blk: e0.blk * (1 + 0.05 * randn()), tov: e0.tov };
+    const sh = 1 + NBA.tuning.formSd * randn() + fx.form;
+    const ind = () => 1 + 0.035 * randn();
+    const m = { mins: e0.mins, pts: e0.pts * sh * ind(), reb: e0.reb * sh * ind(), ast: e0.ast * sh * ind(), stl: e0.stl * sh * ind(), blk: e0.blk * sh * ind(), tov: e0.tov };
     const age = p.age, gp = avail.gp;
     // everyday scoring is soft-capped; big years (32-33, rarely 34-36) come from the career plan
     const SOFT = 30.2;
@@ -1314,7 +1322,7 @@ main { padding-left: 0; padding-right: 0; }
     }
     if (surge && surge.big) m.pts = Math.max(m.pts, 30.3 + rand() * 1);
     if (!surge) {
-      if (preWin && m.ast > 7.2) m.ast = 7.2 + (m.ast - 7.2) * 0.25;
+      if (preWin && m.ast > 8.1) m.ast = 8.1 + (m.ast - 8.1) * 0.3;
       if (p.tdUsed >= TD_CAP) { m.ast = Math.min(m.ast, 9.4); m.reb = Math.min(m.reb, 9.4); }
       if (m.reb >= 8 && m.ast >= 7) {
         // keep natural triple-double rates in the real-world 17-27% band

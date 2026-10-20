@@ -39,12 +39,12 @@
   // ---------------------------------------------------------------- tuning knobs
   const T = {
     pace: 99,            // possessions per game, 2025-ish
-    usgBase: 0.195, usgPerSS: 0.0045, usgConvex: 0.00012,
-    tsBase: 0.385, tsPerSkill: 0.0025, tsEra: 0.012, usgTax: 0.22,
-    minsBase: 12, minsPerOvr: 0.95, minsCap: 36.5,
+    usgBase: 0.203, usgPerSS: 0.0045, usgConvex: 0.00012,
+    tsBase: 0.402, tsPerSkill: 0.0025, tsEra: 0.012, usgTax: 0.22,
+    minsBase: 12, minsPerOvr: 0.95, minsCap: 35.4,
     declineScale: 1.15,
     ceilA: 55, ceilLambda: 13.1, ceilK: 1.51,
-    winsPerPt: 0.62, winsCoreAvg: 48, ovrStretch: 1.3,
+    winsPerPt: 0.8, formSd: 0.07, winsCoreAvg: 48, ovrStretch: 1.3,
   };
   NBA.tuning = T;
 
@@ -56,12 +56,14 @@
     ATTRS.forEach((a) => (out[a] = 0.88 * w[a] + 0.12 * s[a]));
     return out;
   }
+  const OVR_OFFSET = { scorer: 0.8, shooter: -2, dominator: 2, generational: 2.9, twoway: 0.1, defender: -2.4 };
   function ovrOf(p) {
     const w = weightsFor(p.arch, p.sec);
     let s = 0, ws = 0;
     ATTRS.forEach((a) => { s += w[a] * p.attrs[a]; ws += w[a]; });
     const avg = s / ws;
-    return avg < 52 ? avg : Math.min(99, 52 + T.ovrStretch * (avg - 52));
+    const raw = avg < 52 ? avg : 52 + T.ovrStretch * (avg - 52);
+    return Math.min(99, raw + (OVR_OFFSET[p.arch] || 0));
   }
   const ovr = (p) => ovrOf(p);
 
@@ -120,13 +122,13 @@
     p.legendPlan = +weighted(dom ? { 0: 25, 1: 45, 2: 30 } : sdom ? { 0: 70, 1: 25, 2: 5 } : gen ? { 0: 85, 1: 15 } : { 0: 100 });
     p.legendUsed = 0;
     // one big scoring year (32-33 ppg) is common for elite scorers; a 34-36 ppg year is rare
-    const tier = { scorer: [0.88, 0.15], shooter: [0.7, 0.13], generational: [0.5, 0.06], dominator: [0.25, 0.03], twoway: [0.3, 0.02] }[p.arch] || [0, 0];
+    const tier = { scorer: [0.62, 0.12], shooter: [0.5, 0.11], generational: [0.35, 0.05], dominator: [0.2, 0.03], twoway: [0.2, 0.02] }[p.arch] || [0, 0];
     p.tier32 = rand() < tier[0]; p.tier34 = rand() < tier[1];
     p.tier32Done = false; p.tier34Done = false;
     // consistent scorers carry one or two real injury seasons
     p.injYears = [];
     if (p.arch === 'scorer') {
-      const n = +weighted({ 1: 35, 2: 45, 3: 20 });
+      const n = +weighted({ 1: 50, 2: 38, 3: 12 });
       while (p.injYears.length < n) { const ag = rint(24, 34); if (!p.injYears.includes(ag)) p.injYears.push(ag); }
     }
   }
@@ -153,8 +155,8 @@
   }
 
   function randomArch(ceiling) {
-    if (ceiling >= 90 && rand() < 0.5) return 'generational';
-    return weighted({ scorer: 22, twoway: 16, defender: 12, shooter: 17, dominator: 13, generational: 4 });
+    if (ceiling >= 93 && rand() < 0.45) return 'generational';
+    return weighted({ scorer: 24, twoway: 18, defender: 12, shooter: 18, dominator: 14, generational: 0.4 });
   }
   function randomPos(arch) {
     if (arch === 'defender') return weighted({ C: 60, PF: 30, SF: 6, SG: 2, PG: 2 });
@@ -190,7 +192,7 @@
     else if (a === 'three' || a === 'passing') base = decAt(SKL_DEC, age) * 0.7;
     else if (a === 'inside') base = decAt(SKL_DEC, age) * 1.1 + decAt(ATH_DEC, age) * 0.15;
     else base = decAt(SKL_DEC, age);
-    return base * m * T.declineScale;
+    return base * m * T.declineScale * (age >= 31 ? 0.78 : 1);
   }
 
   function progress(p) {
@@ -216,7 +218,7 @@
     p.age = next;
   }
 
-  const rookieFloor = (slot) => (!slot ? 8 : slot <= 3 ? 29 : slot <= 5 ? 27 : slot <= 10 ? 24 : slot <= 14 ? 21 : slot <= 30 ? 14 : 8);
+  const rookieFloor = (slot) => (!slot ? 9 : slot === 1 ? 27 : slot <= 3 ? 24 : slot <= 5 ? 22 : slot <= 10 ? 20 : slot <= 14 ? 19 : slot <= 30 ? 16 : 12);
   function trainPoints(p) {
     const a = p.age;
     return a <= 21 ? 9 : a <= 25 ? 7 : a <= 29 ? 5 : 4;
@@ -238,6 +240,8 @@
     const s = [a.inside, a.mid, a.three].sort((x, y) => y - x);
     return s;
   }
+  // real 25-ppg scorers keep ~90% of their peak scoring at 30, ~85% at 32, ~80% at 34 (Basketball-Reference)
+  const AGE_USG = { 28: 1, 29: 0.96, 30: 0.91, 31: 0.9, 32: 0.89, 33: 0.9, 34: 0.92, 35: 0.93, 36: 0.93, 37: 0.93, 38: 0.93 };
   function expLine(p, c) {
     c = c || {};
     const a = p.attrs, A = ARCHETYPES[p.arch], S = p.sec ? ARCHETYPES[p.sec] : null;
@@ -245,7 +249,7 @@
     const sh = top3shots(a);
     const SS = 0.34 * sh[0] + 0.14 * sh[1] + 0.12 * a.ft + 0.12 * a.handling + 0.1 * a.iq + 0.18 * a.ath;
     let usg = T.usgBase + T.usgPerSS * (SS - 55) + T.usgConvex * Math.pow(Math.max(0, SS - 70), 2) + A.usg + (S ? 0.4 * S.usg : 0) - (c.coTax || 0);
-    usg = clamp(usg * (c.usgMult || 1), 0.12, 0.362);
+    usg = clamp(usg * (c.usgMult || 1) * (AGE_USG[Math.min(Math.max(p.age, 28), 38)] || 1), 0.12, 0.354);
     let mins = clamp(T.minsBase + T.minsPerOvr * (o - 58), 8, T.minsCap);
     if (p.age >= 33) mins -= (p.age - 32) * 0.6;
     if (c.rookie && o < 84) mins *= 0.93;
@@ -265,12 +269,12 @@
     let pts = used * 1.82 * ts;
     const pm = 0.65 * a.passing + 0.35 * a.handling;
     const soft = (x, knee, k) => (x > knee ? knee + (x - knee) * k : x);
-    const reb36 = soft(Math.max(1.6, 0.18 * a.reb - 3.8), 9, 0.6);
-    const ast36 = soft(Math.max(1.0, 0.125 * (pm - 30) + 10 * (usg - 0.2)), 8.5, 0.62);
+    const reb36 = soft(Math.max(1.6, 0.18 * a.reb - 3.8), 8.2, 0.52);
+    const ast36 = soft(Math.max(1.0, 0.125 * (pm - 30) + 10 * (usg - 0.2)), 7.4, 0.55);
     const defx = 0.65 * a.perD + 0.35 * a.ath;
     const stl36 = Math.max(0.55, 0.031 * (defx - 33));
-    const blk36 = Math.max(0.15, 0.043 * (a.rimP - 28));
-    const tov36 = 0.8 + 10.5 * usg;
+    const blk36 = soft(Math.max(0.15, 0.043 * (a.rimP - 28)), 1.7, 0.5);
+    const tov36 = 0.55 + 8.2 * usg;
     const k = mins / 36;
     return {
       ovr: o, usg, ts, mins, pace,

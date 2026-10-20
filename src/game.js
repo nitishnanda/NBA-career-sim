@@ -31,11 +31,12 @@
     }
     if (!stars) stars = +weighted(STAR_ODDS);
     if (ceiling == null) ceiling = NBA.rollCeiling(stars, o.arch);
+    const genBonus = genLevel && !lateBloomer ? (genLevel === 2 ? 8 : 4) : 0; // true generational talents are seen as such by scouts
     const p = NBA.makePlayer({ id: 'user', name: o.name || 'Rookie', pos: o.pos, arch: o.arch, sec: o.sec && o.sec !== o.arch ? o.sec : null, home: o.home, ceiling, age: 18, stars, gap });
     const L = NBA.newLeague(2026, { real: true }); // the real league as of 20 Oct 2026
     const st = {
       v: 1, stage: 'scouting', player: p, league: L, stars,
-      college: null, collegeYears: [], proSeasons: [], playoffLines: [],
+      genBonus, college: null, collegeYears: [], proSeasons: [], playoffLines: [],
       contract: null, teamId: -1, earnings: 0, draft: null,
       career: { awards: {}, td: 0, td30Seasons: 0, tdSeasons: 0, titles: 0 },
       log: [], retired: false, hof: null, pendingEvents: [],
@@ -103,7 +104,7 @@
 
   function stockBonus(st) {
     const c = st.college, last = st.collegeYears[st.collegeYears.length - 1];
-    let b = (c.prestige - 3) * 0.9;
+    let b = (c.prestige - 3) * 0.9 + (st.genBonus || 0);
     if (last.honors.includes('National Player of the Year')) b += 3;
     else if (last.honors.includes('Consensus All-American')) b += 1.5;
     if (st.collegeYears.some((y) => y.tourney.includes('Won the National'))) b += 0.8;
@@ -219,8 +220,9 @@
     const p = st.player;
     const rookie = p.yearsPro === 0;
     const e0 = expLine(p, { coTax: ctx.coTax, pace: ctx.pace, rookie, minsMult: fx.minsMult, minsFloor: rookie ? NBA.rookieFloor(st.draft && st.draft.slot) : 0 });
-    const form = 1 + 0.045 * randn() + fx.form;
-    const m = { mins: e0.mins, pts: e0.pts * form, reb: e0.reb * (1 + 0.03 * randn()), ast: e0.ast * (1 + 0.03 * randn()), stl: e0.stl * (1 + 0.05 * randn()), blk: e0.blk * (1 + 0.05 * randn()), tov: e0.tov };
+    const sh = 1 + NBA.tuning.formSd * randn() + fx.form;
+    const ind = () => 1 + 0.035 * randn();
+    const m = { mins: e0.mins, pts: e0.pts * sh * ind(), reb: e0.reb * sh * ind(), ast: e0.ast * sh * ind(), stl: e0.stl * sh * ind(), blk: e0.blk * sh * ind(), tov: e0.tov };
     const age = p.age, gp = avail.gp;
     // everyday scoring is soft-capped; big years (32-33, rarely 34-36) come from the career plan
     const SOFT = 30.2;
@@ -238,7 +240,7 @@
     }
     if (surge && surge.big) m.pts = Math.max(m.pts, 30.3 + rand() * 1);
     if (!surge) {
-      if (preWin && m.ast > 7.2) m.ast = 7.2 + (m.ast - 7.2) * 0.25;
+      if (preWin && m.ast > 8.1) m.ast = 8.1 + (m.ast - 8.1) * 0.3;
       if (p.tdUsed >= TD_CAP) { m.ast = Math.min(m.ast, 9.4); m.reb = Math.min(m.reb, 9.4); }
       if (m.reb >= 8 && m.ast >= 7) {
         // keep natural triple-double rates in the real-world 17-27% band
