@@ -278,7 +278,7 @@
     const k = mins / 36;
     return {
       ovr: o, usg, ts, mins, pace,
-      pts, reb: reb36 * k * (c.rebMult || 1), ast: ast36 * k * (c.astMult || 1),
+      pts, reb: reb36 * k * (c.rebMult || 1) * (p.arch === 'generational' ? 0.97 : 1), ast: ast36 * k * (c.astMult || 1) * (p.arch === 'generational' ? 0.88 : 1),
       stl: stl36 * k, blk: blk36 * k, tov: tov36 * k,
     };
   }
@@ -321,6 +321,14 @@
     const tov = Math.max(0, Math.round(m.tov * mm + Math.sqrt(m.tov * mm) * 0.8 * randn()));
     return { min: m.mins * mm, pts, reb, ast, stl, blk, tov };
   }
+  // Sofascore-style 1-10 match rating from a box score. Anchors (approximate, not fitted to real Sofascore data): a 19-perf rotation game ≈ 6.5, an All-Star-level
+  // season average (perf ~44) ≈ 7.7, MVP-level (~60) ≈ 8.5, a 60+ point game ≈ 10.
+  function gameRating(g, ts) {
+    const perf = g.pts * (1 + 2.2 * ((ts || 0.57) - 0.57)) + 1.15 * g.reb + 1.5 * g.ast + 2 * (g.stl + g.blk) - 1.1 * g.tov;
+    const full = 5.5 + 0.05 * perf;
+    const r = 6.2 + (full - 6.2) * Math.min(1, g.min / 24);
+    return Math.round(clamp(r, 3, 10) * 10) / 10;
+  }
   function summarize(games) {
     const n = games.length || 1;
     const s = { gp: games.length, pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, tov: 0, mins: 0, td: 0, dd: 0, g40: 0, g50: 0, high: 0 };
@@ -341,7 +349,7 @@
   Object.assign(NBA, {
     rand, randn, clamp, rint, pick, r1, weighted, sum, setSeed,
     ovr, ovrOf, makePlayer, buildTarget, rollCeiling, rollTdPlan, randomArch, randomPos, nameGen, regionOf,
-    progress, applyTraining, trainPoints, rookieFloor, expLine, shootingLine, genGame, summarize,
+    progress, applyTraining, trainPoints, rookieFloor, expLine, shootingLine, genGame, summarize, gameRating,
   });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

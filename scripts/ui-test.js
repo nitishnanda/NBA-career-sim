@@ -35,7 +35,19 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   await trainLoop();
   await shot('06-pro-ready');
   for (let i = 0; i < 40; i++) {
-    await page.click('text=/Sim the .* season/');
+    await page.click('text=/Tip off the .* season/');
+    await page.waitForSelector('text=Next match');
+    if (i === 0) {
+      await shot('06b-opening-night');
+      for (let k = 0; k < 3; k++) await page.click('text=Next match');
+      await shot('06c-three-games');
+      await page.click('text=Sim to end of regular season');
+      await shot('06d-reg-season-done');
+      const po = await page.$('text=Next playoff game');
+      if (po) { await po.click(); await po.click().catch(() => {}); await shot('06e-playoffs'); }
+      const sk = await page.$('text=Skip to recap'); if (sk) await sk.click(); else await page.click('text=See the season recap');
+    } else if (i === 1) { await page.click('text=Sim to end of regular season'); while (await page.$('text=/Next playoff game/')) await page.click('text=/Next playoff game/'); await page.click('text=See the season recap'); }
+    else { const sk = await page.$('text=Skip to recap'); if (sk) await sk.click(); else await page.click('text=See the season recap'); }
     await page.waitForSelector('text=Offseason decisions');
     if (i === 0) await shot('07-recap');
     await page.click('text=Offseason decisions');

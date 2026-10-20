@@ -238,6 +238,18 @@
     const ind = () => 1 + 0.035 * randn();
     const m = { mins: e0.mins, pts: e0.pts * sh * ind(), reb: e0.reb * sh * ind(), ast: e0.ast * sh * ind(), stl: e0.stl * sh * ind(), blk: e0.blk * sh * ind(), tov: e0.tov };
     const age = p.age, gp = avail.gp;
+    // 30,000 pts / 10,000 reb / 10,000 ast is a LeBron-only club: without a rare hidden "big three" career, the last category fades as the career winds down
+    if (!p.big3) {
+      if (p.big3Roll == null) p.big3Roll = rand() < (p.arch === 'generational' ? 0.04 : p.arch === 'dominator' ? 0.015 : 0.004);
+      p.big3 = p.big3Roll;
+      const tot = (k) => sum(st.proSeasons.map((x) => x[k]));
+      const P = tot('totPts'), R = tot('totReb'), A = tot('totAst');
+      if (!p.big3 && P >= 21000 && age >= 31) {
+        if (R >= 7000 && A >= 7000) { m.ast *= 0.8; m.reb *= 0.9; }
+        else if (A >= 7000 && R >= 5500) m.reb *= 0.86;
+        else if (R >= 7500 && A >= 5500) m.ast *= 0.84;
+      }
+    }
     // everyday scoring is soft-capped; big years (32-33, rarely 34-36) come from the career plan
     const SOFT = 30.2;
     if (m.pts > SOFT) m.pts = SOFT + (m.pts - SOFT) * 0.25;
@@ -270,6 +282,14 @@
       m.reb = Math.max(m.reb, 10.25 + rand() * 0.9);
       m.ast = Math.max(m.ast, 10.25 + rand() * 0.9);
     }
+    if (!p.big3 && gp > 0) { // backstop: never cross the line in the last category
+      const tot2 = (k) => sum(st.proSeasons.map((x) => x[k])); const P = tot2('totPts'), R = tot2('totReb'), A = tot2('totAst');
+      if (P >= 24000) {
+        if (R >= 9000 && A >= 6000) m.ast = Math.min(m.ast, Math.max(0.5, (9860 - A) / gp));
+        if (A >= 9000 && R >= 6000) m.reb = Math.min(m.reb, Math.max(0.5, (9860 - R) / gp));
+      }
+      if (R >= 9860 && A >= 9860) m.pts = Math.min(m.pts, Math.max(1, (29850 - P) / gp));
+    }
     let games, s;
     for (let tries = 0; tries < 16; tries++) {
       games = []; for (let i = 0; i < gp; i++) games.push(genGame(m));
@@ -285,7 +305,7 @@
     const sl = shootingLine(p, s.pts, tsRaw, e0.usg);
     const avgTD = gp >= 30 && s.pts >= 10 && s.reb >= 10 && s.ast >= 10;
     if (avgTD) { p.tdUsed++; if (s.pts >= 30) p.td30Used++; }
-    return Object.assign({ gp, usg: e0.usg, ovr: e0.ovr, fga: sl.fga, fgp: sl.fgp, tpa: sl.tpa, tpp: sl.tpp, ftp: sl.ftp, fta: sl.fta, ts: sl.ts, avgTD, games: games.length }, s, { pts: s.pts, reb: s.reb, ast: s.ast });
+    return Object.assign({ gp, usg: e0.usg, ovr: e0.ovr, fga: sl.fga, fgp: sl.fgp, tpa: sl.tpa, tpp: sl.tpp, ftp: sl.ftp, fta: sl.fta, ts: sl.ts, avgTD, games: games.length, gameList: games }, s, { pts: s.pts, reb: s.reb, ast: s.ast });
   }
 
   function playoffLine(st, ctx, seriesList, base, mode) {
@@ -308,7 +328,7 @@
         const gs = []; for (let i = 0; i < sr.games; i++) gs.push(genGame(m));
         all.push.apply(all, gs);
         const ss = summarize(gs);
-        return { round: sr.round, opp: sr.opp, result: (sr.won ? 'W ' : 'L ') + sr.w + '-' + sr.l, pts: ss.pts, reb: ss.reb, ast: ss.ast, gp: sr.games };
+        return { round: sr.round, opp: sr.opp, result: (sr.won ? 'W ' : 'L ') + sr.w + '-' + sr.l, pts: ss.pts, reb: ss.reb, ast: ss.ast, gp: sr.games, list: gs, w: sr.w, l: sr.l, won: sr.won };
       });
       s = summarize(all);
       const ok = s.pts <= maxAvg && (mode !== 'legend' || (s.pts >= 35.5 && s.reb >= 10 && s.ast >= 10));
@@ -317,6 +337,85 @@
     const legendHit = mode === 'legend' && s.pts >= 35.5 && s.reb >= 10 && s.ast >= 10;
     const sl = shootingLine(p, s.pts, clamp(base.ts - 0.014, 0.44, 0.7), base.usg * 1.03);
     return { line: Object.assign({}, s, { fgp: sl.fgp, tpp: sl.tpp, ftp: sl.ftp, ts: sl.ts }), perSeries, heater: mode !== 'normal', legend: legendHit };
+  }
+
+  // ---------------------------------------------------------------- match-by-match log (a reveal of the already-simulated season)
+  function shootBox(pts, prof) {
+    let fta = Math.round(pts * prof.ftaPerPt * (0.55 + 0.9 * rand()));
+    let ftm = clamp(Math.round(fta * prof.ftp + 0.9 * Math.sqrt(Math.max(0.2, fta)) * 0.5 * randn()), 0, Math.min(fta, pts));
+    let rem = pts - ftm;
+    let fga = Math.round(pts * prof.fgaPerPt * (0.82 + 0.36 * rand()));
+    let tpa = Math.round(fga * prof.tpaShare * (0.65 + 0.7 * rand()));
+    let tpm = clamp(Math.round(tpa * prof.tpp + 0.8 * Math.sqrt(Math.max(0.2, tpa)) * 0.5 * randn()), 0, Math.min(tpa, Math.floor(rem / 3)));
+    let rem2 = rem - 3 * tpm;
+    if (rem2 % 2) { if (ftm < pts && (rem2 - 1) >= 2 * tpm * 0) { ftm++; rem2--; } else if (ftm > 0) { ftm--; rem2++; } else if (tpm > 0) { tpm--; rem2 += 3; } }
+    fta = Math.max(fta, ftm);
+    const fgm = tpm + rem2 / 2;
+    fga = Math.max(fga, fgm); tpa = Math.min(Math.max(tpa, tpm), fga);
+    return { fgm, fga, tpm, tpa, ftm, fta };
+  }
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const dateStr = (y, m, d) => { const t = new Date(Date.UTC(y, m, d)); return MON[t.getUTCMonth()] + ' ' + t.getUTCDate(); };
+  function buildMatchLog(st, rec, line, games, series, t, injuryText) {
+    const L = st.league, teams = Object.values(L.teams).filter((x) => x.id !== st.teamId);
+    const total = 82, gp = games.length, miss = Math.max(0, total - gp);
+    const ppd = line.pts > 0 ? 1 / line.pts : 0;
+    const prof = { fgaPerPt: (line.fga || line.pts * 0.8) * ppd, tpaShare: line.fga ? (line.tpa || 0) / line.fga : 0.35, ftaPerPt: (line.fta || line.pts * 0.2) * ppd, tpp: line.tpp || 0.35, ftp: line.ftp || 0.78 };
+    const mk = (g, fgp, tpp, ftp, ts) => {
+      const b = shootBox(g.pts, { fgaPerPt: prof.fgaPerPt, tpaShare: prof.tpaShare, ftaPerPt: prof.ftaPerPt, tpp: tpp || prof.tpp, ftp: ftp || prof.ftp });
+      const cats = [g.pts, g.reb, g.ast, g.stl, g.blk].filter((x) => x >= 10).length;
+      const tg = [];
+      if (cats >= 3) tg.push('Triple-double'); else if (cats === 2) tg.push('Double-double');
+      if (g.pts >= 60) tg.push('60+ points'); else if (g.pts >= 50) tg.push('50+ points'); else if (g.pts >= 40) tg.push('40+ points'); else if (g.pts >= 30 && cats < 3) tg.push('30+ points');
+      return Object.assign({ m: Math.round(g.min), pt: g.pts, rb: g.reb, as: g.ast, st: g.stl, bk: g.blk, to: g.tov, r: NBA.gameRating(g, ts), tg }, b);
+    };
+    const score = (won, scoreMin) => {
+      const margin = 1 + Math.round(Math.abs(randn()) * 11.5);
+      const win = Math.max(Math.round(112 + margin / 2 + randn() * 7), scoreMin);
+      let ot = margin <= 4 && rand() < 0.4 ? 1 : 0;
+      return { f: won ? win : win - margin, a: won ? win - margin : win, ot };
+    };
+    // regular season: 82 slots, opponents twice each plus 24 extra
+    const opps = []; teams.forEach((x) => { opps.push(x, x); }); while (opps.length < total) opps.push(teams[Math.floor(rand() * teams.length)]);
+    for (let i = opps.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [opps[i], opps[j]] = [opps[j], opps[i]]; }
+    opps.length = total;
+    const missed = new Set();
+    if (miss >= 15) { const st0 = Math.floor(rand() * (total - miss + 1)); for (let i = 0; i < miss; i++) missed.add(st0 + i); } else { while (missed.size < miss) missed.add(Math.floor(rand() * total)); }
+    const blockInjury = miss >= 15;
+    const played = []; for (let i = 0, k = 0; i < total; i++) if (!missed.has(i)) played.push({ slot: i, g: games[k++] });
+    const boxes = {}; played.forEach((x) => { boxes[x.slot] = mk(x.g, line.fgp, line.tpp, line.ftp, line.ts); });
+    // wins fall on the nights the star was good, plus noise and streakiness
+    let ar = 0; const key = []; for (let i = 0; i < total; i++) { ar = 0.5 * ar + randn(); const b = boxes[i]; key.push((b ? (b.r - 7) * 0.9 : 0) + ar); }
+    const order = key.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]); const winSlots = new Set(order.slice(0, t.wins).map((x) => x[1]));
+    const items = [];
+    for (let i = 0; i < total; i++) {
+      const won = winSlots.has(i), b = boxes[i];
+      const sc = score(won, b ? b.pt + 38 : 0);
+      const it = Object.assign({ k: 'g', n: i + 1, d: dateStr(L.year, 9, 22 + Math.round(i * 1.98 + (rand() - 0.5) * 1.5)), o: opps[i].nick, oc: opps[i].city, h: rand() < 0.5 ? 1 : 0, w: won ? 1 : 0, ot: sc.ot }, { f: sc.f, a: sc.a });
+      if (b) Object.assign(it, b); else { it.dnp = blockInjury ? (injuryText || 'Injured') : 'Rest'; }
+      items.push(it);
+    }
+    items.push({ k: 'hdr', text: 'Regular season complete · ' + t.wins + '-' + t.losses });
+    // playoffs
+    const poGames = [];
+    (series || []).forEach((sr) => {
+      items.push({ k: 'hdr', text: sr.round + ' · vs ' + sr.opp });
+      const n = sr.list.length, winsNeeded = sr.won ? sr.w : sr.w; // user wins = sr.w
+      const wl = []; for (let i = 0; i < sr.w - (sr.won ? 1 : 0); i++) wl.push(1); for (let i = 0; i < sr.l - (sr.won ? 0 : 1); i++) wl.push(0);
+      for (let i = wl.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [wl[i], wl[j]] = [wl[j], wl[i]]; }
+      wl.push(sr.won ? 1 : 0);
+      let dd = 0;
+      sr.list.forEach((g, i) => {
+        const b = mk(g, rec.playoff ? rec.playoff.fgp : line.fgp, rec.playoff ? rec.playoff.tpp : line.tpp, line.ftp, rec.playoff ? rec.playoff.ts : line.ts);
+        const w = wl[i] != null ? wl[i] : sr.won ? 1 : 0; const sc = score(!!w, b.pt + 38);
+        let w1 = 0, l1 = 0; for (let q = 0; q <= i; q++) { if (wl[q]) w1++; else l1++; }
+        items.push(Object.assign({ k: 'g', po: 1, n: i + 1, d: dateStr(L.year + 1, 3, 19 + Math.round(poGames.length * 2.2)), o: sr.opp.split(' ').slice(-1)[0], oc: sr.opp.split(' ').slice(0, -1).join(' '), h: [1, 1, 0, 0, 1, 0, 1][i] ? 1 : 0, w, ot: sc.ot, f: sc.f, a: sc.a, ser: (w1 === l1 ? 'Series tied ' : w1 > l1 ? 'Up ' : 'Down ') + Math.max(w1, l1) + '-' + Math.min(w1, l1) }, b));
+        poGames.push(1);
+      });
+    });
+    const rg = items.filter((x) => x.k === 'g' && !x.po && !x.dnp), ratings = rg.map((x) => x.r);
+    rec.avgRating = ratings.length ? Math.round(ratings.reduce((a, b) => a + b, 0) / ratings.length * 100) / 100 : null;
+    return items;
   }
 
   function playSeason(st) {
@@ -391,6 +490,9 @@
       salary: st.contract.salary, mvp: A.mvp ? A.mvp.name + ' (' + r1(A.mvp.pts) + '/' + r1(A.mvp.reb) + '/' + r1(A.mvp.ast) + ')' : '', champion: po.champion.name, league: res.league,
       rookie: p.rookie, leaders: res.leaders,
     };
+    const gl = l.gameList; delete l.gameList;
+    st.matchLog = buildMatchLog(st, rec, l, gl, perSeries, t, rec.injury); st.matchIdx = 0;
+    rec.perSeries = perSeries.map((x) => { const y = Object.assign({}, x); delete y.list; delete y.w; delete y.l; delete y.won; return y; });
     st.proSeasons.push(rec);
     st.earnings += st.contract.salary;
     st.earnings26 = (st.earnings26 || 0) + (st.contract.salary / capFor(L.year)) * capFor(2026); // in 2026 cap dollars
@@ -402,7 +504,7 @@
     p.yearsPro++;
     st.contract.left--;
     st.bonusPoints = fx.bonusPts;
-    st.stage = 'season_recap';
+    st.stage = 'season_play';
     return rec;
   }
 
