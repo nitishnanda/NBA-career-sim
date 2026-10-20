@@ -193,7 +193,8 @@
   }
 
   // ------------------------------------------------------------ match by match
-  const rClass = (r) => (r < 5 ? 'r1' : r < 6 ? 'r2' : r < 7 ? 'r3' : r < 8 ? 'r4' : r < 9 ? 'r5' : 'r6');
+  const rClass = (r) => (r < 6 ? 'r1' : r < 6.5 ? 'r2' : r < 7 ? 'r3' : r < 8 ? 'r4' : r < 9 ? 'r5' : 'r6');
+  const ratingBadge = (r, dec) => h('span', { class: 'rating sm ' + rClass(r) }, r.toFixed(dec));
   function matchTile(g, fresh) {
     const res = h('div', { class: 'm-res ' + (g.w ? 'w' : 'l') }, g.w ? 'W' : 'L');
     const where = (g.h ? 'vs ' : '@ ') + g.oc + ' ' + g.o;
@@ -230,7 +231,7 @@
     const head = h('div', { class: 'card hero' }, h('div', { class: 'row' }, h('div', null, h('div', { class: 'eyebrow' }, NBA.seasonLabel(L.year) + (nextIsPo || poG.length ? ' · playoffs' : ' · regular season')), h('h1', { style: 'margin:2px 0' }, L.teams[S.teamId].name)),
         h('span', { class: 'spacer' }), h('div', { class: 'recbox' }, h('div', { class: 'big' }, wins + '-' + (reg.length - wins)), h('div', { class: 'muted small' }, reg.length + ' of ' + regTotal + ' played'))),
       h('div', { class: 'bar', style: 'margin:12px 0' }, h('i', { style: 'width:' + Math.round(100 * reg.length / Math.max(1, regTotal)) + '%' })),
-      played.length ? h('div', { class: 'grid stats' }, statBox(f1(avg('pt')), 'PPG'), statBox(f1(avg('rb')), 'RPG'), statBox(f1(avg('as')), 'APG'), statBox((played.reduce((a, g) => a + g.r, 0) / played.length).toFixed(2), 'Avg rating')) : h('p', { class: 'muted' }, 'Opening night is coming up. Pour something warm, then tap the button below.'),
+      played.length ? h('div', { class: 'grid stats' }, statBox(f1(avg('pt')), 'PPG'), statBox(f1(avg('rb')), 'RPG'), statBox(f1(avg('as')), 'APG'), h('div', { class: 'statbox' }, h('div', { class: 'big' }, ratingBadge(played.reduce((a, g) => a + g.r, 0) / played.length, 2)), h('div', { class: 'lbl' }, 'Avg rating'))) : h('p', { class: 'muted' }, 'Opening night is coming up. Pour something warm, then tap the button below.'),
       last5.length ? h('div', { class: 'row small', style: 'margin-top:10px' }, h('span', { class: 'muted' }, 'Last 5'), last5) : null);
     const controls = done
       ? h('div', { class: 'card' }, h('p', null, 'That is the season in the books. ☕'), h('button', { class: 'primary big-btn', onclick: () => { S.stage = 'season_recap'; go(); } }, 'See the season recap →'))
@@ -249,7 +250,7 @@
     const ranks = r.ranks ? ['pts', 'reb', 'ast', 'stl', 'blk'].filter((k) => r.ranks[k] && r.ranks[k] <= 5).map((k) => h('span', { class: 'pill good' }, '#' + r.ranks[k] + ' in ' + { pts: 'scoring', reb: 'rebounding', ast: 'assists', stl: 'steals', blk: 'blocks' }[k])) : [];
     return h('div', null, h('h1', null, r.label + ' season recap'),
       h('div', { class: 'card' }, h('p', { class: 'muted' }, r.team + ' · age ' + r.age + ' · OVR ' + r.ovr + ' · ' + money(r.salary)),
-        h('div', { class: 'grid stats' }, statBox(f1(r.pts), 'PPG'), statBox(f1(r.reb), 'RPG'), statBox(f1(r.ast), 'APG'), statBox(f1(r.stl), 'SPG'), statBox(f1(r.blk), 'BPG'), statBox(r.gp, 'Games'), r.avgRating ? statBox(r.avgRating.toFixed(2), 'Avg rating') : null),
+        h('div', { class: 'grid stats' }, statBox(f1(r.pts), 'PPG'), statBox(f1(r.reb), 'RPG'), statBox(f1(r.ast), 'APG'), statBox(f1(r.stl), 'SPG'), statBox(f1(r.blk), 'BPG'), statBox(r.gp, 'Games'), r.avgRating ? h('div', { class: 'statbox' }, h('div', { class: 'big' }, ratingBadge(r.avgRating, 2)), h('div', { class: 'lbl' }, 'Avg rating')) : null),
         h('p', { style: 'margin-top:10px' }, 'FG ' + pct(r.fgp) + '% · 3P ' + pct(r.tpp) + '% · FT ' + pct(r.ftp) + '% · TS ' + pct(r.ts) + '% · ' + f1(r.mins) + ' mpg · High game ' + r.high),
         h('p', null, 'Triple-doubles: ', h('b', null, r.td), ' · Double-doubles: ', h('b', null, r.dd), r.g40 ? ' · 40-pt games: ' + r.g40 : '', r.avgTD ? ' · 🔥 AVERAGED A TRIPLE-DOUBLE' : ''),
         h('p', null, h('b', null, r.wins + '-' + r.losses), ' · ' + r.playoffText), awardPills, ranks, r.injury ? h('div', { class: 'callout' }, '🩹 ' + r.injury) : null, r.events.map((e) => h('div', { class: 'callout' }, e))),

@@ -1,12 +1,12 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <title>NBA Career Sim</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Nunito:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@700&family=Nunito:wght@400;600;700;800&display=swap">
 <style>
 :root {
   --bg: #f5ede0; --bg2: #efe3d0; --panel: #fffaf2; --panel2: #f3e8d6; --line: #e4d4ba; --text: #3a2e25; --muted: #8b7762;
   --accent: #c9683a; --accent2: #e6a350; --good: #5c8a58; --bad: #b4503f; --gold: #a97a1f; --shadow: 0 1px 0 rgba(120,80,30,.05), 0 14px 30px -18px rgba(110,70,25,.35);
-  --r1: #c0493c; --r2: #d9863a; --r3: #d3b13f; --r4: #6ca36a; --r5: #3f90b3; --r6: #7a5cc4; color-scheme: light;
+  --r0: #A4A9B3; --r1: #DC0C00; --r2: #ED7E07; --r3: #D9AF00; --r4: #00C424; --r5: #00ADC4; --r6: #374DF5; color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -84,9 +84,10 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { padd
 .m-top { display: flex; gap: 8px 12px; flex-wrap: wrap; align-items: baseline; font-size: 13.5px; }
 .m-date { color: var(--muted); font-size: 12px; font-weight: 700; } .m-vs { font-weight: 700; } .m-score { margin-left: auto; font-variant-numeric: tabular-nums; }
 .m-box { font-size: 14.5px; margin-top: 3px; } .m-box b { font-size: 17px; } .m-shoot { font-size: 12.5px; }
-.rating { min-width: 52px; text-align: center; border-radius: 14px; padding: 8px 6px; font-weight: 800; color: #fff; font-size: 17px; font-variant-numeric: tabular-nums; }
-.rating.none { background: var(--panel2); color: var(--muted); }
-.rating.r1 { background: var(--r1); } .rating.r2 { background: var(--r2); } .rating.r3 { background: var(--r3); color: #3a2e25; } .rating.r4 { background: var(--r4); } .rating.r5 { background: var(--r5); } .rating.r6 { background: var(--r6); }
+.rating { min-width: 48px; text-align: center; border-radius: 6px; padding: 8px 8px; font: 700 18px/1 "Inter", "Roboto", "SF Pro Display", -apple-system, "Segoe UI", sans-serif; color: #fff; font-variant-numeric: tabular-nums; letter-spacing: .2px; }
+.rating.sm { display: inline-block; min-width: 0; padding: 5px 10px; font-size: 22px; }
+.rating.none { background: var(--r0); }
+.rating.r1 { background: var(--r1); } .rating.r2 { background: var(--r2); } .rating.r3 { background: var(--r3); } .rating.r4 { background: var(--r4); } .rating.r5 { background: var(--r5); } .rating.r6 { background: var(--r6); }
 .divider { text-align: center; margin: 18px 0 6px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .14em; font-weight: 800; display: flex; align-items: center; gap: 12px; }
 .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .divider.fresh { animation: slidein .45s both; }
@@ -95,7 +96,7 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { padd
 .ctl-card { position: sticky; top: 56px; z-index: 4; backdrop-filter: blur(8px); background: var(--panel); }
 @media (max-width: 560px) {
   .attr { grid-template-columns: 96px 1fr 34px; } .attr.train { grid-template-columns: 96px 1fr 34px 96px; } h1 { font-size: 23px; } .big { font-size: 28px; }
-  .match { grid-template-columns: 32px 1fr auto; gap: 10px; padding: 11px 12px; } .m-res { width: 32px; height: 32px; } .rating { min-width: 46px; font-size: 15px; }
+  .match { grid-template-columns: 32px 1fr auto; gap: 10px; padding: 11px 12px; } .m-res { width: 32px; height: 32px; } .rating { min-width: 44px; font-size: 16px; }
   .card { padding: 15px 15px; border-radius: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { .match.fresh, .reveal, .divider.fresh { animation: none; } button { transition: none; } }
@@ -1978,7 +1979,8 @@ main { padding-left: 0; padding-right: 0; }
   }
 
   // ------------------------------------------------------------ match by match
-  const rClass = (r) => (r < 5 ? 'r1' : r < 6 ? 'r2' : r < 7 ? 'r3' : r < 8 ? 'r4' : r < 9 ? 'r5' : 'r6');
+  const rClass = (r) => (r < 6 ? 'r1' : r < 6.5 ? 'r2' : r < 7 ? 'r3' : r < 8 ? 'r4' : r < 9 ? 'r5' : 'r6');
+  const ratingBadge = (r, dec) => h('span', { class: 'rating sm ' + rClass(r) }, r.toFixed(dec));
   function matchTile(g, fresh) {
     const res = h('div', { class: 'm-res ' + (g.w ? 'w' : 'l') }, g.w ? 'W' : 'L');
     const where = (g.h ? 'vs ' : '@ ') + g.oc + ' ' + g.o;
@@ -2015,7 +2017,7 @@ main { padding-left: 0; padding-right: 0; }
     const head = h('div', { class: 'card hero' }, h('div', { class: 'row' }, h('div', null, h('div', { class: 'eyebrow' }, NBA.seasonLabel(L.year) + (nextIsPo || poG.length ? ' · playoffs' : ' · regular season')), h('h1', { style: 'margin:2px 0' }, L.teams[S.teamId].name)),
         h('span', { class: 'spacer' }), h('div', { class: 'recbox' }, h('div', { class: 'big' }, wins + '-' + (reg.length - wins)), h('div', { class: 'muted small' }, reg.length + ' of ' + regTotal + ' played'))),
       h('div', { class: 'bar', style: 'margin:12px 0' }, h('i', { style: 'width:' + Math.round(100 * reg.length / Math.max(1, regTotal)) + '%' })),
-      played.length ? h('div', { class: 'grid stats' }, statBox(f1(avg('pt')), 'PPG'), statBox(f1(avg('rb')), 'RPG'), statBox(f1(avg('as')), 'APG'), statBox((played.reduce((a, g) => a + g.r, 0) / played.length).toFixed(2), 'Avg rating')) : h('p', { class: 'muted' }, 'Opening night is coming up. Pour something warm, then tap the button below.'),
+      played.length ? h('div', { class: 'grid stats' }, statBox(f1(avg('pt')), 'PPG'), statBox(f1(avg('rb')), 'RPG'), statBox(f1(avg('as')), 'APG'), h('div', { class: 'statbox' }, h('div', { class: 'big' }, ratingBadge(played.reduce((a, g) => a + g.r, 0) / played.length, 2)), h('div', { class: 'lbl' }, 'Avg rating'))) : h('p', { class: 'muted' }, 'Opening night is coming up. Pour something warm, then tap the button below.'),
       last5.length ? h('div', { class: 'row small', style: 'margin-top:10px' }, h('span', { class: 'muted' }, 'Last 5'), last5) : null);
     const controls = done
       ? h('div', { class: 'card' }, h('p', null, 'That is the season in the books. ☕'), h('button', { class: 'primary big-btn', onclick: () => { S.stage = 'season_recap'; go(); } }, 'See the season recap →'))
@@ -2034,7 +2036,7 @@ main { padding-left: 0; padding-right: 0; }
     const ranks = r.ranks ? ['pts', 'reb', 'ast', 'stl', 'blk'].filter((k) => r.ranks[k] && r.ranks[k] <= 5).map((k) => h('span', { class: 'pill good' }, '#' + r.ranks[k] + ' in ' + { pts: 'scoring', reb: 'rebounding', ast: 'assists', stl: 'steals', blk: 'blocks' }[k])) : [];
     return h('div', null, h('h1', null, r.label + ' season recap'),
       h('div', { class: 'card' }, h('p', { class: 'muted' }, r.team + ' · age ' + r.age + ' · OVR ' + r.ovr + ' · ' + money(r.salary)),
-        h('div', { class: 'grid stats' }, statBox(f1(r.pts), 'PPG'), statBox(f1(r.reb), 'RPG'), statBox(f1(r.ast), 'APG'), statBox(f1(r.stl), 'SPG'), statBox(f1(r.blk), 'BPG'), statBox(r.gp, 'Games'), r.avgRating ? statBox(r.avgRating.toFixed(2), 'Avg rating') : null),
+        h('div', { class: 'grid stats' }, statBox(f1(r.pts), 'PPG'), statBox(f1(r.reb), 'RPG'), statBox(f1(r.ast), 'APG'), statBox(f1(r.stl), 'SPG'), statBox(f1(r.blk), 'BPG'), statBox(r.gp, 'Games'), r.avgRating ? h('div', { class: 'statbox' }, h('div', { class: 'big' }, ratingBadge(r.avgRating, 2)), h('div', { class: 'lbl' }, 'Avg rating')) : null),
         h('p', { style: 'margin-top:10px' }, 'FG ' + pct(r.fgp) + '% · 3P ' + pct(r.tpp) + '% · FT ' + pct(r.ftp) + '% · TS ' + pct(r.ts) + '% · ' + f1(r.mins) + ' mpg · High game ' + r.high),
         h('p', null, 'Triple-doubles: ', h('b', null, r.td), ' · Double-doubles: ', h('b', null, r.dd), r.g40 ? ' · 40-pt games: ' + r.g40 : '', r.avgTD ? ' · 🔥 AVERAGED A TRIPLE-DOUBLE' : ''),
         h('p', null, h('b', null, r.wins + '-' + r.losses), ' · ' + r.playoffText), awardPills, ranks, r.injury ? h('div', { class: 'callout' }, '🩹 ' + r.injury) : null, r.events.map((e) => h('div', { class: 'callout' }, e))),
