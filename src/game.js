@@ -344,7 +344,9 @@
     let fta = Math.round(pts * prof.ftaPerPt * (0.55 + 0.9 * rand()));
     let ftm = clamp(Math.round(fta * prof.ftp + 0.9 * Math.sqrt(Math.max(0.2, fta)) * 0.5 * randn()), 0, Math.min(fta, pts));
     let rem = pts - ftm;
-    let fga = Math.round(pts * prof.fgaPerPt * (0.82 + 0.36 * rand()));
+    // shot volume is only loosely tied to the points: low-scoring nights tend to be bricky ones (points per shot varies ~25% around the season norm)
+    const eff = clamp((0.55 + 0.45 * pts / Math.max(4, prof.avgPts)) * Math.exp(0.25 * randn()), 0.45, 1.7);
+    let fga = Math.round(pts * prof.fgaPerPt / eff);
     let tpa = Math.round(fga * prof.tpaShare * (0.65 + 0.7 * rand()));
     let tpm = clamp(Math.round(tpa * prof.tpp + 0.8 * Math.sqrt(Math.max(0.2, tpa)) * 0.5 * randn()), 0, Math.min(tpa, Math.floor(rem / 3)));
     let rem2 = rem - 3 * tpm;
@@ -360,14 +362,14 @@
     const L = st.league, teams = Object.values(L.teams).filter((x) => x.id !== st.teamId);
     const total = 82, gp = games.length, miss = Math.max(0, total - gp);
     const ppd = line.pts > 0 ? 1 / line.pts : 0;
-    const prof = { fgaPerPt: (line.fga || line.pts * 0.8) * ppd, tpaShare: line.fga ? (line.tpa || 0) / line.fga : 0.35, ftaPerPt: (line.fta || line.pts * 0.2) * ppd, tpp: line.tpp || 0.35, ftp: line.ftp || 0.78 };
+    const prof = { avgPts: line.pts, fgaPerPt: (line.fga || line.pts * 0.8) * ppd, tpaShare: line.fga ? (line.tpa || 0) / line.fga : 0.35, ftaPerPt: (line.fta || line.pts * 0.2) * ppd, tpp: line.tpp || 0.35, ftp: line.ftp || 0.78 };
     const mk = (g, fgp, tpp, ftp, ts) => {
-      const b = shootBox(g.pts, { fgaPerPt: prof.fgaPerPt, tpaShare: prof.tpaShare, ftaPerPt: prof.ftaPerPt, tpp: tpp || prof.tpp, ftp: ftp || prof.ftp });
+      const b = shootBox(g.pts, { avgPts: prof.avgPts, fgaPerPt: prof.fgaPerPt, tpaShare: prof.tpaShare, ftaPerPt: prof.ftaPerPt, tpp: tpp || prof.tpp, ftp: ftp || prof.ftp });
       const cats = [g.pts, g.reb, g.ast, g.stl, g.blk].filter((x) => x >= 10).length;
       const tg = [];
       if (cats >= 3) tg.push('Triple-double'); else if (cats === 2) tg.push('Double-double');
       if (g.pts >= 60) tg.push('60+ points'); else if (g.pts >= 50) tg.push('50+ points'); else if (g.pts >= 40) tg.push('40+ points'); else if (g.pts >= 30 && cats < 3) tg.push('30+ points');
-      return Object.assign({ m: Math.round(g.min), pt: g.pts, rb: g.reb, as: g.ast, st: g.stl, bk: g.blk, to: g.tov, r: NBA.gameRating(g, ts), tg }, b);
+      return Object.assign({ m: Math.round(g.min), pt: g.pts, rb: g.reb, as: g.ast, st: g.stl, bk: g.blk, to: g.tov, r: NBA.gameRating(g, b), tg }, b);
     };
     const score = (won, scoreMin) => {
       const margin = 1 + Math.round(Math.abs(randn()) * 11.5);
@@ -492,6 +494,7 @@
     };
     const gl = l.gameList; delete l.gameList;
     st.matchLog = buildMatchLog(st, rec, l, gl, perSeries, t, rec.injury); st.matchIdx = 0;
+    if (NBA.onSeasonLog) NBA.onSeasonLog(st, rec);
     rec.perSeries = perSeries.map((x) => { const y = Object.assign({}, x); delete y.list; delete y.w; delete y.l; delete y.won; return y; });
     st.proSeasons.push(rec);
     st.earnings += st.contract.salary;

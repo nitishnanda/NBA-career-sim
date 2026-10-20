@@ -321,12 +321,12 @@
     const tov = Math.max(0, Math.round(m.tov * mm + Math.sqrt(m.tov * mm) * 0.8 * randn()));
     return { min: m.mins * mm, pts, reb, ast, stl, blk, tov };
   }
-  // Sofascore-style 1-10 match rating from a box score. Anchors (approximate, not fitted to real Sofascore data): a 19-perf rotation game ≈ 6.5, an All-Star-level
-  // season average (perf ~44) ≈ 7.7, MVP-level (~60) ≈ 8.5, a 60+ point game ≈ 10.
-  function gameRating(g, ts) {
-    const perf = g.pts * (1 + 2.2 * ((ts || 0.57) - 0.57)) + 1.15 * g.reb + 1.5 * g.ast + 2 * (g.stl + g.blk) - 1.1 * g.tov;
-    const full = 5.5 + 0.05 * perf;
-    const r = 6.2 + (full - 6.2) * Math.min(1, g.min / 24);
+  // Sofascore-style match rating (3-10, everyone starts at 6.5). Coefficients fitted to eight reference box scores for the rating tiers (red 3-5 ... deep blue 9-10)
+  // supplied by the user: points over average efficiency, rebounds, assists, steals, blocks, turnovers. Fewer minutes shrink the swing toward 6.5.
+  function gameRating(g, b) {
+    const poe = g.pts - 1.1 * (b.fga + 0.44 * b.fta);
+    const swing = 0.12 * poe + 0.034 * g.reb + 0.076 * g.ast + 0.081 * g.stl + 0.086 * g.blk - 0.081 * g.tov - 0.2 * Math.min(1, g.min / 36);
+    const r = 6.5 + swing * Math.min(1, g.min / 14);
     return Math.round(clamp(r, 3, 10) * 10) / 10;
   }
   function summarize(games) {
