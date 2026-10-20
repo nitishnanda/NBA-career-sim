@@ -177,3 +177,9 @@ league-sim classes with real competition for 24 All-Star slots: any 4.5  3+ 2.9 
 Points noise was too tight (sd/mean 0.234 vs real 0.333, 40+/50+ games 3-8x too rare for 18-28 ppg players). Noise raised to 0.29: sd/mean ≈ 0.31, 30+/40+/50+ rates within ~10-20% of real across ppg bins. Rebounds/assists spread already matched. Triple-double rate at the very top lines is still ~15% light.
 
 **TD correlation:** rebounds and assists now share a per-game "engagement" factor (sd 0.13) on top of the minutes factor, so big boards and big dimes cluster like real triple-double nights. Overall TD rate for 59 real TD-capable seasons: 16.3% sim vs 17.8% real (was 15.1%); rebound/assist spread still ≈ real (0.461/0.523 vs 0.452/0.522).
+
+## Recruiting / college data (JasonG7234/NBA-Draft-Model, saved as `data/real-draft-prospects.csv`)
+1,318 college draft prospects 2009-2024 (RealGM/BBRef/Barttorvik/247), with RSCI recruit rank (400 = unranked, 208 of them), class year at declaration and per-40 college stats. **No pick numbers, no star ratings, no non-draft recruits**, so star-rating odds (the 1★ most common split) still cannot be calibrated.
+Class year at declaration, by recruit rank: top 5 → 90% Fr; 6-10 → 54% Fr / 25% So; 11-25 → 36/28/18/19 (Fr/So/Jr/Sr); 26-50 → 15% Fr, 38% Sr; 51-100 → 5% Fr, 58% Sr. All prospects: Fr 17%, So 16%, Jr 19%, Sr 48%.
+The sim's draft-class age mix (19:46% 20:26% 21:16% 22:12%) is a mix of all draftees; it is young-heavy vs this table, but the table includes late/undrafted seniors, so it was left unchanged.
+Playoff runs: planned "legend" runs cut (70/27/3 → 88/12 for dominators); remaining 10/10/10 runs (26 per 1,668 star postseasons) track the sim's TD-average regular seasons, which the elite-only test sample inflates.
