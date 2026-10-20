@@ -1,0 +1,14 @@
+{
+  "name": "nba-career-sim",
+  "version": "0.1.0",
+  "description": "A realistic NBA career simulator: scouting, college, draft night, contracts, awards and Hall of Fame.",
+  "private": true,
+  "scripts": {
+    "career": "node scripts/career.js",
+    "batch": "node scripts/batch.js",
+    "elite": "node scripts/elite.js",
+    "league": "node scripts/league-check.js",
+    "scoring": "node scripts/scoring-check.js",
+    "stars": "node scripts/bystars.js"
+  }
+}

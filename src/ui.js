@@ -1,0 +1,278 @@
+(function () {
+  'use strict';
+  const NBA = window.NBA, D = NBA.data, G = NBA.Game;
+  const KEY = 'nba-career-sim-save-v1';
+  const app = document.getElementById('app');
+  let S = null;           // game state
+  let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
+  let alloc = {};
+  let report = null;
+  let tab = 'overview';
+
+  // ------------------------------------------------------------ helpers
+  function h(tag, props, ...kids) {
+    const el = document.createElement(tag);
+    for (const k in props || {}) {
+      const v = props[k];
+      if (k === 'class') el.className = v;
+      else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+      else if (k === 'html') el.innerHTML = v;
+      else if (v !== false && v != null) el.setAttribute(k, v === true ? '' : v);
+    }
+    kids.flat(Infinity).forEach((c) => { if (c != null && c !== false) el.append(c.nodeType ? c : document.createTextNode(c)); });
+    return el;
+  }
+  const f1 = (x) => (x == null ? '–' : x.toFixed(1));
+  const pct = (x) => (x == null ? '–' : (x * 100).toFixed(1));
+  const ord = (n) => { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
+  const money = (m) => '$' + (m >= 100 ? Math.round(m) : m.toFixed(1)) + 'M';
+  const stars = (n, off) => h('div', { class: 'stars' }, '★'.repeat(n), off ? h('span', { class: 'off' }, '★'.repeat(5 - n)) : '');
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* storage may be unavailable */ } }
+  function load() { try { const r = localStorage.getItem(KEY); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
+  function wipe() { try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ } }
+  function go() { save(); render(); window.scrollTo(0, 0); }
+  function statBox(v, l) { return h('div', { class: 'statbox' }, h('div', { class: 'big' }, v), h('div', { class: 'lbl' }, l)); }
+
+  function attrBars(p, deltas) {
+    return h('div', null, D.ATTRS.map((a) => {
+      const v = Math.round(p.attrs[a]);
+      return h('div', { class: 'attr' }, h('span', null, D.ATTR_LABELS[a]), h('div', { class: 'bar' }, h('i', { style: 'width:' + v + '%' })), h('b', null, v));
+    }));
+  }
+
+  // ------------------------------------------------------------ header
+  function renderHeader() {
+    const who = document.getElementById('who'), btns = document.getElementById('topbtns');
+    who.textContent = ''; btns.textContent = '';
+    if (!S || S.stage === 'create') return;
+    const p = S.player;
+    let ctx = p.name + ' · ' + D.ARCHETYPES[p.arch].name + ' · ' + p.pos + ' · age ' + p.age + ' · OVR ' + Math.round(NBA.ovr(p));
+    if (S.proSeasons.length || S.draft) ctx += ' · ' + S.league.teams[S.teamId].nick;
+    who.textContent = ctx;
+    btns.append(h('button', { onclick: showCareer }, '📋 Career'), h('button', { class: 'danger', onclick: () => { if (confirm('Abandon this career and start a new one?')) { wipe(); S = null; boot(); } } }, 'New'));
+  }
+
+  // ------------------------------------------------------------ screens
+  function screenCreate() {
+    const regions = D.REGIONS;
+    const stateOptions = [];
+    Object.keys(regions).forEach((r) => regions[r].states.slice().sort().forEach((s) => stateOptions.push(h('option', { value: s, selected: s === draft.home }, s + ' (' + r + ')'))));
+    const archCards = Object.keys(D.ARCHETYPES).map((k) => {
+      const a = D.ARCHETYPES[k];
+      return h('div', { class: 'opt' + (draft.arch === k ? ' sel' : ''), onclick: () => { draft.arch = k; if (draft.sec === k) draft.sec = ''; render(); } },
+        h('b', null, a.icon + ' ' + a.name), h('div', { class: 'small' }, a.blurb), h('div', { class: 'comps' }, a.comps));
+    });
+    const nameIn = h('input', { type: 'text', placeholder: 'Your name', value: draft.name, maxlength: 28, oninput: (e) => (draft.name = e.target.value) });
+    const saved = load();
+    return h('div', null,
+      h('h1', null, 'Build your NBA legend'),
+      h('p', { class: 'muted' }, 'Pick a name, position, archetype and where you grew up. Scouts will rate you, you choose a college, then it is draft night. Stats are tuned to the real NBA: nobody averages 35 for a decade.'),
+      saved && saved.stage !== 'create' ? h('div', { class: 'callout row' }, h('span', null, 'Saved career found: ', h('b', null, saved.player.name), ' (' + saved.stage.replace(/_/g, ' ') + ')'), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => { S = saved; render(); } }, 'Continue')) : null,
+      h('div', { class: 'card' }, h('h2', null, '1. Who are you?'), h('div', { class: 'grid g2' }, h('div', null, h('label', { class: 'small muted' }, 'Name'), nameIn), h('div', null, h('label', { class: 'small muted' }, 'Where in the US are you from?'), h('select', { onchange: (e) => (draft.home = e.target.value) }, stateOptions))),
+        h('h3', null, 'Position'), h('div', { class: 'row' }, Object.keys(D.POSITIONS).map((p) => h('button', { class: draft.pos === p ? 'primary' : '', onclick: () => { draft.pos = p; render(); } }, p)))),
+      h('div', { class: 'card' }, h('h2', null, '2. Archetype'), h('div', { class: 'grid g3' }, archCards),
+        h('h3', null, 'Secondary tag (optional, small bonus)'), h('select', { onchange: (e) => (draft.sec = e.target.value) }, h('option', { value: '' }, 'None'), Object.keys(D.ARCHETYPES).filter((k) => k !== draft.arch).map((k) => h('option', { value: k, selected: draft.sec === k }, D.ARCHETYPES[k].name)))),
+      h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { S = G.newCareer({ name: (draft.name || '').trim() || 'Rookie', pos: draft.pos, arch: draft.arch, sec: draft.sec, home: draft.home }); S.stage = 'scouting'; S.revealed = false; go(); } }, 'Get scouted →')));
+  }
+
+  function screenScouting() {
+    const rep = G.scoutReport(S);
+    const box = h('div', { class: 'card' });
+    const holder = h('div');
+    const info = h('div', { class: 'hidden', style: 'display:none' });
+    function fill(n) { holder.replaceChildren(stars(n, true)); }
+    box.append(h('h2', null, 'Scouting report'), h('p', { class: 'muted' }, S.player.name + ' · ' + S.player.pos + ' · ' + S.player.home), holder, info);
+    const details = () => {
+      info.style.display = ''; info.className = 'reveal';
+      info.replaceChildren(h('h2', { style: 'color:var(--gold)' }, rep.label), h('div', { class: 'row' }, h('span', { class: 'pill' }, 'Current OVR ' + rep.ovr), h('span', { class: 'pill' }, 'Potential grade ' + rep.potential)),
+        h('p', { class: 'muted small' }, 'Scouts are not always right. Potential is an estimate; your real ceiling is hidden, and draft slot only loosely predicts it (Jokic went #41).'),
+        h('h3', null, 'Current ratings'), attrBars(S.player), h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { S.stage = 'college_pick'; go(); } }, 'Choose my college →')));
+    };
+    if (S.revealed) { fill(rep.stars); details(); } else {
+      let i = 0; fill(0);
+      const t = setInterval(() => { i++; fill(i); if (i >= S.stars) { clearInterval(t); S.revealed = true; save(); setTimeout(details, 350); } }, 520);
+    }
+    return h('div', null, box);
+  }
+
+  function screenCollegePick() {
+    S.collegeOpts = S.collegeOpts || G.collegeOptions(S);
+    return h('div', null, h('h1', null, 'Pick your college'),
+      h('p', { class: 'muted' }, 'Your ' + S.stars + '★ rating decides who recruits you. Bigger programs give more draft hype but fewer shots; smaller schools mean more usage and stats, less exposure. Home-state schools get a small role bump.'),
+      h('div', { class: 'grid g2' }, S.collegeOpts.map((c) => h('div', { class: 'opt', onclick: () => { G.chooseCollege(S, c.id); S.collegeOpts = null; go(); } },
+        h('b', null, c.name + (c.home ? ' 🏠' : '')), h('div', { class: 'small muted' }, c.state + ' · program ' + '★'.repeat(c.prestige) + ' · ' + ['', 'Mid-major', 'Rising program', 'Power conference', 'Elite program', 'Blue blood'][c.prestige])))));
+  }
+
+  function collegeTable() {
+    return h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, ['Year', 'School', 'Record', 'GP', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', '3P%', 'FT%'].map((x) => h('th', null, x)))),
+      h('tbody', null, S.collegeYears.map((y) => h('tr', null, h('td', null, y.label), h('td', { class: 'l' }, y.school), h('td', null, y.record), h('td', null, y.line.gp), h('td', null, f1(y.line.mins)), h('td', null, f1(y.line.pts)), h('td', null, f1(y.line.reb)), h('td', null, f1(y.line.ast)), h('td', null, f1(y.line.stl)), h('td', null, f1(y.line.blk)), h('td', null, pct(y.line.fgp)), h('td', null, pct(y.line.tpp)), h('td', null, pct(y.line.ftp)))))));
+  }
+
+  function screenCollegeReady() {
+    const yr = S.collegeYears.length + 1;
+    return h('div', null, h('h1', null, S.college.name + ' · ' + ['Freshman', 'Sophomore', 'Junior', 'Senior'][yr - 1] + ' year'),
+      h('div', { class: 'card' }, h('p', null, 'Age ' + S.player.age + ' · OVR ' + Math.round(NBA.ovr(S.player))), attrBars(S.player), h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { G.playCollege(S); go(); } }, 'Play the season →'))),
+      S.collegeYears.length ? h('div', { class: 'card' }, h('h2', null, 'College stats so far'), collegeTable()) : null);
+  }
+
+  function screenCollegeDecision() {
+    const y = S.collegeYears[S.collegeYears.length - 1], l = y.line;
+    const mock = y.mock;
+    const proj = mock.lo > 60 ? 'Undrafted risk' : '#' + mock.lo + ' – #' + Math.min(60, mock.hi) + ' (most likely ~#' + Math.min(60, mock.mid) + ')';
+    return h('div', null, h('h1', null, y.label + ' season complete'),
+      h('div', { class: 'card' }, h('div', { class: 'grid stats' }, statBox(f1(l.pts), 'PPG'), statBox(f1(l.reb), 'RPG'), statBox(f1(l.ast), 'APG'), statBox(f1(l.stl), 'SPG'), statBox(f1(l.blk), 'BPG'), statBox(pct(l.ts) + '%', 'TS%')),
+        h('p', { style: 'margin-top:12px' }, h('b', null, y.record), ' · ' + y.tourney), y.honors.length ? h('div', null, y.honors.map((x) => h('span', { class: 'pill gold' }, '🏅 ' + x))) : null),
+      h('div', { class: 'card' }, h('h2', null, 'Draft stock'), h('p', null, 'Mock draft range: ', h('b', null, proj)),
+        h('p', { class: 'muted small' }, 'Staying develops your game (and adds upgrade points) but draft boards move on, and you only get so many years of eligibility.'),
+        h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { G.declare(S); go(); } }, 'Declare for the NBA Draft'),
+          y.mustDeclare ? h('span', { class: 'muted' }, 'Senior year: eligibility is up.') : h('button', { onclick: () => { G.stayInCollege(S); alloc = {}; go(); } }, 'Stay another year'))),
+      h('div', { class: 'card' }, h('h2', null, 'College stats'), collegeTable()));
+  }
+
+  function screenDraft() {
+    const d = S.draft;
+    const board = d.board.slice();
+    const host = h('div', { class: 'card' });
+    const list = h('div'); const footer = h('div');
+    host.append(h('h2', null, d.year + ' NBA Draft · Night of'), h('p', { class: 'muted' }, S.player.name + ' · ' + d.college), list, footer);
+    const finish = () => {
+      footer.replaceChildren(h('div', { class: 'callout reveal' }, d.slot ? h('div', null, h('div', { class: 'big' }, '#' + d.slot + ' pick'), h('p', null, 'With the ' + ord(d.slot) + ' pick in the ' + d.year + ' NBA Draft, the ' + d.team + ' select ', h('b', null, S.player.name), ' of ' + d.college + '.')) : h('div', null, h('div', { class: 'big' }, 'Undrafted'), h('p', null, 'Your name was never called. You signed a minimum deal with the ' + d.team + ' right after the draft. Prove them wrong.')),
+        h('p', null, 'Rookie contract: ' + money(S.contract.salary) + ' × ' + S.contract.years + ' years'), h('button', { class: 'primary', onclick: () => { G.startPro(S); alloc = {}; go(); } }, 'Start my NBA career →')));
+    };
+    const limit = d.slot ? Math.min(d.slot, board.length) : board.length;
+    if (S.draftSeen) { board.slice(0, limit).forEach((r) => list.append(tick(r))); finish(); } else {
+      let i = 0;
+      const t = setInterval(() => {
+        const r = board[i]; list.append(tick(r)); i++;
+        if (i >= limit) { clearInterval(t); S.draftSeen = true; save(); setTimeout(finish, 700); }
+      }, d.slot && d.slot <= 5 ? 700 : 220);
+    }
+    return h('div', null, host);
+    function tick(r) { return h('div', { class: 'tick reveal' + (r.isUser ? ' me' : '') }, h('span', { class: 'n' }, '#' + r.slot), h('span', null, r.isUser ? '⭐ ' + r.name : r.name), h('span', { class: 'muted' }, r.pos + ' · ' + r.team)); }
+  }
+
+  function screenTraining() {
+    const info = G.trainingInfo(S);
+    if (report) return screenReport();
+    const used = D.ATTRS.reduce((s, a) => s + (alloc[a] || 0), 0);
+    const left = info.points - used;
+    const rows = D.ATTRS.map((a) => {
+      const v = Math.round(S.player.attrs[a]);
+      const add = alloc[a] || 0;
+      return h('div', { class: 'attr train' }, h('span', null, D.ATTR_LABELS[a]), h('div', { class: 'bar' }, h('i', { style: 'width:' + Math.min(100, v + add) + '%' })), h('b', null, v + (add ? ' +' + add : '')),
+        h('div', { class: 'ctl' }, h('button', { disabled: !add, onclick: () => { alloc[a] = add - 1; render(); } }, '−'), h('button', { disabled: left <= 0 || add >= 4, onclick: () => { alloc[a] = add + 1; render(); } }, '+')));
+    });
+    return h('div', null, h('h1', null, 'Offseason training'),
+      h('p', { class: 'muted' }, 'Spend upgrade points (max +4 per attribute). Gains shrink at high ratings and after 31. Natural development and aging happen after you confirm.'),
+      h('div', { class: 'card' }, h('div', { class: 'row' }, h('h2', { style: 'margin:0' }, left + ' / ' + info.points + ' points left'), h('span', { class: 'spacer' }), h('button', { onclick: () => { alloc = G.autoAlloc(S.player, info.points); render(); } }, 'Auto-allocate'), h('button', { onclick: () => { alloc = {}; render(); } }, 'Reset')), rows,
+        h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { try { report = G.train(S, alloc); alloc = {}; go(); } catch (e) { alert(e.message); } } }, 'Confirm & advance the offseason'))));
+  }
+
+  function screenReport() {
+    const r = report;
+    return h('div', null, h('h1', null, 'Offseason report · age ' + r.age),
+      h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', { class: 'big' }, r.ovr0 + ' → ' + r.ovr1), h('span', { class: r.ovr1 >= r.ovr0 ? 'pos' : 'neg' }, (r.ovr1 - r.ovr0 >= 0 ? '+' : '') + (r.ovr1 - r.ovr0) + ' OVR'), h('span', { class: 'muted small' }, 'upgrades contributed ' + (r.trainGain >= 0 ? '+' : '') + r.trainGain)),
+        h('div', { class: 'grid g2', style: 'margin-top:10px' }, r.changes.map((c) => { const d = c.to - c.from; return h('div', { class: 'row small' }, h('span', { style: 'width:130px' }, c.label), h('span', null, c.from + ' → ' + c.to), h('span', { class: d > 0 ? 'pos' : d < 0 ? 'neg' : 'muted' }, d ? (d > 0 ? '+' : '') + d : '–')); })),
+        h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { report = null; go(); } }, 'Continue →'))));
+  }
+
+  function screenProReady() {
+    const L = S.league, t = L.teams[S.teamId], p = S.player, c = S.contract;
+    const isRook = S.proSeasons.length === 0;
+    return h('div', null, h('h1', null, NBA.seasonLabel(L.year) + (isRook ? ' · Rookie season' : ' season')),
+      h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('div', { class: 'big' }, Math.round(NBA.ovr(p))), h('div', { class: 'muted small' }, 'OVERALL')), h('div', null, h('b', null, t.name), h('div', { class: 'muted small' }, 'Last season: ' + t.wins + '-' + t.losses + ' · age ' + p.age)), h('div', null, h('b', null, money(c.salary) + ' / yr'), h('div', { class: 'muted small' }, c.type === 'rookie' ? 'Rookie deal' : 'Contract') + ' · ' + (c.left) + ' yr left')), h('h3', null, 'Ratings'), attrBars(p),
+        h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { G.playSeason(S); go(); } }, 'Sim the ' + NBA.seasonLabel(L.year) + ' season →'))));
+  }
+
+  function screenRecap() {
+    const r = S.proSeasons[S.proSeasons.length - 1];
+    const p = S.player;
+    const awardPills = r.awards.map((a) => h('span', { class: 'pill gold' }, '🏅 ' + a));
+    const ranks = r.ranks ? ['pts', 'reb', 'ast', 'stl', 'blk'].filter((k) => r.ranks[k] && r.ranks[k] <= 5).map((k) => h('span', { class: 'pill good' }, '#' + r.ranks[k] + ' in ' + { pts: 'scoring', reb: 'rebounding', ast: 'assists', stl: 'steals', blk: 'blocks' }[k])) : [];
+    return h('div', null, h('h1', null, r.label + ' season recap'),
+      h('div', { class: 'card' }, h('p', { class: 'muted' }, r.team + ' · age ' + r.age + ' · OVR ' + r.ovr + ' · ' + money(r.salary)),
+        h('div', { class: 'grid stats' }, statBox(f1(r.pts), 'PPG'), statBox(f1(r.reb), 'RPG'), statBox(f1(r.ast), 'APG'), statBox(f1(r.stl), 'SPG'), statBox(f1(r.blk), 'BPG'), statBox(r.gp, 'Games')),
+        h('p', { style: 'margin-top:10px' }, 'FG ' + pct(r.fgp) + '% · 3P ' + pct(r.tpp) + '% · FT ' + pct(r.ftp) + '% · TS ' + pct(r.ts) + '% · ' + f1(r.mins) + ' mpg · High game ' + r.high),
+        h('p', null, 'Triple-doubles: ', h('b', null, r.td), ' · Double-doubles: ', h('b', null, r.dd), r.g40 ? ' · 40-pt games: ' + r.g40 : '', r.avgTD ? ' · 🔥 AVERAGED A TRIPLE-DOUBLE' : ''),
+        h('p', null, h('b', null, r.wins + '-' + r.losses), ' · ' + r.playoffText), awardPills, ranks, r.injury ? h('div', { class: 'callout' }, '🩹 ' + r.injury) : null, r.events.map((e) => h('div', { class: 'callout' }, e))),
+      r.playoff ? h('div', { class: 'card' }, h('h2', null, 'Playoffs' + (r.legend ? ' 🔥 LEGENDARY RUN' : r.heater ? ' 🔥 on a heater' : '')), h('div', { class: 'grid stats' }, statBox(f1(r.playoff.pts), 'PPG'), statBox(f1(r.playoff.reb), 'RPG'), statBox(f1(r.playoff.ast), 'APG')), h('p', { class: 'muted small' }, r.playoff.gp + ' games · ' + pct(r.playoff.ts) + ' TS% · ' + r.playoff.td + ' triple-doubles · high ' + r.playoff.high),
+        h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, ['Round', 'Opponent', 'Result', 'PTS', 'REB', 'AST'].map((x, i) => h('th', { class: i < 3 ? 'l' : '' }, x)))), h('tbody', null, r.perSeries.map((s) => h('tr', null, h('td', { class: 'l' }, s.round), h('td', { class: 'l' }, s.opp), h('td', { class: 'l' }, s.result), h('td', null, f1(s.pts)), h('td', null, f1(s.reb)), h('td', null, f1(s.ast)))))))) : null,
+      h('div', { class: 'card' }, h('h2', null, 'Around the league'), h('p', null, 'Champion: ', h('b', null, r.champion), ' · MVP: ', h('b', null, r.mvp)), h('p', { class: 'muted small' }, r.league.n30 + ' players averaged 30+ this year, ' + r.league.n25 + ' averaged 25+. Top scorers: ' + r.league.topScorers.map((s) => s.name + ' ' + f1(s.ppg)).join(' · '))),
+      h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { S.stage = 'decision'; S.decision = G.decisionOptions(S); go(); } }, 'Offseason decisions →')));
+  }
+
+  function screenDecision() {
+    const d = S.decision || (S.decision = G.decisionOptions(S));
+    const done = (res) => { S.decision = null; alloc = {}; S.flash = res && res.text; go(); };
+    const out = [h('h1', null, 'Offseason: what now?'), h('p', { class: 'muted' }, 'Age ' + d.age + ' · OVR ' + d.ovr + ' · ' + d.team + ' · market value ~' + money(d.marketSalary) + ' (cap ' + money(d.cap) + ')')];
+    if (d.mustRetire) out.push(h('div', { class: 'callout' }, 'No team has an offer for you and your body says it is time. This is the end of the road.'));
+    if (d.expiring && !d.mustRetire) {
+      const mkOffer = (o, kind) => {
+        let yrs = Math.min(3, o.maxYears);
+        const lab = h('b', null);
+        const sel = h('select', { onchange: (e) => (yrs = +e.target.value) }, Array.from({ length: o.maxYears }, (_, i) => h('option', { value: i + 1, selected: i + 1 === yrs }, (i + 1) + ' year' + (i ? 's' : ''))));
+        return h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('b', null, o.name), h('div', { class: 'small muted' }, o.label + ' · you would be a ' + o.role)), h('span', { class: 'spacer' }), h('b', null, money(o.salary) + ' / yr'), sel, h('button', { class: 'primary', onclick: () => done(G.decide(S, kind, { teamId: o.teamId, salary: o.salary, years: yrs })) }, kind === 'resign' ? 'Re-sign' : 'Sign')));
+      };
+      out.push(h('h3', null, 'Your contract expired · stay'), mkOffer(d.resign, 'resign'), h('h3', null, 'Test free agency · switch teams'), d.offers.length ? d.offers.map((o) => mkOffer(o, 'switch')) : h('p', { class: 'muted' }, 'No other team made an offer.'));
+    } else if (!d.mustRetire) {
+      out.push(h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('b', null, 'Stay with the ' + d.team), h('div', { class: 'small muted' }, 'Contract: ' + money(d.contract.salary) + ' · ' + d.contract.left + ' more year(s)')), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => done(G.decide(S, 'stay')) }, 'Stay'))),
+        h('h3', null, 'Demand a trade (pick a destination)'), d.tradeOptions.map((o) => h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('b', null, o.name), h('div', { class: 'small muted' }, o.label + ' (' + o.wins + ' wins last year) · you would be a ' + o.role)), h('span', { class: 'spacer' }), h('button', { onclick: () => done(G.decide(S, 'trade', { teamId: o.teamId })) }, 'Request trade')))));
+    }
+    out.push(h('div', { class: 'row', style: 'margin-top:14px' }, h('button', { class: 'danger', onclick: () => { if (confirm('Retire for good?')) { G.retire(S); S.decision = null; go(); } } }, 'Retire from basketball')));
+    return h('div', null, out);
+  }
+
+  function seasonTable(rows, playoffs) {
+    const head = playoffs ? ['Season', 'Age', 'Team', 'GP', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', '3P%', 'TS%', 'TD'] : ['Season', 'Age', 'Team', 'W-L', 'GP', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', '3P%', 'FT%', 'TS%', 'TD', 'OVR'];
+    return h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, head.map((x, i) => h('th', { class: i === 2 ? 'l' : '' }, x)))),
+      h('tbody', null, rows.map((s) => playoffs
+        ? h('tr', null, h('td', null, s.label), h('td', null, s.age), h('td', { class: 'l' }, s.team), h('td', null, s.gp), h('td', null, f1(s.mins)), h('td', null, f1(s.pts)), h('td', null, f1(s.reb)), h('td', null, f1(s.ast)), h('td', null, f1(s.stl)), h('td', null, f1(s.blk)), h('td', null, pct(s.fgp)), h('td', null, pct(s.tpp)), h('td', null, pct(s.ts)), h('td', null, s.td))
+        : h('tr', null, h('td', null, s.label), h('td', null, s.age), h('td', { class: 'l' }, s.team), h('td', null, s.wins + '-' + s.losses), h('td', null, s.gp), h('td', null, f1(s.mins)), h('td', null, f1(s.pts)), h('td', null, f1(s.reb)), h('td', null, f1(s.ast)), h('td', null, f1(s.stl)), h('td', null, f1(s.blk)), h('td', null, pct(s.fgp)), h('td', null, pct(s.tpp)), h('td', null, pct(s.ftp)), h('td', null, pct(s.ts)), h('td', null, s.td), h('td', null, s.ovr))))));
+  }
+  function careerTotals() {
+    const ps = S.proSeasons; if (!ps.length) return null;
+    const gp = ps.reduce((a, s) => a + s.gp, 0), tot = (k) => ps.reduce((a, s) => a + s[k] * s.gp, 0);
+    return { gp, pts: tot('pts') / gp, reb: tot('reb') / gp, ast: tot('ast') / gp, totPts: Math.round(tot('pts')), totReb: Math.round(tot('reb')), totAst: Math.round(tot('ast')), td: S.career.td };
+  }
+
+  function careerBody() {
+    const ps = S.proSeasons, ct = careerTotals(), aw = S.career.awards;
+    const wrap = h('div');
+    if (!ct) { wrap.append(h('p', { class: 'muted' }, 'No NBA games yet.'), S.collegeYears.length ? collegeTable() : null); return wrap; }
+    wrap.append(h('div', { class: 'grid stats' }, statBox(f1(ct.pts), 'Career PPG'), statBox(f1(ct.reb), 'Career RPG'), statBox(f1(ct.ast), 'Career APG'), statBox(ct.totPts.toLocaleString(), 'Total points'), statBox(ct.td, 'Triple-doubles (' + (100 * ct.td / ct.gp).toFixed(1) + '% of games)'), statBox(money(S.earnings), 'Career earnings')),
+      h('div', { style: 'margin-top:8px' }, Object.keys(aw).map((k) => h('span', { class: 'pill gold' }, aw[k] + '× ' + k))),
+      h('p', { class: 'muted small' }, 'Seasons averaging a triple-double: ' + S.career.tdSeasons + (S.career.td30Seasons ? ' (' + S.career.td30Seasons + ' with 30+ ppg)' : '')),
+      h('h3', null, 'Regular season'), seasonTable(ps, false));
+    if (S.playoffLines.length) wrap.append(h('h3', null, 'Playoffs'), seasonTable(S.playoffLines, true));
+    if (S.collegeYears.length) wrap.append(h('h3', null, 'College'), collegeTable());
+    return wrap;
+  }
+  function showCareer() {
+    const m = document.getElementById('modal');
+    m.classList.remove('hidden'); m.replaceChildren(h('div', { class: 'box' }, h('div', { class: 'row' }, h('h2', { style: 'margin:0' }, S.player.name + ' · Career'), h('span', { class: 'spacer' }), h('button', { onclick: () => m.classList.add('hidden') }, 'Close ✕')), careerBody()));
+    m.onclick = (e) => { if (e.target === m) m.classList.add('hidden'); };
+  }
+
+  function screenRetired() {
+    const hof = S.hof, p = S.player;
+    return h('div', null, h('h1', null, p.name + ' retires'),
+      h('div', { class: 'card' }, h('div', { class: 'big', style: 'color:' + (hof.hall ? 'var(--gold)' : 'inherit') }, hof.hall ? '🏛️ ' + hof.tier : hof.tier), h('p', { class: 'muted' }, 'Legacy score ' + hof.score + ' (Hall of Fame line: 85) · ' + S.proSeasons.length + ' seasons · ' + D.ARCHETYPES[p.arch].name + ' · hidden ceiling was ' + Math.round(p.ceiling) + ' · ' + S.stars + '★ recruit' + (S.draft && S.draft.slot ? ' · drafted #' + S.draft.slot : ' · undrafted'))),
+      h('div', { class: 'card' }, careerBody()),
+      h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { wipe(); S = null; boot(); } }, 'Start a new career')));
+  }
+
+  // ------------------------------------------------------------ router
+  function render() {
+    renderHeader();
+    app.replaceChildren();
+    if (!S) { app.append(screenCreate()); return; }
+    if (report) { app.append(screenReport()); return; }
+    const st = S.stage;
+    const m = { scouting: screenScouting, college_pick: screenCollegePick, college_ready: screenCollegeReady, college_decision: screenCollegeDecision, draft_night: screenDraft, training: screenTraining, pro_ready: screenProReady, season_recap: screenRecap, decision: screenDecision, retired: screenRetired };
+    if (S.flash && st !== 'decision') { app.append(h('div', { class: 'callout' }, S.flash)); S.flash = null; }
+    app.append((m[st] || screenCreate)());
+  }
+  function boot() { S = null; draft.name = ''; render(); }
+  window.__NBA_UI = { get state() { return S; } };
+  boot();
+})();
