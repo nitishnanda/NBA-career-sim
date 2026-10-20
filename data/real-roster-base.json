@@ -1,0 +1,1319 @@
+{
+ "rows": [
+  {
+   "team": "Hawks",
+   "name": "Jalen Johnson",
+   "pos": "PF",
+   "age": 24,
+   "ovr": 86,
+   "arch": "dominator",
+   "sec": ""
+  },
+  {
+   "team": "Hawks",
+   "name": "Nickeil Alexander-Walker",
+   "pos": "SG",
+   "age": 28,
+   "ovr": 78,
+   "arch": "shooter",
+   "sec": ""
+  },
+  {
+   "team": "Hawks",
+   "name": "Dyson Daniels",
+   "pos": "SG",
+   "age": 23,
+   "ovr": 78,
+   "arch": "twoway",
+   "sec": ""
+  },
+  {
+   "team": "Hawks",
+   "name": "CJ McCollum",
+   "pos": "SG",
+   "age": 35,
+   "ovr": 77,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Celtics",
+   "name": "Jayson Tatum",
+   "pos": "SF",
+   "age": 28,
+   "ovr": 91,
+   "arch": "scorer",
+   "sec": "twoway"
+  },
+  {
+   "team": "Celtics",
+   "name": "Derrick White",
+   "pos": "SG",
+   "age": 32,
+   "ovr": 80,
+   "arch": "twoway",
+   "sec": ""
+  },
+  {
+   "team": "Celtics",
+   "name": "Paul George",
+   "pos": "SF",
+   "age": 36,
+   "ovr": 80,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Celtics",
+   "name": "Payton Pritchard",
+   "pos": "PG",
+   "age": 28,
+   "ovr": 77,
+   "arch": "shooter",
+   "sec": ""
+  },
+  {
+   "team": "Nets",
+   "name": "Michael Porter Jr.",
+   "pos": "SF",
+   "age": 28,
+   "ovr": 81,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Nets",
+   "name": "Julius Randle",
+   "pos": "PF",
+   "age": 31,
+   "ovr": 80,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Nets",
+   "name": "Egor Demin",
+   "pos": "PG",
+   "age": 21,
+   "ovr": 72,
+   "arch": "shooter",
+   "sec": ""
+  },
+  {
+   "team": "Nets",
+   "name": "Nolan Traore",
+   "pos": "PG",
+   "age": 20,
+   "ovr": 70,
+   "arch": "dominator",
+   "sec": ""
+  },
+  {
+   "team": "Hornets",
+   "name": "Brandon Miller",
+   "pos": "SF",
+   "age": 24,
+   "ovr": 80,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Hornets",
+   "name": "Kon Knueppel",
+   "pos": "SG",
+   "age": 21,
+   "ovr": 79,
+   "arch": "shooter",
+   "sec": ""
+  },
+  {
+   "team": "Hornets",
+   "name": "Coby White",
+   "pos": "PG",
+   "age": 26,
+   "ovr": 77,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Hornets",
+   "name": "Naz Reid",
+   "pos": "PF",
+   "age": 27,
+   "ovr": 77,
+   "arch": "shooter",
+   "sec": ""
+  },
+  {
+   "team": "Bulls",
+   "name": "Josh Giddey",
+   "pos": "PG",
+   "age": 24,
+   "ovr": 79,
+   "arch": "dominator",
+   "sec": ""
+  },
+  {
+   "team": "Bulls",
+   "name": "Norman Powell",
+   "pos": "SG",
+   "age": 33,
+   "ovr": 78,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Bulls",
+   "name": "Matas Buzelis",
+   "pos": "SF",
+   "age": 22,
+   "ovr": 76,
+   "arch": "twoway",
+   "sec": ""
+  },
+  {
+   "team": "Bulls",
+   "name": "Nic Claxton",
+   "pos": "C",
+   "age": 27,
+   "ovr": 74,
+   "arch": "defender",
+   "sec": ""
+  },
+  {
+   "team": "Cavaliers",
+   "name": "Donovan Mitchell",
+   "pos": "SG",
+   "age": 30,
+   "ovr": 88,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Cavaliers",
+   "name": "Evan Mobley",
+   "pos": "PF",
+   "age": 25,
+   "ovr": 87,
+   "arch": "twoway",
+   "sec": "defender"
+  },
+  {
+   "team": "Cavaliers",
+   "name": "James Harden",
+   "pos": "SG",
+   "age": 37,
+   "ovr": 83,
+   "arch": "dominator",
+   "sec": ""
+  },
+  {
+   "team": "Cavaliers",
+   "name": "Jarrett Allen",
+   "pos": "C",
+   "age": 28,
+   "ovr": 80,
+   "arch": "defender",
+   "sec": ""
+  },
+  {
+   "team": "Pistons",
+   "name": "Cade Cunningham",
+   "pos": "PG",
+   "age": 25,
+   "ovr": 91,
+   "arch": "dominator",
+   "sec": ""
+  },
+  {
+   "team": "Pistons",
+   "name": "Jalen Duren",
+   "pos": "C",
+   "age": 22,
+   "ovr": 80,
+   "arch": "defender",
+   "sec": ""
+  },
+  {
+   "team": "Pistons",
+   "name": "Ausar Thompson",
+   "pos": "SF",
+   "age": 23,
+   "ovr": 79,
+   "arch": "twoway",
+   "sec": ""
+  },
+  {
+   "team": "Pistons",
+   "name": "John Collins",
+   "pos": "PF",
+   "age": 29,
+   "ovr": 74,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Pacers",
+   "name": "Tyrese Haliburton",
+   "pos": "PG",
+   "age": 26,
+   "ovr": 87,
+   "arch": "dominator",
+   "sec": ""
+  },
+  {
+   "team": "Pacers",
+   "name": "Pascal Siakam",
+   "pos": "PF",
+   "age": 32,
+   "ovr": 81,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Pacers",
+   "name": "Ivica Zubac",
+   "pos": "C",
+   "age": 29,
+   "ovr": 78,
+   "arch": "defender",
+   "sec": ""
+  },
+  {
+   "team": "Pacers",
+   "name": "Andrew Nembhard",
+   "pos": "PG",
+   "age": 27,
+   "ovr": 77,
+   "arch": "twoway",
+   "sec": ""
+  },
+  {
+   "team": "Heat",
+   "name": "Giannis Antetokounmpo",
+   "pos": "PF",
+   "age": 31,
+   "ovr": 94,
+   "arch": "twoway",
+   "sec": "generational"
+  },
+  {
+   "team": "Heat",
+   "name": "Bam Adebayo",
+   "pos": "C",
+   "age": 29,
+   "ovr": 85,
+   "arch": "twoway",
+   "sec": ""
+  },
+  {
+   "team": "Heat",
+   "name": "Bobby Portis",
+   "pos": "PF",
+   "age": 31,
+   "ovr": 74,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Heat",
+   "name": "Klay Thompson",
+   "pos": "SG",
+   "age": 36,
+   "ovr": 72,
+   "arch": "shooter",
+   "sec": ""
+  },
+  {
+   "team": "Bucks",
+   "name": "Tyler Herro",
+   "pos": "SG",
+   "age": 26,
+   "ovr": 80,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Bucks",
+   "name": "Myles Turner",
+   "pos": "C",
+   "age": 30,
+   "ovr": 76,
+   "arch": "shooter",
+   "sec": ""
+  },
+  {
+   "team": "Bucks",
+   "name": "Kyle Kuzma",
+   "pos": "PF",
+   "age": 31,
+   "ovr": 72,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Bucks",
+   "name": "Jaime Jaquez Jr.",
+   "pos": "SF",
+   "age": 25,
+   "ovr": 73,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Knicks",
+   "name": "Jalen Brunson",
+   "pos": "PG",
+   "age": 30,
+   "ovr": 90,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Knicks",
+   "name": "Karl-Anthony Towns",
+   "pos": "C",
+   "age": 31,
+   "ovr": 86,
+   "arch": "shooter",
+   "sec": ""
+  },
+  {
+   "team": "Knicks",
+   "name": "OG Anunoby",
+   "pos": "SF",
+   "age": 29,
+   "ovr": 82,
+   "arch": "twoway",
+   "sec": ""
+  },
+  {
+   "team": "Knicks",
+   "name": "Mikal Bridges",
+   "pos": "SF",
+   "age": 30,
+   "ovr": 80,
+   "arch": "twoway",
+   "sec": ""
+  },
+  {
+   "team": "Magic",
+   "name": "Paolo Banchero",
+   "pos": "PF",
+   "age": 24,
+   "ovr": 86,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Magic",
+   "name": "Franz Wagner",
+   "pos": "SF",
+   "age": 25,
+   "ovr": 83,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Magic",
+   "name": "Desmond Bane",
+   "pos": "SG",
+   "age": 28,
+   "ovr": 81,
+   "arch": "shooter",
+   "sec": ""
+  },
+  {
+   "team": "Magic",
+   "name": "Jalen Suggs",
+   "pos": "PG",
+   "age": 25,
+   "ovr": 77,
+   "arch": "twoway",
+   "sec": ""
+  },
+  {
+   "team": "76ers",
+   "name": "Joel Embiid",
+   "pos": "C",
+   "age": 32,
+   "ovr": 90,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "76ers",
+   "name": "Jaylen Brown",
+   "pos": "SF",
+   "age": 30,
+   "ovr": 89,
+   "arch": "twoway",
+   "sec": "scorer"
+  },
+  {
+   "team": "76ers",
+   "name": "Tyrese Maxey",
+   "pos": "PG",
+   "age": 26,
+   "ovr": 88,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "76ers",
+   "name": "LeBron James",
+   "pos": "PF",
+   "age": 41,
+   "ovr": 82,
+   "arch": "generational",
+   "sec": "dominator"
+  },
+  {
+   "team": "76ers",
+   "name": "VJ Edgecombe",
+   "pos": "SG",
+   "age": 21,
+   "ovr": 80,
+   "arch": "twoway",
+   "sec": ""
+  },
+  {
+   "team": "Raptors",
+   "name": "Kawhi Leonard",
+   "pos": "SF",
+   "age": 35,
+   "ovr": 85,
+   "arch": "twoway",
+   "sec": ""
+  },
+  {
+   "team": "Raptors",
+   "name": "Scottie Barnes",
+   "pos": "PF",
+   "age": 25,
+   "ovr": 85,
+   "arch": "dominator",
+   "sec": "twoway"
+  },
+  {
+   "team": "Raptors",
+   "name": "Immanuel Quickley",
+   "pos": "PG",
+   "age": 27,
+   "ovr": 80,
+   "arch": "shooter",
+   "sec": ""
+  },
+  {
+   "team": "Raptors",
+   "name": "RJ Barrett",
+   "pos": "SF",
+   "age": 26,
+   "ovr": 77,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Wizards",
+   "name": "Trae Young",
+   "pos": "PG",
+   "age": 28,
+   "ovr": 80,
+   "arch": "dominator",
+   "sec": ""
+  },
+  {
+   "team": "Wizards",
+   "name": "Anthony Davis",
+   "pos": "PF",
+   "age": 33,
+   "ovr": 80,
+   "arch": "defender",
+   "sec": ""
+  },
+  {
+   "team": "Wizards",
+   "name": "Alex Sarr",
+   "pos": "C",
+   "age": 21,
+   "ovr": 76,
+   "arch": "defender",
+   "sec": ""
+  },
+  {
+   "team": "Wizards",
+   "name": "Kyshawn George",
+   "pos": "SF",
+   "age": 22,
+   "ovr": 72,
+   "arch": "shooter",
+   "sec": ""
+  },
+  {
+   "team": "Mavericks",
+   "name": "Kyrie Irving",
+   "pos": "PG",
+   "age": 34,
+   "ovr": 84,
+   "arch": "shooter",
+   "sec": ""
+  },
+  {
+   "team": "Mavericks",
+   "name": "Cooper Flagg",
+   "pos": "SF",
+   "age": 19,
+   "ovr": 82,
+   "arch": "twoway",
+   "sec": "generational"
+  },
+  {
+   "team": "Mavericks",
+   "name": "P.J. Washington",
+   "pos": "PF",
+   "age": 28,
+   "ovr": 74,
+   "arch": "twoway",
+   "sec": ""
+  },
+  {
+   "team": "Mavericks",
+   "name": "Daniel Gafford",
+   "pos": "C",
+   "age": 28,
+   "ovr": 73,
+   "arch": "defender",
+   "sec": ""
+  },
+  {
+   "team": "Nuggets",
+   "name": "Nikola Jokic",
+   "pos": "C",
+   "age": 31,
+   "ovr": 96,
+   "arch": "dominator",
+   "sec": "generational"
+  },
+  {
+   "team": "Nuggets",
+   "name": "Jamal Murray",
+   "pos": "PG",
+   "age": 29,
+   "ovr": 85,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Nuggets",
+   "name": "Aaron Gordon",
+   "pos": "PF",
+   "age": 31,
+   "ovr": 79,
+   "arch": "twoway",
+   "sec": ""
+  },
+  {
+   "team": "Nuggets",
+   "name": "Cameron Johnson",
+   "pos": "SF",
+   "age": 30,
+   "ovr": 75,
+   "arch": "shooter",
+   "sec": ""
+  },
+  {
+   "team": "Warriors",
+   "name": "Stephen Curry",
+   "pos": "PG",
+   "age": 38,
+   "ovr": 88,
+   "arch": "shooter",
+   "sec": ""
+  },
+  {
+   "team": "Warriors",
+   "name": "Jimmy Butler",
+   "pos": "SF",
+   "age": 37,
+   "ovr": 80,
+   "arch": "twoway",
+   "sec": ""
+  },
+  {
+   "team": "Warriors",
+   "name": "Kristaps Porzingis",
+   "pos": "C",
+   "age": 31,
+   "ovr": 78,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Warriors",
+   "name": "Brandin Podziemski",
+   "pos": "SG",
+   "age": 23,
+   "ovr": 76,
+   "arch": "shooter",
+   "sec": ""
+  },
+  {
+   "team": "Rockets",
+   "name": "Kevin Durant",
+   "pos": "SF",
+   "age": 38,
+   "ovr": 87,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Rockets",
+   "name": "Alperen Sengun",
+   "pos": "C",
+   "age": 24,
+   "ovr": 85,
+   "arch": "dominator",
+   "sec": ""
+  },
+  {
+   "team": "Rockets",
+   "name": "Amen Thompson",
+   "pos": "SF",
+   "age": 23,
+   "ovr": 84,
+   "arch": "twoway",
+   "sec": ""
+  },
+  {
+   "team": "Rockets",
+   "name": "Jabari Smith Jr.",
+   "pos": "PF",
+   "age": 23,
+   "ovr": 78,
+   "arch": "shooter",
+   "sec": ""
+  },
+  {
+   "team": "Clippers",
+   "name": "Brandon Ingram",
+   "pos": "SF",
+   "age": 29,
+   "ovr": 82,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Clippers",
+   "name": "Darius Garland",
+   "pos": "PG",
+   "age": 26,
+   "ovr": 80,
+   "arch": "shooter",
+   "sec": ""
+  },
+  {
+   "team": "Clippers",
+   "name": "Brook Lopez",
+   "pos": "C",
+   "age": 38,
+   "ovr": 73,
+   "arch": "defender",
+   "sec": ""
+  },
+  {
+   "team": "Clippers",
+   "name": "Rui Hachimura",
+   "pos": "PF",
+   "age": 28,
+   "ovr": 74,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Lakers",
+   "name": "Luka Doncic",
+   "pos": "PG",
+   "age": 27,
+   "ovr": 94,
+   "arch": "dominator",
+   "sec": "scorer"
+  },
+  {
+   "team": "Lakers",
+   "name": "Austin Reaves",
+   "pos": "SG",
+   "age": 28,
+   "ovr": 80,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Lakers",
+   "name": "Walker Kessler",
+   "pos": "C",
+   "age": 25,
+   "ovr": 78,
+   "arch": "defender",
+   "sec": ""
+  },
+  {
+   "team": "Lakers",
+   "name": "Quentin Grimes",
+   "pos": "SG",
+   "age": 26,
+   "ovr": 74,
+   "arch": "shooter",
+   "sec": ""
+  },
+  {
+   "team": "Grizzlies",
+   "name": "Jerami Grant",
+   "pos": "PF",
+   "age": 32,
+   "ovr": 77,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Grizzlies",
+   "name": "Ty Jerome",
+   "pos": "PG",
+   "age": 29,
+   "ovr": 76,
+   "arch": "shooter",
+   "sec": ""
+  },
+  {
+   "team": "Grizzlies",
+   "name": "Zach Edey",
+   "pos": "C",
+   "age": 24,
+   "ovr": 75,
+   "arch": "defender",
+   "sec": ""
+  },
+  {
+   "team": "Grizzlies",
+   "name": "Cedric Coward",
+   "pos": "SF",
+   "age": 22,
+   "ovr": 74,
+   "arch": "twoway",
+   "sec": ""
+  },
+  {
+   "team": "Timberwolves",
+   "name": "Anthony Edwards",
+   "pos": "SG",
+   "age": 25,
+   "ovr": 91,
+   "arch": "scorer",
+   "sec": "twoway"
+  },
+  {
+   "team": "Timberwolves",
+   "name": "LaMelo Ball",
+   "pos": "PG",
+   "age": 25,
+   "ovr": 84,
+   "arch": "dominator",
+   "sec": ""
+  },
+  {
+   "team": "Timberwolves",
+   "name": "Rudy Gobert",
+   "pos": "C",
+   "age": 34,
+   "ovr": 80,
+   "arch": "defender",
+   "sec": ""
+  },
+  {
+   "team": "Timberwolves",
+   "name": "Jaden McDaniels",
+   "pos": "SF",
+   "age": 26,
+   "ovr": 78,
+   "arch": "twoway",
+   "sec": ""
+  },
+  {
+   "team": "Pelicans",
+   "name": "Zion Williamson",
+   "pos": "PF",
+   "age": 26,
+   "ovr": 83,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Pelicans",
+   "name": "Trey Murphy III",
+   "pos": "SF",
+   "age": 26,
+   "ovr": 80,
+   "arch": "shooter",
+   "sec": ""
+  },
+  {
+   "team": "Pelicans",
+   "name": "Dejounte Murray",
+   "pos": "PG",
+   "age": 30,
+   "ovr": 76,
+   "arch": "twoway",
+   "sec": ""
+  },
+  {
+   "team": "Pelicans",
+   "name": "Derik Queen",
+   "pos": "C",
+   "age": 21,
+   "ovr": 75,
+   "arch": "dominator",
+   "sec": ""
+  },
+  {
+   "team": "Thunder",
+   "name": "Shai Gilgeous-Alexander",
+   "pos": "PG",
+   "age": 28,
+   "ovr": 95,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Thunder",
+   "name": "Jalen Williams",
+   "pos": "SF",
+   "age": 25,
+   "ovr": 84,
+   "arch": "twoway",
+   "sec": ""
+  },
+  {
+   "team": "Thunder",
+   "name": "Chet Holmgren",
+   "pos": "C",
+   "age": 24,
+   "ovr": 84,
+   "arch": "defender",
+   "sec": ""
+  },
+  {
+   "team": "Thunder",
+   "name": "Isaiah Hartenstein",
+   "pos": "C",
+   "age": 28,
+   "ovr": 77,
+   "arch": "defender",
+   "sec": ""
+  },
+  {
+   "team": "Suns",
+   "name": "Devin Booker",
+   "pos": "SG",
+   "age": 30,
+   "ovr": 88,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Suns",
+   "name": "Jalen Green",
+   "pos": "SG",
+   "age": 24,
+   "ovr": 78,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Suns",
+   "name": "Dillon Brooks",
+   "pos": "SF",
+   "age": 31,
+   "ovr": 76,
+   "arch": "twoway",
+   "sec": ""
+  },
+  {
+   "team": "Suns",
+   "name": "Miles Bridges",
+   "pos": "PF",
+   "age": 28,
+   "ovr": 76,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Trail Blazers",
+   "name": "Ja Morant",
+   "pos": "PG",
+   "age": 27,
+   "ovr": 84,
+   "arch": "dominator",
+   "sec": ""
+  },
+  {
+   "team": "Trail Blazers",
+   "name": "Deni Avdija",
+   "pos": "SF",
+   "age": 25,
+   "ovr": 82,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Trail Blazers",
+   "name": "Shaedon Sharpe",
+   "pos": "SG",
+   "age": 23,
+   "ovr": 78,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Trail Blazers",
+   "name": "Donovan Clingan",
+   "pos": "C",
+   "age": 22,
+   "ovr": 78,
+   "arch": "defender",
+   "sec": ""
+  },
+  {
+   "team": "Kings",
+   "name": "Domantas Sabonis",
+   "pos": "C",
+   "age": 30,
+   "ovr": 84,
+   "arch": "dominator",
+   "sec": ""
+  },
+  {
+   "team": "Kings",
+   "name": "Zach LaVine",
+   "pos": "SG",
+   "age": 31,
+   "ovr": 78,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Kings",
+   "name": "Keegan Murray",
+   "pos": "PF",
+   "age": 26,
+   "ovr": 77,
+   "arch": "shooter",
+   "sec": ""
+  },
+  {
+   "team": "Kings",
+   "name": "Malik Monk",
+   "pos": "SG",
+   "age": 28,
+   "ovr": 76,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Spurs",
+   "name": "Victor Wembanyama",
+   "pos": "C",
+   "age": 22,
+   "ovr": 97,
+   "arch": "generational",
+   "sec": "defender"
+  },
+  {
+   "team": "Spurs",
+   "name": "De'Aaron Fox",
+   "pos": "PG",
+   "age": 28,
+   "ovr": 85,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Spurs",
+   "name": "Stephon Castle",
+   "pos": "SG",
+   "age": 21,
+   "ovr": 80,
+   "arch": "twoway",
+   "sec": ""
+  },
+  {
+   "team": "Spurs",
+   "name": "Dylan Harper",
+   "pos": "PG",
+   "age": 20,
+   "ovr": 76,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Jazz",
+   "name": "Lauri Markkanen",
+   "pos": "PF",
+   "age": 29,
+   "ovr": 84,
+   "arch": "scorer",
+   "sec": ""
+  },
+  {
+   "team": "Jazz",
+   "name": "Jaren Jackson Jr.",
+   "pos": "PF",
+   "age": 27,
+   "ovr": 82,
+   "arch": "defender",
+   "sec": ""
+  },
+  {
+   "team": "Jazz",
+   "name": "Keyonte George",
+   "pos": "PG",
+   "age": 23,
+   "ovr": 76,
+   "arch": "shooter",
+   "sec": ""
+  },
+  {
+   "team": "Jazz",
+   "name": "Ace Bailey",
+   "pos": "SF",
+   "age": 20,
+   "ovr": 74,
+   "arch": "scorer",
+   "sec": ""
+  }
+ ],
+ "rookies": [
+  [
+   "AJ Dybantsa",
+   "Wizards",
+   "SF",
+   19,
+   74,
+   95,
+   "scorer",
+   "generational",
+   1
+  ],
+  [
+   "Darryn Peterson",
+   "Jazz",
+   "SG",
+   19,
+   73,
+   92,
+   "scorer",
+   "",
+   2
+  ],
+  [
+   "Cameron Boozer",
+   "Grizzlies",
+   "PF",
+   19,
+   74,
+   90,
+   "dominator",
+   "",
+   3
+  ],
+  [
+   "Caleb Wilson",
+   "Bulls",
+   "PF",
+   19,
+   70,
+   88,
+   "twoway",
+   "",
+   4
+  ],
+  [
+   "Keaton Wagler",
+   "Clippers",
+   "SG",
+   19,
+   69,
+   86,
+   "shooter",
+   "",
+   5
+  ],
+  [
+   "Mikel Brown Jr.",
+   "Nets",
+   "PG",
+   19,
+   68,
+   85,
+   "scorer",
+   "",
+   6
+  ],
+  [
+   "Darius Acuff Jr.",
+   "Kings",
+   "PG",
+   19,
+   68,
+   85,
+   "dominator",
+   "",
+   7
+  ],
+  [
+   "Kingston Flemings",
+   "Hawks",
+   "PG",
+   19,
+   67,
+   84,
+   "scorer",
+   "",
+   8
+  ],
+  [
+   "Morez Johnson Jr.",
+   "Mavericks",
+   "PF",
+   20,
+   66,
+   80,
+   "defender",
+   "",
+   9
+  ],
+  [
+   "Brayden Burries",
+   "Bucks",
+   "SG",
+   19,
+   66,
+   82,
+   "scorer",
+   "",
+   10
+  ],
+  [
+   "Yaxel Lendeborg",
+   "Warriors",
+   "PF",
+   23,
+   69,
+   76,
+   "twoway",
+   "",
+   11
+  ],
+  [
+   "Aday Mara",
+   "Thunder",
+   "C",
+   21,
+   66,
+   78,
+   "defender",
+   "",
+   12
+  ],
+  [
+   "Nate Ament",
+   "Bucks",
+   "SF",
+   19,
+   64,
+   82,
+   "scorer",
+   "",
+   13
+  ],
+  [
+   "Hannes Steinbach",
+   "Hornets",
+   "C",
+   20,
+   64,
+   78,
+   "dominator",
+   "",
+   14
+  ],
+  [
+   "Dailyn Swain",
+   "Bulls",
+   "SF",
+   21,
+   64,
+   76,
+   "twoway",
+   "",
+   15
+  ],
+  [
+   "Ebuka Okorie",
+   "Pistons",
+   "PG",
+   20,
+   62,
+   76,
+   "scorer",
+   "",
+   17
+  ],
+  [
+   "Jayden Quaintance",
+   "Spurs",
+   "PF",
+   19,
+   62,
+   80,
+   "defender",
+   "",
+   20
+  ],
+  [
+   "Zuby Ejiofor",
+   "Hawks",
+   "PF",
+   23,
+   62,
+   70,
+   "defender",
+   "",
+   23
+  ],
+  [
+   "Koa Peat",
+   "Suns",
+   "PF",
+   19,
+   60,
+   76,
+   "twoway",
+   "",
+   30
+  ]
+ ],
+ "wins": {
+  "Spurs": 62,
+  "Pistons": 60,
+  "Thunder": 60,
+  "Knicks": 53,
+  "Cavaliers": 52,
+  "Magic": 45,
+  "Clippers": 42,
+  "Warriors": 37,
+  "Bucks": 32,
+  "Pelicans": 26,
+  "Grizzlies": 25,
+  "Pacers": 19,
+  "Wizards": 17
+ }
+}

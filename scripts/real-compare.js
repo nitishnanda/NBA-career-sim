@@ -11,6 +11,8 @@ const corr = (x, y) => { const mx = avg(x), my = avg(y); let a = 0, b = 0, c = 0
 
 const yoy = { all: [], mid: [], star: [], starPersist: [], starDelta: [] };
 const supply = { any: [], three: [], five: [] };
+const rankP = {}, rankG = {}, nQual = [];
+const RANKS = [1, 3, 5, 10, 15, 24, 35, 50, 75, 100, 125, 150];
 const acc = { n30: [], n28: [], n25: [], n20: [], top: [], top5: [], perf1: [], perf5: [], perf10: [], perf24: [], perf50: [], perf100: [], r24: [], star: { min: [], usg: [], ts: [], gp: [] },
   ageP: {}, ageD: {}, ageDstar: {}, cohort: {}, mvp: { age: [], w: [], ppg: [], p25: [], perf: [], usg: [], distinct: [], max: [] }, a1: { ppg: [], perf: [] },
   wins: { sd: [], s60: [], s55: [], u25: [], u20: [], yoy: [], absch: [], bad: [], bad20: [], bad50: [] }, rook: {}, top3: { y1: [], y2: [] }, top5scorers: [] };
@@ -28,6 +30,7 @@ for (let seed = 1; seed <= SEEDS; seed++) {
     const q = ent.filter((e) => e.l.gp >= 58);
     const by = (k) => q.map((e) => e.l[k]).sort((a, b) => b - a);
     const pts = by('pts'), perf = by('perf');
+    nQual.push(q.length); { const pp = q.map((e) => e.l.perf).sort((a, b) => b - a), gg = q.map((e) => e.l.pts).sort((a, b) => b - a); RANKS.forEach((r) => { if (pp.length >= r) { (rankP[r] = rankP[r] || []).push(pp[r - 1]); (rankG[r] = rankG[r] || []).push(gg[r - 1]); } }); }
     acc.n30.push(q.filter((e) => e.l.pts >= 30).length); acc.n28.push(q.filter((e) => e.l.pts >= 28).length);
     acc.n25.push(q.filter((e) => e.l.pts >= 25).length); acc.n20.push(q.filter((e) => e.l.pts >= 20).length);
     acc.top.push(pts[0]); acc.top5.push(avg(pts.slice(0, 5)));
@@ -126,13 +129,16 @@ const line = (name, r, s, tol) => console.log(name.padEnd(46), f(r, 2).padStart(
 console.log('REAL (Basketball-Reference through ' + real.through_season + ') vs SIM (' + SEEDS + ' seeds x ' + SEASONS + ' seasons)');
 console.log(''.padEnd(46), '    real', '     sim');
 console.log('\n-- scoring and production (2016-26, gp>=58)');
-line('players >= 30 ppg / season', R.n30, avg(acc.n30), 0.25); line('players >= 28 ppg', R.n28, avg(acc.n28), 0.2); line('players >= 25 ppg', R.n25, avg(acc.n25)); line('players >= 20 ppg (sim has less depth)', R.n20, avg(acc.n20), 0.2);
+line('players >= 30 ppg / season', R.n30, avg(acc.n30), 0.25); line('players >= 28 ppg', R.n28, avg(acc.n28), 0.2); line('players >= 25 ppg', R.n25, avg(acc.n25)); line('players >= 20 ppg', R.n20, avg(acc.n20), 0.2);
 line('top scorer ppg', R.top, avg(acc.top), 0.05); line('mean of top-5 scorers', R.top5, avg(acc.top5), 0.05);
 line('perf rank 1', R.perf1, avg(acc.perf1), 0.08); line('perf mean top 5', R.perf5, avg(acc.perf5), 0.08); line('perf mean top 10', R.perf10, avg(acc.perf10), 0.08);
-line('perf mean top 24 (All-Star tier)', R.perf24, avg(acc.perf24), 0.08); line('perf mean top 50', R.perf50, avg(acc.perf50), 0.08); /* the sim models ~125 qualified players, not 246, so ranks beyond ~50 are not compared */
+line('perf mean top 24 (All-Star tier)', R.perf24, avg(acc.perf24), 0.08); line('perf mean top 50', R.perf50, avg(acc.perf50), 0.08);
 line('perf of 24th best (All-Star cutoff)', R.perf_r24, avg(acc.r24), 0.08);
 line('star (perf>=40) minutes', real.star_minutes.mean, avg(acc.star.min), 0.05); line('star usage %', real.star_minutes.usg_mean, avg(acc.star.usg), 0.07); line('star TS%', real.star_minutes.ts_mean, avg(acc.star.ts), 0.03);
 line('star games played share (g/82)', avg(Object.values(real.star_gp_pct_by_age)), avg(acc.star.gp), 0.07);
+console.log('\n-- depth: production and scoring by league rank (the sim now models full rotations)');
+line('qualified players per season (gp>=58)', real.qualified_per_season, avg(nQual), 0.12);
+RANKS.forEach((r) => console.log(('perf / ppg at rank ' + r).padEnd(46), (f(real.perf_by_rank[r]) + ' / ' + f(real.ppg_by_rank[r])).padStart(14), (f(avg(rankP[r] || [])) + ' / ' + f(avg(rankG[r] || []))).padStart(14)));
 console.log('\n-- aging: mean year-over-year change in perf (qualified players)');
 console.log('age'.padEnd(6), 'real_all'.padStart(9), 'sim_all'.padStart(9), '   real_star'.padStart(11), 'sim_star'.padStart(9), '   mean perf real / sim');
 for (let a = 19; a <= 37; a++) {

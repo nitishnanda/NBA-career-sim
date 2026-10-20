@@ -32,7 +32,7 @@
       miss = Math.max(miss, rint(34, 70));
     }
     const o = ovr(p);
-    let rest = o >= 74 ? (p.age >= 30 ? rint(4, 10) : rint(1, 6)) : rint(0, 3);
+    let rest = o >= 74 ? (p.age >= 30 ? rint(4, 10) : rint(1, 6)) : o >= 68 ? rint(0, 8) : rint(0, 26); // role players churn: DNPs, waivers, two-way deals
     if (opts.noRest) rest = 0;
     return { gp: clamp(82 - miss - rest - (opts.extraMiss || 0), 0, 82), miss, rest, injuries: list, major, notable };
   }
@@ -54,17 +54,32 @@
     p.yearsPro = Math.max(0, age - 19);
     return p;
   }
-  function fillCore(L, t) {
+  // Each team has a core (its four best players, who drive winning) and a bench (6-8 more who play real minutes).
+  function makeBench(L, t) {
+    const p = makeNPC(L, rint(21, 32), { ceiling: 54 + 13 * Math.pow(rand(), 1.3), bonus: 0 });
+    p.teamId = t.id; L.players[p.id] = p; t.bench.push(p.id);
+  }
+  function fillRoster(L, t) {
+    t.bench = t.bench || [];
+    const all = t.core.concat(t.bench).map((id) => L.players[id]).filter(Boolean).sort((a, b) => ovr(b) - ovr(a));
+    t.core = all.slice(0, 4).map((p) => p.id);
+    t.bench = all.slice(4).map((p) => p.id);
     while (t.core.length < 4) {
       const p = makeNPC(L, rint(23, 30), { ceiling: 67 + rand() * 9, bonus: 0 });
       p.teamId = t.id; L.players[p.id] = p; t.core.push(p.id);
     }
+    while (t.bench.length < 4) makeBench(L, t);
+    while (t.bench.length > 6) {
+      const worst = t.bench.map((id) => L.players[id]).sort((a, b) => ovr(a) - ovr(b))[0];
+      t.bench.splice(t.bench.indexOf(worst.id), 1); delete L.players[worst.id];
+    }
   }
+  const fillCore = fillRoster;
 
   function newLeague(startYear, opts) {
     const L = {
       year: startYear || 2025, nextId: 1, players: {}, rookies: [], history: [], lines: {},
-      teams: D.TEAMS.map((t) => Object.assign({}, t, { core: [], depth: randn() * 2.2, wins: 41, losses: 41, pace: 99 })),
+      teams: D.TEAMS.map((t) => Object.assign({}, t, { core: [], bench: [], depth: randn() * 2.2, wins: 41, losses: 41, pace: 99 })),
       capBase: 154.6, lastLeaders: null,
     };
     if (opts && opts.real && NBA.real) { buildReal(L); return L; }
@@ -80,6 +95,7 @@
       const t = L.teams[i % 30];
       p.teamId = t.id; L.players[p.id] = p; t.core.push(p.id);
     });
+    L.teams.forEach((t) => fillRoster(L, t));
     return L;
   }
 
@@ -225,8 +241,8 @@
     });
     const meanS = sum(L.teams.map((t) => t.S)) / L.teams.length;
     L.teams.forEach((t) => {
-      t.depth = 0.5 * t.depth + randn() * 3.2;
-      t.wins = 41 + T.winsPerPt * (t.S - meanS) + t.depth + randn() * 5.5;
+      t.depth = 0.6 * t.depth + randn() * 3.0;
+      t.wins = 41 + T.winsPerPt * (t.S - meanS) + t.depth + randn() * 4.6;
     });
     // roster continuity: a team does not flip from the lottery to the top seed in one summer
     L.teams.forEach((t) => { t.wins = 0.9 * t.wins + 0.1 * (t.prevWins == null ? 41 : t.prevWins); });
@@ -263,11 +279,11 @@
 
     // awards
     const q65 = entries.filter((e) => e.l.gp >= 65);
-    const byMVP = q65.map((e) => ({ e, s: e.l.perf + 0.25 * e.l.pts + 0.5 * (e.l.wins - 41) + randn() * 6.5 - (e.p.mvpRecent || 0), ok: e.l.wins >= 36 })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
+    const byMVP = q65.map((e) => ({ e, s: 0.85 * e.l.perf + 0.35 * e.l.pts + 0.5 * (e.l.wins - 41) + randn() * 6 - (e.p.mvpRecent || 0), ok: e.l.wins >= 36 })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
     const dpoy = q65.map((e) => ({ e, s: defScore(e.p, e.l) + 0.12 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s);
     const roy = entries.filter((e) => e.p.rookie && e.l.gp >= 50).map((e) => ({ e, s: e.l.perf + 0.1 * (e.l.wins - 41) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
     const mip = q65.filter((e) => !e.p.rookie && e.p.prevPerf != null && e.p.age <= 28).map((e) => ({ e, s: (e.l.perf - e.p.prevPerf) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
-    const allNBA = q65.map((e) => ({ e, s: e.l.perf + 0.2 * e.l.pts + 0.25 * (e.l.wins - 41) + randn() * 3 })).sort((a, b) => b.s - a.s).slice(0, 15);
+    const allNBA = q65.map((e) => ({ e, s: 0.85 * e.l.perf + 0.45 * e.l.pts + 0.3 * (e.l.wins - 41) + randn() * 4.5 })).sort((a, b) => b.s - a.s).slice(0, 15);
     const allDef = dpoy.slice(0, 10);
     const stars = entries.filter((e) => e.l.gp >= 40).map((e) => ({ e, s: e.l.perf + randn() * 3 })).sort((a, b) => b.s - a.s).slice(0, 24);
     const qual = entries.filter((e) => e.l.gp >= 58);
@@ -372,7 +388,7 @@
   function addRookies(L, picks, order) {
     // picks: array of {p, slot}
     picks.forEach(({ p, slot }) => {
-      if (slot > 24 && ovr(p) < 66) return;
+      if (slot > 48 && ovr(p) < 60) return;
       const t = order[slot - 1];
       p.teamId = t.id; p.rookie = true; p.draftSlot = slot; p.yearsPro = 0;
       L.players[p.id] = p;
@@ -419,34 +435,12 @@
   }
 
   function settleRookies(L) {
-    const rooks = Object.values(L.players).filter((p) => p.rookie);
-    const ovrB = (p) => ovr(p) + (p.draftSlot <= 10 ? 3 : p.draftSlot <= 20 ? 1 : 0);
-    rooks.sort((a, b) => ovrB(b) - ovrB(a));
-    rooks.forEach((p) => (p.rookie = false));
-    const placed = new Set();
-    // own team first if it has a vacancy
-    rooks.forEach((p) => {
+    Object.values(L.players).filter((p) => p.rookie).forEach((p) => {
+      p.rookie = false;
       const t = L.teams[p.teamId];
-      if (t.core.length < 4) { t.core.push(p.id); placed.add(p.id); }
+      t.bench = t.bench || [];
+      if (!t.core.includes(p.id) && !t.bench.includes(p.id)) t.bench.push(p.id);
     });
-    // leftover talent goes to whichever teams still have holes (trades / draft-day deals)
-    rooks.forEach((p) => {
-      if (placed.has(p.id)) return;
-      const t = L.teams.find((x) => x.core.length < 4);
-      if (!t) return;
-      p.teamId = t.id; t.core.push(p.id); placed.add(p.id);
-    });
-    // a top pick can still take a starting spot from the worst core guy
-    rooks.forEach((p) => {
-      if (placed.has(p.id)) return;
-      const t = L.teams[p.teamId];
-      const worst = t.core.map((id) => L.players[id]).sort((a, b) => ovr(a) - ovr(b))[0];
-      if (p.draftSlot <= 6 && worst && ovr(p) > ovr(worst) + 3) {
-        t.core.splice(t.core.indexOf(worst.id), 1); delete L.players[worst.id];
-        t.core.push(p.id); placed.add(p.id);
-      }
-    });
-    rooks.forEach((p) => { if (!placed.has(p.id)) delete L.players[p.id]; });
   }
 
   function offseason(L, opts) {
@@ -456,6 +450,7 @@
       if (retireP(p)) {
         const t = L.teams[p.teamId];
         t.core = t.core.filter((id) => id !== p.id);
+        t.bench = (t.bench || []).filter((id) => id !== p.id);
         delete L.players[p.id];
       }
     });
@@ -484,6 +479,6 @@
     return { n90: o.filter((x) => x >= 90).length, n85: o.filter((x) => x >= 85).length, n80: o.filter((x) => x >= 80).length, mean: sum(o) / o.length, top: o.slice(0, 6).map((x) => Math.round(x)) };
   }
 
-  Object.assign(NBA, { seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, userDraft, npcDraft, draftClass, makeProspect, retireP, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
+  Object.assign(NBA, { seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, makeReal, userDraft, npcDraft, draftClass, makeProspect, retireP, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

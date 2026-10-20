@@ -39,12 +39,12 @@
   // ---------------------------------------------------------------- tuning knobs
   const T = {
     pace: 99,            // possessions per game, 2025-ish
-    usgBase: 0.203, usgPerSS: 0.0045, usgConvex: 0.00012,
+    usgBase: 0.192, usgPerSS: 0.005, usgConvex: 0.00012,
     tsBase: 0.402, tsPerSkill: 0.0025, tsEra: 0.012, usgTax: 0.22,
     minsBase: 12, minsPerOvr: 0.95, minsCap: 35.4,
     declineScale: 1.15,
-    ceilA: 55, ceilLambda: 13.1, ceilK: 1.51,
-    winsPerPt: 0.8, formSd: 0.07, winsCoreAvg: 48, ovrStretch: 1.3,
+    ceilA: 55, ceilLambda: 11.5, ceilK: 1.3,
+    winsPerPt: 0.95, formSd: 0.07, winsCoreAvg: 48, ovrStretch: 1.3,
   };
   NBA.tuning = T;
 
@@ -269,11 +269,11 @@
     let pts = used * 1.82 * ts;
     const pm = 0.65 * a.passing + 0.35 * a.handling;
     const soft = (x, knee, k) => (x > knee ? knee + (x - knee) * k : x);
-    const reb36 = soft(Math.max(1.6, 0.18 * a.reb - 3.8), 8.2, 0.52);
-    const ast36 = soft(Math.max(1.0, 0.125 * (pm - 30) + 10 * (usg - 0.2)), 7.4, 0.55);
+    const reb36 = soft(Math.max(1.6, 0.18 * a.reb - 3.8), 7.8, 0.5);
+    const ast36 = soft(Math.max(1.0, 0.125 * (pm - 30) + 10 * (usg - 0.2)), 7.5, 0.55);
     const defx = 0.65 * a.perD + 0.35 * a.ath;
-    const stl36 = Math.max(0.55, 0.031 * (defx - 33));
-    const blk36 = soft(Math.max(0.15, 0.043 * (a.rimP - 28)), 1.7, 0.5);
+    const stl36 = Math.max(0.62, 0.031 * (defx - 33) + 0.08);
+    const blk36 = soft(Math.max(0.15, 0.043 * (a.rimP - 28)), 1.25, 0.5);
     const tov36 = 0.55 + 8.2 * usg;
     const k = mins / 36;
     return {

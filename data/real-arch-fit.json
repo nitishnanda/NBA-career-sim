@@ -1,0 +1,716 @@
+{
+ "Jalen Johnson": {
+  "mine": "dominator",
+  "best": "dominator",
+  "errMine": 0.43,
+  "errBest": 0.43
+ },
+ "Nickeil Alexander-Walker": {
+  "mine": "shooter",
+  "best": "shooter",
+  "errMine": 0.69,
+  "errBest": 0.69
+ },
+ "Dyson Daniels": {
+  "mine": "twoway",
+  "best": "twoway",
+  "errMine": 0.96,
+  "errBest": 0.96
+ },
+ "CJ McCollum": {
+  "mine": "scorer",
+  "best": "scorer",
+  "errMine": 0.44,
+  "errBest": 0.44
+ },
+ "Jayson Tatum": {
+  "mine": "scorer",
+  "best": "scorer",
+  "errMine": 0.53,
+  "errBest": 0.53
+ },
+ "Derrick White": {
+  "mine": "twoway",
+  "best": "twoway",
+  "errMine": 1.18,
+  "errBest": 1.18
+ },
+ "Paul George": {
+  "mine": "scorer",
+  "best": "twoway",
+  "errMine": 1.16,
+  "errBest": 0.39
+ },
+ "Payton Pritchard": {
+  "mine": "shooter",
+  "best": "shooter",
+  "errMine": 0.27,
+  "errBest": 0.27
+ },
+ "Michael Porter Jr.": {
+  "mine": "scorer",
+  "best": "generational",
+  "errMine": 0.65,
+  "errBest": 0.61
+ },
+ "Julius Randle": {
+  "mine": "scorer",
+  "best": "shooter",
+  "errMine": 0.99,
+  "errBest": 0.8
+ },
+ "Nolan Traore": {
+  "mine": "dominator",
+  "best": "twoway",
+  "errMine": 0.84,
+  "errBest": 0.56
+ },
+ "Brandon Miller": {
+  "mine": "scorer",
+  "best": "generational",
+  "errMine": 0.71,
+  "errBest": 0.68
+ },
+ "Kon Knueppel": {
+  "mine": "shooter",
+  "best": "shooter",
+  "errMine": 0.71,
+  "errBest": 0.71
+ },
+ "Coby White": {
+  "mine": "scorer",
+  "best": "scorer",
+  "errMine": 0.39,
+  "errBest": 0.39
+ },
+ "Naz Reid": {
+  "mine": "shooter",
+  "best": "twoway",
+  "errMine": 1.05,
+  "errBest": 0.21
+ },
+ "Josh Giddey": {
+  "mine": "dominator",
+  "best": "dominator",
+  "errMine": 0.81,
+  "errBest": 0.81
+ },
+ "Norman Powell": {
+  "mine": "scorer",
+  "best": "scorer",
+  "errMine": 0.76,
+  "errBest": 0.76
+ },
+ "Matas Buzelis": {
+  "mine": "twoway",
+  "best": "defender",
+  "errMine": 1.49,
+  "errBest": 0.84
+ },
+ "Nic Claxton": {
+  "mine": "defender",
+  "best": "dominator",
+  "errMine": 1.15,
+  "errBest": 0.51
+ },
+ "Donovan Mitchell": {
+  "mine": "scorer",
+  "best": "scorer",
+  "errMine": 0.65,
+  "errBest": 0.65
+ },
+ "Evan Mobley": {
+  "mine": "twoway",
+  "best": "defender",
+  "errMine": 0.92,
+  "errBest": 0.53
+ },
+ "James Harden": {
+  "mine": "dominator",
+  "best": "dominator",
+  "errMine": 0.58,
+  "errBest": 0.58
+ },
+ "Jarrett Allen": {
+  "mine": "defender",
+  "best": "shooter",
+  "errMine": 1.06,
+  "errBest": 0.82
+ },
+ "Cade Cunningham": {
+  "mine": "dominator",
+  "best": "generational",
+  "errMine": 1.03,
+  "errBest": 0.86
+ },
+ "Jalen Duren": {
+  "mine": "defender",
+  "best": "shooter",
+  "errMine": 1.22,
+  "errBest": 1.13
+ },
+ "Ausar Thompson": {
+  "mine": "twoway",
+  "best": "twoway",
+  "errMine": 1.32,
+  "errBest": 1.32
+ },
+ "John Collins": {
+  "mine": "scorer",
+  "best": "scorer",
+  "errMine": 0.71,
+  "errBest": 0.71
+ },
+ "Tyrese Haliburton": {
+  "mine": "dominator",
+  "best": "twoway",
+  "errMine": 1.19,
+  "errBest": 1.08
+ },
+ "Pascal Siakam": {
+  "mine": "scorer",
+  "best": "shooter",
+  "errMine": 0.82,
+  "errBest": 0.59
+ },
+ "Ivica Zubac": {
+  "mine": "defender",
+  "best": "shooter",
+  "errMine": 1.22,
+  "errBest": 1.02
+ },
+ "Andrew Nembhard": {
+  "mine": "twoway",
+  "best": "dominator",
+  "errMine": 0.83,
+  "errBest": 0.53
+ },
+ "Giannis Antetokounmpo": {
+  "mine": "twoway",
+  "best": "generational",
+  "errMine": 1.28,
+  "errBest": 0.95
+ },
+ "Bam Adebayo": {
+  "mine": "twoway",
+  "best": "shooter",
+  "errMine": 1.19,
+  "errBest": 0.85
+ },
+ "Bobby Portis": {
+  "mine": "scorer",
+  "best": "shooter",
+  "errMine": 0.83,
+  "errBest": 0.44
+ },
+ "Klay Thompson": {
+  "mine": "shooter",
+  "best": "scorer",
+  "errMine": 0.53,
+  "errBest": 0.49
+ },
+ "Tyler Herro": {
+  "mine": "scorer",
+  "best": "shooter",
+  "errMine": 0.4,
+  "errBest": 0.3
+ },
+ "Myles Turner": {
+  "mine": "shooter",
+  "best": "twoway",
+  "errMine": 0.9,
+  "errBest": 0.72
+ },
+ "Kyle Kuzma": {
+  "mine": "scorer",
+  "best": "shooter",
+  "errMine": 0.59,
+  "errBest": 0.52
+ },
+ "Jaime Jaquez Jr.": {
+  "mine": "scorer",
+  "best": "dominator",
+  "errMine": 0.64,
+  "errBest": 0.35
+ },
+ "Jalen Brunson": {
+  "mine": "scorer",
+  "best": "scorer",
+  "errMine": 0.26,
+  "errBest": 0.26
+ },
+ "Karl-Anthony Towns": {
+  "mine": "shooter",
+  "best": "shooter",
+  "errMine": 1.32,
+  "errBest": 1.32
+ },
+ "OG Anunoby": {
+  "mine": "twoway",
+  "best": "twoway",
+  "errMine": 0.73,
+  "errBest": 0.73
+ },
+ "Mikal Bridges": {
+  "mine": "twoway",
+  "best": "twoway",
+  "errMine": 0.85,
+  "errBest": 0.85
+ },
+ "Paolo Banchero": {
+  "mine": "scorer",
+  "best": "shooter",
+  "errMine": 0.69,
+  "errBest": 0.43
+ },
+ "Franz Wagner": {
+  "mine": "scorer",
+  "best": "scorer",
+  "errMine": 0.44,
+  "errBest": 0.44
+ },
+ "Desmond Bane": {
+  "mine": "shooter",
+  "best": "shooter",
+  "errMine": 0.54,
+  "errBest": 0.54
+ },
+ "Jalen Suggs": {
+  "mine": "twoway",
+  "best": "twoway",
+  "errMine": 0.97,
+  "errBest": 0.97
+ },
+ "Joel Embiid": {
+  "mine": "scorer",
+  "best": "shooter",
+  "errMine": 0.55,
+  "errBest": 0.54
+ },
+ "Jaylen Brown": {
+  "mine": "twoway",
+  "best": "scorer",
+  "errMine": 0.91,
+  "errBest": 0.48
+ },
+ "Tyrese Maxey": {
+  "mine": "scorer",
+  "best": "twoway",
+  "errMine": 1.07,
+  "errBest": 1.06
+ },
+ "LeBron James": {
+  "mine": "generational",
+  "best": "dominator",
+  "errMine": 0.98,
+  "errBest": 0.78
+ },
+ "VJ Edgecombe": {
+  "mine": "twoway",
+  "best": "twoway",
+  "errMine": 0.82,
+  "errBest": 0.82
+ },
+ "Kawhi Leonard": {
+  "mine": "twoway",
+  "best": "twoway",
+  "errMine": 0.97,
+  "errBest": 0.97
+ },
+ "Scottie Barnes": {
+  "mine": "dominator",
+  "best": "twoway",
+  "errMine": 0.95,
+  "errBest": 0.69
+ },
+ "Immanuel Quickley": {
+  "mine": "shooter",
+  "best": "twoway",
+  "errMine": 0.73,
+  "errBest": 0.53
+ },
+ "RJ Barrett": {
+  "mine": "scorer",
+  "best": "shooter",
+  "errMine": 0.27,
+  "errBest": 0.25
+ },
+ "Trae Young": {
+  "mine": "dominator",
+  "best": "shooter",
+  "errMine": 1.24,
+  "errBest": 1.07
+ },
+ "Anthony Davis": {
+  "mine": "defender",
+  "best": "defender",
+  "errMine": 0.78,
+  "errBest": 0.78
+ },
+ "Alex Sarr": {
+  "mine": "defender",
+  "best": "generational",
+  "errMine": 0.75,
+  "errBest": 0.67
+ },
+ "Kyshawn George": {
+  "mine": "shooter",
+  "best": "generational",
+  "errMine": 1.13,
+  "errBest": 0.81
+ },
+ "Kyrie Irving": {
+  "mine": "shooter",
+  "best": "shooter",
+  "errMine": 0.89,
+  "errBest": 0.89
+ },
+ "Cooper Flagg": {
+  "mine": "twoway",
+  "best": "generational",
+  "errMine": 0.67,
+  "errBest": 0.64
+ },
+ "P.J. Washington": {
+  "mine": "twoway",
+  "best": "twoway",
+  "errMine": 0.5,
+  "errBest": 0.5
+ },
+ "Daniel Gafford": {
+  "mine": "defender",
+  "best": "defender",
+  "errMine": 0.57,
+  "errBest": 0.57
+ },
+ "Nikola Jokic": {
+  "mine": "dominator",
+  "best": "dominator",
+  "errMine": 1.21,
+  "errBest": 1.21
+ },
+ "Jamal Murray": {
+  "mine": "scorer",
+  "best": "shooter",
+  "errMine": 0.33,
+  "errBest": 0.27
+ },
+ "Aaron Gordon": {
+  "mine": "twoway",
+  "best": "shooter",
+  "errMine": 1.38,
+  "errBest": 0.55
+ },
+ "Cameron Johnson": {
+  "mine": "shooter",
+  "best": "shooter",
+  "errMine": 0.65,
+  "errBest": 0.65
+ },
+ "Stephen Curry": {
+  "mine": "shooter",
+  "best": "scorer",
+  "errMine": 0.9,
+  "errBest": 0.86
+ },
+ "Jimmy Butler": {
+  "mine": "twoway",
+  "best": "twoway",
+  "errMine": 0.5,
+  "errBest": 0.5
+ },
+ "Kristaps Porzingis": {
+  "mine": "scorer",
+  "best": "scorer",
+  "errMine": 0.32,
+  "errBest": 0.32
+ },
+ "Brandin Podziemski": {
+  "mine": "shooter",
+  "best": "twoway",
+  "errMine": 1,
+  "errBest": 0.54
+ },
+ "Kevin Durant": {
+  "mine": "scorer",
+  "best": "scorer",
+  "errMine": 0.69,
+  "errBest": 0.69
+ },
+ "Alperen Sengun": {
+  "mine": "dominator",
+  "best": "dominator",
+  "errMine": 0.53,
+  "errBest": 0.53
+ },
+ "Amen Thompson": {
+  "mine": "twoway",
+  "best": "twoway",
+  "errMine": 0.63,
+  "errBest": 0.63
+ },
+ "Jabari Smith Jr.": {
+  "mine": "shooter",
+  "best": "shooter",
+  "errMine": 0.71,
+  "errBest": 0.71
+ },
+ "Brandon Ingram": {
+  "mine": "scorer",
+  "best": "shooter",
+  "errMine": 0.59,
+  "errBest": 0.57
+ },
+ "Darius Garland": {
+  "mine": "shooter",
+  "best": "shooter",
+  "errMine": 0.62,
+  "errBest": 0.62
+ },
+ "Brook Lopez": {
+  "mine": "defender",
+  "best": "twoway",
+  "errMine": 1.05,
+  "errBest": 0.77
+ },
+ "Rui Hachimura": {
+  "mine": "scorer",
+  "best": "shooter",
+  "errMine": 1.18,
+  "errBest": 1.03
+ },
+ "Luka Doncic": {
+  "mine": "dominator",
+  "best": "generational",
+  "errMine": 0.72,
+  "errBest": 0.45
+ },
+ "Austin Reaves": {
+  "mine": "scorer",
+  "best": "shooter",
+  "errMine": 0.45,
+  "errBest": 0.39
+ },
+ "Walker Kessler": {
+  "mine": "defender",
+  "best": "defender",
+  "errMine": 1.19,
+  "errBest": 1.19
+ },
+ "Quentin Grimes": {
+  "mine": "shooter",
+  "best": "shooter",
+  "errMine": 0.6,
+  "errBest": 0.6
+ },
+ "Jerami Grant": {
+  "mine": "scorer",
+  "best": "scorer",
+  "errMine": 0.85,
+  "errBest": 0.85
+ },
+ "Ty Jerome": {
+  "mine": "shooter",
+  "best": "twoway",
+  "errMine": 1.22,
+  "errBest": 0.58
+ },
+ "Zach Edey": {
+  "mine": "defender",
+  "best": "defender",
+  "errMine": 0.74,
+  "errBest": 0.74
+ },
+ "Cedric Coward": {
+  "mine": "twoway",
+  "best": "generational",
+  "errMine": 0.95,
+  "errBest": 0.53
+ },
+ "Anthony Edwards": {
+  "mine": "scorer",
+  "best": "scorer",
+  "errMine": 0.96,
+  "errBest": 0.96
+ },
+ "LaMelo Ball": {
+  "mine": "dominator",
+  "best": "generational",
+  "errMine": 0.68,
+  "errBest": 0.41
+ },
+ "Rudy Gobert": {
+  "mine": "defender",
+  "best": "defender",
+  "errMine": 0.65,
+  "errBest": 0.65
+ },
+ "Jaden McDaniels": {
+  "mine": "twoway",
+  "best": "twoway",
+  "errMine": 0.99,
+  "errBest": 0.99
+ },
+ "Zion Williamson": {
+  "mine": "scorer",
+  "best": "shooter",
+  "errMine": 0.57,
+  "errBest": 0.5
+ },
+ "Trey Murphy III": {
+  "mine": "shooter",
+  "best": "twoway",
+  "errMine": 0.65,
+  "errBest": 0.58
+ },
+ "Derik Queen": {
+  "mine": "dominator",
+  "best": "dominator",
+  "errMine": 0.76,
+  "errBest": 0.76
+ },
+ "Shai Gilgeous-Alexander": {
+  "mine": "scorer",
+  "best": "shooter",
+  "errMine": 0.87,
+  "errBest": 0.87
+ },
+ "Jalen Williams": {
+  "mine": "twoway",
+  "best": "twoway",
+  "errMine": 0.61,
+  "errBest": 0.61
+ },
+ "Chet Holmgren": {
+  "mine": "defender",
+  "best": "defender",
+  "errMine": 0.46,
+  "errBest": 0.46
+ },
+ "Isaiah Hartenstein": {
+  "mine": "defender",
+  "best": "dominator",
+  "errMine": 1.59,
+  "errBest": 1.33
+ },
+ "Devin Booker": {
+  "mine": "scorer",
+  "best": "scorer",
+  "errMine": 0.25,
+  "errBest": 0.25
+ },
+ "Jalen Green": {
+  "mine": "scorer",
+  "best": "shooter",
+  "errMine": 0.61,
+  "errBest": 0.43
+ },
+ "Dillon Brooks": {
+  "mine": "twoway",
+  "best": "scorer",
+  "errMine": 1.01,
+  "errBest": 0.6
+ },
+ "Miles Bridges": {
+  "mine": "scorer",
+  "best": "shooter",
+  "errMine": 0.63,
+  "errBest": 0.37
+ },
+ "Ja Morant": {
+  "mine": "dominator",
+  "best": "generational",
+  "errMine": 0.74,
+  "errBest": 0.48
+ },
+ "Deni Avdija": {
+  "mine": "scorer",
+  "best": "generational",
+  "errMine": 0.78,
+  "errBest": 0.54
+ },
+ "Shaedon Sharpe": {
+  "mine": "scorer",
+  "best": "twoway",
+  "errMine": 0.99,
+  "errBest": 0.75
+ },
+ "Donovan Clingan": {
+  "mine": "defender",
+  "best": "defender",
+  "errMine": 1.17,
+  "errBest": 1.17
+ },
+ "Domantas Sabonis": {
+  "mine": "dominator",
+  "best": "dominator",
+  "errMine": 1.38,
+  "errBest": 1.38
+ },
+ "Zach LaVine": {
+  "mine": "scorer",
+  "best": "shooter",
+  "errMine": 0.31,
+  "errBest": 0.29
+ },
+ "Keegan Murray": {
+  "mine": "shooter",
+  "best": "shooter",
+  "errMine": 0.96,
+  "errBest": 0.96
+ },
+ "Malik Monk": {
+  "mine": "scorer",
+  "best": "scorer",
+  "errMine": 0.57,
+  "errBest": 0.57
+ },
+ "Victor Wembanyama": {
+  "mine": "generational",
+  "best": "defender",
+  "errMine": 1.92,
+  "errBest": 1.85
+ },
+ "De'Aaron Fox": {
+  "mine": "scorer",
+  "best": "twoway",
+  "errMine": 0.69,
+  "errBest": 0.58
+ },
+ "Stephon Castle": {
+  "mine": "twoway",
+  "best": "dominator",
+  "errMine": 0.88,
+  "errBest": 0.48
+ },
+ "Dylan Harper": {
+  "mine": "scorer",
+  "best": "generational",
+  "errMine": 0.96,
+  "errBest": 0.52
+ },
+ "Lauri Markkanen": {
+  "mine": "scorer",
+  "best": "shooter",
+  "errMine": 0.69,
+  "errBest": 0.64
+ },
+ "Jaren Jackson Jr.": {
+  "mine": "defender",
+  "best": "twoway",
+  "errMine": 1.09,
+  "errBest": 0.69
+ },
+ "Keyonte George": {
+  "mine": "shooter",
+  "best": "scorer",
+  "errMine": 0.46,
+  "errBest": 0.43
+ },
+ "Ace Bailey": {
+  "mine": "scorer",
+  "best": "shooter",
+  "errMine": 0.91,
+  "errBest": 0.83
+ }
+}
