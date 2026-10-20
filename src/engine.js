@@ -310,8 +310,9 @@
     const mm = clamp(1 + 0.085 * gs, 0.55, 1.28);
     const hot = rand() < 0.06 ? 1.28 : 0.9825;
     let pts = Math.max(0, Math.round(m.pts * mm * (1 + 0.29 * randn()) * hot));
+    const eng = clamp(1 + 0.13 * randn(), 0.55, 1.4);
     const ctr = (mean, extra) => {
-      const lam = mean * mm;
+      const lam = mean * mm * eng;
       return Math.max(0, Math.round(lam + (Math.sqrt(lam) * 0.95 + 0.04 * lam) * randn() * (extra || 1)));
     };
     const reb = ctr(m.reb), ast = ctr(m.ast);

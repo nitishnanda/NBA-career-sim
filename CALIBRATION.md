@@ -175,3 +175,5 @@ league-sim classes with real competition for 24 All-Star slots: any 4.5  3+ 2.9 
 ## Game-to-game spread (real play-by-play game logs, 2001-2024)
 `scripts/real-gamelogs.py` rebuilds box scores from `shufinskiy/nba_data`; `scripts/gamelog-compare.js` feeds each real player-season average into `genGame`.
 Points noise was too tight (sd/mean 0.234 vs real 0.333, 40+/50+ games 3-8x too rare for 18-28 ppg players). Noise raised to 0.29: sd/mean ≈ 0.31, 30+/40+/50+ rates within ~10-20% of real across ppg bins. Rebounds/assists spread already matched. Triple-double rate at the very top lines is still ~15% light.
+
+**TD correlation:** rebounds and assists now share a per-game "engagement" factor (sd 0.13) on top of the minutes factor, so big boards and big dimes cluster like real triple-double nights. Overall TD rate for 59 real TD-capable seasons: 16.3% sim vs 17.8% real (was 15.1%); rebound/assist spread still ≈ real (0.461/0.523 vs 0.452/0.522).
