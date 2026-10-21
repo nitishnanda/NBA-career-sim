@@ -3,13 +3,14 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
 (async () => {
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox'] });
   const mobile = process.env.MOBILE === '1';
-  const page = await browser.newPage({ viewport: mobile ? { width: 390, height: 800 } : { width: 1000, height: 900 } });
+  const ctx = await browser.newContext(mobile ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } : { viewport: { width: 1000, height: 900 } });
+  const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push('PAGEERROR ' + e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push('CONSOLE ' + m.text()); });
   page.on('dialog', (d) => d.accept());
-  const shot = (n) => page.screenshot({ path: process.env.SHOTS + '/' + n + '.png', fullPage: true });
-  await page.goto('file://' + path.resolve(__dirname, '../index.html'));
+  const shot = (n) => page.screenshot({ path: process.env.SHOTS + '/' + (mobile ? 'm-' : '') + n + '.png', fullPage: n !== '06c-three-games' && n !== '06b-opening-night' });
+  await page.goto('file://' + path.resolve(__dirname, process.env.DIST ? '../dist/index.html' : '../index.html'));
   await page.fill('input[type=text]', 'Nitish Nanda');
   await page.click('text=Box-Score Dominator');
   await page.click('button:has-text("C")');
@@ -41,12 +42,12 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
       await shot('06b-opening-night');
       for (let k = 0; k < 3; k++) await page.click('text=Next match');
       await shot('06c-three-games');
-      await page.click('text=Sim to end of regular season');
+      await page.click('text=Finish regular season');
       await shot('06d-reg-season-done');
       const po = await page.$('text=Next playoff game');
       if (po) { await po.click(); await po.click().catch(() => {}); await shot('06e-playoffs'); }
       const sk = await page.$('text=Skip to recap'); if (sk) await sk.click(); else await page.click('text=See the season recap');
-    } else if (i === 1) { await page.click('text=Sim to end of regular season'); while (await page.$('text=/Next playoff game/')) await page.click('text=/Next playoff game/'); await page.click('text=See the season recap'); }
+    } else if (i === 1) { await page.click('text=Finish regular season'); while (await page.$('text=/Next playoff game/')) await page.click('text=/Next playoff game/'); await page.click('text=See the season recap'); }
     else { const sk = await page.$('text=Skip to recap'); if (sk) await sk.click(); else await page.click('text=See the season recap'); }
     await page.waitForSelector('text=Offseason decisions');
     if (i === 0) await shot('07-recap');

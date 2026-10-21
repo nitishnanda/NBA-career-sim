@@ -236,11 +236,11 @@
     const controls = done
       ? h('div', { class: 'card' }, h('p', null, 'That is the season in the books. ☕'), h('button', { class: 'primary big-btn', onclick: () => { S.stage = 'season_recap'; go(); } }, 'See the season recap →'))
       : h('div', { class: 'card ctl-card' }, h('div', { class: 'row' }, ctl(nextIsPo ? 'Next playoff game ▶' : 'Next match ▶', next(1), 'primary big-btn'), ctl('Sim 5', next(5)), ctl('Sim 10', next(10)),
-        regLeft ? ctl('Sim to end of regular season', step(0, 'reg')) : null, h('span', { class: 'spacer' }), ctl('Skip to recap »', () => { S.matchIdx = items.length; S.stage = 'season_recap'; go(); })));
+        regLeft ? ctl('Finish regular season', step(0, 'reg')) : null, h('span', { class: 'spacer' }), ctl('Skip to recap »', () => { S.matchIdx = items.length; S.stage = 'season_recap'; go(); })));
     const pv = S.prevIdx != null ? S.prevIdx : idx;
     const feed = shown.map((x, i) => [x, i]).reverse().map(([x, i]) => (x.k === 'hdr' ? h('div', { class: 'divider' + (i >= pv ? ' fresh' : '') }, x.text) : matchTile(x, i >= pv)));
     S.prevIdx = idx;
-    return h('div', null, head, controls, h('div', { class: 'feed' }, feed));
+    return h('div', { class: 'sp' }, head, controls, h('div', { class: 'feed' }, feed));
   }
 
   function screenRecap() {

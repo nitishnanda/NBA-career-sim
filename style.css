@@ -100,3 +100,48 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { padd
 body { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 header { margin-left: -16px; margin-right: -16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); top: env(safe-area-inset-top, 0px); }
 main { padding-left: 0; padding-right: 0; }
+
+/* ---------------- phone layout: app-like, thumb-first ---------------- */
+@media (max-width: 640px) {
+  html, body { font-size: 16px; }
+  body { padding-left: 12px; padding-right: 12px; -webkit-text-size-adjust: 100%; }
+  header { margin-left: -12px; margin-right: -12px; padding: 8px 12px; gap: 6px 8px; }
+  .brand { font-size: 16px; }
+  #who { order: 3; flex: 1 0 100%; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  #topbtns { margin-left: auto; display: flex; gap: 6px; } #topbtns button { padding: 7px 13px; font-size: 13.5px; }
+  main { padding: 10px 0 36px; }
+  h1 { font-size: 22px; } h2 { font-size: 18px; }
+  .card { padding: 14px; margin: 10px 0; border-radius: 20px; }
+  button { min-height: 44px; }
+  button.primary, .row > button.primary:only-of-type { min-height: 48px; }
+  .grid.g2, .grid.g3 { grid-template-columns: 1fr; }
+  .stats { grid-template-columns: repeat(3, 1fr); gap: 8px; } .stats .big { font-size: 22px; } .statbox { padding: 10px 4px; border-radius: 14px; } .statbox .lbl { font-size: 10.5px; letter-spacing: .05em; }
+  .stars { font-size: 32px; letter-spacing: 2px; }
+  .attr { grid-template-columns: 92px 1fr 30px; gap: 8px; font-size: 13px; } .attr.train { grid-template-columns: 92px 1fr 40px 100px; }
+  .ctl button { min-width: 40px; min-height: 40px; font-size: 18px; padding: 0; }
+  .tabs button { flex: 1; }
+  input[type=text], select { font-size: 16px; min-height: 46px; }
+  .modal { padding: 0; } .modal .box { border-radius: 0; min-height: 100vh; padding: 14px; } .modal .row button { min-height: 40px; }
+  table { font-size: 12px; } th, td { padding: 6px 6px; }
+  td:first-child, th:first-child { position: sticky; left: 0; background: var(--panel); }
+  .scroll { margin: 0 -14px; padding: 0 14px; }
+  /* full-width stacked actions */
+  .row > button.primary:only-child, .card > .row > select, .callout.row > button { flex: 1 1 100%; }
+  /* season screen: hero is compact, controls live in a bottom bar */
+  .sp { padding-bottom: 200px; }
+  .hero h1 { font-size: 20px; } .hero .big { font-size: 28px; } .hero .stats { grid-template-columns: repeat(4, 1fr); } .hero .stats .big { font-size: 19px; } .hero .rating.sm { font-size: 18px; padding: 3px 6px; }
+  .ctl-card { position: fixed; left: 0; right: 0; bottom: 0; top: auto; margin: 0; border-radius: 22px 22px 0 0; border-bottom: 0; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 8; box-shadow: 0 -10px 30px -12px rgba(60,35,10,.35); }
+  .ctl-card .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .ctl-card .row .spacer { display: none; }
+  .ctl-card button.big-btn { grid-column: 1 / -1; font-size: 18px; min-height: 54px; }
+  .ctl-card button { font-size: 14px; padding: 8px 6px; white-space: nowrap; }
+  .sp > .card:not(.hero):not(.ctl-card) { position: fixed; left: 0; right: 0; bottom: 0; margin: 0; border-radius: 22px 22px 0 0; z-index: 8; padding: 12px 14px calc(14px + env(safe-area-inset-bottom, 0px)); }
+  .match { grid-template-columns: 30px 1fr auto; gap: 9px; padding: 10px 11px; margin: 7px 0; border-radius: 16px; }
+  .m-res { width: 30px; height: 30px; font-size: 14px; }
+  .m-top { font-size: 13px; gap: 0 8px; flex-wrap: wrap; } .m-top .m-date { flex-basis: 100%; } .m-top .m-vs { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .m-box { font-size: 13.5px; } .m-box b { font-size: 16px; } .m-shoot { font-size: 12px; }
+  .rating { min-width: 42px; padding: 7px 4px; font-size: 18px; }
+  .divider { margin: 14px 0 4px; }
+  .decision-row { display: block; }
+}
+@media (max-width: 380px) { .stats { grid-template-columns: repeat(2, 1fr); } .hero .stats { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px) { .card > .row > .spacer { display: none; } .card > .row > .spacer ~ button { flex: 1 1 100%; } }
