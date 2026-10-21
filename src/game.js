@@ -369,7 +369,11 @@
       const tg = [];
       if (cats >= 3) tg.push('Triple-double'); else if (cats === 2) tg.push('Double-double');
       if (g.pts >= 60) tg.push('60+ points'); else if (g.pts >= 50) tg.push('50+ points'); else if (g.pts >= 40) tg.push('40+ points'); else if (g.pts >= 30 && cats < 3) tg.push('30+ points');
-      return Object.assign({ m: Math.round(g.min), pt: g.pts, rb: g.reb, as: g.ast, st: g.stl, bk: g.blk, to: g.tov, r: NBA.gameRating(g, b), tg }, b);
+      const rebA = st.player.attrs ? st.player.attrs.reb : 50;
+      const orR = clamp(0.2 + (rebA - 50) * 0.003, 0.14, 0.4);
+      const orb = clamp(Math.round(g.reb * orR + randn() * 0.7), 0, g.reb);
+      const pf = clamp(Math.round(1.9 + (st.player.attrs ? (st.player.attrs.rimP - 40) * 0.01 : 0) + randn() * 1.3), 0, 6);
+      return Object.assign({ m: Math.round(g.min), pt: g.pts, rb: g.reb, or: orb, as: g.ast, st: g.stl, bk: g.blk, to: g.tov, pf, r: NBA.gameRating(g, b), tg }, b);
     };
     const score = (won, scoreMin) => {
       const margin = 1 + Math.round(Math.abs(randn()) * 11.5);
@@ -395,7 +399,10 @@
       const sc = score(won, b ? b.pt + 38 : 0);
       const it = Object.assign({ k: 'g', n: i + 1, d: dateStr(L.year, 9, 22 + Math.round(i * 1.98 + (rand() - 0.5) * 1.5)), o: opps[i].nick, oc: opps[i].city, h: rand() < 0.5 ? 1 : 0, w: won ? 1 : 0, ot: sc.ot }, { f: sc.f, a: sc.a });
       if (b) Object.assign(it, b); else { it.dnp = blockInjury ? (injuryText || 'Injured') : 'Rest'; }
+      it.ar = NBA.data.ARENAS[it.h ? t.nick : opps[i].nick] || '';
+      if (b) it.pm = Math.round((it.f - it.a) * (b.m / 48) * 1.1 + randn() * 4);
       items.push(it);
+      if (i === 51) items.push({ k: 'hdr', text: 'All-Star Weekend' + (rec.awards.includes('All-Star') ? ' · you were selected ★' : '') });
     }
     items.push({ k: 'hdr', text: 'Regular season complete · ' + t.wins + '-' + t.losses });
     // playoffs
@@ -411,7 +418,8 @@
         const b = mk(g, rec.playoff ? rec.playoff.fgp : line.fgp, rec.playoff ? rec.playoff.tpp : line.tpp, line.ftp, rec.playoff ? rec.playoff.ts : line.ts);
         const w = wl[i] != null ? wl[i] : sr.won ? 1 : 0; const sc = score(!!w, b.pt + 38);
         let w1 = 0, l1 = 0; for (let q = 0; q <= i; q++) { if (wl[q]) w1++; else l1++; }
-        items.push(Object.assign({ k: 'g', po: 1, n: i + 1, d: dateStr(L.year + 1, 3, 19 + Math.round(poGames.length * 2.2)), o: sr.opp.split(' ').slice(-1)[0], oc: sr.opp.split(' ').slice(0, -1).join(' '), h: [1, 1, 0, 0, 1, 0, 1][i] ? 1 : 0, w, ot: sc.ot, f: sc.f, a: sc.a, ser: (w1 === l1 ? 'Series tied ' : w1 > l1 ? 'Up ' : 'Down ') + Math.max(w1, l1) + '-' + Math.min(w1, l1) }, b));
+        const oNick = sr.opp.split(' ').slice(-1)[0], home = [1, 1, 0, 0, 1, 0, 1][i] ? 1 : 0;
+        items.push(Object.assign({ k: 'g', po: 1, n: i + 1, d: dateStr(L.year + 1, 3, 19 + Math.round(poGames.length * 2.2)), o: oNick, oc: sr.opp.split(' ').slice(0, -1).join(' '), h: home, w, ot: sc.ot, f: sc.f, a: sc.a, ar: NBA.data.ARENAS[home ? t.nick : (sr.opp.endsWith('Trail Blazers') ? 'Trail Blazers' : oNick)] || '', pm: Math.round((sc.f - sc.a) * (b.m / 48) * 1.1 + randn() * 4), rnd: sr.round, ser: (w1 === l1 ? 'Series tied ' : w1 > l1 ? 'Up ' : 'Down ') + Math.max(w1, l1) + '-' + Math.min(w1, l1) }, b));
         poGames.push(1);
       });
     });
@@ -493,6 +501,7 @@
       rookie: p.rookie, leaders: res.leaders,
     };
     const gl = l.gameList; delete l.gameList;
+    st.leagueSnap = { year: L.year, label: res.label, standings: res.standings, leaders: res.leaders, race: A.race };
     st.matchLog = buildMatchLog(st, rec, l, gl, perSeries, t, rec.injury); st.matchIdx = 0;
     if (NBA.onSeasonLog) NBA.onSeasonLog(st, rec);
     rec.perSeries = perSeries.map((x) => { const y = Object.assign({}, x); delete y.list; delete y.w; delete y.l; delete y.won; return y; });
