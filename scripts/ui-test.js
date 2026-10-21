@@ -36,7 +36,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   await trainLoop();
   await shot('06-pro-ready');
   for (let i = 0; i < 40; i++) {
-    console.log('season', i); await page.click('text=/Tip off the .* season/');
+    console.log('season', i); if (i === 0) { await page.click('text=Pass & rebound'); } await page.click('text=/Tip off the .* season/');
     await page.waitForSelector('text=Sim next game');
     if (i === 0) {
       await shot('06b-opening-night');

@@ -199,3 +199,12 @@ Per-game shot volume is now loosely tied to points (bricky nights exist), so bad
 
 ## Rookie scoring
 `scripts/rookie-check.js`: generational rookies could average 26-29 ppg. Real rookies since 2000 top out at ~21-23.5 (Iverson 23.5, Griffin 22.5, Wembanyama 21.4, Luka 21.2, LeBron 20.9). User rookie points above 18.5 are now compressed (×0.36 above that), so the best of 208 enriched 3-5★ careers is now 21.9 and none reach 22+.
+
+## Round of fixes after play-testing (generational careers)
+- **Assist cliff (6.9 → 0.6 at 35-36):** the "last category of 30k/10k/10k" backstop clamped assists hard. It is now a 2-3 season glide (down to 45%) and, only as a last resort, a season-ending injury that ends the year early. 10k-assist careers 11 → 3 of 180, none reach all three. Post triple-double years also decay ~20%/yr instead of dropping from 10.4 to 5.7 overnight.
+- **Scoring costs playmaking:** above 27 ppg, assists fall 7% and rebounds 4% per extra point (floors 52%/66%), for NPCs and the user's 32-36 ppg years. No more 35/9/8 seasons.
+- **Awards:** MVP vote noise 6 → 3, repeat-winner fatigue 4 → 2.5, +3/+7/+10 triple-double narrative bonus; All-NBA noise 4.5 → 3. 30/10/10 seasons win MVP ~68% (was ~35%). Finals MVP now goes to the champion's best player ~90% of the time (blend of Finals and regular-season lines, 10% bonus if best on the team). Superstar teams are no longer capped by the 54+ win suppression and get a small playoff power bump. Generational careers (60-120 sims): MVP 1.9, FMVP 1.7, titles 2.25 (real GOAT-tier avg ~2.7 / 2.8 / 4; auto-play makes dumb team choices, so human play should land higher).
+- **Playoff scoring:** stars now get a +0 to +5.5% playoff scoring lift above ovr 84 (Jordan +3, LeBron +1.4, Durant +2.2, Curry +1.4 ppg).
+- **Sofascore ratings:** refit with season-average anchors (30/10/10 ≈ 8.3-8.5, Jokic-style ≈ 8.7); 30/10/10 seasons now average 8.5. Role players ~6.9, 20-26 ppg ~7.6, 26+ ppg ~7.9 (`scripts/rating-check.js`, `scripts/mvp-check.js`).
+- **Game plan:** Balanced / Scoring priority / Pass & rebound / Defend more (chosen on the pre-season screen). Pass & rebound roughly doubles triple-double seasons, Defend more roughly triples DPOYs (`/tmp` check: 40 careers each).
+- Season tables and career totals now show average match rating (regular season and playoffs).

@@ -172,3 +172,5 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
 .kpi.ink { background: var(--well); }
 .kpi .rating.sm { align-self: flex-start; margin: 8px 0 4px; font-size: 34px; padding: 6px 14px; }
 @media (max-width: 720px) { .kpis { grid-template-columns: 1fr 1fr; gap: 10px; } .kpi { padding: 14px 15px; border-radius: 20px; } .kpi .k-val { font-size: 44px; } }
+
+table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }

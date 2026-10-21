@@ -178,6 +178,8 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
 .kpi .rating.sm { align-self: flex-start; margin: 8px 0 4px; font-size: 34px; padding: 6px 14px; }
 @media (max-width: 720px) { .kpis { grid-template-columns: 1fr 1fr; gap: 10px; } .kpi { padding: 14px 15px; border-radius: 20px; } .kpi .k-val { font-size: 44px; } }
 
+table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
+
 </style>
 <header id="top"><div class="brand"><span class="logo">🏀</span><div><b>NBA CAREER SIM</b><small>PRO CIRCUIT</small></div></div><nav id="nav"></nav><div id="who"></div></header>
 <main id="app"></main>
@@ -577,9 +579,11 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
     const blk36 = soft(Math.max(0.15, 0.043 * (a.rimP - 28)), 1.25, 0.5);
     const tov36 = 0.55 + 8.2 * usg;
     const k = mins / 36;
+    // a 30+ ppg usage load costs you the ball-handling and glass work: real 33+ ppg seasons come with ~6 ast / ~6 reb
+    const hi = Math.max(0, pts - 27), astTrade = Math.max(0.52, 1 - 0.07 * hi), rebTrade = Math.max(0.66, 1 - 0.04 * hi);
     return {
       ovr: o, usg, ts, mins, pace,
-      pts, reb: reb36 * k * (c.rebMult || 1) * (p.arch === 'generational' ? 0.97 : 1), ast: ast36 * k * (c.astMult || 1) * (p.arch === 'generational' ? 0.88 : 1),
+      pts, reb: reb36 * k * (c.rebMult || 1) * (p.arch === 'generational' ? 0.97 : 1) * rebTrade, ast: ast36 * k * (c.astMult || 1) * (p.arch === 'generational' ? 0.88 : 1) * astTrade,
       stl: stl36 * k, blk: blk36 * k, tov: tov36 * k,
     };
   }
@@ -623,11 +627,11 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
     return { min: m.mins * mm, pts, reb, ast, stl, blk, tov };
   }
   // Sofascore-style match rating (3-10, everyone starts at 6.5). Coefficients fitted to eight reference box scores for the rating tiers (red 3-5 ... deep blue 9-10)
-  // supplied by the user: points over average efficiency, rebounds, assists, steals, blocks, turnovers. Fewer minutes shrink the swing toward 6.5.
+  // supplied by the user, plus season-average anchors (30/10/10 ≈ 8.3, Jokic-style 26/12/9 ≈ 8.7). Fewer minutes shrink the swing toward 6.5.
   function gameRating(g, b) {
-    const poe = g.pts - 1.1 * (b.fga + 0.44 * b.fta);
-    const swing = 0.12 * poe + 0.034 * g.reb + 0.076 * g.ast + 0.081 * g.stl + 0.086 * g.blk - 0.081 * g.tov - 0.2 * Math.min(1, g.min / 36);
-    const r = 6.5 + swing * Math.min(1, g.min / 14);
+    const poe = g.pts - 0.8 * (b.fga + 0.44 * b.fta);
+    const swing = 0.111 * poe + 0.065 * g.reb + 0.089 * g.ast + 0.054 * g.stl + 0.171 * g.blk - 0.146 * g.tov - 0.484 * Math.min(1, g.min / 36);
+    const r = 6.5 + 0.86 * swing * Math.min(1, g.min / 14);
     return Math.round(clamp(r, 3, 10) * 10) / 10;
   }
   function summarize(games) {
@@ -905,8 +909,9 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
     L.teams.forEach((t) => { t.wins = 0.9 * t.wins + 0.1 * (t.prevWins == null ? 41 : t.prevWins); });
     const mw = sum(L.teams.map((t) => t.wins)) / L.teams.length;
     // real tails: more truly bad teams, fewer 60+ juggernauts
-    L.teams.forEach((t) => { let w = t.wins - (mw - 41); if (w < 33) w -= (33 - w) * 0.22; if (w > 54) w -= (w - 54) * 0.2; t.wins = clamp(Math.round(w), 12, 73); t.losses = 82 - t.wins; });
+    L.teams.forEach((t) => { let w = t.wins - (mw - 41); if (w < 33) w -= (33 - w) * 0.22; if (w > 54) w -= (w - 54) * ((user && t.id === user.teamId && ovr(user.p) >= 88) ? 0.08 : 0.2); t.wins = clamp(Math.round(w), 12, 73); t.losses = 82 - t.wins; });
     L.teams.forEach((t) => { t.power = (t.wins - 41) / 2.7 + randn() * 0.8; t.prevWins = t.wins; });
+    if (user) { const ut = L.teams[user.teamId]; ut.power += clamp((ovr(user.p) - 84) * 0.08, 0, 1.1); } // superstars matter more in the playoffs: shorter rotations, more minutes
 
     // user line (needs team context)
     if (user) {
@@ -936,11 +941,12 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
 
     // awards
     const q65 = entries.filter((e) => e.l.gp >= 65);
-    const byMVP = q65.map((e) => ({ e, s: 0.85 * e.l.perf + 0.35 * e.l.pts + 0.5 * (e.l.wins - 41) + randn() * 4.5 - (e.p.mvpRecent || 0), ok: e.l.wins >= 36 })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
+    const tdBonus = (l) => (l.pts >= 25 && l.reb >= 7.5 && l.ast >= 7.5 ? 3 : 0) + (l.reb >= 9.5 && l.ast >= 9.5 && l.pts >= 18 ? 7 + (l.pts >= 28 ? 3 : 0) : 0); // voters love the triple-double story
+    const byMVP = q65.map((e) => ({ e, s: 0.85 * e.l.perf + 0.35 * e.l.pts + 0.5 * (e.l.wins - 41) + tdBonus(e.l) + randn() * 3 - (e.p.mvpRecent || 0), ok: e.l.wins >= 36 })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
     const dpoy = q65.map((e) => ({ e, s: defScore(e.p, e.l) + 0.12 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s);
     const roy = entries.filter((e) => e.p.rookie && e.l.gp >= 50).map((e) => ({ e, s: e.l.perf + 0.1 * (e.l.wins - 41) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
     const mip = q65.filter((e) => !e.p.rookie && e.p.prevPerf != null && e.p.age <= 28).map((e) => ({ e, s: (e.l.perf - e.p.prevPerf) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
-    const allNBA = q65.map((e) => ({ e, s: 0.85 * e.l.perf + 0.45 * e.l.pts + 0.3 * (e.l.wins - 41) + randn() * 4.5 })).sort((a, b) => b.s - a.s).slice(0, 15);
+    const allNBA = q65.map((e) => ({ e, s: 0.85 * e.l.perf + 0.45 * e.l.pts + 0.3 * (e.l.wins - 41) + tdBonus(e.l) + randn() * 3 })).sort((a, b) => b.s - a.s).slice(0, 15);
     const allDef = dpoy.slice(0, 10);
     const stars = entries.filter((e) => e.l.gp >= 40).map((e) => ({ e, s: e.l.perf + randn() * 3 })).sort((a, b) => b.s - a.s).slice(0, 24);
     const qual = entries.filter((e) => e.l.gp >= 58);
@@ -971,7 +977,7 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
     };
     const playoffs = simPlayoffs(L, user ? user.teamId : null);
     // remember perf for MIP, and voter fatigue for repeat MVPs
-    entries.forEach((e) => { e.p.prevPerf = e.l.perf; e.p.mvpRecent = (e.p.mvpRecent || 0) * 0.55 + (awards.mvp && awards.mvp.id === e.id ? 4 : 0); });
+    entries.forEach((e) => { e.p.prevPerf = e.l.perf; e.p.mvpRecent = (e.p.mvpRecent || 0) * 0.5 + (awards.mvp && awards.mvp.id === e.id ? 2.5 : 0); });
     const stand = L.teams.map((t) => ({ id: t.id, name: t.name, nick: t.nick, conf: t.conf, wins: t.wins, losses: t.losses }));
     const res = { year: L.year, label: seasonLabel(L.year), awards, playoffs, standings: stand, leaders, leadersOthers, league, ranks: user ? { pts: rankOf('pts', 'user'), reb: rankOf('reb', 'user'), ast: rankOf('ast', 'user'), stl: rankOf('stl', 'user'), blk: rankOf('blk', 'user') } : null, entries };
     // history record
@@ -983,12 +989,17 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
   // Finals MVP: best Finals line on the winning team. `user` is {pts, reb, ast} from the Finals series.
   const finalsScore = (pts, reb, ast) => 1.9 * pts + 1.15 * reb + 1.5 * ast;
   function finalsMVP(L, teamId, user) {
+    // user = { pts, reb, ast } in the Finals series, reg = { pts, reb, ast } regular season. The champion's best player takes it ~90% of the time in reality.
     const t = L.teams[teamId];
     const cands = t.core.map((id) => {
-      const l = L.lines[id];
-      return { name: L.players[id].name, s: (l ? finalsScore(l.pts, l.reb, l.ast) : 30) * (1 + 0.07 * randn()) };
+      const l = L.lines[id], reg = l ? finalsScore(l.pts, l.reb, l.ast) : 30;
+      return { name: L.players[id].name, reg, s: reg * 0.96 * (1 + 0.05 * randn()) };
     });
-    if (user) cands.push({ name: 'user', s: finalsScore(user.pts, user.reb, user.ast) * (1 + 0.03 * randn()) });
+    if (user) {
+      const ureg = user.reg ? finalsScore(user.reg.pts, user.reg.reb, user.reg.ast) : finalsScore(user.pts, user.reb, user.ast);
+      const best = cands.every((c) => ureg >= c.reg * 0.97);
+      cands.push({ name: 'user', s: (0.65 * finalsScore(user.pts, user.reb, user.ast) + 0.35 * ureg) * (best ? 1.1 : 1) * (1 + 0.04 * randn()) });
+    }
     cands.sort((a, b) => b.s - a.s);
     return cands[0].name;
   }
@@ -1461,7 +1472,7 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
     const sh = 1 + NBA.tuning.formSd * randn() + fx.form;
     const ind = () => 1 + 0.035 * randn();
     const m = { mins: e0.mins, pts: e0.pts * sh * ind(), reb: e0.reb * sh * ind(), ast: e0.ast * sh * ind(), stl: e0.stl * sh * ind(), blk: e0.blk * sh * ind(), tov: e0.tov };
-    const age = p.age, gp = avail.gp;
+    const age = p.age; let gp = avail.gp, gpCut = false;
     // 30,000 pts / 10,000 reb / 10,000 ast is a LeBron-only club: without a rare hidden "big three" career, the last category fades as the career winds down
     if (!p.big3) {
       if (p.big3Roll == null) p.big3Roll = rand() < (p.arch === 'generational' ? 0.04 : p.arch === 'dominator' ? 0.015 : 0.004);
@@ -1474,6 +1485,11 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
         else if (R >= 7500 && A >= 5500) m.ast *= 0.84;
       }
     }
+    // game plan chosen on the pre-season screen
+    const sty = st.style || 'balanced';
+    if (sty === 'score') { m.pts *= 1.06; m.ast *= 0.88; m.reb *= 0.95; }
+    else if (sty === 'playmake') { m.pts *= 0.94; m.ast *= 1.16; m.reb *= 1.08; }
+    else if (sty === 'defend') { m.pts *= 0.96; m.reb *= 1.03; m.stl *= 1.2; m.blk *= 1.25; }
     // everyday scoring is soft-capped; big years (32-33, rarely 34-36) come from the career plan
     const SOFT = 30.2;
     if (m.pts > SOFT) m.pts = SOFT + (m.pts - SOFT) * 0.25;
@@ -1485,12 +1501,17 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
     // triple-double window: no hints before it, one contiguous run of seasons starting in the late 20s
     // the window rolls forward (to 34) if injury or form wrecked it before the first triple-double year
     const inWin = p.tdPlan > 0 && age >= p.tdStart && age <= 34 && (age < p.tdStart + p.tdPlan || p.tdUsed === 0);
+    const bigMan = p.arch === 'dominator' || p.arch === 'generational' || p.sec === 'dominator';
+    const playmakeWin = sty === 'playmake' && bigMan && age >= 25 && age <= 34 && p.tdUsed < TD_CAP && e0.ovr >= 84 && m.ast >= 7.6 && m.reb >= 7.4 && rand() < 0.55;
     const preWin = p.tdPlan > 0 && age < p.tdStart;
     let surge = null;
-    if (inWin && p.tdUsed < p.tdPlan && e0.ovr >= 82 && m.pts >= 16 && rand() < 0.92) {
+    if (((inWin && p.tdUsed < p.tdPlan) || playmakeWin) && e0.ovr >= 82 && m.pts >= 16 && rand() < 0.92) {
       surge = { big: p.td30Ages.includes(age) && p.td30Used < p.td30Plan && e0.ovr >= 86 && m.pts >= 24.5 };
     }
     if (surge && surge.big) m.pts = Math.max(m.pts, 30.3 + rand() * 1);
+    if (!surge && p.postTd && age - p.postTd.age <= 4) { // a triple-double year does not vanish overnight: playmaking decays ~20% a year
+      const d = Math.pow(0.8, age - p.postTd.age); m.ast = Math.max(m.ast, p.postTd.ast * d); m.reb = Math.max(m.reb, p.postTd.reb * Math.pow(0.88, age - p.postTd.age));
+    }
     if (!surge) {
       if (preWin && m.ast > 8.1) m.ast = 8.1 + (m.ast - 8.1) * 0.3;
       if (p.tdUsed >= TD_CAP) { m.ast = Math.min(m.ast, 9.4); m.reb = Math.min(m.reb, 9.4); }
@@ -1504,17 +1525,25 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
       if (bigOK && p.tier34 && !p.tier34Done && m.pts >= 28 && rand() < 0.3) tierMode = { lo: 34.0, hi: 36.6 };
       else if (bigOK && p.tier32 && !p.tier32Done && m.pts >= 27 && rand() < 0.3) tierMode = { lo: 32.0, hi: 33.9 };
       if (tierMode) m.pts = Math.max(m.pts, tierMode.lo + 0.3 + rand() * (tierMode.lo >= 34 ? 1.6 : 0.9));
+      if (tierMode) { const h2 = Math.max(0, m.pts - 27); m.ast *= Math.max(0.55, 1 - 0.055 * h2); m.reb *= Math.max(0.7, 1 - 0.03 * h2); } // 33-36 ppg years come with a scorer's playstyle, not 9 boards and 8 dimes
     } else {
       m.reb = Math.max(m.reb, 10.25 + rand() * 0.9);
       m.ast = Math.max(m.ast, 10.25 + rand() * 0.9);
     }
-    if (!p.big3 && gp > 0) { // backstop: never cross the line in the last category
+    if (!p.big3 && gp > 0) { // glide down toward the cap over a couple of seasons, and only as a last resort end the year early (injury)
       const tot2 = (k) => sum(st.proSeasons.map((x) => x[k])); const P = tot2('totPts'), R = tot2('totReb'), A = tot2('totAst');
-      if (P >= 24000) {
-        if (R >= 9000 && A >= 6000) m.ast = Math.min(m.ast, Math.max(0.5, (9860 - A) / gp));
-        if (A >= 9000 && R >= 6000) m.reb = Math.min(m.reb, Math.max(0.5, (9860 - R) / gp));
+      const glide = (have, key) => {
+        const rem = 9860 - have, need = m[key] * gp; if (need <= 0) return;
+        const ratio = rem / need;
+        if (ratio < 2.3) m[key] *= clamp(0.45 + 0.55 * (ratio - 0.9) / 1.4, 0.45, 1);
+        const need2 = m[key] * gp;
+        if (need2 > rem) { gp = Math.max(8, Math.floor(rem / Math.max(0.5, m[key]))); gpCut = true; }
+      };
+      if (P >= 22000) {
+        if (R >= 8500 && A >= 5500) glide(A, 'ast');
+        if (A >= 8500 && R >= 5500) glide(R, 'reb');
       }
-      if (R >= 9860 && A >= 9860) m.pts = Math.min(m.pts, Math.max(1, (29850 - P) / gp));
+      if (R >= 9860 && A >= 9860) m.pts = Math.min(m.pts, Math.max(1, (29850 - P) / Math.max(1, gp)));
     }
     let games, s;
     for (let tries = 0; tries < 16; tries++) {
@@ -1530,8 +1559,8 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
     const tsRaw = clamp(e0.ts * (0.5 + 0.5 * (s.pts / Math.max(1, m.pts))), 0.44, 0.72);
     const sl = shootingLine(p, s.pts, tsRaw, e0.usg);
     const avgTD = gp >= 30 && s.pts >= 10 && s.reb >= 10 && s.ast >= 10;
-    if (avgTD) { p.tdUsed++; if (s.pts >= 30) p.td30Used++; }
-    return Object.assign({ gp, usg: e0.usg, ovr: e0.ovr, fga: sl.fga, fgp: sl.fgp, tpa: sl.tpa, tpp: sl.tpp, ftp: sl.ftp, fta: sl.fta, ts: sl.ts, avgTD, games: games.length, gameList: games }, s, { pts: s.pts, reb: s.reb, ast: s.ast });
+    if (avgTD) { p.tdUsed++; if (s.pts >= 30) p.td30Used++; p.postTd = { age, ast: s.ast, reb: s.reb }; }
+    return Object.assign({ gp, usg: e0.usg, ovr: e0.ovr, fga: sl.fga, fgp: sl.fgp, tpa: sl.tpa, tpp: sl.tpp, ftp: sl.ftp, fta: sl.fta, ts: sl.ts, avgTD, games: games.length, gpCut, gameList: games }, s, { pts: s.pts, reb: s.reb, ast: s.ast });
   }
 
   function playoffLine(st, ctx, seriesList, base, mode) {
@@ -1541,6 +1570,7 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
     // a postseason's overall form varies far more than a single game's noise (real sd of the points ratio is 0.155)
     const fp = clamp(1 + 0.13 * randn(), 0.7, 1.34), fo = clamp(1 + 0.07 * randn(), 0.8, 1.22);
     mult.ast = clamp(0.95 - 0.015 * (base.ast - 5), 0.85, 0.95); // real 7+ apg players lose ~10% of their assists in the playoffs
+    mult.pts *= 1 + clamp((base.ovr - 84) * 0.0045, 0, 0.055); // real superstars score MORE in the playoffs (Jordan +3, LeBron +1.4, Durant +2.2, Curry +1.4)
     mult.pts *= fp; mult.reb *= fo; mult.ast *= fo; mult.stl *= fo; mult.blk *= fo;
     let cap = Math.max(35.5, base.pts + 2.2), maxAvg = Math.max(35.8, base.pts + 2.6);
     if (mode === 'heater') { const h = 1.15 + rand() * 0.07; mult.pts *= h; mult.reb *= 1.08; mult.ast *= 1.12; mult.mins *= 1.03; cap = Math.min(37.2, Math.max(35.4, base.pts + 2)); maxAvg = Math.min(38.6, Math.max(37.4, base.pts + 3.5)); }
@@ -1714,7 +1744,7 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
     if (po.champion.id === st.teamId) {
       st.career.titles++; cnt('Championships'); awardsHere.push('NBA Champion');
       const fin = perSeries.find((x) => x.round === 'NBA Finals');
-      const who = NBA.finalsMVP(L, st.teamId, fin ? { pts: fin.pts, reb: fin.reb, ast: fin.ast } : null);
+      const who = NBA.finalsMVP(L, st.teamId, fin ? { pts: fin.pts, reb: fin.reb, ast: fin.ast, reg: { pts: userLine.pts, reb: userLine.reb, ast: userLine.ast } } : null);
       if (who === 'user') { cnt('Finals MVP'); awardsHere.push('Finals MVP'); fmvp = true; }
     }
 
@@ -1730,8 +1760,10 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
       rookie: p.rookie, leaders: res.leaders,
     };
     const gl = l.gameList; delete l.gameList;
+    if (l.gpCut && !rec.injury) rec.injury = 'Suffered a season-ending injury and missed the rest of the year.';
     st.leagueSnap = { year: L.year, label: res.label, standings: res.standings, leaders: res.leaders, leadersO: res.leadersOthers, race: A.race, raceO: A.raceOthers };
     st.matchLog = buildMatchLog(st, rec, l, gl, perSeries, t, rec.injury); st.matchIdx = 0;
+    if (rec.playoff) rec.playoff.rating = rec.poRating;
     if (NBA.onSeasonLog) NBA.onSeasonLog(st, rec);
     rec.perSeries = perSeries.map((x) => { const y = Object.assign({}, x); delete y.list; delete y.w; delete y.l; delete y.won; return y; });
     st.proSeasons.push(rec);
@@ -1884,7 +1916,7 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 21 Oct · BallerSim dashboard v7';
+  const BUILD = 'build 21 Oct · BallerSim dashboard v8';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
@@ -2072,7 +2104,9 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
     const L = S.league, t = L.teams[S.teamId], p = S.player, c = S.contract;
     const isRook = S.proSeasons.length === 0;
     return h('div', null, h('h1', null, NBA.seasonLabel(L.year) + (isRook ? ' · Rookie season' : ' season')),
-      h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('div', { class: 'big' }, Math.round(NBA.ovr(p))), h('div', { class: 'muted small' }, 'OVERALL')), h('div', null, h('b', null, t.name), h('div', { class: 'muted small' }, 'Last season: ' + t.wins + '-' + t.losses + ' · age ' + p.age)), h('div', null, h('b', null, money(c.salary) + ' / yr'), h('div', { class: 'muted small' }, (c.type === 'rookie' ? 'Rookie deal' : 'Contract') + ' · ' + c.left + ' yr left'))), h('h3', null, 'Ratings'), attrBars(p),
+      h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('div', { class: 'big' }, Math.round(NBA.ovr(p))), h('div', { class: 'muted small' }, 'OVERALL')), h('div', null, h('b', null, t.name), h('div', { class: 'muted small' }, 'Last season: ' + t.wins + '-' + t.losses + ' · age ' + p.age)), h('div', null, h('b', null, money(c.salary) + ' / yr'), h('div', { class: 'muted small' }, (c.type === 'rookie' ? 'Rookie deal' : 'Contract') + ' · ' + c.left + ' yr left'))), h('h3', null, 'Game plan'), h('p', { class: 'small muted' }, 'How you play this season. It shifts your numbers and can be changed every year.'),
+        h('div', { class: 'grid g2' }, [['balanced', '⚖ Balanced', 'Play your natural game.'], ['score', '🎯 Scoring priority', 'More shots and points. Fewer assists and rebounds.'], ['playmake', '🤝 Pass & rebound', 'Run the offence and crash the glass: more assists and boards, more triple-double chances, a few fewer points.'], ['defend', '🛡 Defend more', 'Lock in on D: more steals and blocks, slightly less scoring.']].map(([k, t, d]) => h('div', { class: 'opt' + ((S.style || 'balanced') === k ? ' sel' : ''), onclick: () => { S.style = k; save(); render(); } }, h('b', null, t), h('div', { class: 'small' }, d)))),
+        h('h3', null, 'Ratings'), attrBars(p),
         h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { G.playSeason(S); go(); } }, 'Tip off the ' + NBA.seasonLabel(L.year) + ' season →'))));
   }
 
@@ -2174,7 +2208,7 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
     const hero = h('section', { class: 'panel hero' },
       h('div', { class: 'row chips2', style: 'justify-content:center' }, h('span', { class: 'cp' }, h('i', { class: 'live' }), phase), h('span', { class: 'cp' }, (t.conf === 'W' ? 'Western' : 'Eastern') + ' Conference · ' + (reg.length ? ord2(seed) + ' seed' : 'preseason')),
         nextG && !done ? h('span', { class: 'cp plain' }, '◷ Next: ' + (nextG.h ? 'vs ' : '@ ') + nextG.oc + ' ' + nextG.o + (oppRow && !nextIsPo ? ' (' + oppRow.wins + '-' + oppRow.losses + ')' : '')) : null),
-      h('div', { class: 'hid' }, h('h1', { class: 'nm' }, p.name), h('div', { class: 'sub' }, t.name + ' · ' + p.pos + ' · ' + D.ARCHETYPES[p.arch].name),
+      h('div', { class: 'hid' }, h('h1', { class: 'nm' }, p.name), h('div', { class: 'sub' }, t.name + ' · ' + p.pos + ' · ' + D.ARCHETYPES[p.arch].name + ({ score: ' · Scoring priority', playmake: ' · Pass & rebound', defend: ' · Defend more' }[S.style] || '')),
         h('div', { class: 'jr' }, h('div', { class: 'jersey' }, '#' + jersey(p.name)), h('div', { class: 'recbox2 well' }, h('div', { class: 'lbl' }, 'Record'), h('div', { class: 'num' }, wins + '-' + losses), h('div', { class: 'sub2' }, (reg.length ? (wins / reg.length).toFixed(3).replace(/^0/, '') : '.000') + ' PCT')))),
       schedule, simBar);
 
@@ -2373,23 +2407,26 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
   }
 
   function seasonTable(rows, playoffs) {
-    const head = playoffs ? ['Season', 'Age', 'Team', 'GP', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', '3P%', 'TS%', 'TD'] : ['Season', 'Age', 'Team', 'W-L', 'GP', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', '3P%', 'FT%', 'TS%', 'TD', 'OVR'];
+    const head = playoffs ? ['Season', 'Age', 'Team', 'GP', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', '3P%', 'TS%', 'TD', 'RTG'] : ['Season', 'Age', 'Team', 'W-L', 'GP', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', '3P%', 'FT%', 'TS%', 'TD', 'OVR', 'RTG'];
     return h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, head.map((x, i) => h('th', { class: i === 2 ? 'l' : '' }, x)))),
       h('tbody', null, rows.map((s) => playoffs
-        ? h('tr', null, h('td', null, s.label), h('td', null, s.age), h('td', { class: 'l' }, s.team), h('td', null, s.gp), h('td', null, f1(s.mins)), h('td', null, f1(s.pts)), h('td', null, f1(s.reb)), h('td', null, f1(s.ast)), h('td', null, f1(s.stl)), h('td', null, f1(s.blk)), h('td', null, pct(s.fgp)), h('td', null, pct(s.tpp)), h('td', null, pct(s.ts)), h('td', null, s.td))
-        : h('tr', null, h('td', null, s.label), h('td', null, s.age), h('td', { class: 'l' }, s.team), h('td', null, s.wins + '-' + s.losses), h('td', null, s.gp), h('td', null, f1(s.mins)), h('td', null, f1(s.pts)), h('td', null, f1(s.reb)), h('td', null, f1(s.ast)), h('td', null, f1(s.stl)), h('td', null, f1(s.blk)), h('td', null, pct(s.fgp)), h('td', null, pct(s.tpp)), h('td', null, pct(s.ftp)), h('td', null, pct(s.ts)), h('td', null, s.td), h('td', null, s.ovr))))));
+        ? h('tr', null, h('td', null, s.label), h('td', null, s.age), h('td', { class: 'l' }, s.team), h('td', null, s.gp), h('td', null, f1(s.mins)), h('td', null, f1(s.pts)), h('td', null, f1(s.reb)), h('td', null, f1(s.ast)), h('td', null, f1(s.stl)), h('td', null, f1(s.blk)), h('td', null, pct(s.fgp)), h('td', null, pct(s.tpp)), h('td', null, pct(s.ts)), h('td', null, s.td), h('td', null, s.rating ? ratingBadge(s.rating, 2) : '–'))
+        : h('tr', null, h('td', null, s.label), h('td', null, s.age), h('td', { class: 'l' }, s.team), h('td', null, s.wins + '-' + s.losses), h('td', null, s.gp), h('td', null, f1(s.mins)), h('td', null, f1(s.pts)), h('td', null, f1(s.reb)), h('td', null, f1(s.ast)), h('td', null, f1(s.stl)), h('td', null, f1(s.blk)), h('td', null, pct(s.fgp)), h('td', null, pct(s.tpp)), h('td', null, pct(s.ftp)), h('td', null, pct(s.ts)), h('td', null, s.td), h('td', null, s.ovr), h('td', null, s.avgRating ? ratingBadge(s.avgRating, 2) : '–'))))));
   }
   function careerTotals(ps) {
     if (!ps.length) return null;
     const gp = ps.reduce((a, s) => a + s.gp, 0), tot = (k) => ps.reduce((a, s) => a + s[k] * s.gp, 0);
-    return { gp, pts: tot('pts') / gp, reb: tot('reb') / gp, ast: tot('ast') / gp, totPts: Math.round(tot('pts')), totReb: Math.round(tot('reb')), totAst: Math.round(tot('ast')), totStl: Math.round(tot('stl')), totBlk: Math.round(tot('blk')), td: CV_TD };
+    const rs = ps.filter((x) => x.avgRating), rgp = rs.reduce((a, x) => a + x.gp, 0), rating = rgp ? rs.reduce((a, x) => a + x.avgRating * x.gp, 0) / rgp : null;
+    return { rating, gp, pts: tot('pts') / gp, reb: tot('reb') / gp, ast: tot('ast') / gp, totPts: Math.round(tot('pts')), totReb: Math.round(tot('reb')), totAst: Math.round(tot('ast')), totStl: Math.round(tot('stl')), totBlk: Math.round(tot('blk')), td: CV_TD };
   }
   function playoffTotals(pl) {
     if (!pl.length) return null;
     const gp = pl.reduce((a, s) => a + s.gp, 0), tot = (k) => pl.reduce((a, s) => a + (s[k] || 0) * s.gp, 0);
-    return { gp, pts: tot('pts') / gp, reb: tot('reb') / gp, ast: tot('ast') / gp, stl: tot('stl') / gp, blk: tot('blk') / gp, totPts: Math.round(tot('pts')), totReb: Math.round(tot('reb')), totAst: Math.round(tot('ast')), td: pl.reduce((a, s) => a + (s.td || 0), 0), runs: pl.length };
+    const rs = pl.filter((x) => x.rating), rgp = rs.reduce((a, x) => a + x.gp, 0), rating = rgp ? rs.reduce((a, x) => a + x.rating * x.gp, 0) / rgp : null;
+    return { rating, gp, pts: tot('pts') / gp, reb: tot('reb') / gp, ast: tot('ast') / gp, stl: tot('stl') / gp, blk: tot('blk') / gp, totPts: Math.round(tot('pts')), totReb: Math.round(tot('reb')), totAst: Math.round(tot('ast')), td: pl.reduce((a, s) => a + (s.td || 0), 0), runs: pl.length };
   }
 
+  const ratingBox = (r, l) => h('div', { class: 'statbox' }, h('div', { class: 'big' }, ratingBadge(r, 2)), h('div', { class: 'lbl' }, l));
   let CV_TD = 0;
   // Career as of the games revealed so far. While a season is being played out, the stored season record (final stats, awards, titles, earnings) is hidden:
   // you see everything up to last season plus this season's line to date.
@@ -2398,11 +2435,11 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
     const shown = S.matchLog.slice(0, S.matchIdx || 0), cur = S.proSeasons[S.proSeasons.length - 1], ps = S.proSeasons.slice(0, -1), pl = S.playoffLines.slice(0, S.pre.nPlayoff);
     const lineOf = (games, label) => {
       const n = games.length; if (!n) return null; const sum = (k) => games.reduce((a, g) => a + (g[k] || 0), 0), fga = sum('fga'), fta = sum('fta');
-      return { label, age: cur.age, team: cur.team, gp: n, mins: sum('m') / n, pts: sum('pt') / n, reb: sum('rb') / n, ast: sum('as') / n, stl: sum('st') / n, blk: sum('bk') / n, fgp: fga ? sum('fgm') / fga : null, tpp: sum('tpa') ? sum('tpm') / sum('tpa') : null, ftp: fta ? sum('ftm') / fta : null, ts: fga + fta ? sum('pt') / (2 * (fga + 0.44 * fta)) : null, td: games.filter((g) => g.tg.includes('Triple-double')).length, ovr: cur.ovr, totPts: sum('pt'), totReb: sum('rb'), totAst: sum('as') };
+      return { label, age: cur.age, team: cur.team, gp: n, mins: sum('m') / n, pts: sum('pt') / n, reb: sum('rb') / n, ast: sum('as') / n, stl: sum('st') / n, blk: sum('bk') / n, fgp: fga ? sum('fgm') / fga : null, tpp: sum('tpa') ? sum('tpm') / sum('tpa') : null, ftp: fta ? sum('ftm') / fta : null, ts: fga + fta ? sum('pt') / (2 * (fga + 0.44 * fta)) : null, td: games.filter((g) => g.tg.includes('Triple-double')).length, ovr: cur.ovr, totPts: sum('pt'), totReb: sum('rb'), totAst: sum('as'), rating: games.reduce((a, g) => a + g.r, 0) / n };
     };
     const regAll = shown.filter((x) => x.k === 'g' && !x.po), reg = regAll.filter((x) => !x.dnp), po = shown.filter((x) => x.k === 'g' && !x.po === false && !x.dnp);
     const live = lineOf(reg, cur.label + ' ●'), lw = regAll.filter((x) => x.w).length;
-    if (live) { live.wins = lw; live.losses = regAll.length - lw; ps.push(live); }
+    if (live) { live.wins = lw; live.losses = regAll.length - lw; live.avgRating = live.rating; ps.push(live); }
     const pLive = lineOf(po, cur.label + ' ●'); if (pLive) pl.push(pLive);
     return { ps, pl, career: S.pre.career, earnings: S.pre.earnings, earnings26: S.pre.earnings26, td: S.pre.career.td + (live ? live.td : 0) };
   }
@@ -2411,8 +2448,8 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
     const ps = cv.ps, ct = careerTotals(ps), aw = cv.career.awards;
     const wrap = h('div');
     if (!ct) { wrap.append(h('p', { class: 'muted' }, 'No NBA games yet.'), S.collegeYears.length ? collegeTable() : null); return wrap; }
-    wrap.append(h('h3', null, 'Regular season career'), h('div', { class: 'grid stats' }, statBox(f1(ct.pts), 'PPG'), statBox(f1(ct.reb), 'RPG'), statBox(f1(ct.ast), 'APG'), statBox(ct.totPts.toLocaleString(), 'Total points'), statBox(ct.totReb.toLocaleString(), 'Total rebounds'), statBox(ct.totAst.toLocaleString(), 'Total assists'), statBox(ct.totStl.toLocaleString(), 'Total steals'), statBox(ct.totBlk.toLocaleString(), 'Total blocks'), statBox(ct.gp.toLocaleString(), 'Games'), statBox(ct.td, 'Triple-doubles (' + (100 * ct.td / ct.gp).toFixed(1) + '%)'), statBox(money(cv.earnings), 'Career earnings · ' + money(cv.earnings26 || cv.earnings) + ' in 2026 $')),
-      (() => { const pt = playoffTotals(cv.pl); return pt ? h('div', null, h('h3', null, 'Playoff career'), h('div', { class: 'grid stats' }, statBox(f1(pt.pts), 'PPG'), statBox(f1(pt.reb), 'RPG'), statBox(f1(pt.ast), 'APG'), statBox(f1(pt.stl), 'SPG'), statBox(f1(pt.blk), 'BPG'), statBox(pt.gp.toLocaleString(), 'Playoff games'), statBox(pt.totPts.toLocaleString(), 'Playoff points'), statBox(pt.totReb.toLocaleString(), 'Playoff rebounds'), statBox(pt.totAst.toLocaleString(), 'Playoff assists'), statBox(cv.career.titles || 0, 'Championships'))) : null; })(),
+    wrap.append(h('h3', null, 'Regular season career'), h('div', { class: 'grid stats' }, ct.rating ? ratingBox(ct.rating, 'Avg match rating') : null, statBox(f1(ct.pts), 'PPG'), statBox(f1(ct.reb), 'RPG'), statBox(f1(ct.ast), 'APG'), statBox(ct.totPts.toLocaleString(), 'Total points'), statBox(ct.totReb.toLocaleString(), 'Total rebounds'), statBox(ct.totAst.toLocaleString(), 'Total assists'), statBox(ct.totStl.toLocaleString(), 'Total steals'), statBox(ct.totBlk.toLocaleString(), 'Total blocks'), statBox(ct.gp.toLocaleString(), 'Games'), statBox(ct.td, 'Triple-doubles (' + (100 * ct.td / ct.gp).toFixed(1) + '%)'), statBox(money(cv.earnings), 'Career earnings · ' + money(cv.earnings26 || cv.earnings) + ' in 2026 $')),
+      (() => { const pt = playoffTotals(cv.pl); return pt ? h('div', null, h('h3', null, 'Playoff career'), h('div', { class: 'grid stats' }, pt.rating ? ratingBox(pt.rating, 'Playoff avg rating') : null, statBox(f1(pt.pts), 'PPG'), statBox(f1(pt.reb), 'RPG'), statBox(f1(pt.ast), 'APG'), statBox(f1(pt.stl), 'SPG'), statBox(f1(pt.blk), 'BPG'), statBox(pt.gp.toLocaleString(), 'Playoff games'), statBox(pt.totPts.toLocaleString(), 'Playoff points'), statBox(pt.totReb.toLocaleString(), 'Playoff rebounds'), statBox(pt.totAst.toLocaleString(), 'Playoff assists'), statBox(cv.career.titles || 0, 'Championships'))) : null; })(),
       h('div', { style: 'margin-top:8px' }, Object.keys(aw).map((k) => h('span', { class: 'pill gold' }, aw[k] + '× ' + k))),
       h('p', { class: 'muted small' }, 'Seasons averaging a triple-double: ' + cv.career.tdSeasons + (cv.career.td30Seasons ? ' (' + cv.career.td30Seasons + ' with 30+ ppg)' : '')),
       h('h3', null, 'Regular season'), seasonTable(ps, false));
@@ -2429,7 +2466,8 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
   function screenRetired() {
     const hof = S.hof, p = S.player;
     return h('div', null, h('h1', null, p.name + ' retires'),
-      h('div', { class: 'card' }, h('div', { class: 'big', style: 'color:' + (hof.hall ? 'var(--gold)' : 'inherit') }, hof.hall ? '🏛️ ' + hof.tier : hof.tier), h('p', { class: 'muted' }, 'Legacy score ' + hof.score + ' (Hall of Fame line: 85) · ' + S.proSeasons.length + ' seasons · ' + D.ARCHETYPES[p.arch].name + ' · hidden ceiling was ' + Math.round(p.ceiling) + ' · ' + S.stars + '★ recruit' + (S.draft && S.draft.slot ? ' · drafted #' + S.draft.slot : ' · undrafted'))),
+      h('div', { class: 'card' }, h('div', { class: 'big', style: 'color:' + (hof.hall ? 'var(--gold)' : 'inherit') }, hof.hall ? '🏛️ ' + hof.tier : hof.tier), (() => { const ct = careerTotals(S.proSeasons), pt = playoffTotals(S.playoffLines); return ct && ct.rating ? h('p', null, h('b', null, 'Career avg match rating '), ratingBadge(ct.rating, 2), pt && pt.rating ? h('span', null, '  ·  playoffs ', ratingBadge(pt.rating, 2)) : null) : null; })(),
+        h('p', { class: 'muted' }, 'Legacy score ' + hof.score + ' (Hall of Fame line: 85) · ' + S.proSeasons.length + ' seasons · ' + D.ARCHETYPES[p.arch].name + ' · hidden ceiling was ' + Math.round(p.ceiling) + ' · ' + S.stars + '★ recruit' + (S.draft && S.draft.slot ? ' · drafted #' + S.draft.slot : ' · undrafted'))),
       h('div', { class: 'card' }, careerBody()),
       h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { wipe(); S = null; boot(); } }, 'Start a new career')));
   }

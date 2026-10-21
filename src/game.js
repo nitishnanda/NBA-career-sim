@@ -237,7 +237,7 @@
     const sh = 1 + NBA.tuning.formSd * randn() + fx.form;
     const ind = () => 1 + 0.035 * randn();
     const m = { mins: e0.mins, pts: e0.pts * sh * ind(), reb: e0.reb * sh * ind(), ast: e0.ast * sh * ind(), stl: e0.stl * sh * ind(), blk: e0.blk * sh * ind(), tov: e0.tov };
-    const age = p.age, gp = avail.gp;
+    const age = p.age; let gp = avail.gp, gpCut = false;
     // 30,000 pts / 10,000 reb / 10,000 ast is a LeBron-only club: without a rare hidden "big three" career, the last category fades as the career winds down
     if (!p.big3) {
       if (p.big3Roll == null) p.big3Roll = rand() < (p.arch === 'generational' ? 0.04 : p.arch === 'dominator' ? 0.015 : 0.004);
@@ -250,6 +250,11 @@
         else if (R >= 7500 && A >= 5500) m.ast *= 0.84;
       }
     }
+    // game plan chosen on the pre-season screen
+    const sty = st.style || 'balanced';
+    if (sty === 'score') { m.pts *= 1.06; m.ast *= 0.88; m.reb *= 0.95; }
+    else if (sty === 'playmake') { m.pts *= 0.94; m.ast *= 1.16; m.reb *= 1.08; }
+    else if (sty === 'defend') { m.pts *= 0.96; m.reb *= 1.03; m.stl *= 1.2; m.blk *= 1.25; }
     // everyday scoring is soft-capped; big years (32-33, rarely 34-36) come from the career plan
     const SOFT = 30.2;
     if (m.pts > SOFT) m.pts = SOFT + (m.pts - SOFT) * 0.25;
@@ -261,12 +266,17 @@
     // triple-double window: no hints before it, one contiguous run of seasons starting in the late 20s
     // the window rolls forward (to 34) if injury or form wrecked it before the first triple-double year
     const inWin = p.tdPlan > 0 && age >= p.tdStart && age <= 34 && (age < p.tdStart + p.tdPlan || p.tdUsed === 0);
+    const bigMan = p.arch === 'dominator' || p.arch === 'generational' || p.sec === 'dominator';
+    const playmakeWin = sty === 'playmake' && bigMan && age >= 25 && age <= 34 && p.tdUsed < TD_CAP && e0.ovr >= 84 && m.ast >= 7.6 && m.reb >= 7.4 && rand() < 0.55;
     const preWin = p.tdPlan > 0 && age < p.tdStart;
     let surge = null;
-    if (inWin && p.tdUsed < p.tdPlan && e0.ovr >= 82 && m.pts >= 16 && rand() < 0.92) {
+    if (((inWin && p.tdUsed < p.tdPlan) || playmakeWin) && e0.ovr >= 82 && m.pts >= 16 && rand() < 0.92) {
       surge = { big: p.td30Ages.includes(age) && p.td30Used < p.td30Plan && e0.ovr >= 86 && m.pts >= 24.5 };
     }
     if (surge && surge.big) m.pts = Math.max(m.pts, 30.3 + rand() * 1);
+    if (!surge && p.postTd && age - p.postTd.age <= 4) { // a triple-double year does not vanish overnight: playmaking decays ~20% a year
+      const d = Math.pow(0.8, age - p.postTd.age); m.ast = Math.max(m.ast, p.postTd.ast * d); m.reb = Math.max(m.reb, p.postTd.reb * Math.pow(0.88, age - p.postTd.age));
+    }
     if (!surge) {
       if (preWin && m.ast > 8.1) m.ast = 8.1 + (m.ast - 8.1) * 0.3;
       if (p.tdUsed >= TD_CAP) { m.ast = Math.min(m.ast, 9.4); m.reb = Math.min(m.reb, 9.4); }
@@ -280,17 +290,25 @@
       if (bigOK && p.tier34 && !p.tier34Done && m.pts >= 28 && rand() < 0.3) tierMode = { lo: 34.0, hi: 36.6 };
       else if (bigOK && p.tier32 && !p.tier32Done && m.pts >= 27 && rand() < 0.3) tierMode = { lo: 32.0, hi: 33.9 };
       if (tierMode) m.pts = Math.max(m.pts, tierMode.lo + 0.3 + rand() * (tierMode.lo >= 34 ? 1.6 : 0.9));
+      if (tierMode) { const h2 = Math.max(0, m.pts - 27); m.ast *= Math.max(0.55, 1 - 0.055 * h2); m.reb *= Math.max(0.7, 1 - 0.03 * h2); } // 33-36 ppg years come with a scorer's playstyle, not 9 boards and 8 dimes
     } else {
       m.reb = Math.max(m.reb, 10.25 + rand() * 0.9);
       m.ast = Math.max(m.ast, 10.25 + rand() * 0.9);
     }
-    if (!p.big3 && gp > 0) { // backstop: never cross the line in the last category
+    if (!p.big3 && gp > 0) { // glide down toward the cap over a couple of seasons, and only as a last resort end the year early (injury)
       const tot2 = (k) => sum(st.proSeasons.map((x) => x[k])); const P = tot2('totPts'), R = tot2('totReb'), A = tot2('totAst');
-      if (P >= 24000) {
-        if (R >= 9000 && A >= 6000) m.ast = Math.min(m.ast, Math.max(0.5, (9860 - A) / gp));
-        if (A >= 9000 && R >= 6000) m.reb = Math.min(m.reb, Math.max(0.5, (9860 - R) / gp));
+      const glide = (have, key) => {
+        const rem = 9860 - have, need = m[key] * gp; if (need <= 0) return;
+        const ratio = rem / need;
+        if (ratio < 2.3) m[key] *= clamp(0.45 + 0.55 * (ratio - 0.9) / 1.4, 0.45, 1);
+        const need2 = m[key] * gp;
+        if (need2 > rem) { gp = Math.max(8, Math.floor(rem / Math.max(0.5, m[key]))); gpCut = true; }
+      };
+      if (P >= 22000) {
+        if (R >= 8500 && A >= 5500) glide(A, 'ast');
+        if (A >= 8500 && R >= 5500) glide(R, 'reb');
       }
-      if (R >= 9860 && A >= 9860) m.pts = Math.min(m.pts, Math.max(1, (29850 - P) / gp));
+      if (R >= 9860 && A >= 9860) m.pts = Math.min(m.pts, Math.max(1, (29850 - P) / Math.max(1, gp)));
     }
     let games, s;
     for (let tries = 0; tries < 16; tries++) {
@@ -306,8 +324,8 @@
     const tsRaw = clamp(e0.ts * (0.5 + 0.5 * (s.pts / Math.max(1, m.pts))), 0.44, 0.72);
     const sl = shootingLine(p, s.pts, tsRaw, e0.usg);
     const avgTD = gp >= 30 && s.pts >= 10 && s.reb >= 10 && s.ast >= 10;
-    if (avgTD) { p.tdUsed++; if (s.pts >= 30) p.td30Used++; }
-    return Object.assign({ gp, usg: e0.usg, ovr: e0.ovr, fga: sl.fga, fgp: sl.fgp, tpa: sl.tpa, tpp: sl.tpp, ftp: sl.ftp, fta: sl.fta, ts: sl.ts, avgTD, games: games.length, gameList: games }, s, { pts: s.pts, reb: s.reb, ast: s.ast });
+    if (avgTD) { p.tdUsed++; if (s.pts >= 30) p.td30Used++; p.postTd = { age, ast: s.ast, reb: s.reb }; }
+    return Object.assign({ gp, usg: e0.usg, ovr: e0.ovr, fga: sl.fga, fgp: sl.fgp, tpa: sl.tpa, tpp: sl.tpp, ftp: sl.ftp, fta: sl.fta, ts: sl.ts, avgTD, games: games.length, gpCut, gameList: games }, s, { pts: s.pts, reb: s.reb, ast: s.ast });
   }
 
   function playoffLine(st, ctx, seriesList, base, mode) {
@@ -317,6 +335,7 @@
     // a postseason's overall form varies far more than a single game's noise (real sd of the points ratio is 0.155)
     const fp = clamp(1 + 0.13 * randn(), 0.7, 1.34), fo = clamp(1 + 0.07 * randn(), 0.8, 1.22);
     mult.ast = clamp(0.95 - 0.015 * (base.ast - 5), 0.85, 0.95); // real 7+ apg players lose ~10% of their assists in the playoffs
+    mult.pts *= 1 + clamp((base.ovr - 84) * 0.0045, 0, 0.055); // real superstars score MORE in the playoffs (Jordan +3, LeBron +1.4, Durant +2.2, Curry +1.4)
     mult.pts *= fp; mult.reb *= fo; mult.ast *= fo; mult.stl *= fo; mult.blk *= fo;
     let cap = Math.max(35.5, base.pts + 2.2), maxAvg = Math.max(35.8, base.pts + 2.6);
     if (mode === 'heater') { const h = 1.15 + rand() * 0.07; mult.pts *= h; mult.reb *= 1.08; mult.ast *= 1.12; mult.mins *= 1.03; cap = Math.min(37.2, Math.max(35.4, base.pts + 2)); maxAvg = Math.min(38.6, Math.max(37.4, base.pts + 3.5)); }
@@ -490,7 +509,7 @@
     if (po.champion.id === st.teamId) {
       st.career.titles++; cnt('Championships'); awardsHere.push('NBA Champion');
       const fin = perSeries.find((x) => x.round === 'NBA Finals');
-      const who = NBA.finalsMVP(L, st.teamId, fin ? { pts: fin.pts, reb: fin.reb, ast: fin.ast } : null);
+      const who = NBA.finalsMVP(L, st.teamId, fin ? { pts: fin.pts, reb: fin.reb, ast: fin.ast, reg: { pts: userLine.pts, reb: userLine.reb, ast: userLine.ast } } : null);
       if (who === 'user') { cnt('Finals MVP'); awardsHere.push('Finals MVP'); fmvp = true; }
     }
 
@@ -506,8 +525,10 @@
       rookie: p.rookie, leaders: res.leaders,
     };
     const gl = l.gameList; delete l.gameList;
+    if (l.gpCut && !rec.injury) rec.injury = 'Suffered a season-ending injury and missed the rest of the year.';
     st.leagueSnap = { year: L.year, label: res.label, standings: res.standings, leaders: res.leaders, leadersO: res.leadersOthers, race: A.race, raceO: A.raceOthers };
     st.matchLog = buildMatchLog(st, rec, l, gl, perSeries, t, rec.injury); st.matchIdx = 0;
+    if (rec.playoff) rec.playoff.rating = rec.poRating;
     if (NBA.onSeasonLog) NBA.onSeasonLog(st, rec);
     rec.perSeries = perSeries.map((x) => { const y = Object.assign({}, x); delete y.list; delete y.w; delete y.l; delete y.won; return y; });
     st.proSeasons.push(rec);

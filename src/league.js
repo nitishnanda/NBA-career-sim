@@ -248,8 +248,9 @@
     L.teams.forEach((t) => { t.wins = 0.9 * t.wins + 0.1 * (t.prevWins == null ? 41 : t.prevWins); });
     const mw = sum(L.teams.map((t) => t.wins)) / L.teams.length;
     // real tails: more truly bad teams, fewer 60+ juggernauts
-    L.teams.forEach((t) => { let w = t.wins - (mw - 41); if (w < 33) w -= (33 - w) * 0.22; if (w > 54) w -= (w - 54) * 0.2; t.wins = clamp(Math.round(w), 12, 73); t.losses = 82 - t.wins; });
+    L.teams.forEach((t) => { let w = t.wins - (mw - 41); if (w < 33) w -= (33 - w) * 0.22; if (w > 54) w -= (w - 54) * ((user && t.id === user.teamId && ovr(user.p) >= 88) ? 0.08 : 0.2); t.wins = clamp(Math.round(w), 12, 73); t.losses = 82 - t.wins; });
     L.teams.forEach((t) => { t.power = (t.wins - 41) / 2.7 + randn() * 0.8; t.prevWins = t.wins; });
+    if (user) { const ut = L.teams[user.teamId]; ut.power += clamp((ovr(user.p) - 84) * 0.08, 0, 1.1); } // superstars matter more in the playoffs: shorter rotations, more minutes
 
     // user line (needs team context)
     if (user) {
@@ -279,11 +280,12 @@
 
     // awards
     const q65 = entries.filter((e) => e.l.gp >= 65);
-    const byMVP = q65.map((e) => ({ e, s: 0.85 * e.l.perf + 0.35 * e.l.pts + 0.5 * (e.l.wins - 41) + randn() * 4.5 - (e.p.mvpRecent || 0), ok: e.l.wins >= 36 })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
+    const tdBonus = (l) => (l.pts >= 25 && l.reb >= 7.5 && l.ast >= 7.5 ? 3 : 0) + (l.reb >= 9.5 && l.ast >= 9.5 && l.pts >= 18 ? 7 + (l.pts >= 28 ? 3 : 0) : 0); // voters love the triple-double story
+    const byMVP = q65.map((e) => ({ e, s: 0.85 * e.l.perf + 0.35 * e.l.pts + 0.5 * (e.l.wins - 41) + tdBonus(e.l) + randn() * 3 - (e.p.mvpRecent || 0), ok: e.l.wins >= 36 })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
     const dpoy = q65.map((e) => ({ e, s: defScore(e.p, e.l) + 0.12 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s);
     const roy = entries.filter((e) => e.p.rookie && e.l.gp >= 50).map((e) => ({ e, s: e.l.perf + 0.1 * (e.l.wins - 41) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
     const mip = q65.filter((e) => !e.p.rookie && e.p.prevPerf != null && e.p.age <= 28).map((e) => ({ e, s: (e.l.perf - e.p.prevPerf) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
-    const allNBA = q65.map((e) => ({ e, s: 0.85 * e.l.perf + 0.45 * e.l.pts + 0.3 * (e.l.wins - 41) + randn() * 4.5 })).sort((a, b) => b.s - a.s).slice(0, 15);
+    const allNBA = q65.map((e) => ({ e, s: 0.85 * e.l.perf + 0.45 * e.l.pts + 0.3 * (e.l.wins - 41) + tdBonus(e.l) + randn() * 3 })).sort((a, b) => b.s - a.s).slice(0, 15);
     const allDef = dpoy.slice(0, 10);
     const stars = entries.filter((e) => e.l.gp >= 40).map((e) => ({ e, s: e.l.perf + randn() * 3 })).sort((a, b) => b.s - a.s).slice(0, 24);
     const qual = entries.filter((e) => e.l.gp >= 58);
@@ -314,7 +316,7 @@
     };
     const playoffs = simPlayoffs(L, user ? user.teamId : null);
     // remember perf for MIP, and voter fatigue for repeat MVPs
-    entries.forEach((e) => { e.p.prevPerf = e.l.perf; e.p.mvpRecent = (e.p.mvpRecent || 0) * 0.55 + (awards.mvp && awards.mvp.id === e.id ? 4 : 0); });
+    entries.forEach((e) => { e.p.prevPerf = e.l.perf; e.p.mvpRecent = (e.p.mvpRecent || 0) * 0.5 + (awards.mvp && awards.mvp.id === e.id ? 2.5 : 0); });
     const stand = L.teams.map((t) => ({ id: t.id, name: t.name, nick: t.nick, conf: t.conf, wins: t.wins, losses: t.losses }));
     const res = { year: L.year, label: seasonLabel(L.year), awards, playoffs, standings: stand, leaders, leadersOthers, league, ranks: user ? { pts: rankOf('pts', 'user'), reb: rankOf('reb', 'user'), ast: rankOf('ast', 'user'), stl: rankOf('stl', 'user'), blk: rankOf('blk', 'user') } : null, entries };
     // history record
@@ -326,12 +328,17 @@
   // Finals MVP: best Finals line on the winning team. `user` is {pts, reb, ast} from the Finals series.
   const finalsScore = (pts, reb, ast) => 1.9 * pts + 1.15 * reb + 1.5 * ast;
   function finalsMVP(L, teamId, user) {
+    // user = { pts, reb, ast } in the Finals series, reg = { pts, reb, ast } regular season. The champion's best player takes it ~90% of the time in reality.
     const t = L.teams[teamId];
     const cands = t.core.map((id) => {
-      const l = L.lines[id];
-      return { name: L.players[id].name, s: (l ? finalsScore(l.pts, l.reb, l.ast) : 30) * (1 + 0.07 * randn()) };
+      const l = L.lines[id], reg = l ? finalsScore(l.pts, l.reb, l.ast) : 30;
+      return { name: L.players[id].name, reg, s: reg * 0.96 * (1 + 0.05 * randn()) };
     });
-    if (user) cands.push({ name: 'user', s: finalsScore(user.pts, user.reb, user.ast) * (1 + 0.03 * randn()) });
+    if (user) {
+      const ureg = user.reg ? finalsScore(user.reg.pts, user.reg.reb, user.reg.ast) : finalsScore(user.pts, user.reb, user.ast);
+      const best = cands.every((c) => ureg >= c.reg * 0.97);
+      cands.push({ name: 'user', s: (0.65 * finalsScore(user.pts, user.reb, user.ast) + 0.35 * ureg) * (best ? 1.1 : 1) * (1 + 0.04 * randn()) });
+    }
     cands.sort((a, b) => b.s - a.s);
     return cands[0].name;
   }

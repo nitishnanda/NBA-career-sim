@@ -276,9 +276,11 @@
     const blk36 = soft(Math.max(0.15, 0.043 * (a.rimP - 28)), 1.25, 0.5);
     const tov36 = 0.55 + 8.2 * usg;
     const k = mins / 36;
+    // a 30+ ppg usage load costs you the ball-handling and glass work: real 33+ ppg seasons come with ~6 ast / ~6 reb
+    const hi = Math.max(0, pts - 27), astTrade = Math.max(0.52, 1 - 0.07 * hi), rebTrade = Math.max(0.66, 1 - 0.04 * hi);
     return {
       ovr: o, usg, ts, mins, pace,
-      pts, reb: reb36 * k * (c.rebMult || 1) * (p.arch === 'generational' ? 0.97 : 1), ast: ast36 * k * (c.astMult || 1) * (p.arch === 'generational' ? 0.88 : 1),
+      pts, reb: reb36 * k * (c.rebMult || 1) * (p.arch === 'generational' ? 0.97 : 1) * rebTrade, ast: ast36 * k * (c.astMult || 1) * (p.arch === 'generational' ? 0.88 : 1) * astTrade,
       stl: stl36 * k, blk: blk36 * k, tov: tov36 * k,
     };
   }
@@ -322,11 +324,11 @@
     return { min: m.mins * mm, pts, reb, ast, stl, blk, tov };
   }
   // Sofascore-style match rating (3-10, everyone starts at 6.5). Coefficients fitted to eight reference box scores for the rating tiers (red 3-5 ... deep blue 9-10)
-  // supplied by the user: points over average efficiency, rebounds, assists, steals, blocks, turnovers. Fewer minutes shrink the swing toward 6.5.
+  // supplied by the user, plus season-average anchors (30/10/10 ≈ 8.3, Jokic-style 26/12/9 ≈ 8.7). Fewer minutes shrink the swing toward 6.5.
   function gameRating(g, b) {
-    const poe = g.pts - 1.1 * (b.fga + 0.44 * b.fta);
-    const swing = 0.12 * poe + 0.034 * g.reb + 0.076 * g.ast + 0.081 * g.stl + 0.086 * g.blk - 0.081 * g.tov - 0.2 * Math.min(1, g.min / 36);
-    const r = 6.5 + swing * Math.min(1, g.min / 14);
+    const poe = g.pts - 0.8 * (b.fga + 0.44 * b.fta);
+    const swing = 0.111 * poe + 0.065 * g.reb + 0.089 * g.ast + 0.054 * g.stl + 0.171 * g.blk - 0.146 * g.tov - 0.484 * Math.min(1, g.min / 36);
+    const r = 6.5 + 0.86 * swing * Math.min(1, g.min / 14);
     return Math.round(clamp(r, 3, 10) * 10) / 10;
   }
   function summarize(games) {

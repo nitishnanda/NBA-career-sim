@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 21 Oct · BallerSim dashboard v7';
+  const BUILD = 'build 21 Oct · BallerSim dashboard v8';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
@@ -190,7 +190,9 @@
     const L = S.league, t = L.teams[S.teamId], p = S.player, c = S.contract;
     const isRook = S.proSeasons.length === 0;
     return h('div', null, h('h1', null, NBA.seasonLabel(L.year) + (isRook ? ' · Rookie season' : ' season')),
-      h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('div', { class: 'big' }, Math.round(NBA.ovr(p))), h('div', { class: 'muted small' }, 'OVERALL')), h('div', null, h('b', null, t.name), h('div', { class: 'muted small' }, 'Last season: ' + t.wins + '-' + t.losses + ' · age ' + p.age)), h('div', null, h('b', null, money(c.salary) + ' / yr'), h('div', { class: 'muted small' }, (c.type === 'rookie' ? 'Rookie deal' : 'Contract') + ' · ' + c.left + ' yr left'))), h('h3', null, 'Ratings'), attrBars(p),
+      h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('div', { class: 'big' }, Math.round(NBA.ovr(p))), h('div', { class: 'muted small' }, 'OVERALL')), h('div', null, h('b', null, t.name), h('div', { class: 'muted small' }, 'Last season: ' + t.wins + '-' + t.losses + ' · age ' + p.age)), h('div', null, h('b', null, money(c.salary) + ' / yr'), h('div', { class: 'muted small' }, (c.type === 'rookie' ? 'Rookie deal' : 'Contract') + ' · ' + c.left + ' yr left'))), h('h3', null, 'Game plan'), h('p', { class: 'small muted' }, 'How you play this season. It shifts your numbers and can be changed every year.'),
+        h('div', { class: 'grid g2' }, [['balanced', '⚖ Balanced', 'Play your natural game.'], ['score', '🎯 Scoring priority', 'More shots and points. Fewer assists and rebounds.'], ['playmake', '🤝 Pass & rebound', 'Run the offence and crash the glass: more assists and boards, more triple-double chances, a few fewer points.'], ['defend', '🛡 Defend more', 'Lock in on D: more steals and blocks, slightly less scoring.']].map(([k, t, d]) => h('div', { class: 'opt' + ((S.style || 'balanced') === k ? ' sel' : ''), onclick: () => { S.style = k; save(); render(); } }, h('b', null, t), h('div', { class: 'small' }, d)))),
+        h('h3', null, 'Ratings'), attrBars(p),
         h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { G.playSeason(S); go(); } }, 'Tip off the ' + NBA.seasonLabel(L.year) + ' season →'))));
   }
 
@@ -292,7 +294,7 @@
     const hero = h('section', { class: 'panel hero' },
       h('div', { class: 'row chips2', style: 'justify-content:center' }, h('span', { class: 'cp' }, h('i', { class: 'live' }), phase), h('span', { class: 'cp' }, (t.conf === 'W' ? 'Western' : 'Eastern') + ' Conference · ' + (reg.length ? ord2(seed) + ' seed' : 'preseason')),
         nextG && !done ? h('span', { class: 'cp plain' }, '◷ Next: ' + (nextG.h ? 'vs ' : '@ ') + nextG.oc + ' ' + nextG.o + (oppRow && !nextIsPo ? ' (' + oppRow.wins + '-' + oppRow.losses + ')' : '')) : null),
-      h('div', { class: 'hid' }, h('h1', { class: 'nm' }, p.name), h('div', { class: 'sub' }, t.name + ' · ' + p.pos + ' · ' + D.ARCHETYPES[p.arch].name),
+      h('div', { class: 'hid' }, h('h1', { class: 'nm' }, p.name), h('div', { class: 'sub' }, t.name + ' · ' + p.pos + ' · ' + D.ARCHETYPES[p.arch].name + ({ score: ' · Scoring priority', playmake: ' · Pass & rebound', defend: ' · Defend more' }[S.style] || '')),
         h('div', { class: 'jr' }, h('div', { class: 'jersey' }, '#' + jersey(p.name)), h('div', { class: 'recbox2 well' }, h('div', { class: 'lbl' }, 'Record'), h('div', { class: 'num' }, wins + '-' + losses), h('div', { class: 'sub2' }, (reg.length ? (wins / reg.length).toFixed(3).replace(/^0/, '') : '.000') + ' PCT')))),
       schedule, simBar);
 
@@ -491,23 +493,26 @@
   }
 
   function seasonTable(rows, playoffs) {
-    const head = playoffs ? ['Season', 'Age', 'Team', 'GP', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', '3P%', 'TS%', 'TD'] : ['Season', 'Age', 'Team', 'W-L', 'GP', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', '3P%', 'FT%', 'TS%', 'TD', 'OVR'];
+    const head = playoffs ? ['Season', 'Age', 'Team', 'GP', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', '3P%', 'TS%', 'TD', 'RTG'] : ['Season', 'Age', 'Team', 'W-L', 'GP', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', '3P%', 'FT%', 'TS%', 'TD', 'OVR', 'RTG'];
     return h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, head.map((x, i) => h('th', { class: i === 2 ? 'l' : '' }, x)))),
       h('tbody', null, rows.map((s) => playoffs
-        ? h('tr', null, h('td', null, s.label), h('td', null, s.age), h('td', { class: 'l' }, s.team), h('td', null, s.gp), h('td', null, f1(s.mins)), h('td', null, f1(s.pts)), h('td', null, f1(s.reb)), h('td', null, f1(s.ast)), h('td', null, f1(s.stl)), h('td', null, f1(s.blk)), h('td', null, pct(s.fgp)), h('td', null, pct(s.tpp)), h('td', null, pct(s.ts)), h('td', null, s.td))
-        : h('tr', null, h('td', null, s.label), h('td', null, s.age), h('td', { class: 'l' }, s.team), h('td', null, s.wins + '-' + s.losses), h('td', null, s.gp), h('td', null, f1(s.mins)), h('td', null, f1(s.pts)), h('td', null, f1(s.reb)), h('td', null, f1(s.ast)), h('td', null, f1(s.stl)), h('td', null, f1(s.blk)), h('td', null, pct(s.fgp)), h('td', null, pct(s.tpp)), h('td', null, pct(s.ftp)), h('td', null, pct(s.ts)), h('td', null, s.td), h('td', null, s.ovr))))));
+        ? h('tr', null, h('td', null, s.label), h('td', null, s.age), h('td', { class: 'l' }, s.team), h('td', null, s.gp), h('td', null, f1(s.mins)), h('td', null, f1(s.pts)), h('td', null, f1(s.reb)), h('td', null, f1(s.ast)), h('td', null, f1(s.stl)), h('td', null, f1(s.blk)), h('td', null, pct(s.fgp)), h('td', null, pct(s.tpp)), h('td', null, pct(s.ts)), h('td', null, s.td), h('td', null, s.rating ? ratingBadge(s.rating, 2) : '–'))
+        : h('tr', null, h('td', null, s.label), h('td', null, s.age), h('td', { class: 'l' }, s.team), h('td', null, s.wins + '-' + s.losses), h('td', null, s.gp), h('td', null, f1(s.mins)), h('td', null, f1(s.pts)), h('td', null, f1(s.reb)), h('td', null, f1(s.ast)), h('td', null, f1(s.stl)), h('td', null, f1(s.blk)), h('td', null, pct(s.fgp)), h('td', null, pct(s.tpp)), h('td', null, pct(s.ftp)), h('td', null, pct(s.ts)), h('td', null, s.td), h('td', null, s.ovr), h('td', null, s.avgRating ? ratingBadge(s.avgRating, 2) : '–'))))));
   }
   function careerTotals(ps) {
     if (!ps.length) return null;
     const gp = ps.reduce((a, s) => a + s.gp, 0), tot = (k) => ps.reduce((a, s) => a + s[k] * s.gp, 0);
-    return { gp, pts: tot('pts') / gp, reb: tot('reb') / gp, ast: tot('ast') / gp, totPts: Math.round(tot('pts')), totReb: Math.round(tot('reb')), totAst: Math.round(tot('ast')), totStl: Math.round(tot('stl')), totBlk: Math.round(tot('blk')), td: CV_TD };
+    const rs = ps.filter((x) => x.avgRating), rgp = rs.reduce((a, x) => a + x.gp, 0), rating = rgp ? rs.reduce((a, x) => a + x.avgRating * x.gp, 0) / rgp : null;
+    return { rating, gp, pts: tot('pts') / gp, reb: tot('reb') / gp, ast: tot('ast') / gp, totPts: Math.round(tot('pts')), totReb: Math.round(tot('reb')), totAst: Math.round(tot('ast')), totStl: Math.round(tot('stl')), totBlk: Math.round(tot('blk')), td: CV_TD };
   }
   function playoffTotals(pl) {
     if (!pl.length) return null;
     const gp = pl.reduce((a, s) => a + s.gp, 0), tot = (k) => pl.reduce((a, s) => a + (s[k] || 0) * s.gp, 0);
-    return { gp, pts: tot('pts') / gp, reb: tot('reb') / gp, ast: tot('ast') / gp, stl: tot('stl') / gp, blk: tot('blk') / gp, totPts: Math.round(tot('pts')), totReb: Math.round(tot('reb')), totAst: Math.round(tot('ast')), td: pl.reduce((a, s) => a + (s.td || 0), 0), runs: pl.length };
+    const rs = pl.filter((x) => x.rating), rgp = rs.reduce((a, x) => a + x.gp, 0), rating = rgp ? rs.reduce((a, x) => a + x.rating * x.gp, 0) / rgp : null;
+    return { rating, gp, pts: tot('pts') / gp, reb: tot('reb') / gp, ast: tot('ast') / gp, stl: tot('stl') / gp, blk: tot('blk') / gp, totPts: Math.round(tot('pts')), totReb: Math.round(tot('reb')), totAst: Math.round(tot('ast')), td: pl.reduce((a, s) => a + (s.td || 0), 0), runs: pl.length };
   }
 
+  const ratingBox = (r, l) => h('div', { class: 'statbox' }, h('div', { class: 'big' }, ratingBadge(r, 2)), h('div', { class: 'lbl' }, l));
   let CV_TD = 0;
   // Career as of the games revealed so far. While a season is being played out, the stored season record (final stats, awards, titles, earnings) is hidden:
   // you see everything up to last season plus this season's line to date.
@@ -516,11 +521,11 @@
     const shown = S.matchLog.slice(0, S.matchIdx || 0), cur = S.proSeasons[S.proSeasons.length - 1], ps = S.proSeasons.slice(0, -1), pl = S.playoffLines.slice(0, S.pre.nPlayoff);
     const lineOf = (games, label) => {
       const n = games.length; if (!n) return null; const sum = (k) => games.reduce((a, g) => a + (g[k] || 0), 0), fga = sum('fga'), fta = sum('fta');
-      return { label, age: cur.age, team: cur.team, gp: n, mins: sum('m') / n, pts: sum('pt') / n, reb: sum('rb') / n, ast: sum('as') / n, stl: sum('st') / n, blk: sum('bk') / n, fgp: fga ? sum('fgm') / fga : null, tpp: sum('tpa') ? sum('tpm') / sum('tpa') : null, ftp: fta ? sum('ftm') / fta : null, ts: fga + fta ? sum('pt') / (2 * (fga + 0.44 * fta)) : null, td: games.filter((g) => g.tg.includes('Triple-double')).length, ovr: cur.ovr, totPts: sum('pt'), totReb: sum('rb'), totAst: sum('as') };
+      return { label, age: cur.age, team: cur.team, gp: n, mins: sum('m') / n, pts: sum('pt') / n, reb: sum('rb') / n, ast: sum('as') / n, stl: sum('st') / n, blk: sum('bk') / n, fgp: fga ? sum('fgm') / fga : null, tpp: sum('tpa') ? sum('tpm') / sum('tpa') : null, ftp: fta ? sum('ftm') / fta : null, ts: fga + fta ? sum('pt') / (2 * (fga + 0.44 * fta)) : null, td: games.filter((g) => g.tg.includes('Triple-double')).length, ovr: cur.ovr, totPts: sum('pt'), totReb: sum('rb'), totAst: sum('as'), rating: games.reduce((a, g) => a + g.r, 0) / n };
     };
     const regAll = shown.filter((x) => x.k === 'g' && !x.po), reg = regAll.filter((x) => !x.dnp), po = shown.filter((x) => x.k === 'g' && !x.po === false && !x.dnp);
     const live = lineOf(reg, cur.label + ' ●'), lw = regAll.filter((x) => x.w).length;
-    if (live) { live.wins = lw; live.losses = regAll.length - lw; ps.push(live); }
+    if (live) { live.wins = lw; live.losses = regAll.length - lw; live.avgRating = live.rating; ps.push(live); }
     const pLive = lineOf(po, cur.label + ' ●'); if (pLive) pl.push(pLive);
     return { ps, pl, career: S.pre.career, earnings: S.pre.earnings, earnings26: S.pre.earnings26, td: S.pre.career.td + (live ? live.td : 0) };
   }
@@ -529,8 +534,8 @@
     const ps = cv.ps, ct = careerTotals(ps), aw = cv.career.awards;
     const wrap = h('div');
     if (!ct) { wrap.append(h('p', { class: 'muted' }, 'No NBA games yet.'), S.collegeYears.length ? collegeTable() : null); return wrap; }
-    wrap.append(h('h3', null, 'Regular season career'), h('div', { class: 'grid stats' }, statBox(f1(ct.pts), 'PPG'), statBox(f1(ct.reb), 'RPG'), statBox(f1(ct.ast), 'APG'), statBox(ct.totPts.toLocaleString(), 'Total points'), statBox(ct.totReb.toLocaleString(), 'Total rebounds'), statBox(ct.totAst.toLocaleString(), 'Total assists'), statBox(ct.totStl.toLocaleString(), 'Total steals'), statBox(ct.totBlk.toLocaleString(), 'Total blocks'), statBox(ct.gp.toLocaleString(), 'Games'), statBox(ct.td, 'Triple-doubles (' + (100 * ct.td / ct.gp).toFixed(1) + '%)'), statBox(money(cv.earnings), 'Career earnings · ' + money(cv.earnings26 || cv.earnings) + ' in 2026 $')),
-      (() => { const pt = playoffTotals(cv.pl); return pt ? h('div', null, h('h3', null, 'Playoff career'), h('div', { class: 'grid stats' }, statBox(f1(pt.pts), 'PPG'), statBox(f1(pt.reb), 'RPG'), statBox(f1(pt.ast), 'APG'), statBox(f1(pt.stl), 'SPG'), statBox(f1(pt.blk), 'BPG'), statBox(pt.gp.toLocaleString(), 'Playoff games'), statBox(pt.totPts.toLocaleString(), 'Playoff points'), statBox(pt.totReb.toLocaleString(), 'Playoff rebounds'), statBox(pt.totAst.toLocaleString(), 'Playoff assists'), statBox(cv.career.titles || 0, 'Championships'))) : null; })(),
+    wrap.append(h('h3', null, 'Regular season career'), h('div', { class: 'grid stats' }, ct.rating ? ratingBox(ct.rating, 'Avg match rating') : null, statBox(f1(ct.pts), 'PPG'), statBox(f1(ct.reb), 'RPG'), statBox(f1(ct.ast), 'APG'), statBox(ct.totPts.toLocaleString(), 'Total points'), statBox(ct.totReb.toLocaleString(), 'Total rebounds'), statBox(ct.totAst.toLocaleString(), 'Total assists'), statBox(ct.totStl.toLocaleString(), 'Total steals'), statBox(ct.totBlk.toLocaleString(), 'Total blocks'), statBox(ct.gp.toLocaleString(), 'Games'), statBox(ct.td, 'Triple-doubles (' + (100 * ct.td / ct.gp).toFixed(1) + '%)'), statBox(money(cv.earnings), 'Career earnings · ' + money(cv.earnings26 || cv.earnings) + ' in 2026 $')),
+      (() => { const pt = playoffTotals(cv.pl); return pt ? h('div', null, h('h3', null, 'Playoff career'), h('div', { class: 'grid stats' }, pt.rating ? ratingBox(pt.rating, 'Playoff avg rating') : null, statBox(f1(pt.pts), 'PPG'), statBox(f1(pt.reb), 'RPG'), statBox(f1(pt.ast), 'APG'), statBox(f1(pt.stl), 'SPG'), statBox(f1(pt.blk), 'BPG'), statBox(pt.gp.toLocaleString(), 'Playoff games'), statBox(pt.totPts.toLocaleString(), 'Playoff points'), statBox(pt.totReb.toLocaleString(), 'Playoff rebounds'), statBox(pt.totAst.toLocaleString(), 'Playoff assists'), statBox(cv.career.titles || 0, 'Championships'))) : null; })(),
       h('div', { style: 'margin-top:8px' }, Object.keys(aw).map((k) => h('span', { class: 'pill gold' }, aw[k] + '× ' + k))),
       h('p', { class: 'muted small' }, 'Seasons averaging a triple-double: ' + cv.career.tdSeasons + (cv.career.td30Seasons ? ' (' + cv.career.td30Seasons + ' with 30+ ppg)' : '')),
       h('h3', null, 'Regular season'), seasonTable(ps, false));
@@ -547,7 +552,8 @@
   function screenRetired() {
     const hof = S.hof, p = S.player;
     return h('div', null, h('h1', null, p.name + ' retires'),
-      h('div', { class: 'card' }, h('div', { class: 'big', style: 'color:' + (hof.hall ? 'var(--gold)' : 'inherit') }, hof.hall ? '🏛️ ' + hof.tier : hof.tier), h('p', { class: 'muted' }, 'Legacy score ' + hof.score + ' (Hall of Fame line: 85) · ' + S.proSeasons.length + ' seasons · ' + D.ARCHETYPES[p.arch].name + ' · hidden ceiling was ' + Math.round(p.ceiling) + ' · ' + S.stars + '★ recruit' + (S.draft && S.draft.slot ? ' · drafted #' + S.draft.slot : ' · undrafted'))),
+      h('div', { class: 'card' }, h('div', { class: 'big', style: 'color:' + (hof.hall ? 'var(--gold)' : 'inherit') }, hof.hall ? '🏛️ ' + hof.tier : hof.tier), (() => { const ct = careerTotals(S.proSeasons), pt = playoffTotals(S.playoffLines); return ct && ct.rating ? h('p', null, h('b', null, 'Career avg match rating '), ratingBadge(ct.rating, 2), pt && pt.rating ? h('span', null, '  ·  playoffs ', ratingBadge(pt.rating, 2)) : null) : null; })(),
+        h('p', { class: 'muted' }, 'Legacy score ' + hof.score + ' (Hall of Fame line: 85) · ' + S.proSeasons.length + ' seasons · ' + D.ARCHETYPES[p.arch].name + ' · hidden ceiling was ' + Math.round(p.ceiling) + ' · ' + S.stars + '★ recruit' + (S.draft && S.draft.slot ? ' · drafted #' + S.draft.slot : ' · undrafted'))),
       h('div', { class: 'card' }, careerBody()),
       h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { wipe(); S = null; boot(); } }, 'Start a new career')));
   }
