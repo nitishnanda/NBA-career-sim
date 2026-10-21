@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 21 Oct · BallerSim dashboard v8';
+  const BUILD = 'build 21 Oct · BallerSim dashboard v9';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
@@ -30,8 +30,12 @@
   const stars = (n, off) => h('div', { class: 'stars' }, '★'.repeat(n), off ? h('span', { class: 'off' }, '★'.repeat(5 - n)) : '');
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* storage may be unavailable */ } }
   function load() { try { const r = localStorage.getItem(KEY); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
-  function wipe() { try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ } }
-  function go() { stopAuto(); view = 'season'; save(); render(); window.scrollTo(0, 0); }
+  const SNAPKEY = 'nba-career-sim-snap-v1';
+  function saveSnap() { try { localStorage.setItem(SNAPKEY, G.getSnap() || ''); } catch (e) { /* too big or blocked: mid-season plan changes just stay off */ } }
+  function loadSnap() { try { G.setSnap(localStorage.getItem(SNAPKEY) || null); } catch (e) { G.setSnap(null); } }
+  function dropSnap() { try { localStorage.removeItem(SNAPKEY); } catch (e) { /* ignore */ } G.setSnap(null); }
+  function wipe() { dropSnap(); try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ } }
+  function go() { stopAuto(); view = 'season'; if (S && S.stage !== 'season_play') dropSnap(); save(); render(); window.scrollTo(0, 0); }
   function confirmBtn(label, cls, fn) {
     let armed = false, t = null;
     const b = h('button', { class: cls, onclick: () => {
@@ -76,7 +80,7 @@
     return h('div', null,
       h('h1', null, 'Build your NBA legend'),
       h('p', { class: 'muted' }, 'Pick a name, position, archetype and where you grew up. Scouts will rate you, you choose a college, then it is draft night. Stats are tuned to the real NBA: nobody averages 35 for a decade.'),
-      saved && saved.stage !== 'create' ? h('div', { class: 'callout row' }, h('span', null, 'Saved career found: ', h('b', null, saved.player.name), ' (' + saved.stage.replace(/_/g, ' ') + ')'), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => { S = saved; render(); } }, 'Continue')) : null,
+      saved && saved.stage !== 'create' ? h('div', { class: 'callout row' }, h('span', null, 'Saved career found: ', h('b', null, saved.player.name), ' (' + saved.stage.replace(/_/g, ' ') + ')'), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => { S = saved; if (S.stage === 'season_play') loadSnap(); render(); } }, 'Continue')) : null,
       h('div', { class: 'card' }, h('h2', null, '1. Who are you?'), h('div', { class: 'grid g2' }, h('div', null, h('label', { class: 'small muted' }, 'Name'), nameIn), h('div', null, h('label', { class: 'small muted' }, 'Where in the US are you from?'), h('select', { onchange: (e) => (draft.home = e.target.value) }, stateOptions))),
         h('h3', null, 'Position'), h('div', { class: 'row' }, Object.keys(D.POSITIONS).map((p) => h('button', { class: draft.pos === p ? 'primary' : '', onclick: () => { draft.pos = p; render(); } }, p)))),
       h('div', { class: 'card' }, h('h2', null, '2. Archetype'), h('div', { class: 'grid g3' }, archCards),
@@ -190,10 +194,9 @@
     const L = S.league, t = L.teams[S.teamId], p = S.player, c = S.contract;
     const isRook = S.proSeasons.length === 0;
     return h('div', null, h('h1', null, NBA.seasonLabel(L.year) + (isRook ? ' · Rookie season' : ' season')),
-      h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('div', { class: 'big' }, Math.round(NBA.ovr(p))), h('div', { class: 'muted small' }, 'OVERALL')), h('div', null, h('b', null, t.name), h('div', { class: 'muted small' }, 'Last season: ' + t.wins + '-' + t.losses + ' · age ' + p.age)), h('div', null, h('b', null, money(c.salary) + ' / yr'), h('div', { class: 'muted small' }, (c.type === 'rookie' ? 'Rookie deal' : 'Contract') + ' · ' + c.left + ' yr left'))), h('h3', null, 'Game plan'), h('p', { class: 'small muted' }, 'How you play this season. It shifts your numbers and can be changed every year.'),
-        h('div', { class: 'grid g2' }, [['balanced', '⚖ Balanced', 'Play your natural game.'], ['score', '🎯 Scoring priority', 'More shots and points. Fewer assists and rebounds.'], ['playmake', '🤝 Pass & rebound', 'Run the offence and crash the glass: more assists and boards, more triple-double chances, a few fewer points.'], ['defend', '🛡 Defend more', 'Lock in on D: more steals and blocks, slightly less scoring.']].map(([k, t, d]) => h('div', { class: 'opt' + ((S.style || 'balanced') === k ? ' sel' : ''), onclick: () => { S.style = k; save(); render(); } }, h('b', null, t), h('div', { class: 'small' }, d)))),
+      h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('div', { class: 'big' }, Math.round(NBA.ovr(p))), h('div', { class: 'muted small' }, 'OVERALL')), h('div', null, h('b', null, t.name), h('div', { class: 'muted small' }, 'Last season: ' + t.wins + '-' + t.losses + ' · age ' + p.age)), h('div', null, h('b', null, money(c.salary) + ' / yr'), h('div', { class: 'muted small' }, (c.type === 'rookie' ? 'Rookie deal' : 'Contract') + ' · ' + c.left + ' yr left'))), h('p', { class: 'small muted' }, 'Game plan: ' + ({ balanced: 'Balanced', score: 'Scoring priority', playmake: 'Pass & rebound', defend: 'Defend more' }[S.style || 'balanced']) + '. You can switch it at any point during the season.'),
         h('h3', null, 'Ratings'), attrBars(p),
-        h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { G.playSeason(S); go(); } }, 'Tip off the ' + NBA.seasonLabel(L.year) + ' season →'))));
+        h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { G.playSeason(S); saveSnap(); go(); } }, 'Tip off the ' + NBA.seasonLabel(L.year) + ' season →'))));
   }
 
   // ------------------------------------------------------------ shared bits for the dashboard
@@ -291,12 +294,16 @@
       : h('div', null, h('div', { class: 'row small caps' }, h('span', null, 'Regular season schedule'), h('span', { class: 'spacer' }), h('span', null, 'Game ' + reg.length + ' / ' + regTotal + ' (' + (100 * reg.length / Math.max(1, regTotal)).toFixed(1) + '% completed)')),
         h('div', { class: 'bar2' }, h('i', { style: 'width:' + Math.round(100 * reg.length / Math.max(1, regTotal)) + '%' })),
         h('div', { class: 'row small caps muted', style: 'justify-content:space-between' }, h('span', null, (first ? first.d : '') + ' opener' + (reg.length ? ' (' + (reg[0].w ? 'W' : 'L') + ')' : '')), h('span', null, asDone ? '✓ All-Star weekend' : asIdx >= 0 ? '◉ All-Star weekend [in ' + Math.max(0, gamesToAS) + ' games]' : ''), h('span', null, (lastReg ? lastReg.d : '') + ' finale')));
+    const plans = [['balanced', '⚖ Balanced', 'Natural game.'], ['score', '🎯 Scoring', 'More shots and points, fewer assists and boards.'], ['playmake', '🤝 Pass & rebound', 'More assists and boards, more triple-double chances, a few fewer points.'], ['defend', '🛡 Defend', 'More steals and blocks, slightly less scoring.']];
+    const curPlan = S.style || 'balanced';
+    const choose = (k) => () => { stopAuto(); const r = G.setStyle(S, k); if (!r.ok) { S.flash = r.why; } save(); render(); };
+    const gamePlan = h('div', { class: 'gplan' }, h('div', { class: 'small caps muted' }, 'Game plan · switch any time'), h('div', { class: 'seg2' }, plans.map(([k, l]) => h('button', { class: curPlan === k ? 'on' : '', disabled: done, onclick: choose(k) }, l))), h('div', { class: 'small muted' }, (plans.find((x) => x[0] === curPlan) || plans[0])[2] + (S.styleSeq && S.styleSeq.length > 1 ? '  ·  switched ' + (S.styleSeq.length - 1) + '×' : '')));
     const hero = h('section', { class: 'panel hero' },
       h('div', { class: 'row chips2', style: 'justify-content:center' }, h('span', { class: 'cp' }, h('i', { class: 'live' }), phase), h('span', { class: 'cp' }, (t.conf === 'W' ? 'Western' : 'Eastern') + ' Conference · ' + (reg.length ? ord2(seed) + ' seed' : 'preseason')),
         nextG && !done ? h('span', { class: 'cp plain' }, '◷ Next: ' + (nextG.h ? 'vs ' : '@ ') + nextG.oc + ' ' + nextG.o + (oppRow && !nextIsPo ? ' (' + oppRow.wins + '-' + oppRow.losses + ')' : '')) : null),
       h('div', { class: 'hid' }, h('h1', { class: 'nm' }, p.name), h('div', { class: 'sub' }, t.name + ' · ' + p.pos + ' · ' + D.ARCHETYPES[p.arch].name + ({ score: ' · Scoring priority', playmake: ' · Pass & rebound', defend: ' · Defend more' }[S.style] || '')),
         h('div', { class: 'jr' }, h('div', { class: 'jersey' }, '#' + jersey(p.name)), h('div', { class: 'recbox2 well' }, h('div', { class: 'lbl' }, 'Record'), h('div', { class: 'num' }, wins + '-' + losses), h('div', { class: 'sub2' }, (reg.length ? (wins / reg.length).toFixed(3).replace(/^0/, '') : '.000') + ' PCT')))),
-      schedule, simBar);
+      schedule, gamePlan, simBar);
 
     // ---- shot telemetry
     const attrs = p.attrs || {}, A2 = T.fga - T.tpa, ps = Math.max(0.25, Math.min(0.75, (attrs.inside || 50) / ((attrs.inside || 50) + (attrs.mid || 50)))), ap = Math.round(A2 * ps), am = A2 - ap, m2 = T.fgm - T.tpm;

@@ -10,6 +10,13 @@
   const STAR_ODDS = { 1: 38, 2: 28, 3: 20, 4: 10, 5: 4 };
   const STAR_NAMES = { 1: 'Zero-hype prospect', 2: 'Under-the-radar', 3: 'Solid recruit', 4: 'Blue-chip', 5: 'Five-star phenom' };
   const TD_CAP = 5;
+  // game plan multipliers by style (pts, reb, ast, stl, blk)
+  const STYLE_MULT = { balanced: [1, 1, 1, 1, 1], score: [1.06, 0.95, 0.88, 1, 1], playmake: [0.94, 1.08, 1.16, 1, 1], defend: [0.96, 1.03, 1, 1.14, 1.18] };
+  const STYLE_KEYS = ['pts', 'reb', 'ast', 'stl', 'blk'];
+  // the plan is a list of [slot, style] switches; slot = games into the schedule (0-81 regular season, 82+ playoffs)
+  const styleAt = (seq, slot) => { let cur = 'balanced'; for (const [at, sty] of seq) { if (at <= slot) cur = sty; } return cur; };
+  const styleShare = (seq, total) => { const out = {}; for (let i = 0; i < seq.length; i++) { const from = seq[i][0], to = i + 1 < seq.length ? Math.min(total, seq[i + 1][0]) : total; if (to > from) out[seq[i][1]] = (out[seq[i][1]] || 0) + (to - from) / total; } return out; };
+  let STAR_PULL = (typeof process !== "undefined" && process.env && process.env.STAR_PULL) ? +process.env.STAR_PULL : 0.7;
   // Salary cap by season start year, $M: real history and the official projection through 2034-35
   // (gabriel1200/site_data cap.csv); after that we keep growing 5% a year, the projected pace.
   const CAP_M = { 2005: 49.5, 2010: 58.0, 2015: 70.0, 2016: 94.1, 2017: 99.1, 2018: 101.9, 2019: 109.1, 2020: 109.1, 2021: 112.4, 2022: 123.7, 2023: 136.0, 2024: 140.6, 2025: 154.6, 2026: 165.0, 2027: 174.0, 2028: 182.7, 2029: 191.8, 2030: 201.4, 2031: 211.5, 2032: 222.1, 2033: 233.2, 2034: 244.8 };
@@ -250,11 +257,11 @@
         else if (R >= 7500 && A >= 5500) m.ast *= 0.84;
       }
     }
-    // game plan chosen on the pre-season screen
-    const sty = st.style || 'balanced';
-    if (sty === 'score') { m.pts *= 1.06; m.ast *= 0.88; m.reb *= 0.95; }
-    else if (sty === 'playmake') { m.pts *= 0.94; m.ast *= 1.16; m.reb *= 1.08; }
-    else if (sty === 'defend') { m.pts *= 0.96; m.reb *= 1.03; m.stl *= 1.2; m.blk *= 1.25; }
+    // game plan: a season-average multiplier from how long each style was used (per-game variation is applied when the games are drawn)
+    const seq = st.styleSeq && st.styleSeq.length ? st.styleSeq : [[0, st.style || 'balanced']];
+    const share = styleShare(seq, 82), eff = STYLE_KEYS.map((k, i) => Object.keys(share).reduce((a, sty) => a + share[sty] * STYLE_MULT[sty][i], 0));
+    ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k, i) => { m[k] *= eff[i]; });
+    const sty = Object.keys(share).sort((a, b) => share[b] - share[a])[0] || 'balanced';
     // everyday scoring is soft-capped; big years (32-33, rarely 34-36) come from the career plan
     const SOFT = 30.2;
     if (m.pts > SOFT) m.pts = SOFT + (m.pts - SOFT) * 0.25;
@@ -312,7 +319,12 @@
     }
     let games, s;
     for (let tries = 0; tries < 16; tries++) {
-      games = []; for (let i = 0; i < gp; i++) games.push(genGame(m));
+      games = [];
+      for (let i = 0; i < gp; i++) {
+        const gs = styleAt(seq, Math.min(81, Math.floor(((i + 0.5) * 82) / Math.max(1, gp)))), f = STYLE_MULT[gs], mj = Object.assign({}, m);
+        STYLE_KEYS.forEach((k, ki) => { mj[k] = m[k] * f[ki] / (eff[ki] || 1); });
+        games.push(genGame(mj));
+      }
       s = summarize(games);
       if (gp < 50 || (!surge && !tierMode)) break;
       if (surge && s.pts >= (surge.big ? 30 : 10) && s.reb >= 10 && s.ast >= 10) break;
@@ -342,11 +354,14 @@
     if (mode === 'legend') { mult.pts *= 1.22; mult.reb *= 1.15; mult.ast *= 1.2; mult.mins *= 1.04; cap = 37.2; maxAvg = 38.6; }
     const m = { mins: Math.min(base.mins * mult.mins, 43), pts: Math.min(base.pts * mult.pts, cap), reb: base.reb * mult.reb, ast: base.ast * mult.ast, stl: base.stl * mult.stl, blk: base.blk * mult.blk, tov: base.tov * mult.tov };
     if (mode === 'legend') { m.reb = Math.max(m.reb, 10.6); m.ast = Math.max(m.ast, 10.6); m.pts = Math.max(m.pts, 36.2); }
-    let all, s, perSeries;
+    const seq = st.styleSeq && st.styleSeq.length ? st.styleSeq : [[0, st.style || 'balanced']];
+    const share = styleShare(seq, 82), eff = STYLE_KEYS.map((k, i) => Object.keys(share).reduce((a, sty) => a + share[sty] * STYLE_MULT[sty][i], 0));
+    const poStyleM = (mm, slot) => { const f = STYLE_MULT[styleAt(seq, slot)], o = Object.assign({}, mm); STYLE_KEYS.forEach((k, ki) => { o[k] = mm[k] * f[ki] / (eff[ki] || 1); }); return o; };
+    let all, s, perSeries, poCount;
     for (let tries = 0; tries < 24; tries++) {
-      all = [];
+      all = []; poCount = 0;
       perSeries = seriesList.map((sr) => {
-        const gs = []; for (let i = 0; i < sr.games; i++) gs.push(genGame(m));
+        const gs = []; for (let i = 0; i < sr.games; i++) { gs.push(genGame(poStyleM(m, 82 + poCount))); poCount++; }
         all.push.apply(all, gs);
         const ss = summarize(gs);
         return { round: sr.round, opp: sr.opp, result: (sr.won ? 'W ' : 'L ') + sr.w + '-' + sr.l, pts: ss.pts, reb: ss.reb, ast: ss.ast, gp: sr.games, list: gs, w: sr.w, l: sr.l, won: sr.won };
@@ -379,6 +394,12 @@
   }
   const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const dateStr = (y, m, d) => { const t = new Date(Date.UTC(y, m, d)); return MON[t.getUTCMonth()] + ' ' + t.getUTCDate(); };
+  function gameScore(won, scoreMin) {
+    const margin = 1 + Math.round(Math.abs(randn()) * 11.5);
+    const win = Math.max(Math.round(112 + margin / 2 + randn() * 7), scoreMin);
+    const ot = margin <= 4 && rand() < 0.4 ? 1 : 0;
+    return { f: won ? win : win - margin, a: won ? win - margin : win, ot };
+  }
   function buildMatchLog(st, rec, line, games, series, t, injuryText) {
     const L = st.league, teams = Object.values(L.teams).filter((x) => x.id !== st.teamId);
     const total = 82, gp = games.length, miss = Math.max(0, total - gp);
@@ -396,12 +417,7 @@
       const pf = clamp(Math.round(1.9 + (st.player.attrs ? (st.player.attrs.rimP - 40) * 0.01 : 0) + randn() * 1.3), 0, 6);
       return Object.assign({ m: Math.round(g.min), pt: g.pts, rb: g.reb, or: orb, as: g.ast, st: g.stl, bk: g.blk, to: g.tov, pf, r: NBA.gameRating(g, b), tg }, b);
     };
-    const score = (won, scoreMin) => {
-      const margin = 1 + Math.round(Math.abs(randn()) * 11.5);
-      const win = Math.max(Math.round(112 + margin / 2 + randn() * 7), scoreMin);
-      let ot = margin <= 4 && rand() < 0.4 ? 1 : 0;
-      return { f: won ? win : win - margin, a: won ? win - margin : win, ot };
-    };
+    const score = gameScore;
     // regular season: 82 slots, opponents twice each plus 24 extra
     const opps = []; teams.forEach((x) => { opps.push(x, x); }); while (opps.length < total) opps.push(teams[Math.floor(rand() * teams.length)]);
     for (let i = opps.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [opps[i], opps[j]] = [opps[j], opps[i]]; }
@@ -428,7 +444,8 @@
     items.push({ k: 'hdr', text: 'Regular season complete · ' + t.wins + '-' + t.losses });
     // playoffs
     const poGames = [];
-    (series || []).forEach((sr) => {
+    (series || []).forEach((sr, si) => {
+      NBA.setSeed((st.seasonSeed ^ 0x1234567) + 977 * (si + 1));
       items.push({ k: 'hdr', text: sr.round + ' · vs ' + sr.opp });
       const n = sr.list.length, winsNeeded = sr.won ? sr.w : sr.w; // user wins = sr.w
       const wl = []; for (let i = 0; i < sr.w - (sr.won ? 1 : 0); i++) wl.push(1); for (let i = 0; i < sr.l - (sr.won ? 0 : 1); i++) wl.push(0);
@@ -450,7 +467,16 @@
     return items;
   }
 
-  function playSeason(st) {
+  let SNAP = null;   // JSON of the career state at tip-off, so a mid-season game-plan change can replay the season (same league results, new user games)
+  function playSeason(st, opts) {
+    opts = opts || {};
+    const wasSeeded = NBA.rngGet().seeded;
+    if (!opts.rerun) {
+      st.seasonSeed = Math.floor(rand() * 2147483647);
+      st.styleSeq = [[0, st.style || 'balanced']];
+      SNAP = JSON.stringify(st);
+    }
+    NBA.setSeed(st.seasonSeed);
     const L = st.league, p = st.player;
     // career state before this season: the UI shows it (plus games revealed so far) until the season is fully played out
     st.pre = { career: JSON.parse(JSON.stringify(st.career)), earnings: st.earnings, earnings26: st.earnings26 || 0, nPlayoff: st.playoffLines.length, rookie: p.yearsPro === 0 };
@@ -460,12 +486,14 @@
     if (avail.major) applyMajorInjury(p);
     p.rookie = p.yearsPro === 0;
     L.teams[st.teamId].depth += fx.depth;
+    L.teams[st.teamId].depth += clamp((ovr(p) - 84) * STAR_PULL, 0, 6); // superstars pull talent: front offices build around them (depth fades 40%/yr, so ~2.5x in steady state)
     let userLine = null;
     const user = {
       p, teamId: st.teamId, avail,
-      getLine: (ctx) => (userLine = userSeasonLine(st, ctx, avail, fx)),
+      getLine: (ctx) => { const sv = NBA.rngGet(); NBA.setSeed(st.seasonSeed ^ 0x5bd1e995); userLine = userSeasonLine(st, ctx, avail, fx); NBA.rngSet(sv); return userLine; },
     };
     const res = NBA.simSeason(L, user);
+    NBA.setSeed(st.seasonSeed ^ 0x2545f491);   // everything below is about the user only: its own random stream, so the league results above never change on a replay
     const t = L.teams[st.teamId];
     const awardsHere = [];
     const A = res.awards;
@@ -543,8 +571,72 @@
     st.contract.left--;
     st.bonusPoints = fx.bonusPts;
     st.stage = 'season_play';
+    if (!wasSeeded) NBA.useRandom();
     return rec;
   }
+
+  // ---------------------------------------------------------------- changing the game plan mid-season
+  function slotNow(st) {
+    let reg = 0, po = 0; const items = st.matchLog || [], idx = st.matchIdx || 0;
+    for (let i = 0; i < idx; i++) { const it = items[i]; if (it.k === 'g') { if (it.po) po++; else reg++; } }
+    return po > 0 ? 82 + po : reg;
+  }
+  function spliceLog(st, oldLog, newLog, idx) {
+    if (!idx) return newLog;
+    const a = oldLog[idx - 1], b = newLog[idx - 1];
+    if (!a || !b || a.k !== b.k || a.o !== b.o || a.n !== b.n || !!a.po !== !!b.po) return newLog;
+    const out = oldLog.slice(0, idx).concat(newLog.slice(idx));
+    const rec = st.proSeasons[st.proSeasons.length - 1];
+    const regIdx = []; out.forEach((x, i) => { if (x.k === 'g' && !x.po) regIdx.push(i); });
+    const diff = rec.wins - regIdx.filter((i) => out[i].w).length;
+    if (diff) {
+      const fut = regIdx.filter((i) => i >= idx && !!out[i].w === (diff < 0));
+      fut.sort((x, y) => (diff > 0 ? (out[y].r || 0) - (out[x].r || 0) : (out[x].r || 9) - (out[y].r || 9)));
+      fut.slice(0, Math.abs(diff)).forEach((i) => { const g = out[i], sc = gameScore(!g.w, g.pt ? g.pt + 38 : 0); g.w = g.w ? 0 : 1; g.f = sc.f; g.a = sc.a; g.ot = sc.ot; if (g.pm != null) g.pm = Math.round((g.f - g.a) * ((g.m || 0) / 48) * 1.1); });
+    }
+    return out;
+  }
+  // make the season record agree with the games the user actually saw
+  function recomputeFromLog(st) {
+    const rec = st.proSeasons[st.proSeasons.length - 1], items = st.matchLog;
+    const sumOf = (a, k) => a.reduce((x, g) => x + (g[k] || 0), 0), mean = (a, k) => (a.length ? sumOf(a, k) / a.length : 0);
+    const reg = items.filter((x) => x.k === 'g' && !x.po && !x.dnp), n = reg.length, oldTd = rec.td, oldAvg = rec.avgTD;
+    if (n) {
+      const fga = sumOf(reg, 'fga'), fta = sumOf(reg, 'fta');
+      Object.assign(rec, { gp: n, mins: mean(reg, 'm'), pts: mean(reg, 'pt'), reb: mean(reg, 'rb'), ast: mean(reg, 'as'), stl: mean(reg, 'st'), blk: mean(reg, 'bk'), tov: mean(reg, 'to'),
+        fgp: fga ? sumOf(reg, 'fgm') / fga : rec.fgp, tpp: sumOf(reg, 'tpa') ? sumOf(reg, 'tpm') / sumOf(reg, 'tpa') : rec.tpp, ftp: fta ? sumOf(reg, 'ftm') / fta : rec.ftp, ts: fga + fta ? sumOf(reg, 'pt') / (2 * (fga + 0.44 * fta)) : rec.ts,
+        td: reg.filter((g) => g.tg.includes('Triple-double')).length, dd: reg.filter((g) => g.tg.includes('Double-double') || g.tg.includes('Triple-double')).length,
+        g40: reg.filter((g) => g.pt >= 40).length, g50: reg.filter((g) => g.pt >= 50).length, high: Math.max.apply(null, reg.map((g) => g.pt)), totPts: sumOf(reg, 'pt'), totReb: sumOf(reg, 'rb'), totAst: sumOf(reg, 'as'), avgRating: Math.round(mean(reg, 'r') * 100) / 100 });
+      rec.avgTD = n >= 30 && rec.pts >= 10 && rec.reb >= 10 && rec.ast >= 10;
+    }
+    st.career.td += rec.td - oldTd;
+    if (!!rec.avgTD !== !!oldAvg) { const d = rec.avgTD ? 1 : -1; st.career.tdSeasons += d; if (rec.pts >= 30) st.career.td30Seasons += d; }
+    const po = items.filter((x) => x.k === 'g' && x.po && !x.dnp);
+    if (rec.playoff && po.length) {
+      const fga = sumOf(po, 'fga');
+      Object.assign(rec.playoff, { gp: po.length, mins: mean(po, 'm'), pts: mean(po, 'pt'), reb: mean(po, 'rb'), ast: mean(po, 'as'), stl: mean(po, 'st'), blk: mean(po, 'bk'), fgp: fga ? sumOf(po, 'fgm') / fga : rec.playoff.fgp, tpp: sumOf(po, 'tpa') ? sumOf(po, 'tpm') / sumOf(po, 'tpa') : rec.playoff.tpp,
+        td: po.filter((g) => g.tg.includes('Triple-double')).length, high: Math.max.apply(null, po.map((g) => g.pt)), rating: Math.round(mean(po, 'r') * 100) / 100 });
+      rec.poRating = rec.playoff.rating;
+      (rec.perSeries || []).forEach((ps) => { const gs = po.filter((g) => g.rnd === ps.round); if (gs.length) { ps.pts = mean(gs, 'pt'); ps.reb = mean(gs, 'rb'); ps.ast = mean(gs, 'as'); } });
+      if (st.playoffLines.length > st.pre.nPlayoff) Object.assign(st.playoffLines[st.playoffLines.length - 1], rec.playoff);
+    }
+  }
+  function setStyle(st, style) {
+    if (st.stage !== 'season_play' || !st.matchLog) { st.style = style; return { ok: true }; }
+    if (!SNAP) return { ok: false, why: 'This save was made before game plans could change mid-season. It will work from the next season.' };
+    const slot = slotNow(st), prev = (st.styleSeq || [[0, st.style || 'balanced']]);
+    if (styleAt(prev, slot) === style) return { ok: true, same: true };
+    const seq = prev.filter((x) => x[0] < slot); seq.push([slot, style]);
+    const keep = { idx: st.matchIdx || 0, shotTab: st.shotTab, log: st.matchLog, view: st.view };
+    const snapObj = JSON.parse(SNAP);
+    Object.keys(st).forEach((k) => delete st[k]); Object.assign(st, snapObj);
+    st.style = style; st.styleSeq = seq;
+    playSeason(st, { rerun: true });
+    st.matchLog = spliceLog(st, keep.log, st.matchLog, keep.idx); st.matchIdx = keep.idx; st.shotTab = keep.shotTab;
+    recomputeFromLog(st);
+    return { ok: true };
+  }
+
 
   // ---------------------------------------------------------------- contracts and decisions
   function marketPct(st) {
@@ -673,6 +765,6 @@
     return st;
   }
 
-  Object.assign(NBA, { Game: { newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, startPro, trainingInfo, autoAlloc, train, playSeason, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { Game: { newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, startPro, trainingInfo, autoAlloc, train, playSeason, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

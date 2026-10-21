@@ -208,3 +208,7 @@ Per-game shot volume is now loosely tied to points (bricky nights exist), so bad
 - **Sofascore ratings:** refit with season-average anchors (30/10/10 ≈ 8.3-8.5, Jokic-style ≈ 8.7); 30/10/10 seasons now average 8.5. Role players ~6.9, 20-26 ppg ~7.6, 26+ ppg ~7.9 (`scripts/rating-check.js`, `scripts/mvp-check.js`).
 - **Game plan:** Balanced / Scoring priority / Pass & rebound / Defend more (chosen on the pre-season screen). Pass & rebound roughly doubles triple-double seasons, Defend more roughly triples DPOYs (`/tmp` check: 40 careers each).
 - Season tables and career totals now show average match rating (regular season and playoffs).
+
+## Mid-season game plan + generational resume
+- **Game plan during the season:** the four plans (Balanced / Scoring / Pass & rebound / Defend) now switch at any game, including the playoffs. The season is still simulated up front, but on a switch the engine restores the tip-off snapshot and replays it with the new plan: league results are identical (the user's games use their own random stream), games already shown stay exactly as they were, the remaining games use the new plan, and the season record is recomputed from the tiles (`scripts/style-switch-test.js`).
+- **Generational resume (`scripts/mvp-check.js`, 200 careers):** MVP 2.67, Finals MVP 2.83, titles 4.03 (targets 2.7 / 2.8 / 4.0). Levers: superstar teams pull talent (depth bonus up to +6 at 0.7 per ovr point above 84), +10% playoff power bump, MVP vote noise 2.4, win-total bonus, triple-double narrative bonus, Finals MVP leans on the team's best player.

@@ -36,12 +36,13 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   await trainLoop();
   await shot('06-pro-ready');
   for (let i = 0; i < 40; i++) {
-    console.log('season', i); if (i === 0) { await page.click('text=Pass & rebound'); } await page.click('text=/Tip off the .* season/');
+    console.log('season', i); await page.click('text=/Tip off the .* season/');
     await page.waitForSelector('text=Sim next game');
     if (i === 0) {
       await shot('06b-opening-night');
       for (let k = 0; k < 3; k++) await page.click('button:has-text("Sim next game")');
       await shot('06c-three-games');
+      await page.click('.gplan button:has-text("Scoring")'); await page.waitForSelector('.gplan button.on:has-text("Scoring")'); await page.click('button:has-text("Sim next game")');
       await page.click('button:has-text("Instant")');
       await page.click('button:has-text("Sim to All-Star")');
       await shot('06d-all-star');

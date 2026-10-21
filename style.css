@@ -174,3 +174,6 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
 @media (max-width: 720px) { .kpis { grid-template-columns: 1fr 1fr; gap: 10px; } .kpi { padding: 14px 15px; border-radius: 20px; } .kpi .k-val { font-size: 44px; } }
 
 table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
+
+.gplan { text-align: center; margin-top: 18px; } .gplan .seg2 { display: inline-flex; margin: 8px 0 6px; max-width: 100%; flex-wrap: wrap; } .gplan .seg2 button { flex: 0 1 auto; padding: 9px 16px; }
+@media (max-width: 720px) { .gplan .seg2 { display: grid; grid-template-columns: 1fr 1fr; width: 100%; border-radius: 22px; } .gplan .seg2 button { padding: 10px 6px; } }

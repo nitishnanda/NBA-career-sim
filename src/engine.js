@@ -5,17 +5,18 @@
   const { ATTRS, POSITIONS, ARCHETYPES } = D;
 
   // ---------------------------------------------------------------- RNG
-  let _rng = Math.random;
-  function setSeed(s) {
-    let a = s >>> 0;
-    _rng = function () {
-      a |= 0; a = (a + 0x6d2b79f5) | 0;
-      let t = Math.imul(a ^ (a >>> 15), 1 | a);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
+  let _a = 0, _seeded = false;
+  function setSeed(s) { _a = s >>> 0; _seeded = true; }
+  function useRandom() { _seeded = false; }
+  const rngGet = () => ({ a: _a, seeded: _seeded });
+  const rngSet = (x) => { _a = x.a; _seeded = x.seeded; };
+  function _next() {
+    _a |= 0; _a = (_a + 0x6d2b79f5) | 0;
+    let t = Math.imul(_a ^ (_a >>> 15), 1 | _a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   }
-  const rand = () => _rng();
+  const rand = () => (_seeded ? _next() : Math.random());
   function randn() {
     let u = 0, v = 0;
     while (!u) u = rand();
@@ -349,7 +350,7 @@
   }
 
   Object.assign(NBA, {
-    rand, randn, clamp, rint, pick, r1, weighted, sum, setSeed,
+    rand, randn, clamp, rint, pick, r1, weighted, sum, setSeed, useRandom, rngGet, rngSet,
     ovr, ovrOf, makePlayer, buildTarget, rollCeiling, rollTdPlan, randomArch, randomPos, nameGen, regionOf,
     progress, applyTraining, trainPoints, rookieFloor, expLine, shootingLine, genGame, summarize, gameRating,
   });

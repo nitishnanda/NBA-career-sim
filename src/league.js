@@ -250,7 +250,7 @@
     // real tails: more truly bad teams, fewer 60+ juggernauts
     L.teams.forEach((t) => { let w = t.wins - (mw - 41); if (w < 33) w -= (33 - w) * 0.22; if (w > 54) w -= (w - 54) * ((user && t.id === user.teamId && ovr(user.p) >= 88) ? 0.08 : 0.2); t.wins = clamp(Math.round(w), 12, 73); t.losses = 82 - t.wins; });
     L.teams.forEach((t) => { t.power = (t.wins - 41) / 2.7 + randn() * 0.8; t.prevWins = t.wins; });
-    if (user) { const ut = L.teams[user.teamId]; ut.power += clamp((ovr(user.p) - 84) * 0.08, 0, 1.1); } // superstars matter more in the playoffs: shorter rotations, more minutes
+    if (user) { const ut = L.teams[user.teamId]; ut.power += clamp((ovr(user.p) - 84) * 0.1, 0, 1.5); } // superstars matter more in the playoffs: shorter rotations, more minutes
 
     // user line (needs team context)
     if (user) {
@@ -281,7 +281,7 @@
     // awards
     const q65 = entries.filter((e) => e.l.gp >= 65);
     const tdBonus = (l) => (l.pts >= 25 && l.reb >= 7.5 && l.ast >= 7.5 ? 3 : 0) + (l.reb >= 9.5 && l.ast >= 9.5 && l.pts >= 18 ? 7 + (l.pts >= 28 ? 3 : 0) : 0); // voters love the triple-double story
-    const byMVP = q65.map((e) => ({ e, s: 0.85 * e.l.perf + 0.35 * e.l.pts + 0.5 * (e.l.wins - 41) + tdBonus(e.l) + randn() * 3 - (e.p.mvpRecent || 0), ok: e.l.wins >= 36 })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
+    const byMVP = q65.map((e) => ({ e, s: 0.85 * e.l.perf + 0.35 * e.l.pts + 0.5 * (e.l.wins - 41) + tdBonus(e.l) + (e.l.wins >= 58 ? 2.5 : 0) + randn() * 2.4 - (e.p.mvpRecent || 0), ok: e.l.wins >= 36 })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
     const dpoy = q65.map((e) => ({ e, s: defScore(e.p, e.l) + 0.12 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s);
     const roy = entries.filter((e) => e.p.rookie && e.l.gp >= 50).map((e) => ({ e, s: e.l.perf + 0.1 * (e.l.wins - 41) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
     const mip = q65.filter((e) => !e.p.rookie && e.p.prevPerf != null && e.p.age <= 28).map((e) => ({ e, s: (e.l.perf - e.p.prevPerf) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
@@ -316,7 +316,7 @@
     };
     const playoffs = simPlayoffs(L, user ? user.teamId : null);
     // remember perf for MIP, and voter fatigue for repeat MVPs
-    entries.forEach((e) => { e.p.prevPerf = e.l.perf; e.p.mvpRecent = (e.p.mvpRecent || 0) * 0.5 + (awards.mvp && awards.mvp.id === e.id ? 2.5 : 0); });
+    entries.forEach((e) => { e.p.prevPerf = e.l.perf; e.p.mvpRecent = (e.p.mvpRecent || 0) * 0.5 + (awards.mvp && awards.mvp.id === e.id ? 2 : 0); });
     const stand = L.teams.map((t) => ({ id: t.id, name: t.name, nick: t.nick, conf: t.conf, wins: t.wins, losses: t.losses }));
     const res = { year: L.year, label: seasonLabel(L.year), awards, playoffs, standings: stand, leaders, leadersOthers, league, ranks: user ? { pts: rankOf('pts', 'user'), reb: rankOf('reb', 'user'), ast: rankOf('ast', 'user'), stl: rankOf('stl', 'user'), blk: rankOf('blk', 'user') } : null, entries };
     // history record
@@ -337,7 +337,7 @@
     if (user) {
       const ureg = user.reg ? finalsScore(user.reg.pts, user.reg.reb, user.reg.ast) : finalsScore(user.pts, user.reb, user.ast);
       const best = cands.every((c) => ureg >= c.reg * 0.97);
-      cands.push({ name: 'user', s: (0.65 * finalsScore(user.pts, user.reb, user.ast) + 0.35 * ureg) * (best ? 1.1 : 1) * (1 + 0.04 * randn()) });
+      cands.push({ name: 'user', s: (0.65 * finalsScore(user.pts, user.reb, user.ast) + 0.35 * ureg) * (best ? 1.0 : 1) * 0.97 * (1 + 0.04 * randn()) });
     }
     cands.sort((a, b) => b.s - a.s);
     return cands[0].name;
