@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 21 Oct · BallerSim dashboard v5';
+  const BUILD = 'build 21 Oct · BallerSim dashboard v6';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
@@ -324,7 +324,7 @@
     // ---- sim stream & box score
     const last3 = gl.length || poG.length ? shown.filter((x) => x.k === 'g' && !x.dnp).slice(-3).reverse() : [];
     const feat = last3.length ? last3.slice().sort((a, b) => b.r - a.r)[0] : null;
-    const streamRow = (g) => h('div', { class: 'srow' }, h('div', { class: 'r1' }, h('span', { class: 'wl ' + (g.w ? 'w' : 'l') }, g.w ? 'W' : 'L'), h('b', null, (g.h ? 'VS ' : '@ ') + ab(g.o) + ' (' + (g.po ? 'G' + g.n : 'GAME ' + g.n) + ')'), h('span', { class: 'spacer' }), h('span', { class: 'sc' }, g.f + ' - ' + g.a + (g.ot ? ' (OT)' : ''))), h('div', { class: 'r2' }, h('span', null, (g.ar || '') + ' · Final' + (g.ot ? '/OT' : '')), h('span', { class: 'spacer' }), h('span', null, g.pt + ' PTS · ' + g.as + ' AST · ' + g.rb + ' REB'), h('span', { class: 'rating xs ' + rClass(g.r) }, g.r.toFixed(1))));
+    const streamRow = (g) => h('div', { class: 'srow' }, h('div', { class: 'sr-a' }, h('span', { class: 'wl ' + (g.w ? 'w' : 'l') }, g.w ? 'W' : 'L'), h('b', null, (g.h ? 'VS ' : '@ ') + ab(g.o) + ' (' + (g.po ? 'G' + g.n : 'GAME ' + g.n) + ')'), h('span', { class: 'spacer' }), h('span', { class: 'sc' }, g.f + ' - ' + g.a + (g.ot ? ' (OT)' : ''))), h('div', { class: 'sr-b' }, h('span', null, (g.ar || '') + ' · Final' + (g.ot ? '/OT' : '')), h('span', { class: 'spacer' }), h('span', null, g.pt + ' PTS · ' + g.as + ' AST · ' + g.rb + ' REB'), h('span', { class: 'rating xs ' + rClass(g.r) }, g.r.toFixed(1))));
     const featured = feat ? h('div', { class: 'well feat' }, h('div', { class: 'row' }, h('span', { class: 'caps small' }, 'Featured line: ' + (feat.h ? 'vs ' : '@ ') + ab(feat.o)), h('span', { class: 'spacer' }), h('span', { class: 'rating xs ' + rClass(feat.r) }, (feat.r >= 8.5 ? '★ ' : '') + feat.r.toFixed(1) + (feat.r >= 8.5 ? ' POTG' : '')), h('span', { class: 'small muted' }, feat.m + ' MIN')),
       h('div', { class: 'tiles4' }, [[feat.pt, 'PTS'], [feat.as, 'AST'], [feat.rb, 'REB'], [(feat.pm > 0 ? '+' : '') + feat.pm, '+/-']].map(([v, l]) => h('div', { class: 'tile' }, h('b', null, v), h('span', null, l)))),
       h('div', { class: 'kv' }, h('span', null, 'Shooting split'), h('b', null, feat.fgm + '/' + feat.fga + ' FG (' + Math.round(100 * feat.fgm / Math.max(1, feat.fga)) + '%) · ' + feat.tpm + '/' + feat.tpa + ' 3PT · ' + feat.ftm + '/' + feat.fta + ' FT')),
