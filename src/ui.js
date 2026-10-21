@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 21 Oct · phone layout';
+  const BUILD = 'build 21 Oct · sport-dash theme';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
@@ -194,6 +194,18 @@
         h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { G.playSeason(S); go(); } }, 'Tip off the ' + NBA.seasonLabel(L.year) + ' season →'))));
   }
 
+  let seasonView = 'feed';
+  function sparkline(vals) {
+    const W = 320, H = 96, pad = 14, lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals), span = Math.max(1, hi - lo);
+    const x = (i) => pad + (i * (W - 2 * pad)) / Math.max(1, vals.length - 1), y = (v) => H - 22 - ((v - lo) / span) * (H - 44);
+    const pts = vals.map((v, i) => x(i).toFixed(1) + ',' + y(v).toFixed(1)), avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+    const dots = vals.map((v, i) => '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(v).toFixed(1) + '" r="3" fill="var(--accent)"/><text x="' + x(i).toFixed(1) + '" y="' + (y(v) - 7).toFixed(1) + '" text-anchor="middle">' + v + '</text>').join('');
+    const svg = '<svg class="spark" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Points in the last games"><defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".35"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>'
+      + '<line x1="' + pad + '" x2="' + (W - pad) + '" y1="' + y(avg).toFixed(1) + '" y2="' + y(avg).toFixed(1) + '" stroke="var(--muted)" stroke-dasharray="3 4" opacity=".5"/>'
+      + '<polygon points="' + x(0).toFixed(1) + ',' + (H - 6) + ' ' + pts.join(' ') + ' ' + x(vals.length - 1).toFixed(1) + ',' + (H - 6) + '" fill="url(#sg)"/><polyline points="' + pts.join(' ') + '" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>' + dots + '</svg>';
+    return h('div', { html: svg });
+  }
+
   // ------------------------------------------------------------ match by match
   const rClass = (r) => (r < 6 ? 'r1' : r < 6.5 ? 'r2' : r < 7 ? 'r3' : r < 8 ? 'r4' : r < 9 ? 'r5' : 'r6');
   const ratingBadge = (r, dec) => h('span', { class: 'rating sm ' + rClass(r) }, r.toFixed(dec));
@@ -230,19 +242,33 @@
     };
     const next = (n) => step(n, null);
     const regLeft = items.slice(idx).some((x) => x.k === 'hdr' && /Regular season complete/.test(x.text));
+    const prev = S.proSeasons.length > 1 ? S.proSeasons[S.proSeasons.length - 2] : null;
+    const delta = (cur, old) => (old == null ? null : h('div', { class: 'k-sub ' + (cur >= old ? 'up' : 'down') }, (cur >= old ? '▲ ' : '▼ ') + Math.abs(cur - old).toFixed(1) + ' vs last season'));
+    const kpi = (cls, lbl, val, sub) => h('div', { class: 'kpi ' + cls }, h('div', { class: 'k-lbl' }, lbl), h('div', { class: 'k-val' }, val), sub || h('div', { class: 'k-sub' }, ' '));
+    const allShown = shown.filter((x) => x.k === 'g' && !x.dnp);
+    const last10 = allShown.slice(-10);
     const head = h('div', { class: 'card hero' }, h('div', { class: 'row' }, h('div', null, h('div', { class: 'eyebrow' }, NBA.seasonLabel(L.year) + (nextIsPo || poG.length ? ' · playoffs' : ' · regular season')), h('h1', { style: 'margin:2px 0' }, L.teams[S.teamId].name)),
         h('span', { class: 'spacer' }), h('div', { class: 'recbox' }, h('div', { class: 'big' }, wins + '-' + (reg.length - wins)), h('div', { class: 'muted small' }, reg.length + ' of ' + regTotal + ' played'))),
       h('div', { class: 'bar', style: 'margin:12px 0' }, h('i', { style: 'width:' + Math.round(100 * reg.length / Math.max(1, regTotal)) + '%' })),
-      played.length ? h('div', { class: 'grid stats' }, statBox(f1(avg('pt')), 'PPG'), statBox(f1(avg('rb')), 'RPG'), statBox(f1(avg('as')), 'APG'), h('div', { class: 'statbox' }, h('div', { class: 'big' }, ratingBadge(played.reduce((a, g) => a + g.r, 0) / played.length, 2)), h('div', { class: 'lbl' }, 'Avg rating'))) : h('p', { class: 'muted' }, 'Opening night is coming up. Pour something warm, then tap the button below.'),
-      last5.length ? h('div', { class: 'row small', style: 'margin-top:10px' }, h('span', { class: 'muted' }, 'Last 5'), last5) : null);
+      h('div', { class: 'row small', style: 'justify-content:space-between' }, h('div', { class: 'row' }, h('span', { class: 'muted' }, 'Form'), last5.length ? last5 : h('span', { class: 'muted' }, '–')), reg.length ? h('span', { class: 'muted' }, Math.round(100 * wins / reg.length) + '% win rate') : null));
+    const kpis = played.length ? h('div', { class: 'kpis' },
+      kpi('hot', 'Points', f1(avg('pt')), prev ? delta(avg('pt'), prev.pts) : null), kpi('', 'Rebounds', f1(avg('rb')), prev ? delta(avg('rb'), prev.reb) : null), kpi('', 'Assists', f1(avg('as')), prev ? delta(avg('as'), prev.ast) : null),
+      h('div', { class: 'kpi ink' }, h('div', { class: 'k-lbl' }, 'Avg rating'), h('div', { style: 'margin-top:8px' }, ratingBadge(played.reduce((a, g) => a + g.r, 0) / played.length, 2)), h('div', { class: 'k-sub' }, played.length + ' games'))) : h('div', { class: 'card' }, h('p', { class: 'muted' }, 'Opening night is coming up. Grab your headphones, then tap the button below.'));
+    const sparkCard = last10.length >= 3 ? h('div', { class: 'card' }, h('div', { class: 'row' }, h('h3', { style: 'margin:0' }, 'Last ' + last10.length + ' games'), h('span', { class: 'spacer' }), h('span', { class: 'small muted' }, last10.filter((g) => g.w).length + '-' + last10.filter((g) => !g.w).length + ' · ' + f1(last10.reduce((a, g) => a + g.pt, 0) / last10.length) + ' ppg · ' + (100 * last10.reduce((a, g) => a + g.fgm, 0) / Math.max(1, last10.reduce((a, g) => a + g.fga, 0))).toFixed(0) + '% FG')), sparkline(last10.map((g) => g.pt))) : null;
+    const viewSeg = h('div', { class: 'seg' }, h('button', { class: seasonView === 'feed' ? 'on' : '', onclick: () => { seasonView = 'feed'; render(); } }, 'Feed'), h('button', { class: seasonView === 'log' ? 'on' : '', onclick: () => { seasonView = 'log'; render(); } }, 'Game log'));
     const controls = done
-      ? h('div', { class: 'card' }, h('p', null, 'That is the season in the books. ☕'), h('button', { class: 'primary big-btn', onclick: () => { S.stage = 'season_recap'; go(); } }, 'See the season recap →'))
+      ? h('div', { class: 'card donebar' }, h('p', null, 'That is the season in the books.'), h('button', { class: 'primary big-btn', onclick: () => { S.stage = 'season_recap'; go(); } }, 'See the season recap →'))
       : h('div', { class: 'card ctl-card' }, h('div', { class: 'row' }, ctl(nextIsPo ? 'Next playoff game ▶' : 'Next match ▶', next(1), 'primary big-btn'), ctl('Sim 5', next(5)), ctl('Sim 10', next(10)),
         regLeft ? ctl('Finish regular season', step(0, 'reg')) : null, h('span', { class: 'spacer' }), ctl('Skip to recap »', () => { S.matchIdx = items.length; S.stage = 'season_recap'; go(); })));
     const pv = S.prevIdx != null ? S.prevIdx : idx;
     const feed = shown.map((x, i) => [x, i]).reverse().map(([x, i]) => (x.k === 'hdr' ? h('div', { class: 'divider' + (i >= pv ? ' fresh' : '') }, x.text) : matchTile(x, i >= pv)));
     S.prevIdx = idx;
-    return h('div', { class: 'sp' }, head, controls, h('div', { class: 'feed' }, feed));
+    const logRows = shown.filter((x) => x.k === 'g').reverse();
+    const logCard = h('div', { class: 'card ink gl' }, h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, ['Date', 'Match', 'Result', 'MIN', 'PTS', 'REB', 'AST', 'FG', 'RTG'].map((x, i) => h('th', { class: i < 3 ? 'l' : '' }, x)))),
+      h('tbody', null, logRows.map((g) => g.dnp
+        ? h('tr', { class: 'muted' }, h('td', null, g.d), h('td', { class: 'l' }, (g.h ? 'vs ' : '@ ') + g.o), h('td', { class: 'l' }, h('span', { class: 'res ' + (g.w ? 'w' : 'l') }, g.w ? 'W' : 'L'), ' ' + g.f + '-' + g.a), h('td', { colspan: 6 }, 'DNP · ' + g.dnp))
+        : h('tr', null, h('td', null, g.d), h('td', { class: 'l' }, (g.h ? 'vs ' : '@ ') + g.o + (g.po ? ' · G' + g.n : '')), h('td', { class: 'l' }, h('span', { class: 'res ' + (g.w ? 'w' : 'l') }, g.w ? 'W' : 'L'), ' ' + g.f + '-' + g.a), h('td', null, g.m), h('td', null, g.pt), h('td', null, g.rb), h('td', null, g.as), h('td', null, g.fgm + '/' + g.fga), h('td', null, h('span', { class: 'rating ' + rClass(g.r) }, g.r.toFixed(1)))))))));
+    return h('div', { class: 'sp' }, head, kpis, controls, sparkCard, h('div', { class: 'row', style: 'margin:6px 0' }, h('h3', { style: 'margin:0' }, 'Matches'), h('span', { class: 'spacer' }), viewSeg), seasonView === 'log' ? logCard : h('div', { class: 'feed' }, feed));
   }
 
   function screenRecap() {
@@ -250,15 +276,20 @@
     const p = S.player;
     const awardPills = r.awards.map((a) => h('span', { class: 'pill gold' }, '🏅 ' + a));
     const ranks = r.ranks ? ['pts', 'reb', 'ast', 'stl', 'blk'].filter((k) => r.ranks[k] && r.ranks[k] <= 5).map((k) => h('span', { class: 'pill good' }, '#' + r.ranks[k] + ' in ' + { pts: 'scoring', reb: 'rebounding', ast: 'assists', stl: 'steals', blk: 'blocks' }[k])) : [];
-    return h('div', null, h('h1', null, r.label + ' season recap'),
+    const pr = S.proSeasons.length > 1 ? S.proSeasons[S.proSeasons.length - 2] : null;
+    const dl = (cur, old) => (old == null ? h('div', { class: 'k-sub' }, ' ') : h('div', { class: 'k-sub ' + (cur >= old ? 'up' : 'down') }, (cur >= old ? '▲ ' : '▼ ') + Math.abs(cur - old).toFixed(1) + ' vs last season'));
+    const rk = (cls, l, v, sub) => h('div', { class: 'kpi ' + cls }, h('div', { class: 'k-lbl' }, l), h('div', { class: 'k-val' }, v), sub);
+    const recKpis = h('div', { class: 'kpis' }, rk('hot', 'Points', f1(r.pts), dl(r.pts, pr && pr.pts)), rk('', 'Rebounds', f1(r.reb), dl(r.reb, pr && pr.reb)), rk('', 'Assists', f1(r.ast), dl(r.ast, pr && pr.ast)),
+      h('div', { class: 'kpi ink' }, h('div', { class: 'k-lbl' }, 'Avg rating'), h('div', { style: 'margin-top:8px' }, r.avgRating ? ratingBadge(r.avgRating, 2) : '–'), h('div', { class: 'k-sub' }, r.wins + '-' + r.losses)));
+    return h('div', null, h('h1', null, r.label + ' season recap'), recKpis,
       h('div', { class: 'card' }, h('p', { class: 'muted' }, r.team + ' · age ' + r.age + ' · OVR ' + r.ovr + ' · ' + money(r.salary)),
-        h('div', { class: 'grid stats' }, statBox(f1(r.pts), 'PPG'), statBox(f1(r.reb), 'RPG'), statBox(f1(r.ast), 'APG'), statBox(f1(r.stl), 'SPG'), statBox(f1(r.blk), 'BPG'), statBox(r.gp, 'Games'), r.avgRating ? h('div', { class: 'statbox' }, h('div', { class: 'big' }, ratingBadge(r.avgRating, 2)), h('div', { class: 'lbl' }, 'Avg rating')) : null),
+        h('div', { class: 'grid stats' }, statBox(f1(r.stl), 'SPG'), statBox(f1(r.blk), 'BPG'), statBox(r.gp, 'Games'), statBox(r.td, 'Triple-doubles')),
         h('p', { style: 'margin-top:10px' }, 'FG ' + pct(r.fgp) + '% · 3P ' + pct(r.tpp) + '% · FT ' + pct(r.ftp) + '% · TS ' + pct(r.ts) + '% · ' + f1(r.mins) + ' mpg · High game ' + r.high),
         h('p', null, 'Triple-doubles: ', h('b', null, r.td), ' · Double-doubles: ', h('b', null, r.dd), r.g40 ? ' · 40-pt games: ' + r.g40 : '', r.avgTD ? ' · 🔥 AVERAGED A TRIPLE-DOUBLE' : ''),
         h('p', null, h('b', null, r.wins + '-' + r.losses), ' · ' + r.playoffText), awardPills, ranks, r.injury ? h('div', { class: 'callout' }, '🩹 ' + r.injury) : null, r.events.map((e) => h('div', { class: 'callout' }, e))),
       r.playoff ? h('div', { class: 'card' }, h('h2', null, 'Playoffs' + (r.legend ? ' 🔥 LEGENDARY RUN' : r.heater ? ' 🔥 on a heater' : '')), h('div', { class: 'grid stats' }, statBox(f1(r.playoff.pts), 'PPG'), statBox(f1(r.playoff.reb), 'RPG'), statBox(f1(r.playoff.ast), 'APG')), h('p', { class: 'muted small' }, r.playoff.gp + ' games · ' + pct(r.playoff.ts) + ' TS% · ' + r.playoff.td + ' triple-doubles · high ' + r.playoff.high),
         h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, ['Round', 'Opponent', 'Result', 'PTS', 'REB', 'AST'].map((x, i) => h('th', { class: i < 3 ? 'l' : '' }, x)))), h('tbody', null, r.perSeries.map((s) => h('tr', null, h('td', { class: 'l' }, s.round), h('td', { class: 'l' }, s.opp), h('td', { class: 'l' }, s.result), h('td', null, f1(s.pts)), h('td', null, f1(s.reb)), h('td', null, f1(s.ast)))))))) : null,
-      h('div', { class: 'card' }, h('h2', null, 'Around the league'), h('p', null, 'Champion: ', h('b', null, r.champion), ' · MVP: ', h('b', null, r.mvp)), h('p', { class: 'muted small' }, r.league.n30 + ' players averaged 30+ this year, ' + r.league.n25 + ' averaged 25+. Top scorers: ' + r.league.topScorers.map((s) => s.name + ' ' + f1(s.ppg)).join(' · '))),
+      h('div', { class: 'card ink' }, h('h2', null, 'Around the league'), h('p', null, 'Champion: ', h('b', null, r.champion), ' · MVP: ', h('b', null, r.mvp)), h('p', { class: 'muted small' }, r.league.n30 + ' players averaged 30+ this year, ' + r.league.n25 + ' averaged 25+.'), h('h3', null, 'Top scorers'), r.league.topScorers.slice(0, 5).map((t, i) => h('div', { class: 'rank-row' }, h('span', { class: 'n' }, i + 1), h('span', null, t.name), h('b', null, f1(t.ppg))))),
       h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { S.stage = 'decision'; S.decision = G.decisionOptions(S); go(); } }, 'Offseason decisions →')));
   }
 
