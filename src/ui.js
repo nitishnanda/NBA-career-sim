@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 21 Oct · BallerSim dashboard';
+  const BUILD = 'build 21 Oct · BallerSim dashboard v2';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
@@ -256,6 +256,7 @@
 
   // ------------------------------------------------------------ season dashboard
   function screenSeasonPlay() {
+    if (!S.leagueSnap || !S.matchLog) { S.stage = 'season_recap'; save(); return screenRecap(); } // save from an older build
     const items = S.matchLog || [], idx = S.matchIdx || 0, L = S.league, p = S.player, t = L.teams[S.teamId];
     const shown = items.slice(0, idx), done = idx >= items.length;
     const reg = shown.filter((x) => x.k === 'g' && !x.po), poG = shown.filter((x) => x.k === 'g' && x.po);
