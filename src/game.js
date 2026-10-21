@@ -426,6 +426,7 @@
       });
     });
     const rg = items.filter((x) => x.k === 'g' && !x.po && !x.dnp), ratings = rg.map((x) => x.r);
+    const pr = items.filter((x) => x.k === 'g' && x.po && !x.dnp).map((x) => x.r); rec.poRating = pr.length ? Math.round(pr.reduce((a, b) => a + b, 0) / pr.length * 100) / 100 : null;
     rec.avgRating = ratings.length ? Math.round(ratings.reduce((a, b) => a + b, 0) / ratings.length * 100) / 100 : null;
     return items;
   }

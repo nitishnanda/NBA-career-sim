@@ -936,7 +936,7 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
 
     // awards
     const q65 = entries.filter((e) => e.l.gp >= 65);
-    const byMVP = q65.map((e) => ({ e, s: 0.85 * e.l.perf + 0.35 * e.l.pts + 0.5 * (e.l.wins - 41) + randn() * 6 - (e.p.mvpRecent || 0), ok: e.l.wins >= 36 })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
+    const byMVP = q65.map((e) => ({ e, s: 0.85 * e.l.perf + 0.35 * e.l.pts + 0.5 * (e.l.wins - 41) + randn() * 4.5 - (e.p.mvpRecent || 0), ok: e.l.wins >= 36 })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
     const dpoy = q65.map((e) => ({ e, s: defScore(e.p, e.l) + 0.12 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s);
     const roy = entries.filter((e) => e.p.rookie && e.l.gp >= 50).map((e) => ({ e, s: e.l.perf + 0.1 * (e.l.wins - 41) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
     const mip = q65.filter((e) => !e.p.rookie && e.p.prevPerf != null && e.p.age <= 28).map((e) => ({ e, s: (e.l.perf - e.p.prevPerf) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
@@ -953,7 +953,7 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
       allNBA: allNBA.map((x) => x.e.id), allDef: allDef.map((x) => x.e.id), allStar: stars.map((x) => x.e.id),
       mvpIds: byMVP.slice(0, 5).map((x) => x.e.id),
     };
-    const rrow = (x) => ({ id: x.e.id, name: x.e.p.name, team: x.e.t.nick, pts: x.e.l.pts, reb: x.e.l.reb, ast: x.e.l.ast, stl: x.e.l.stl, blk: x.e.l.blk, wins: x.e.t.wins, isUser: !!x.e.isUser, s: x.s });
+    const rrow = (x) => ({ id: x.e.id, name: x.e.p.name, team: x.e.t.nick, pts: x.e.l.pts, reb: x.e.l.reb, ast: x.e.l.ast, stl: x.e.l.stl, blk: x.e.l.blk, perf: x.e.l.perf, gp: x.e.l.gp, wins: x.e.t.wins, isUser: !!x.e.isUser, s: x.s });
     awards.race = { mvp: byMVP.slice(0, 5).map(rrow), dpoy: dpoy.slice(0, 5).map(rrow), roy: roy.slice(0, 5).map(rrow), mip: mip.slice(0, 5).map(rrow) };
     // versions without the user, so a live (mid-season) view can merge in the user's real to-date line without leaking where they finish
     awards.raceOthers = { mvp: byMVP.filter((x) => !x.e.isUser).slice(0, 7).map(rrow), dpoy: dpoy.filter((x) => !x.e.isUser).slice(0, 7).map(rrow), roy: roy.filter((x) => !x.e.isUser).slice(0, 7).map(rrow), mip: mip.filter((x) => !x.e.isUser).slice(0, 7).map(rrow) };
@@ -1650,6 +1650,7 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
       });
     });
     const rg = items.filter((x) => x.k === 'g' && !x.po && !x.dnp), ratings = rg.map((x) => x.r);
+    const pr = items.filter((x) => x.k === 'g' && x.po && !x.dnp).map((x) => x.r); rec.poRating = pr.length ? Math.round(pr.reduce((a, b) => a + b, 0) / pr.length * 100) / 100 : null;
     rec.avgRating = ratings.length ? Math.round(ratings.reduce((a, b) => a + b, 0) / ratings.length * 100) / 100 : null;
     return items;
   }
@@ -1883,7 +1884,7 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 21 Oct · BallerSim dashboard v6';
+  const BUILD = 'build 21 Oct · BallerSim dashboard v7';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
@@ -2241,7 +2242,12 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
         skill('Perimeter clamp', att.perD || 0), skill('Rim protection', att.rimP || 0), skill('Athleticism', att.ath || 0), skill('Basketball IQ', att.iq || 0)),
       h('button', { class: 'wide', onclick: showRatings }, '⛨ View full ratings'));
 
-    const wrap = h('div', { class: 'dash' }, h('div', { class: 'dtop' }, hero, telemetry), h('div', { class: 'dmid' }, stream, averages, defense));
+    const poP = poG.filter((x) => !x.dnp), poAv = (k) => (poP.length ? poP.reduce((a, g) => a + g[k], 0) / poP.length : 0), lastPo = poG[poG.length - 1];
+    const pk = (cls, lbl, val, sub) => h('div', { class: 'kpi ' + cls }, h('div', { class: 'k-lbl' }, lbl), h('div', { class: 'k-val' }, val), h('div', { class: 'k-sub' }, sub || ' '));
+    const playoffPanel = poP.length ? h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🏆'), h('h2', null, 'Playoff run'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, lastPo ? lastPo.rnd + ' · ' + lastPo.ser : 'Postseason')),
+      h('div', { class: 'kpis', style: 'margin:0' }, pk('hot', 'Playoff points', poAv('pt').toFixed(1), poP.length + ' games'), pk('', 'Playoff rebounds', poAv('rb').toFixed(1), (poAv('rb') - poAv('or')).toFixed(1) + ' def'), pk('', 'Playoff assists', poAv('as').toFixed(1), poAv('to') ? (poAv('as') / poAv('to')).toFixed(1) + ' A/TO' : ' '),
+        h('div', { class: 'kpi ink' }, h('div', { class: 'k-lbl' }, 'Playoff rating'), ratingBadge(poP.reduce((a, g) => a + g.r, 0) / poP.length, 2), h('div', { class: 'k-sub' }, poG.filter((g) => g.w).length + '-' + poG.filter((g) => !g.w).length + ' in the playoffs')))) : null;
+    const wrap = h('div', { class: 'dash' }, h('div', { class: 'dtop' }, hero, telemetry), playoffPanel, h('div', { class: 'dmid' }, stream, averages, defense));
     return wrap;
   }
   function showModal(title, body) {
@@ -2287,16 +2293,20 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
     let raceBody;
     if (live) {
       const pace = (nick) => { const r = rows.find((t) => t.nick === nick); return r && r.gp ? (r.wins / r.gp) * 82 : 41; }, rec = (nick) => { const r = rows.find((t) => t.nick === nick); return r ? r.wins + '-' + r.losses : ''; };
-      const prod = (c) => c.pts + 1.15 * c.reb + 1.5 * c.ast + 2 * (c.stl + c.blk) - 1.1 * (0.9 + 0.1 * c.pts);
-      const idxOf = (c) => (leagueRace === 'dpoy' ? 2.2 * c.stl + 2 * c.blk + 0.1 * (c.pace - 41) : leagueRace === 'mvp' ? prod(c) + 0.5 * (c.pace - 41) : prod(c));
+      const prod = (c) => c.perf;
+      const idxOf = (c) => (leagueRace === 'dpoy' ? 2.2 * c.stl + 2 * c.blk + 0.1 * (c.pace - 41) : leagueRace === 'mvp' ? 0.85 * c.perf + 0.35 * c.pts + 0.5 * (c.pace - 41) - (c.recent || 0) : c.perf + 0.1 * (c.pace - 41));
       if (N < 15) raceBody = h('p', { class: 'muted' }, 'The ladder opens after 15 games.');
       else {
-        const list = ((snap.raceO || {})[leagueRace] || []).map((x, i) => { const c = { name: x.name, team: x.team, pts: bridge(x.pts, 60 + i), reb: bridge(x.reb, 70 + i), ast: bridge(x.ast, 80 + i), stl: bridge(x.stl, 90 + i), blk: bridge(x.blk, 100 + i) }; c.pace = pace(x.team); return c; });
-        const elig = leagueRace === 'mvp' || leagueRace === 'dpoy' || (leagueRace === 'roy' && S.pre && S.pre.rookie);
-        if (elig) list.push({ name: S.player.name, team: userNick, pts: userAvg.pts, reb: userAvg.reb, ast: userAvg.ast, stl: userAvg.stl, blk: userAvg.blk, pace: pace(userNick), isUser: true });
+        const list = ((snap.raceO || {})[leagueRace] || []).map((x, i) => { const c = { name: x.name, team: x.team, pts: bridge(x.pts, 60 + i), reb: bridge(x.reb, 70 + i), ast: bridge(x.ast, 80 + i), stl: bridge(x.stl, 90 + i), blk: bridge(x.blk, 100 + i), perf: bridge(x.perf || 0, 110 + i) }; c.pace = pace(x.team); return c; });
+        const missed = items.slice(0, idx).filter((x) => x.k === 'g' && !x.po && x.dnp).length, uPace = pace(userNick);
+        const gpOk = missed <= 17, winsOk = leagueRace !== 'mvp' || uPace >= 36;  // same eligibility as the final vote: 65+ games played, 36+ team wins (MVP)
+        const elig = (leagueRace === 'mvp' || leagueRace === 'dpoy' || (leagueRace === 'roy' && S.pre && S.pre.rookie)) && gpOk && winsOk;
+        const uTov = tot.av.to, uTs = tot.t.fga ? tot.av.pt / (2 * (tot.av.fga + 0.44 * tot.av.fta)) : 0.55;
+        const uPerf = NBA.perfOf({ pts: userAvg.pts, reb: userAvg.reb, ast: userAvg.ast, stl: userAvg.stl, blk: userAvg.blk, tov: uTov, ts: uTs });
+        if (elig) list.push({ name: S.player.name, team: userNick, pts: userAvg.pts, reb: userAvg.reb, ast: userAvg.ast, stl: userAvg.stl, blk: userAvg.blk, perf: uPerf, recent: S.player.mvpRecent || 0, pace: uPace, isUser: true });
         list.forEach((c) => (c.ix = idxOf(c))); list.sort((a, b) => b.ix - a.ix);
         raceBody = [h('p', { class: 'small muted' }, 'Ladder as of game ' + N + ': ranked on what has happened so far, not a forecast.'), list.slice(0, 5).map((x, i) => h('div', { class: 'race' + (x.isUser ? ' me' : '') }, h('div', { class: 'row' }, h('span', { class: 'n' }, i + 1), h('b', null, x.name), h('em', null, ab(x.team)), h('span', { class: 'spacer' }), h('span', { class: 'small muted' }, rec(x.team))), h('div', { class: 'small muted' }, x.pts.toFixed(1) + ' pts · ' + x.reb.toFixed(1) + ' reb · ' + x.ast.toFixed(1) + ' ast' + (leagueRace === 'dpoy' ? ' · ' + x.stl.toFixed(1) + ' stl · ' + x.blk.toFixed(1) + ' blk' : '')))),
-          list.slice(0, 5).some((x) => x.isUser) ? null : h('p', { class: 'small muted', style: 'margin-top:8px' }, elig ? 'You are outside the top 5 for now.' : 'Not eligible for this award.')];
+          list.slice(0, 5).some((x) => x.isUser) ? null : h('p', { class: 'small muted', style: 'margin-top:8px' }, elig ? 'You are outside the top 5 for now.' : !gpOk ? 'You have missed ' + missed + ' games: 65 played are needed to qualify.' : !winsOk ? 'Your team is on pace for under 36 wins, which rules out the MVP.' : 'Not eligible for this award.')];
       }
     } else {
       const race = snap && snap.race ? snap.race : null;
@@ -2305,7 +2315,7 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
         const list = (race[leagueRace] || []).slice().sort((a, b) => b.s - a.s);
         const ex = list.map((x) => Math.exp(x.s / 7)), tot2 = ex.reduce((a, b) => a + b, 0) || 1;
         raceBody = list.length ? list.map((x, i) => h('div', { class: 'race' + (x.isUser ? ' me' : '') }, h('div', { class: 'row' }, h('span', { class: 'n' }, i + 1), h('b', null, x.name), h('em', null, ab(x.team)), h('span', { class: 'spacer' }), h('b', null, Math.round(100 * ex[i] / tot2) + '%')), h('div', { class: 'bar2' }, h('i', { style: 'width:' + Math.round(100 * ex[i] / tot2) + '%' })), h('div', { class: 'small muted' }, x.pts.toFixed(1) + ' pts · ' + x.reb.toFixed(1) + ' reb · ' + x.ast.toFixed(1) + ' ast' + (leagueRace === 'dpoy' ? ' · ' + x.stl.toFixed(1) + ' stl · ' + x.blk.toFixed(1) + ' blk' : '') + ' · ' + x.wins + ' team wins'))) : h('p', { class: 'muted' }, 'No candidates this year.');
-        if (list.length && !list.some((x) => x.isUser)) raceBody = [raceBody, h('p', { class: 'small muted', style: 'margin-top:8px' }, 'You were not in this race.')];
+        if (list.length && !list.some((x) => x.isUser)) { const rr = S.proSeasons[S.proSeasons.length - 1]; raceBody = [raceBody, h('p', { class: 'small muted', style: 'margin-top:8px' }, rr && rr.gp < 65 ? 'You were not in this race: you played ' + rr.gp + ' games and 65 are needed to qualify.' : rr && rr.wins < 36 && leagueRace === 'mvp' ? 'You were not in this race: your team won ' + rr.wins + ' games (36+ needed for MVP).' : 'You were not in this race.')]; }
       }
     }
     return h('div', { class: 'dash' },
@@ -2328,14 +2338,14 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
     const dl = (cur, old) => (old == null ? h('div', { class: 'k-sub' }, ' ') : h('div', { class: 'k-sub ' + (cur >= old ? 'up' : 'down') }, (cur >= old ? '▲ ' : '▼ ') + Math.abs(cur - old).toFixed(1) + ' vs last season'));
     const rk = (cls, l, v, sub) => h('div', { class: 'kpi ' + cls }, h('div', { class: 'k-lbl' }, l), h('div', { class: 'k-val' }, v), sub);
     const recKpis = h('div', { class: 'kpis' }, rk('hot', 'Points', f1(r.pts), dl(r.pts, pr && pr.pts)), rk('', 'Rebounds', f1(r.reb), dl(r.reb, pr && pr.reb)), rk('', 'Assists', f1(r.ast), dl(r.ast, pr && pr.ast)),
-      h('div', { class: 'kpi ink' }, h('div', { class: 'k-lbl' }, 'Avg rating'), h('div', { style: 'margin-top:8px' }, r.avgRating ? ratingBadge(r.avgRating, 2) : '–'), h('div', { class: 'k-sub' }, r.wins + '-' + r.losses)));
+      h('div', { class: 'kpi ink' }, h('div', { class: 'k-lbl' }, 'Avg rating'), h('div', { style: 'margin-top:8px' }, r.avgRating ? ratingBadge(r.avgRating, 2) : '–'), h('div', { class: 'k-sub' }, r.wins + '-' + r.losses + (r.poRating ? ' · playoffs ' + r.poRating.toFixed(2) : ''))));
     return h('div', null, h('h1', null, r.label + ' season recap'), recKpis,
       h('div', { class: 'card' }, h('p', { class: 'muted' }, r.team + ' · age ' + r.age + ' · OVR ' + r.ovr + ' · ' + money(r.salary)),
         h('div', { class: 'grid stats' }, statBox(f1(r.stl), 'SPG'), statBox(f1(r.blk), 'BPG'), statBox(r.gp, 'Games'), statBox(r.td, 'Triple-doubles')),
         h('p', { style: 'margin-top:10px' }, 'FG ' + pct(r.fgp) + '% · 3P ' + pct(r.tpp) + '% · FT ' + pct(r.ftp) + '% · TS ' + pct(r.ts) + '% · ' + f1(r.mins) + ' mpg · High game ' + r.high),
         h('p', null, 'Triple-doubles: ', h('b', null, r.td), ' · Double-doubles: ', h('b', null, r.dd), r.g40 ? ' · 40-pt games: ' + r.g40 : '', r.avgTD ? ' · 🔥 AVERAGED A TRIPLE-DOUBLE' : ''),
         h('p', null, h('b', null, r.wins + '-' + r.losses), ' · ' + r.playoffText), awardPills, ranks, r.injury ? h('div', { class: 'callout' }, '🩹 ' + r.injury) : null, r.events.map((e) => h('div', { class: 'callout' }, e))),
-      r.playoff ? h('div', { class: 'card' }, h('h2', null, 'Playoffs' + (r.legend ? ' 🔥 LEGENDARY RUN' : r.heater ? ' 🔥 on a heater' : '')), h('div', { class: 'grid stats' }, statBox(f1(r.playoff.pts), 'PPG'), statBox(f1(r.playoff.reb), 'RPG'), statBox(f1(r.playoff.ast), 'APG')), h('p', { class: 'muted small' }, r.playoff.gp + ' games · ' + pct(r.playoff.ts) + ' TS% · ' + r.playoff.td + ' triple-doubles · high ' + r.playoff.high),
+      r.playoff ? h('div', { class: 'card' }, h('h2', null, 'Playoffs' + (r.legend ? ' 🔥 LEGENDARY RUN' : r.heater ? ' 🔥 on a heater' : '')), h('div', { class: 'grid stats' }, statBox(f1(r.playoff.pts), 'PPG'), statBox(f1(r.playoff.reb), 'RPG'), statBox(f1(r.playoff.ast), 'APG'), r.poRating ? h('div', { class: 'statbox' }, h('div', { class: 'big' }, ratingBadge(r.poRating, 2)), h('div', { class: 'lbl' }, 'Playoff rating')) : null), h('p', { class: 'muted small' }, r.playoff.gp + ' games · ' + pct(r.playoff.ts) + ' TS% · ' + r.playoff.td + ' triple-doubles · high ' + r.playoff.high),
         h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, ['Round', 'Opponent', 'Result', 'PTS', 'REB', 'AST'].map((x, i) => h('th', { class: i < 3 ? 'l' : '' }, x)))), h('tbody', null, r.perSeries.map((s) => h('tr', null, h('td', { class: 'l' }, s.round), h('td', { class: 'l' }, s.opp), h('td', { class: 'l' }, s.result), h('td', null, f1(s.pts)), h('td', null, f1(s.reb)), h('td', null, f1(s.ast)))))))) : null,
       h('div', { class: 'card ink' }, h('h2', null, 'Around the league'), h('p', null, 'Champion: ', h('b', null, r.champion), ' · MVP: ', h('b', null, r.mvp)), h('p', { class: 'muted small' }, r.league.n30 + ' players averaged 30+ this year, ' + r.league.n25 + ' averaged 25+.'), h('h3', null, 'Top scorers'), r.league.topScorers.slice(0, 5).map((t, i) => h('div', { class: 'rank-row' }, h('span', { class: 'n' }, i + 1), h('span', null, t.name), h('b', null, f1(t.ppg))))),
       h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { S.stage = 'decision'; S.decision = G.decisionOptions(S); go(); } }, 'Offseason decisions →')));
