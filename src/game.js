@@ -430,6 +430,8 @@
 
   function playSeason(st) {
     const L = st.league, p = st.player;
+    // career state before this season: the UI shows it (plus games revealed so far) until the season is fully played out
+    st.pre = { career: JSON.parse(JSON.stringify(st.career)), earnings: st.earnings, earnings26: st.earnings26 || 0, nPlayoff: st.playoffLines.length, rookie: p.yearsPro === 0 };
     const age = p.age;
     const fx = rollEvents(st, p);
     const avail = rollAvail(p, { extraMiss: fx.extraMiss });
@@ -501,7 +503,7 @@
       rookie: p.rookie, leaders: res.leaders,
     };
     const gl = l.gameList; delete l.gameList;
-    st.leagueSnap = { year: L.year, label: res.label, standings: res.standings, leaders: res.leaders, race: A.race };
+    st.leagueSnap = { year: L.year, label: res.label, standings: res.standings, leaders: res.leaders, leadersO: res.leadersOthers, race: A.race, raceO: A.raceOthers };
     st.matchLog = buildMatchLog(st, rec, l, gl, perSeries, t, rec.injury); st.matchIdx = 0;
     if (NBA.onSeasonLog) NBA.onSeasonLog(st, rec);
     rec.perSeries = perSeries.map((x) => { const y = Object.assign({}, x); delete y.list; delete y.w; delete y.l; delete y.won; return y; });

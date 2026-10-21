@@ -298,12 +298,16 @@
     };
     const rrow = (x) => ({ id: x.e.id, name: x.e.p.name, team: x.e.t.nick, pts: x.e.l.pts, reb: x.e.l.reb, ast: x.e.l.ast, stl: x.e.l.stl, blk: x.e.l.blk, wins: x.e.t.wins, isUser: !!x.e.isUser, s: x.s });
     awards.race = { mvp: byMVP.slice(0, 5).map(rrow), dpoy: dpoy.slice(0, 5).map(rrow), roy: roy.slice(0, 5).map(rrow), mip: mip.slice(0, 5).map(rrow) };
+    // versions without the user, so a live (mid-season) view can merge in the user's real to-date line without leaking where they finish
+    awards.raceOthers = { mvp: byMVP.filter((x) => !x.e.isUser).slice(0, 7).map(rrow), dpoy: dpoy.filter((x) => !x.e.isUser).slice(0, 7).map(rrow), roy: roy.filter((x) => !x.e.isUser).slice(0, 7).map(rrow), mip: mip.filter((x) => !x.e.isUser).slice(0, 7).map(rrow) };
     awards.allNBATeams = [0, 1, 2].map((i) => allNBA.slice(i * 5, i * 5 + 5).map((x) => x.e.id));
     awards.allDefTeams = [0, 1].map((i) => allDef.slice(i * 5, i * 5 + 5).map((x) => x.e.id));
     const rankOf = (k, id) => { const i = lead(k).findIndex((e) => e.id === id); return i < 0 ? null : i + 1; };
     const leaders = {};
     ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k) => (leaders[k] = lead(k).slice(0, 5).map((e) => ({ name: e.p.name, team: e.t.nick, v: e.l[k], isUser: !!e.isUser }))));
     L.lastLeaders = leaders;
+    const leadersOthers = {};
+    ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k) => (leadersOthers[k] = lead(k).filter((e) => !e.isUser).slice(0, 7).map((e) => ({ name: e.p.name, team: e.t.nick, v: e.l[k] }))));
     const league = {
       n30: qual.filter((e) => e.l.pts >= 30).length, n25: qual.filter((e) => e.l.pts >= 25).length,
       topScorers: scoring.slice(0, 5).map((e) => ({ name: e.p.name, ppg: e.l.pts })),
@@ -312,7 +316,7 @@
     // remember perf for MIP, and voter fatigue for repeat MVPs
     entries.forEach((e) => { e.p.prevPerf = e.l.perf; e.p.mvpRecent = (e.p.mvpRecent || 0) * 0.55 + (awards.mvp && awards.mvp.id === e.id ? 4 : 0); });
     const stand = L.teams.map((t) => ({ id: t.id, name: t.name, nick: t.nick, conf: t.conf, wins: t.wins, losses: t.losses }));
-    const res = { year: L.year, label: seasonLabel(L.year), awards, playoffs, standings: stand, leaders, league, ranks: user ? { pts: rankOf('pts', 'user'), reb: rankOf('reb', 'user'), ast: rankOf('ast', 'user'), stl: rankOf('stl', 'user'), blk: rankOf('blk', 'user') } : null, entries };
+    const res = { year: L.year, label: seasonLabel(L.year), awards, playoffs, standings: stand, leaders, leadersOthers, league, ranks: user ? { pts: rankOf('pts', 'user'), reb: rankOf('reb', 'user'), ast: rankOf('ast', 'user'), stl: rankOf('stl', 'user'), blk: rankOf('blk', 'user') } : null, entries };
     // history record
     L.history.push({ year: L.year, champion: playoffs.champion.name, mvp: awards.mvp && awards.mvp.name, dpoy: awards.dpoy && awards.dpoy.name, roy: awards.roy && awards.roy.name, scoring: awards.scoring && (awards.scoring.name + ' ' + awards.scoring.ppg.toFixed(1)) });
     if (L.history.length > 60) L.history.shift();

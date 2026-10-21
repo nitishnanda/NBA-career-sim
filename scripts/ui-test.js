@@ -53,7 +53,20 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
       const po = await page.$('button:has-text("Sim next playoff game")');
       if (po) { await po.click(); await shot('06e-playoffs'); }
       const sk = await page.$('button:has-text("Skip to recap")'); if (sk) await sk.click(); else await page.click('button:has-text("Season recap")');
-    } else if (i === 1) { await page.click('button:has-text("Instant")'); await page.click('button:has-text("Sim to All-Star")'); await page.click('button:has-text("Sim to playoffs")'); while (await page.$('button:has-text("Sim next playoff game")')) await page.click('button:has-text("Sim next playoff game")'); await page.click('button:has-text("Season recap")'); }
+    } else if (i === 1) {
+      await page.click('button:has-text("Instant")'); for (let k = 0; k < 3; k++) await page.click('button:has-text("Sim 10")');
+      await page.click('nav button:has-text("Career")');
+      const chk = await page.evaluate(() => {
+        const S = window.__NBA_UI.state, shown = S.matchLog.slice(0, S.matchIdx).filter((x) => x.k === 'g' && !x.po && !x.dnp);
+        const prevTot = Math.round(S.proSeasons.slice(0, -1).reduce((a, x) => a + x.totPts, 0)), live = shown.reduce((a, g) => a + g.pt, 0);
+        const labels = Array.from(document.querySelectorAll('#app .statbox')).map((el) => el.textContent);
+        const cell = labels.find((t) => /Total points/i.test(t)) || '';
+        const cur = S.proSeasons[S.proSeasons.length - 1];
+        return { shown: shown.length, expected: prevTot + live, cell, finalSeasonTot: Math.round(cur.totPts), awardsNow: JSON.stringify(S.pre.career.awards), hasLiveRow: /●/.test(document.body.textContent) };
+      });
+      console.log('LEAK CHECK', JSON.stringify(chk));
+      await page.click('nav button:has-text("Season")');
+      await page.click('button:has-text("Instant")'); await page.click('button:has-text("Sim to All-Star")'); await page.click('button:has-text("Sim to playoffs")'); while (await page.$('button:has-text("Sim next playoff game")')) await page.click('button:has-text("Sim next playoff game")'); await page.click('button:has-text("Season recap")'); }
     else { const sk = await page.$('button:has-text("Skip to recap")'); if (sk) await sk.click(); else await page.click('button:has-text("Season recap")'); }
     await page.waitForSelector('text=Offseason decisions');
     if (i === 0) await shot('07-recap');
