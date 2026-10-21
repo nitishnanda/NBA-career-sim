@@ -2,6 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
+  const BUILD = 'build 21 Oct · phone layout';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
@@ -80,7 +81,8 @@
         h('h3', null, 'Position'), h('div', { class: 'row' }, Object.keys(D.POSITIONS).map((p) => h('button', { class: draft.pos === p ? 'primary' : '', onclick: () => { draft.pos = p; render(); } }, p)))),
       h('div', { class: 'card' }, h('h2', null, '2. Archetype'), h('div', { class: 'grid g3' }, archCards),
         h('h3', null, 'Secondary tag (optional, small bonus)'), h('select', { onchange: (e) => (draft.sec = e.target.value) }, h('option', { value: '' }, 'None'), Object.keys(D.ARCHETYPES).filter((k) => k !== draft.arch).map((k) => h('option', { value: k, selected: draft.sec === k }, D.ARCHETYPES[k].name)))),
-      h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { S = G.newCareer({ name: (draft.name || '').trim() || 'Rookie', pos: draft.pos, arch: draft.arch, sec: draft.sec, home: draft.home }); S.stage = 'scouting'; S.revealed = false; go(); } }, 'Get scouted →')));
+      h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { S = G.newCareer({ name: (draft.name || '').trim() || 'Rookie', pos: draft.pos, arch: draft.arch, sec: draft.sec, home: draft.home }); S.stage = 'scouting'; S.revealed = false; go(); } }, 'Get scouted →')),
+      h('p', { class: 'muted small', style: 'text-align:center;margin-top:18px' }, BUILD));
   }
 
   function screenScouting() {
