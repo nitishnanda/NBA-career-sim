@@ -178,6 +178,17 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
   .simbar .big-btn { flex: 1 1 100%; min-height: 52px; font-size: 17px; } .simbar .ghost { flex: 1 1 calc(60% - 8px); } .speed { margin: 0; flex: 1 1 100%; justify-content: center; padding-left: 8px; } .speed span { display: none; } .speed button { flex: 1; } .simmini { flex-basis: 100%; } .simmini button { flex: 1; }
 }
 
+/* KPI tiles (recap + season summaries) */
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 14px 0; }
+.kpi { background: var(--glass); border: 1px solid var(--line); border-radius: 24px; padding: 18px 20px; box-shadow: 0 24px 50px -30px #000, inset 0 1px 0 rgba(255,255,255,.06); min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.kpi .k-lbl { font: 600 12px var(--disp); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.kpi .k-val { font: 700 56px/1 var(--disp); letter-spacing: .01em; margin: 6px 0 2px; }
+.kpi .k-sub { font: 600 12.5px var(--disp); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); min-height: 16px; }
+.kpi.hot { background: #fff; border-color: #fff; color: #05070a; box-shadow: 0 0 40px -10px rgba(255,255,255,.5); } .kpi.hot .k-lbl, .kpi.hot .k-sub { color: rgba(5,7,10,.62); } .kpi.hot .up { color: #0a8f48; } .kpi.hot .down { color: #c9372c; }
+.kpi.ink { background: var(--well); }
+.kpi .rating.sm { align-self: flex-start; margin: 8px 0 4px; font-size: 34px; padding: 6px 14px; }
+@media (max-width: 720px) { .kpis { grid-template-columns: 1fr 1fr; gap: 10px; } .kpi { padding: 14px 15px; border-radius: 20px; } .kpi .k-val { font-size: 44px; } }
+
 </style>
 </head>
 <body>
@@ -1479,6 +1490,8 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
     // everyday scoring is soft-capped; big years (32-33, rarely 34-36) come from the career plan
     const SOFT = 30.2;
     if (m.pts > SOFT) m.pts = SOFT + (m.pts - SOFT) * 0.25;
+    // rookie scoring is capped by reality: even Wembanyama / Luka / LeBron / Iverson topped out around 21-23.5 ppg
+    if (rookie && m.pts > 18.5) m.pts = 18.5 + (m.pts - 18.5) * 0.36;
     let tierMode = null;
     const bigOK = e0.ovr >= 88 && age >= 24 && age <= 32 && gp >= 60;
 
@@ -1883,7 +1896,7 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 21 Oct · BallerSim dashboard v4';
+  const BUILD = 'build 21 Oct · BallerSim dashboard v5';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };

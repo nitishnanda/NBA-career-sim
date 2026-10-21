@@ -253,6 +253,8 @@
     // everyday scoring is soft-capped; big years (32-33, rarely 34-36) come from the career plan
     const SOFT = 30.2;
     if (m.pts > SOFT) m.pts = SOFT + (m.pts - SOFT) * 0.25;
+    // rookie scoring is capped by reality: even Wembanyama / Luka / LeBron / Iverson topped out around 21-23.5 ppg
+    if (rookie && m.pts > 18.5) m.pts = 18.5 + (m.pts - 18.5) * 0.36;
     let tierMode = null;
     const bigOK = e0.ovr >= 88 && age >= 24 && age <= 32 && gp >= 60;
 
