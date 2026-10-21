@@ -1,7 +1,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <title>NBA Career Sim</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@700&family=Nunito:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Sofia+Sans:wght@500;700;800&family=Sofia+Sans+Condensed:wght@700;800&family=Nunito:wght@400;600;700;800&display=swap">
 <style>
 :root {
   --bg: #f5ede0; --bg2: #efe3d0; --panel: #fffaf2; --panel2: #f3e8d6; --line: #e4d4ba; --text: #3a2e25; --muted: #8b7762;
@@ -84,8 +84,10 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { padd
 .m-top { display: flex; gap: 8px 12px; flex-wrap: wrap; align-items: baseline; font-size: 13.5px; }
 .m-date { color: var(--muted); font-size: 12px; font-weight: 700; } .m-vs { font-weight: 700; } .m-score { margin-left: auto; font-variant-numeric: tabular-nums; }
 .m-box { font-size: 14.5px; margin-top: 3px; } .m-box b { font-size: 17px; } .m-shoot { font-size: 12.5px; }
-.rating { min-width: 48px; text-align: center; border-radius: 6px; padding: 8px 8px; font: 700 18px/1 "Inter", "Roboto", "SF Pro Display", -apple-system, "Segoe UI", sans-serif; color: #fff; font-variant-numeric: tabular-nums; letter-spacing: .2px; }
-.rating.sm { display: inline-block; min-width: 0; padding: 5px 10px; font-size: 22px; }
+.rating { min-width: 48px; text-align: center; border-radius: 6px; padding: 8px 8px; font: 800 20px/1 "Sofia Sans Condensed", "Sofia Sans", "Inter", "Roboto", "SF Pro Display", -apple-system, "Segoe UI", sans-serif; color: #fff; font-variant-numeric: tabular-nums; letter-spacing: .2px; }
+.rating.sm { display: inline-block; min-width: 0; padding: 5px 10px; font-size: 24px; }
+.match { font-family: "Sofia Sans", "Nunito", ui-rounded, -apple-system, sans-serif; }
+.m-box { font-weight: 500; } .m-box b, .m-score { font-weight: 800; }
 .rating.none { background: var(--r0); }
 .rating.r1 { background: var(--r1); } .rating.r2 { background: var(--r2); } .rating.r3 { background: var(--r3); } .rating.r4 { background: var(--r4); } .rating.r5 { background: var(--r5); } .rating.r6 { background: var(--r6); }
 .divider { text-align: center; margin: 18px 0 6px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .14em; font-weight: 800; display: flex; align-items: center; gap: 12px; }
@@ -96,7 +98,7 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { padd
 .ctl-card { position: sticky; top: 56px; z-index: 4; backdrop-filter: blur(8px); background: var(--panel); }
 @media (max-width: 560px) {
   .attr { grid-template-columns: 96px 1fr 34px; } .attr.train { grid-template-columns: 96px 1fr 34px 96px; } h1 { font-size: 23px; } .big { font-size: 28px; }
-  .match { grid-template-columns: 32px 1fr auto; gap: 10px; padding: 11px 12px; } .m-res { width: 32px; height: 32px; } .rating { min-width: 44px; font-size: 16px; }
+  .match { grid-template-columns: 32px 1fr auto; gap: 10px; padding: 11px 12px; } .m-res { width: 32px; height: 32px; } .rating { min-width: 44px; font-size: 18px; }
   .card { padding: 15px 15px; border-radius: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { .match.fresh, .reveal, .divider.fresh { animation: none; } button { transition: none; } }
