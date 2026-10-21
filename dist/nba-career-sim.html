@@ -22,12 +22,11 @@ header { display: flex; align-items: center; gap: 14px; padding: 14px 22px; posi
 .brand { display: flex; align-items: center; gap: 10px; min-width: 190px; }
 .brand .logo { width: 34px; height: 34px; border-radius: 9px; background: #000; border: 1px solid var(--line); display: grid; place-items: center; font-size: 18px; }
 .brand b { display: block; font: 700 20px/1 var(--disp); letter-spacing: .05em; } .brand small { display: block; font: 600 11px/1.3 var(--disp); letter-spacing: .2em; color: var(--muted); }
-#nav { flex: 1; display: flex; justify-content: center; }
+#nav { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); }
 #nav:empty { flex: 1; }
-#nav { gap: 2px; }
-#nav button { border: 0; background: transparent; color: var(--muted); font: 600 14px var(--disp); letter-spacing: .1em; text-transform: uppercase; padding: 12px 34px; border-radius: 999px; }
+#nav button { border: 0; background: transparent; color: var(--muted); font: 600 14px var(--disp); letter-spacing: .1em; text-transform: uppercase; padding: 12px 10px; border-radius: 999px; width: 100%; text-align: center; white-space: nowrap; }
 #nav button.on { background: #fff; color: #05070a; box-shadow: 0 0 28px -6px rgba(255,255,255,.55); }
-#nav { background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 999px; padding: 4px; max-width: 520px; margin: 0 auto; }
+#nav { background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 999px; padding: 4px; width: 100%; max-width: 560px; margin: 0 auto; gap: 0; }
 #nav:empty { background: none; border: 0; }
 #who { display: flex; align-items: center; gap: 12px; min-width: 190px; justify-content: flex-end; }
 .whotxt { text-align: right; font: 600 13px/1.35 var(--disp); letter-spacing: .08em; text-transform: uppercase; }
@@ -107,14 +106,15 @@ table { width: 100%; border-collapse: collapse; font-size: 13.5px; } th, td { pa
 .panel .grid2 + .grid2, .panel .grid2 + .well, .panel .well + .grid2 { margin-top: 12px; }
 .chips2 { gap: 8px; margin-bottom: 16px; } .cp { font: 600 12px var(--disp); letter-spacing: .12em; text-transform: uppercase; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.05); display: inline-flex; align-items: center; gap: 8px; } .cp.plain { border: 0; background: none; font-size: 14px; color: #dfe3eb; }
 i.live { width: 6px; height: 6px; border-radius: 50%; background: #fff; box-shadow: 0 0 8px #fff; display: inline-block; }
-.hero .nm { font-size: 58px; line-height: .98; letter-spacing: .01em; margin: 4px 0 8px; font-weight: 700; word-break: break-word; } .hero .sub { font: 500 18px var(--disp); letter-spacing: .06em; text-transform: uppercase; color: #aeb5c2; }
+.hid { text-align: center; margin: 4px 0 20px; } .jr { display: flex; justify-content: center; align-items: center; gap: 14px; margin-top: 16px; } .jr .jersey { padding: 0; font-size: 46px; }
+.hero .nm { font-size: 58px; text-align: center; line-height: .98; letter-spacing: .01em; margin: 4px 0 8px; font-weight: 700; word-break: break-word; } .hero .sub { text-align: center; font: 500 18px var(--disp); letter-spacing: .06em; text-transform: uppercase; color: #aeb5c2; }
 .jersey { font: 700 38px var(--disp); color: rgba(255,255,255,.4); padding: 8px 12px 0; }
-.recbox2 { margin: 0; min-width: 118px; text-align: left; border-radius: 22px; padding: 14px 18px; } .recbox2 .lbl { font: 600 12px var(--disp); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); text-align: right; } .recbox2 .num { font: 700 40px/1 var(--disp); margin: 6px 0 4px; } .recbox2 .sub2 { font: 600 12px var(--disp); letter-spacing: .1em; text-align: right; color: #c8cdd7; }
+.recbox2 { margin: 0; min-width: 118px; text-align: center; border-radius: 22px; padding: 14px 18px; } .recbox2 .lbl { font: 600 12px var(--disp); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); text-align: center; } .recbox2 .num { font: 700 40px/1 var(--disp); margin: 6px 0 4px; } .recbox2 .sub2 { font: 600 12px var(--disp); letter-spacing: .1em; text-align: center; color: #c8cdd7; }
 .bar2 { height: 5px; background: rgba(255,255,255,.12); border-radius: 5px; overflow: hidden; margin: 9px 0; } .bar2 > i { display: block; height: 100%; background: #fff; border-radius: 5px; box-shadow: 0 0 10px rgba(255,255,255,.6); }
 .hero .caps.small { font-size: 12.5px; color: #cdd2dc; }
-.simbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 16px 18px; border-radius: 24px; margin-top: 22px; }
-.speed { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 999px; padding: 4px 4px 4px 16px; } .speed span { font: 600 11.5px var(--disp); letter-spacing: .14em; color: var(--muted); margin-right: 6px; } .speed button { border: 0; background: transparent; padding: 8px 14px; font-size: 13px; color: var(--muted); } .speed button.on { background: #fff; color: #05070a; }
-.simmini { flex-basis: 100%; display: flex; gap: 8px; }
+.simbar { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 16px 18px; border-radius: 24px; margin-top: 22px; }
+.speed { margin: 0; display: inline-flex; align-items: center; gap: 4px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 999px; padding: 4px 4px 4px 16px; } .speed span { font: 600 11.5px var(--disp); letter-spacing: .14em; color: var(--muted); margin-right: 6px; } .speed button { border: 0; background: transparent; padding: 8px 14px; font-size: 13px; color: var(--muted); } .speed button.on { background: #fff; color: #05070a; }
+.simmini { flex-basis: 100%; display: flex; gap: 8px; justify-content: center; }
 .seg2 { display: flex; gap: 4px; background: var(--well); border: 1px solid var(--line); border-radius: 999px; padding: 4px; margin-bottom: 12px; } .seg2.tight { margin: 0; } .seg2 button { flex: 1; border: 0; background: transparent; color: var(--muted); padding: 9px 8px; font-size: 13px; letter-spacing: .06em; white-space: nowrap; } .seg2 button.on { background: #fff; color: #05070a; }
 .courtwrap { padding: 10px; margin-top: 0; } .court { width: 100%; height: auto; display: block; }
 .legend { padding: 12px 16px; font-size: 13.5px; } .legend em { color: var(--muted); font-style: normal; } .legend b { font: 700 18px var(--disp); letter-spacing: .04em; } .dotm { display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: #fff; margin-right: 6px; }
@@ -141,7 +141,7 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
   header { flex-wrap: wrap; padding: 10px 12px; gap: 8px; }
   .brand { min-width: 0; flex: 1; } .brand b { font-size: 17px; } .brand small { display: none; }
   #who { min-width: 0; gap: 8px; } .whotxt { display: none; }
-  #nav { order: 3; flex: 1 0 100%; max-width: none; width: 100%; } #nav button { flex: 1; padding: 11px 4px; font-size: 12.5px; letter-spacing: .05em; }
+  #nav { order: 3; flex: 1 0 100%; max-width: none; width: 100%; } #nav button { padding: 11px 2px; font-size: 12.5px; letter-spacing: .04em; }
   main { padding: 14px 12px 40px; }
   h1 { font-size: 28px; }
   .card, .panel { border-radius: 22px; padding: 16px; } .modal { padding: 0; } .modal .box { border-radius: 0; min-height: 100vh; padding: 14px; }
@@ -156,7 +156,8 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
   .row > button.primary:only-child, .card > .row > select, .callout.row > button { flex: 1 1 100%; }
   .card > .row > .spacer { display: none; } .card > .row > .spacer ~ button { flex: 1 1 100%; }
   .dash, .dtop, .dmid, .dlg { gap: 14px; } .dmid { grid-template-columns: 1fr; }
-  .hero .nm { font-size: 40px; } .jersey { font-size: 28px; padding: 4px 6px 0; } .recbox2 { min-width: 96px; padding: 10px 12px; } .recbox2 .num { font-size: 32px; }
+  .hid { text-align: center; margin: 4px 0 20px; } .jr { display: flex; justify-content: center; align-items: center; gap: 14px; margin-top: 16px; } .jr .jersey { padding: 0; font-size: 46px; }
+.hero .nm { font-size: 40px; } .jersey { font-size: 28px; padding: 4px 6px 0; } .recbox2 { min-width: 96px; padding: 10px 12px; } .recbox2 .num { font-size: 32px; }
   .chips2 { margin-bottom: 12px; } .cp { font-size: 11px; padding: 6px 11px; }
   .bignum { font-size: 46px; } .tile b { font-size: 28px; } .kv { grid-template-columns: 1fr; gap: 2px; } .kv b { text-align: left; }
   .grid2 { gap: 8px; } .sk { grid-template-columns: 108px 1fr 30px; }
@@ -1869,7 +1870,7 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 21 Oct · BallerSim dashboard v3';
+  const BUILD = 'build 21 Oct · BallerSim dashboard v4';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
@@ -2157,10 +2158,10 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
         h('div', { class: 'bar2' }, h('i', { style: 'width:' + Math.round(100 * reg.length / Math.max(1, regTotal)) + '%' })),
         h('div', { class: 'row small caps muted', style: 'justify-content:space-between' }, h('span', null, (first ? first.d : '') + ' opener' + (reg.length ? ' (' + (reg[0].w ? 'W' : 'L') + ')' : '')), h('span', null, asDone ? '✓ All-Star weekend' : asIdx >= 0 ? '◉ All-Star weekend [in ' + Math.max(0, gamesToAS) + ' games]' : ''), h('span', null, (lastReg ? lastReg.d : '') + ' finale')));
     const hero = h('section', { class: 'panel hero' },
-      h('div', { class: 'row chips2' }, h('span', { class: 'cp' }, h('i', { class: 'live' }), phase), h('span', { class: 'cp' }, (t.conf === 'W' ? 'Western' : 'Eastern') + ' Conference · ' + (reg.length ? ord2(seed) + ' seed' : 'preseason')),
+      h('div', { class: 'row chips2', style: 'justify-content:center' }, h('span', { class: 'cp' }, h('i', { class: 'live' }), phase), h('span', { class: 'cp' }, (t.conf === 'W' ? 'Western' : 'Eastern') + ' Conference · ' + (reg.length ? ord2(seed) + ' seed' : 'preseason')),
         nextG && !done ? h('span', { class: 'cp plain' }, '◷ Next: ' + (nextG.h ? 'vs ' : '@ ') + nextG.oc + ' ' + nextG.o + (oppRow && !nextIsPo ? ' (' + oppRow.wins + '-' + oppRow.losses + ')' : '')) : null),
-      h('div', { class: 'row', style: 'align-items:flex-start;flex-wrap:nowrap' }, h('div', { style: 'flex:1;min-width:0' }, h('h1', { class: 'nm' }, p.name), h('div', { class: 'sub' }, t.name + ' · ' + p.pos + ' · ' + D.ARCHETYPES[p.arch].name)),
-        h('div', { class: 'jersey' }, '#' + jersey(p.name)), h('div', { class: 'recbox2 well' }, h('div', { class: 'lbl' }, 'Record'), h('div', { class: 'num' }, wins + '-' + losses), h('div', { class: 'sub2' }, (reg.length ? (wins / reg.length).toFixed(3).replace(/^0/, '') : '.000') + ' PCT'))),
+      h('div', { class: 'hid' }, h('h1', { class: 'nm' }, p.name), h('div', { class: 'sub' }, t.name + ' · ' + p.pos + ' · ' + D.ARCHETYPES[p.arch].name),
+        h('div', { class: 'jr' }, h('div', { class: 'jersey' }, '#' + jersey(p.name)), h('div', { class: 'recbox2 well' }, h('div', { class: 'lbl' }, 'Record'), h('div', { class: 'num' }, wins + '-' + losses), h('div', { class: 'sub2' }, (reg.length ? (wins / reg.length).toFixed(3).replace(/^0/, '') : '.000') + ' PCT')))),
       schedule, simBar);
 
     // ---- shot telemetry
