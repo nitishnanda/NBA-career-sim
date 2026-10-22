@@ -303,8 +303,17 @@
     const fgm = (pts - ftm - tpm) / 2;
     let fgp = fgm / fga;
     if (fgp > 0.68) { fga = fgm / 0.68; fgp = 0.68; } else if (fgp < 0.37) { fga = fgm / 0.37; fgp = 0.37; }
+    // 50/40/90 is a once-in-a-generation line (Nash x4 on ~4 threes a game; Bird, Dirk, Durant, Curry, Kyrie once each): high-volume shooters rarely get all three,
+    // so when a line lands there, usually one of the three slips just under the mark
+    let tpp2 = tpa > 0.3 ? tpm / tpa : 0, fgm2 = fgm, tpm2 = tpm, ftm2 = ftm, ftp2 = ftp;
+    if (tpa >= 2 && fgp >= 0.5 && tpp2 >= 0.4 && ftp2 >= 0.9 && rand() > (tpa >= 6 ? 0.13 : tpa >= 3.5 ? 0.25 : 0.35)) {
+      const miss = 0.002 + rand() * 0.013, m = [fgp - 0.5, tpp2 - 0.4, ftp2 - 0.9], w = m.indexOf(Math.min.apply(null, m));
+      if (w === 0) { fga = fgm / (0.5 - miss); fgp = fgm / fga; }
+      else if (w === 1) { tpp2 = 0.4 - miss; tpm2 = tpa * tpp2; fgm2 = (pts - ftm2 - tpm2) / 2; fgp = fgm2 / fga; }
+      else { ftp2 = 0.9 - miss; ftm2 = fta * ftp2; fgm2 = (pts - ftm2 - tpm2) / 2; fgp = fgm2 / fga; }
+    }
     const fta2 = fta, tsReal = pts / (2 * (fga + 0.44 * fta2));
-    return { fga, fgm, fgp, tpa, tpm, tpp: tpa > 0.3 ? tpm / tpa : 0, fta: fta2, ftm, ftp, ts: tsReal };
+    return { fga, fgm: fgm2, fgp, tpa, tpm: tpm2, tpp: tpp2, fta: fta2, ftm: ftm2, ftp: ftp2, ts: tsReal };
   }
 
   // ---------------------------------------------------------------- per-game box scores
