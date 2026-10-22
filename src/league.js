@@ -281,7 +281,7 @@
     // awards
     const q65 = entries.filter((e) => e.l.gp >= 65);
     const tdBonus = (l) => (l.pts >= 25 && l.reb >= 7.5 && l.ast >= 7.5 ? 3 : 0) + (l.reb >= 9.5 && l.ast >= 9.5 && l.pts >= 18 ? 7 + (l.pts >= 28 ? 3 : 0) : 0); // voters love the triple-double story
-    const byMVP = q65.map((e) => ({ e, s: 0.85 * e.l.perf + 0.35 * e.l.pts + 0.5 * (e.l.wins - 41) + tdBonus(e.l) + (e.l.wins >= 58 ? 2.5 : 0) + randn() * 2.4 - (e.p.mvpRecent || 0), ok: e.l.wins >= 36 })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
+    const byMVP = q65.map((e) => ({ e, s: 0.85 * e.l.perf + 0.35 * e.l.pts + 0.5 * (e.l.wins - 41) + tdBonus(e.l) + (e.l.wins >= 58 ? 2.5 : 0) + randn() * 2.4 - (e.p.mvpRecent || 0), ok: true })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
     const dpoy = q65.map((e) => ({ e, s: defScore(e.p, e.l) + 0.12 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s);
     const roy = entries.filter((e) => e.p.rookie && e.l.gp >= 50).map((e) => ({ e, s: e.l.perf + 0.1 * (e.l.wins - 41) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
     const mip = q65.filter((e) => !e.p.rookie && e.p.prevPerf != null && e.p.age <= 28).map((e) => ({ e, s: (e.l.perf - e.p.prevPerf) + randn() * 1.5 })).sort((a, b) => b.s - a.s);

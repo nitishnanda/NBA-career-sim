@@ -955,7 +955,7 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
     // awards
     const q65 = entries.filter((e) => e.l.gp >= 65);
     const tdBonus = (l) => (l.pts >= 25 && l.reb >= 7.5 && l.ast >= 7.5 ? 3 : 0) + (l.reb >= 9.5 && l.ast >= 9.5 && l.pts >= 18 ? 7 + (l.pts >= 28 ? 3 : 0) : 0); // voters love the triple-double story
-    const byMVP = q65.map((e) => ({ e, s: 0.85 * e.l.perf + 0.35 * e.l.pts + 0.5 * (e.l.wins - 41) + tdBonus(e.l) + (e.l.wins >= 58 ? 2.5 : 0) + randn() * 2.4 - (e.p.mvpRecent || 0), ok: e.l.wins >= 36 })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
+    const byMVP = q65.map((e) => ({ e, s: 0.85 * e.l.perf + 0.35 * e.l.pts + 0.5 * (e.l.wins - 41) + tdBonus(e.l) + (e.l.wins >= 58 ? 2.5 : 0) + randn() * 2.4 - (e.p.mvpRecent || 0), ok: true })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
     const dpoy = q65.map((e) => ({ e, s: defScore(e.p, e.l) + 0.12 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s);
     const roy = entries.filter((e) => e.p.rookie && e.l.gp >= 50).map((e) => ({ e, s: e.l.perf + 0.1 * (e.l.wins - 41) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
     const mip = q65.filter((e) => !e.p.rookie && e.p.prevPerf != null && e.p.age <= 28).map((e) => ({ e, s: (e.l.perf - e.p.prevPerf) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
@@ -1859,6 +1859,17 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
     }
     st.career.td += rec.td - oldTd;
     if (!!rec.avgTD !== !!oldAvg) { const d = rec.avgTD ? 1 : -1; st.career.tdSeasons += d; if (rec.pts >= 30) st.career.td30Seasons += d; }
+    // league-facing results that depend only on the user's final numbers: scoring title, league ranks and the leaders table
+    const lo = st.leagueSnap && st.leagueSnap.leadersO;
+    if (lo && n) {
+      const had = rec.awards.findIndex((a) => /^Scoring Champion/.test(a)), top = lo.pts && lo.pts[0] ? lo.pts[0].v : 0, should = rec.gp >= 58 && rec.pts > top, txt = 'Scoring Champion (' + (Math.round(rec.pts * 10) / 10).toFixed(1) + ')';
+      if (should && had >= 0) rec.awards[had] = txt;
+      else if (should) { rec.awards.push(txt); st.career.awards['Scoring titles'] = (st.career.awards['Scoring titles'] || 0) + 1; }
+      else if (had >= 0) { rec.awards.splice(had, 1); st.career.awards['Scoring titles'] = (st.career.awards['Scoring titles'] || 1) - 1; if (!st.career.awards['Scoring titles']) delete st.career.awards['Scoring titles']; }
+      if (rec.ranks) ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k) => { const r = 1 + (lo[k] || []).filter((o) => o.v > rec[k]).length; if (r <= 7) rec.ranks[k] = r; else if (rec.ranks[k] <= 7) rec.ranks[k] = 8; });
+      const me = { name: st.player.name, team: st.league.teams[st.teamId].nick, isUser: true };
+      ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k) => { if (st.leagueSnap.leaders && lo[k]) st.leagueSnap.leaders[k] = lo[k].map((o) => ({ name: o.name, team: o.team, v: o.v })).concat([Object.assign({ v: rec[k] }, me)]).sort((a, b) => b.v - a.v).slice(0, 5); });
+    }
     const po = items.filter((x) => x.k === 'g' && x.po && !x.dnp);
     if (rec.playoff && po.length) {
       const fga = sumOf(po, 'fga');
@@ -2021,7 +2032,7 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 21 Oct · BallerSim dashboard v10';
+  const BUILD = 'build 21 Oct · BallerSim dashboard v11';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
@@ -2445,14 +2456,14 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
       else {
         const list = ((snap.raceO || {})[leagueRace] || []).map((x, i) => { const c = { name: x.name, team: x.team, pts: bridge(x.pts, 60 + i), reb: bridge(x.reb, 70 + i), ast: bridge(x.ast, 80 + i), stl: bridge(x.stl, 90 + i), blk: bridge(x.blk, 100 + i), perf: bridge(x.perf || 0, 110 + i) }; c.pace = pace(x.team); return c; });
         const missed = items.slice(0, idx).filter((x) => x.k === 'g' && !x.po && x.dnp).length, uPace = pace(userNick);
-        const gpOk = missed <= 17, winsOk = leagueRace !== 'mvp' || uPace >= 36;  // same eligibility as the final vote: 65+ games played, 36+ team wins (MVP)
+        const gpOk = missed <= 17, winsOk = true;  // same eligibility as the final vote: 65+ games played (there is no minimum for team wins)
         const elig = (leagueRace === 'mvp' || leagueRace === 'dpoy' || (leagueRace === 'roy' && S.pre && S.pre.rookie)) && gpOk && winsOk;
         const uTov = tot.av.to, uTs = tot.t.fga ? tot.av.pt / (2 * (tot.av.fga + 0.44 * tot.av.fta)) : 0.55;
         const uPerf = NBA.perfOf({ pts: userAvg.pts, reb: userAvg.reb, ast: userAvg.ast, stl: userAvg.stl, blk: userAvg.blk, tov: uTov, ts: uTs });
         if (elig) list.push({ name: S.player.name, team: userNick, pts: userAvg.pts, reb: userAvg.reb, ast: userAvg.ast, stl: userAvg.stl, blk: userAvg.blk, perf: uPerf, recent: S.player.mvpRecent || 0, pace: uPace, isUser: true });
         list.forEach((c) => (c.ix = idxOf(c))); list.sort((a, b) => b.ix - a.ix);
         raceBody = [h('p', { class: 'small muted' }, 'Ladder as of game ' + N + ': ranked on what has happened so far, not a forecast.'), list.slice(0, 5).map((x, i) => h('div', { class: 'race' + (x.isUser ? ' me' : '') }, h('div', { class: 'row' }, h('span', { class: 'n' }, i + 1), h('b', null, x.name), h('em', null, ab(x.team)), h('span', { class: 'spacer' }), h('span', { class: 'small muted' }, rec(x.team))), h('div', { class: 'small muted' }, x.pts.toFixed(1) + ' pts · ' + x.reb.toFixed(1) + ' reb · ' + x.ast.toFixed(1) + ' ast' + (leagueRace === 'dpoy' ? ' · ' + x.stl.toFixed(1) + ' stl · ' + x.blk.toFixed(1) + ' blk' : '')))),
-          list.slice(0, 5).some((x) => x.isUser) ? null : h('p', { class: 'small muted', style: 'margin-top:8px' }, elig ? 'You are outside the top 5 for now.' : !gpOk ? 'You have missed ' + missed + ' games: 65 played are needed to qualify.' : !winsOk ? 'Your team is on pace for under 36 wins, which rules out the MVP.' : 'Not eligible for this award.')];
+          list.slice(0, 5).some((x) => x.isUser) ? null : h('p', { class: 'small muted', style: 'margin-top:8px' }, elig ? 'You are outside the top 5 for now.' : !gpOk ? 'You have missed ' + missed + ' games: 65 played are needed to qualify.' : 'Not eligible for this award.')];
       }
     } else {
       const race = snap && snap.race ? snap.race : null;
@@ -2461,7 +2472,7 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
         const list = (race[leagueRace] || []).slice().sort((a, b) => b.s - a.s);
         const ex = list.map((x) => Math.exp(x.s / 7)), tot2 = ex.reduce((a, b) => a + b, 0) || 1;
         raceBody = list.length ? list.map((x, i) => h('div', { class: 'race' + (x.isUser ? ' me' : '') }, h('div', { class: 'row' }, h('span', { class: 'n' }, i + 1), h('b', null, x.name), h('em', null, ab(x.team)), h('span', { class: 'spacer' }), h('b', null, Math.round(100 * ex[i] / tot2) + '%')), h('div', { class: 'bar2' }, h('i', { style: 'width:' + Math.round(100 * ex[i] / tot2) + '%' })), h('div', { class: 'small muted' }, x.pts.toFixed(1) + ' pts · ' + x.reb.toFixed(1) + ' reb · ' + x.ast.toFixed(1) + ' ast' + (leagueRace === 'dpoy' ? ' · ' + x.stl.toFixed(1) + ' stl · ' + x.blk.toFixed(1) + ' blk' : '') + ' · ' + x.wins + ' team wins'))) : h('p', { class: 'muted' }, 'No candidates this year.');
-        if (list.length && !list.some((x) => x.isUser)) { const rr = S.proSeasons[S.proSeasons.length - 1]; raceBody = [raceBody, h('p', { class: 'small muted', style: 'margin-top:8px' }, rr && rr.gp < 65 ? 'You were not in this race: you played ' + rr.gp + ' games and 65 are needed to qualify.' : rr && rr.wins < 36 && leagueRace === 'mvp' ? 'You were not in this race: your team won ' + rr.wins + ' games (36+ needed for MVP).' : 'You were not in this race.')]; }
+        if (list.length && !list.some((x) => x.isUser)) { const rr = S.proSeasons[S.proSeasons.length - 1]; raceBody = [raceBody, h('p', { class: 'small muted', style: 'margin-top:8px' }, rr && rr.gp < 65 ? 'You were not in this race: you played ' + rr.gp + ' games and 65 are needed to qualify.' : 'You were not in this race.')]; }
       }
     }
     return h('div', { class: 'dash' },

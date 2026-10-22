@@ -611,6 +611,17 @@
     }
     st.career.td += rec.td - oldTd;
     if (!!rec.avgTD !== !!oldAvg) { const d = rec.avgTD ? 1 : -1; st.career.tdSeasons += d; if (rec.pts >= 30) st.career.td30Seasons += d; }
+    // league-facing results that depend only on the user's final numbers: scoring title, league ranks and the leaders table
+    const lo = st.leagueSnap && st.leagueSnap.leadersO;
+    if (lo && n) {
+      const had = rec.awards.findIndex((a) => /^Scoring Champion/.test(a)), top = lo.pts && lo.pts[0] ? lo.pts[0].v : 0, should = rec.gp >= 58 && rec.pts > top, txt = 'Scoring Champion (' + (Math.round(rec.pts * 10) / 10).toFixed(1) + ')';
+      if (should && had >= 0) rec.awards[had] = txt;
+      else if (should) { rec.awards.push(txt); st.career.awards['Scoring titles'] = (st.career.awards['Scoring titles'] || 0) + 1; }
+      else if (had >= 0) { rec.awards.splice(had, 1); st.career.awards['Scoring titles'] = (st.career.awards['Scoring titles'] || 1) - 1; if (!st.career.awards['Scoring titles']) delete st.career.awards['Scoring titles']; }
+      if (rec.ranks) ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k) => { const r = 1 + (lo[k] || []).filter((o) => o.v > rec[k]).length; if (r <= 7) rec.ranks[k] = r; else if (rec.ranks[k] <= 7) rec.ranks[k] = 8; });
+      const me = { name: st.player.name, team: st.league.teams[st.teamId].nick, isUser: true };
+      ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k) => { if (st.leagueSnap.leaders && lo[k]) st.leagueSnap.leaders[k] = lo[k].map((o) => ({ name: o.name, team: o.team, v: o.v })).concat([Object.assign({ v: rec[k] }, me)]).sort((a, b) => b.v - a.v).slice(0, 5); });
+    }
     const po = items.filter((x) => x.k === 'g' && x.po && !x.dnp);
     if (rec.playoff && po.length) {
       const fga = sumOf(po, 'fga');

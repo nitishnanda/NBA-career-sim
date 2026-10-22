@@ -215,3 +215,7 @@ Per-game shot volume is now loosely tied to points (bricky nights exist), so bad
 
 ## 50/40/90 seasons
 `scripts/5040-check.js`: elite shooter careers averaged 3.45 seasons of 50% FG / 40% 3P / 90% FT (real: Nash x4 on ~4 threes a game, Bird, Dirk, Durant, Curry, Kyrie once each, about a dozen ever). When a season's shooting line lands on all three marks, one of them now slips just under (2-15 points of a percent) with 87% (6+ threes a game), 75% (3.5-6) or 65% (under 3.5) probability. Now 0.35 per elite shooter career, 0.00 for everyone else, with plenty of 49/39/89 near-misses.
+
+## Scoring title / MVP eligibility fixes
+- A mid-season game-plan switch re-ran the season, so the "Scoring Champion (30.6)" text and title came from the re-run line while the tiles said 31.2. After a switch the scoring title, its text, the league ranks and the leaders table are now recomputed from the final tile averages against the league's best other scorer (`scripts/style-switch-test.js`).
+- Removed the invented 36-team-win minimum for MVP. Only the real 65-game rule remains; team wins still count through the vote formula.
