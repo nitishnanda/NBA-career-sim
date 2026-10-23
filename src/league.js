@@ -264,7 +264,7 @@
     allPlayers.forEach((p) => {
       const t = L.teams[p.teamId];
       const roster = teamRoster(L, t, user);
-      const e = expLine(p, { coTax: coTaxFor(p, roster), pace: t.pace, rookie: p.rookie, minsFloor: p.rookie ? NBA.rookieFloor(p.draftSlot) : 0 });
+      const e = expLine(p, { coTax: coTaxFor(p, roster), wins: t.wins, pace: t.pace, rookie: p.rookie, minsFloor: p.rookie ? NBA.rookieFloor(p.draftSlot) : 0 });
       const l = lineFromExp(p, e, avail[p.id].gp);
       l.id = p.id; l.teamId = p.teamId; l.wins = t.wins;
       lines[p.id] = l;
@@ -278,10 +278,25 @@
     }
     L.lines = lines;
 
+    // the scoring champion nearly always clears 31 ppg (every year but two since 2014); a user who leads with 30.3+ is left alone
+    {
+      const qe = entries.filter((e) => e.l.gp >= 58), top = qe.reduce((b, e) => (!b || e.l.pts > b.l.pts ? e : b), null);
+      const tgt = rand() < 0.86 ? 30.95 + Math.abs(randn()) * 1.1 + (rand() < 0.15 ? 1 : 0) : 30.15 + rand() * 0.85;
+      if (top && top.l.pts < tgt && !(top.isUser && top.l.pts >= 30.3)) {
+        const npc = qe.filter((e) => !e.isUser).reduce((b, e) => (!b || e.l.pts > b.l.pts ? e : b), null);
+        if (npc && npc.l.pts < tgt && tgt / npc.l.pts < 1.15) { npc.l.pts = tgt; npc.l.perf = perfOf(npc.l); }
+      }
+    }
     // awards
     const q65 = entries.filter((e) => e.l.gp >= 65);
     const tdBonus = (l) => (l.pts >= 25 && l.reb >= 7.5 && l.ast >= 7.5 ? 3 : 0) + (l.reb >= 9.5 && l.ast >= 9.5 && l.pts >= 18 ? 7 + (l.pts >= 28 ? 3 : 0) : 0); // voters love the triple-double story
-    const byMVP = q65.map((e) => ({ e, s: 0.85 * e.l.perf + 0.35 * e.l.pts + 0.5 * (e.l.wins - 41) + tdBonus(e.l) + (e.l.wins >= 58 ? 2.5 : 0) + randn() * 2.4 - (e.p.mvpRecent || 0), ok: true })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
+    // MVPs come from the top handful of producers on winning teams: nobody wins at 24/7/5, and sub-.500 teams do not produce MVPs
+    const perfSorted = q65.map((e) => e.l.perf).sort((x, y) => y - x), perfCut = perfSorted[Math.min(4, perfSorted.length - 1)] || 0;
+    const mvpAll = q65.map((e) => {
+      const l = e.l, star = l.pts >= 22 || l.ast >= 9.5 || (l.reb >= 11 && l.pts >= 18);
+      return { e, s: 0.85 * l.perf + 0.35 * l.pts + 0.65 * (l.wins - 41) - 1.6 * Math.max(0, 45 - l.wins) + tdBonus(l) + (l.wins >= 58 ? 2.5 : 0) + (l.perf >= perfSorted[0] ? 5 : 0) + randn() * 1.8 - (e.p.mvpRecent || 0), ok: l.perf >= perfCut && star && l.wins >= 44 };
+    }).sort((a, b) => b.s - a.s);
+    const byMVP = mvpAll.filter((x) => x.ok).concat(mvpAll.filter((x) => !x.ok)); // eligible candidates first, then the also-rans fill out the ballot
     const dpoy = q65.map((e) => ({ e, s: defScore(e.p, e.l) + 0.12 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s);
     const roy = entries.filter((e) => e.p.rookie && e.l.gp >= 50).map((e) => ({ e, s: e.l.perf + 0.1 * (e.l.wins - 41) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
     const mip = q65.filter((e) => !e.p.rookie && e.p.prevPerf != null && e.p.age <= 28).map((e) => ({ e, s: (e.l.perf - e.p.prevPerf) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
@@ -316,7 +331,7 @@
     };
     const playoffs = simPlayoffs(L, user ? user.teamId : null);
     // remember perf for MIP, and voter fatigue for repeat MVPs
-    entries.forEach((e) => { e.p.prevPerf = e.l.perf; e.p.mvpRecent = (e.p.mvpRecent || 0) * 0.5 + (awards.mvp && awards.mvp.id === e.id ? 2 : 0); });
+    entries.forEach((e) => { e.p.prevPerf = e.l.perf; e.p.mvpRecent = (e.p.mvpRecent || 0) * 0.5 + (awards.mvp && awards.mvp.id === e.id ? 1.2 : 0); });
     const stand = L.teams.map((t) => ({ id: t.id, name: t.name, nick: t.nick, conf: t.conf, wins: t.wins, losses: t.losses }));
     const res = { year: L.year, label: seasonLabel(L.year), awards, playoffs, standings: stand, leaders, leadersOthers, league, ranks: user ? { pts: rankOf('pts', 'user'), reb: rankOf('reb', 'user'), ast: rankOf('ast', 'user'), stl: rankOf('stl', 'user'), blk: rankOf('blk', 'user') } : null, entries };
     // history record
@@ -328,19 +343,22 @@
   // Finals MVP: best Finals line on the winning team. `user` is {pts, reb, ast} from the Finals series.
   const finalsScore = (pts, reb, ast) => 1.9 * pts + 1.15 * reb + 1.5 * ast;
   function finalsMVP(L, teamId, user) {
-    // user = { pts, reb, ast } in the Finals series, reg = { pts, reb, ast } regular season. The champion's best player takes it ~90% of the time in reality.
+    // The award goes to the champion's best Finals performer, usually its leading scorer; a defender can win it (Iguodala 2015) when his two-way line is outstanding.
+    // user = { pts, reb, ast, stl, blk } in the Finals series. Teammates get a Finals line drawn around their regular-season numbers.
     const t = L.teams[teamId];
     const cands = t.core.map((id) => {
-      const l = L.lines[id], reg = l ? finalsScore(l.pts, l.reb, l.ast) : 30;
-      return { name: L.players[id].name, reg, s: reg * 0.96 * (1 + 0.05 * randn()) };
+      const l = L.lines[id];
+      if (!l) return { name: L.players[id].name, pts: 8, reb: 3, ast: 2, db: 1 };
+      return { name: L.players[id].name, pts: l.pts * (1.04 + 0.11 * randn()), reb: l.reb * (1.03 + 0.1 * randn()), ast: l.ast * (0.96 + 0.1 * randn()), db: (l.stl + l.blk) * (1 + 0.15 * randn()) };
     });
-    if (user) {
-      const ureg = user.reg ? finalsScore(user.reg.pts, user.reg.reb, user.reg.ast) : finalsScore(user.pts, user.reb, user.ast);
-      const best = cands.every((c) => ureg >= c.reg * 0.97);
-      cands.push({ name: 'user', s: (0.65 * finalsScore(user.pts, user.reb, user.ast) + 0.35 * ureg) * (best ? 1.0 : 1) * 0.97 * (1 + 0.04 * randn()) });
-    }
-    cands.sort((a, b) => b.s - a.s);
-    return cands[0].name;
+    if (user) cands.push({ name: 'user', pts: user.pts, reb: user.reb, ast: user.ast, db: (user.stl || 0) + (user.blk || 0) });
+    const maxPts = Math.max.apply(null, cands.map((c) => c.pts));
+    cands.forEach((c) => {
+      c.s = (2.0 * c.pts + 1.0 * c.reb + 1.3 * c.ast + 2.5 * c.db) * (1 + 0.04 * randn());
+      c.ok = c.pts >= 0.86 * maxPts || (c.db >= 3.0 && c.pts >= 0.5 * maxPts);   // the leading scorer, or an elite defender
+    });
+    const pool = cands.filter((c) => c.ok).sort((a, b) => b.s - a.s);
+    return (pool.length ? pool : cands.sort((a, b) => b.s - a.s))[0].name;
   }
 
   // ------------------------------------------------------------ retirement / offseason

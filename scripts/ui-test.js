@@ -42,11 +42,12 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
       await shot('06b-opening-night');
       for (let k = 0; k < 3; k++) await page.click('button:has-text("Sim next game")');
       await shot('06c-three-games');
-      await page.click('.gplan button:has-text("Scoring")'); await page.waitForSelector('.gplan button.on:has-text("Scoring")'); await page.click('button:has-text("Sim next game")');
+      if (mobile) { await page.click('.mtabs button:has-text("Plan")'); await page.click('.popt:has-text("Scoring")'); await page.waitForSelector('.popt.on:has-text("Scoring")'); await page.click('.mtabs button:has-text("Box")'); } else { await page.click('.gplan button:has-text("Scoring")'); await page.waitForSelector('.gplan button.on:has-text("Scoring")'); } await page.click('button:has-text("Sim next game")');
       await page.click('button:has-text("Instant")');
       await page.click('button:has-text("Sim to All-Star")');
       await shot('06d-all-star');
       await page.click('nav button:has-text("Around the league")'); await shot('06f-league');
+      await page.click('nav button:has-text("Team")'); await shot('06i-team');
       await page.click('nav button:has-text("Career")'); await shot('06g-career');
       await page.click('nav button:has-text("Season")');
       await page.click('button:has-text("Sim to playoffs")');

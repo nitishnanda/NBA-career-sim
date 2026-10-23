@@ -40,7 +40,7 @@
   // ---------------------------------------------------------------- tuning knobs
   const T = {
     pace: 99,            // possessions per game, 2025-ish
-    usgBase: 0.192, usgPerSS: 0.005, usgConvex: 0.00012,
+    usgBase: 0.196, usgPerSS: 0.005, usgConvex: 0.00012,
     tsBase: 0.402, tsPerSkill: 0.0025, tsEra: 0.012, usgTax: 0.22,
     minsBase: 12, minsPerOvr: 0.95, minsCap: 35.4,
     declineScale: 1.15,
@@ -199,7 +199,7 @@
   function progress(p) {
     const next = p.age + 1;
     const wk = 0.88 + 0.24 * p.work;
-    const shock = randn() * (next <= 22 ? 1.9 : next <= 26 ? 1.1 : 0.7);
+    const shock = randn() * (next <= 22 ? 1.9 : next <= 26 ? 1.1 : 0.7) * (next > 23 && ovrOf(p) >= 88 ? 0.6 : 1); // stars' ratings move steadily; the prime is not a coin flip
     const before = ovrOf(p);
     ATTRS.forEach((a) => {
       let cur = p.attrs[a];
@@ -243,6 +243,7 @@
   }
   // real 25-ppg scorers keep ~90% of their peak scoring at 30, ~85% at 32, ~80% at 34 (Basketball-Reference)
   const AGE_USG = { 28: 1, 29: 0.96, 30: 0.91, 31: 0.9, 32: 0.89, 33: 0.9, 34: 0.92, 35: 0.93, 36: 0.93, 37: 0.93, 38: 0.93 };
+  const ks0 = (o) => clamp((o - 78) / 14, 0, 1);
   function expLine(p, c) {
     c = c || {};
     const a = p.attrs, A = ARCHETYPES[p.arch], S = p.sec ? ARCHETYPES[p.sec] : null;
@@ -250,12 +251,16 @@
     const sh = top3shots(a);
     const SS = 0.34 * sh[0] + 0.14 * sh[1] + 0.12 * a.ft + 0.12 * a.handling + 0.1 * a.iq + 0.18 * a.ath;
     let usg = T.usgBase + T.usgPerSS * (SS - 55) + T.usgConvex * Math.pow(Math.max(0, SS - 70), 2) + A.usg + (S ? 0.4 * S.usg : 0) - (c.coTax || 0);
-    usg = clamp(usg * (c.usgMult || 1) * (AGE_USG[Math.min(Math.max(p.age, 28), 38)] || 1), 0.12, 0.354);
+    { const tw = (c.wins == null ? 41 : c.wins) - 41; usg *= 1 + ks0(o) * (tw < 0 ? 0.0055 * Math.min(22, -tw) : -0.0006 * Math.min(28, tw)); } // good players on good teams share the ball; stars on bad teams take over
+    usg = clamp(usg * (c.usgMult || 1) * (AGE_USG[Math.min(Math.max(p.age, 28), 38)] || 1), 0.12, 0.354 + 0.016 * ks0(o));
     let mins = clamp(T.minsBase + T.minsPerOvr * (o - 58), 8, T.minsCap);
     if (p.age >= 33) mins -= (p.age - 32) * 0.6;
     if (c.rookie && o < 84) mins *= 0.93;
     if (c.rookie) { usg *= 0.96; }
-    mins = clamp(mins * (c.minsMult || 1), 6, c.minsMax || 38);
+    // stars on bad teams carry the load (38-40 mpg, extra shots); stars on winners share it and get rested in blowouts
+    const tg = (c.wins == null ? 41 : c.wins) - 41, ks = clamp((o - 78) / 14, 0, 1);
+    mins += ks * clamp(-tg * 0.3, -1.8, 5.2);
+    mins = clamp(mins * (c.minsMult || 1), 6, c.minsMax || (38 + 2.6 * ks * clamp(-tg / 12, 0, 1)));
     if (c.minsFixed) mins = c.minsFixed;
     else if (c.minsFloor) mins = Math.max(mins, c.minsFloor);
 

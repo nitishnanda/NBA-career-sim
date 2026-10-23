@@ -183,6 +183,49 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
 .gplan { text-align: center; margin-top: 18px; } .gplan .seg2 { display: inline-flex; margin: 8px 0 6px; max-width: 100%; flex-wrap: wrap; } .gplan .seg2 button { flex: 0 1 auto; padding: 9px 16px; }
 @media (max-width: 720px) { .gplan .seg2 { display: grid; grid-template-columns: 1fr 1fr; width: 100%; border-radius: 22px; } .gplan .seg2 button { padding: 10px 6px; } }
 
+/* ---------------- 4-tab nav, team page, phone dashboard v2 ---------------- */
+#nav { grid-template-columns: repeat(4, 1fr); max-width: 680px; }
+#nav button .nsm { display: none; } #nav button .nlg { display: inline; }
+.mquick, .mtabs, .mplan { display: none; }
+button .ic { display: inline-flex; vertical-align: -3px; margin-right: 8px; } button .ic svg { display: block; }
+.popt { display: block; width: 100%; text-align: left; border-radius: 16px; margin-bottom: 8px; padding: 12px 14px; text-transform: none; letter-spacing: 0; } .popt b { display: block; font: 700 17px var(--disp); letter-spacing: .04em; text-transform: uppercase; } .popt span { font: 500 13px "Barlow", sans-serif; color: var(--muted); } .popt.on { background: #fff; border-color: #fff; } .popt.on b { color: #05070a; } .popt.on span { color: rgba(5,7,10,.65); }
+table.roster td, table.roster th { padding: 9px 7px; } table.roster td.l b { font: 700 16px var(--disp); letter-spacing: .03em; } table.roster .rating { font-size: 14px; padding: 3px 7px; min-width: 0; }
+html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max-width: 100%; }
+
+@media (max-width: 720px) {
+  header { position: static; }                       /* the nav scrolls away: more room for the numbers */
+  #nav { grid-template-columns: repeat(4, 1fr); } #nav button .nlg { display: none; } #nav button .nsm { display: inline; } #nav button { padding: 11px 2px; font-size: 12px; letter-spacing: .04em; }
+  /* season screen: compact hero, controls in flow (no floating island), quick stats right underneath, one stats panel at a time */
+  .dash { padding-bottom: 20px; }
+  .hero .simbar { position: static; margin: 12px 0 0; padding: 10px; border-radius: 20px; background: var(--well); box-shadow: none; display: grid; grid-template-columns: 1fr auto; gap: 8px; backdrop-filter: none; }
+  .hero .simbar .big-btn { grid-column: 1; flex: none; min-height: 50px; font-size: 16px; padding: 10px 14px; }
+  .hero .simbar .ghost { grid-column: 2; flex: none; min-height: 50px; padding: 0 16px; font-size: 0; } .hero .simbar .ghost .ic { margin: 0; font-size: 14px; }
+  .hero .simbar .speed { grid-column: 1 / -1; margin: 0; padding: 3px; } .hero .simbar .speed span { display: none; } .hero .simbar .speed button { flex: 1; padding: 7px 4px; }
+  .hero .simbar .simmini { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .hero .simbar .simmini button { min-height: 36px; }
+  .hero .chips2 .cp:nth-child(2) { display: none; } .hero .chips2 { margin-bottom: 8px; }
+  .hero .hid { margin: 0 0 8px; } .hero .nm { font-size: 30px; } .hero .sub { font-size: 14px; } .hero .jr { margin-top: 6px; } .jr .jersey { display: none; }
+  .hero .recbox2 { display: flex; gap: 12px; align-items: baseline; justify-content: center; padding: 6px 16px; min-width: 0; border-radius: 16px; } .hero .recbox2 .lbl, .hero .recbox2 .sub2 { font-size: 11px; } .hero .recbox2 .num { font-size: 26px; margin: 0; }
+  .hero .gplan { display: none; }
+  .hero .row.small.caps.muted { display: none; }
+  .mquick { display: block; margin-top: 10px; } .qgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; } .qt { background: var(--glass); border: 1px solid var(--line); border-radius: 16px; text-align: center; padding: 10px 4px; } .qt b { display: block; font: 700 28px/1 var(--disp); } .qt .rating.sm { font-size: 20px; padding: 3px 8px; } .qt .ql { display: block; font: 600 10.5px var(--disp); letter-spacing: .12em; color: var(--muted); text-transform: uppercase; }
+  .qlast { display: flex; align-items: center; gap: 8px; margin-top: 8px; background: var(--glass); border: 1px solid var(--line); border-radius: 16px; padding: 10px 12px; font-size: 13px; flex-wrap: wrap; } .qlast b { font: 700 16px var(--disp); letter-spacing: .04em; }
+  .mtabs { display: flex; gap: 6px; overflow-x: auto; margin: 12px 0 2px; padding-bottom: 2px; -webkit-overflow-scrolling: touch; } .mtabs button { flex: 1 0 auto; padding: 9px 14px; font-size: 13px; min-height: 40px; } .mtabs button.on { background: #fff; color: #05070a; border-color: #fff; }
+  .mplan { display: block; }
+  .dash .mp { display: none; } .dash.mt-box .mp[data-mt="box"], .dash.mt-shots .mp[data-mt="shots"], .dash.mt-stats .mp[data-mt="stats"], .dash.mt-def .mp[data-mt="def"], .dash.mt-plan .mp[data-mt="plan"], .dash.mt-po .mp[data-mt="po"] { display: block; }
+  .dash .dtop, .dash .dmid { display: block; } .dash .dtop > *, .dash .dmid > * { margin-bottom: 12px; } .dash { gap: 0; }
+  .panel.mp { padding: 14px; } .ph { margin-bottom: 10px; } .ph h2 { font-size: 20px; }
+  /* standings and wide tables fit the phone instead of scrolling sideways */
+  .grid2 { grid-template-columns: 1fr; } .dlg { grid-template-columns: 1fr; }
+  table.st th, table.st td { padding: 6px 4px; font-size: 12px; } table.st td:nth-child(2) { white-space: normal; }
+  table.roster { font-size: 12px; } table.roster td.l b { font-size: 14px; }
+  .kpis { grid-template-columns: 1fr 1fr; }
+  .modal .box { padding: 12px; }
+}
+@media (max-width: 720px) { .hero .row.small.caps { flex-wrap: nowrap; font-size: 11px; letter-spacing: .08em; } }
+.qt .rating.sm { display: inline-block; }
+@media (max-width: 720px) { table.roster th:nth-child(2), table.roster td:nth-child(2), table.roster th:nth-child(4), table.roster td:nth-child(4), table.roster th:nth-child(9), table.roster td:nth-child(9), table.roster th:nth-child(10), table.roster td:nth-child(10) { display: none; } table.roster td:first-child, table.roster th:first-child { position: static; } }
+
 </style>
 <header id="top"><div class="brand"><span class="logo">🏀</span><div><b>NBA CAREER SIM</b><small>PRO CIRCUIT</small></div></div><nav id="nav"></nav><div id="who"></div></header>
 <main id="app"></main>
@@ -346,7 +389,7 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
   // ---------------------------------------------------------------- tuning knobs
   const T = {
     pace: 99,            // possessions per game, 2025-ish
-    usgBase: 0.192, usgPerSS: 0.005, usgConvex: 0.00012,
+    usgBase: 0.196, usgPerSS: 0.005, usgConvex: 0.00012,
     tsBase: 0.402, tsPerSkill: 0.0025, tsEra: 0.012, usgTax: 0.22,
     minsBase: 12, minsPerOvr: 0.95, minsCap: 35.4,
     declineScale: 1.15,
@@ -505,7 +548,7 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
   function progress(p) {
     const next = p.age + 1;
     const wk = 0.88 + 0.24 * p.work;
-    const shock = randn() * (next <= 22 ? 1.9 : next <= 26 ? 1.1 : 0.7);
+    const shock = randn() * (next <= 22 ? 1.9 : next <= 26 ? 1.1 : 0.7) * (next > 23 && ovrOf(p) >= 88 ? 0.6 : 1); // stars' ratings move steadily; the prime is not a coin flip
     const before = ovrOf(p);
     ATTRS.forEach((a) => {
       let cur = p.attrs[a];
@@ -549,6 +592,7 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
   }
   // real 25-ppg scorers keep ~90% of their peak scoring at 30, ~85% at 32, ~80% at 34 (Basketball-Reference)
   const AGE_USG = { 28: 1, 29: 0.96, 30: 0.91, 31: 0.9, 32: 0.89, 33: 0.9, 34: 0.92, 35: 0.93, 36: 0.93, 37: 0.93, 38: 0.93 };
+  const ks0 = (o) => clamp((o - 78) / 14, 0, 1);
   function expLine(p, c) {
     c = c || {};
     const a = p.attrs, A = ARCHETYPES[p.arch], S = p.sec ? ARCHETYPES[p.sec] : null;
@@ -556,12 +600,16 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
     const sh = top3shots(a);
     const SS = 0.34 * sh[0] + 0.14 * sh[1] + 0.12 * a.ft + 0.12 * a.handling + 0.1 * a.iq + 0.18 * a.ath;
     let usg = T.usgBase + T.usgPerSS * (SS - 55) + T.usgConvex * Math.pow(Math.max(0, SS - 70), 2) + A.usg + (S ? 0.4 * S.usg : 0) - (c.coTax || 0);
-    usg = clamp(usg * (c.usgMult || 1) * (AGE_USG[Math.min(Math.max(p.age, 28), 38)] || 1), 0.12, 0.354);
+    { const tw = (c.wins == null ? 41 : c.wins) - 41; usg *= 1 + ks0(o) * (tw < 0 ? 0.0055 * Math.min(22, -tw) : -0.0006 * Math.min(28, tw)); } // good players on good teams share the ball; stars on bad teams take over
+    usg = clamp(usg * (c.usgMult || 1) * (AGE_USG[Math.min(Math.max(p.age, 28), 38)] || 1), 0.12, 0.354 + 0.016 * ks0(o));
     let mins = clamp(T.minsBase + T.minsPerOvr * (o - 58), 8, T.minsCap);
     if (p.age >= 33) mins -= (p.age - 32) * 0.6;
     if (c.rookie && o < 84) mins *= 0.93;
     if (c.rookie) { usg *= 0.96; }
-    mins = clamp(mins * (c.minsMult || 1), 6, c.minsMax || 38);
+    // stars on bad teams carry the load (38-40 mpg, extra shots); stars on winners share it and get rested in blowouts
+    const tg = (c.wins == null ? 41 : c.wins) - 41, ks = clamp((o - 78) / 14, 0, 1);
+    mins += ks * clamp(-tg * 0.3, -1.8, 5.2);
+    mins = clamp(mins * (c.minsMult || 1), 6, c.minsMax || (38 + 2.6 * ks * clamp(-tg / 12, 0, 1)));
     if (c.minsFixed) mins = c.minsFixed;
     else if (c.minsFloor) mins = Math.max(mins, c.minsFloor);
 
@@ -938,7 +986,7 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
     allPlayers.forEach((p) => {
       const t = L.teams[p.teamId];
       const roster = teamRoster(L, t, user);
-      const e = expLine(p, { coTax: coTaxFor(p, roster), pace: t.pace, rookie: p.rookie, minsFloor: p.rookie ? NBA.rookieFloor(p.draftSlot) : 0 });
+      const e = expLine(p, { coTax: coTaxFor(p, roster), wins: t.wins, pace: t.pace, rookie: p.rookie, minsFloor: p.rookie ? NBA.rookieFloor(p.draftSlot) : 0 });
       const l = lineFromExp(p, e, avail[p.id].gp);
       l.id = p.id; l.teamId = p.teamId; l.wins = t.wins;
       lines[p.id] = l;
@@ -952,10 +1000,25 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
     }
     L.lines = lines;
 
+    // the scoring champion nearly always clears 31 ppg (every year but two since 2014); a user who leads with 30.3+ is left alone
+    {
+      const qe = entries.filter((e) => e.l.gp >= 58), top = qe.reduce((b, e) => (!b || e.l.pts > b.l.pts ? e : b), null);
+      const tgt = rand() < 0.86 ? 30.95 + Math.abs(randn()) * 1.1 + (rand() < 0.15 ? 1 : 0) : 30.15 + rand() * 0.85;
+      if (top && top.l.pts < tgt && !(top.isUser && top.l.pts >= 30.3)) {
+        const npc = qe.filter((e) => !e.isUser).reduce((b, e) => (!b || e.l.pts > b.l.pts ? e : b), null);
+        if (npc && npc.l.pts < tgt && tgt / npc.l.pts < 1.15) { npc.l.pts = tgt; npc.l.perf = perfOf(npc.l); }
+      }
+    }
     // awards
     const q65 = entries.filter((e) => e.l.gp >= 65);
     const tdBonus = (l) => (l.pts >= 25 && l.reb >= 7.5 && l.ast >= 7.5 ? 3 : 0) + (l.reb >= 9.5 && l.ast >= 9.5 && l.pts >= 18 ? 7 + (l.pts >= 28 ? 3 : 0) : 0); // voters love the triple-double story
-    const byMVP = q65.map((e) => ({ e, s: 0.85 * e.l.perf + 0.35 * e.l.pts + 0.5 * (e.l.wins - 41) + tdBonus(e.l) + (e.l.wins >= 58 ? 2.5 : 0) + randn() * 2.4 - (e.p.mvpRecent || 0), ok: true })).filter((x) => x.ok).sort((a, b) => b.s - a.s);
+    // MVPs come from the top handful of producers on winning teams: nobody wins at 24/7/5, and sub-.500 teams do not produce MVPs
+    const perfSorted = q65.map((e) => e.l.perf).sort((x, y) => y - x), perfCut = perfSorted[Math.min(4, perfSorted.length - 1)] || 0;
+    const mvpAll = q65.map((e) => {
+      const l = e.l, star = l.pts >= 22 || l.ast >= 9.5 || (l.reb >= 11 && l.pts >= 18);
+      return { e, s: 0.85 * l.perf + 0.35 * l.pts + 0.65 * (l.wins - 41) - 1.6 * Math.max(0, 45 - l.wins) + tdBonus(l) + (l.wins >= 58 ? 2.5 : 0) + (l.perf >= perfSorted[0] ? 5 : 0) + randn() * 1.8 - (e.p.mvpRecent || 0), ok: l.perf >= perfCut && star && l.wins >= 44 };
+    }).sort((a, b) => b.s - a.s);
+    const byMVP = mvpAll.filter((x) => x.ok).concat(mvpAll.filter((x) => !x.ok)); // eligible candidates first, then the also-rans fill out the ballot
     const dpoy = q65.map((e) => ({ e, s: defScore(e.p, e.l) + 0.12 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s);
     const roy = entries.filter((e) => e.p.rookie && e.l.gp >= 50).map((e) => ({ e, s: e.l.perf + 0.1 * (e.l.wins - 41) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
     const mip = q65.filter((e) => !e.p.rookie && e.p.prevPerf != null && e.p.age <= 28).map((e) => ({ e, s: (e.l.perf - e.p.prevPerf) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
@@ -990,7 +1053,7 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
     };
     const playoffs = simPlayoffs(L, user ? user.teamId : null);
     // remember perf for MIP, and voter fatigue for repeat MVPs
-    entries.forEach((e) => { e.p.prevPerf = e.l.perf; e.p.mvpRecent = (e.p.mvpRecent || 0) * 0.5 + (awards.mvp && awards.mvp.id === e.id ? 2 : 0); });
+    entries.forEach((e) => { e.p.prevPerf = e.l.perf; e.p.mvpRecent = (e.p.mvpRecent || 0) * 0.5 + (awards.mvp && awards.mvp.id === e.id ? 1.2 : 0); });
     const stand = L.teams.map((t) => ({ id: t.id, name: t.name, nick: t.nick, conf: t.conf, wins: t.wins, losses: t.losses }));
     const res = { year: L.year, label: seasonLabel(L.year), awards, playoffs, standings: stand, leaders, leadersOthers, league, ranks: user ? { pts: rankOf('pts', 'user'), reb: rankOf('reb', 'user'), ast: rankOf('ast', 'user'), stl: rankOf('stl', 'user'), blk: rankOf('blk', 'user') } : null, entries };
     // history record
@@ -1002,19 +1065,22 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
   // Finals MVP: best Finals line on the winning team. `user` is {pts, reb, ast} from the Finals series.
   const finalsScore = (pts, reb, ast) => 1.9 * pts + 1.15 * reb + 1.5 * ast;
   function finalsMVP(L, teamId, user) {
-    // user = { pts, reb, ast } in the Finals series, reg = { pts, reb, ast } regular season. The champion's best player takes it ~90% of the time in reality.
+    // The award goes to the champion's best Finals performer, usually its leading scorer; a defender can win it (Iguodala 2015) when his two-way line is outstanding.
+    // user = { pts, reb, ast, stl, blk } in the Finals series. Teammates get a Finals line drawn around their regular-season numbers.
     const t = L.teams[teamId];
     const cands = t.core.map((id) => {
-      const l = L.lines[id], reg = l ? finalsScore(l.pts, l.reb, l.ast) : 30;
-      return { name: L.players[id].name, reg, s: reg * 0.96 * (1 + 0.05 * randn()) };
+      const l = L.lines[id];
+      if (!l) return { name: L.players[id].name, pts: 8, reb: 3, ast: 2, db: 1 };
+      return { name: L.players[id].name, pts: l.pts * (1.04 + 0.11 * randn()), reb: l.reb * (1.03 + 0.1 * randn()), ast: l.ast * (0.96 + 0.1 * randn()), db: (l.stl + l.blk) * (1 + 0.15 * randn()) };
     });
-    if (user) {
-      const ureg = user.reg ? finalsScore(user.reg.pts, user.reg.reb, user.reg.ast) : finalsScore(user.pts, user.reb, user.ast);
-      const best = cands.every((c) => ureg >= c.reg * 0.97);
-      cands.push({ name: 'user', s: (0.65 * finalsScore(user.pts, user.reb, user.ast) + 0.35 * ureg) * (best ? 1.0 : 1) * 0.97 * (1 + 0.04 * randn()) });
-    }
-    cands.sort((a, b) => b.s - a.s);
-    return cands[0].name;
+    if (user) cands.push({ name: 'user', pts: user.pts, reb: user.reb, ast: user.ast, db: (user.stl || 0) + (user.blk || 0) });
+    const maxPts = Math.max.apply(null, cands.map((c) => c.pts));
+    cands.forEach((c) => {
+      c.s = (2.0 * c.pts + 1.0 * c.reb + 1.3 * c.ast + 2.5 * c.db) * (1 + 0.04 * randn());
+      c.ok = c.pts >= 0.86 * maxPts || (c.db >= 3.0 && c.pts >= 0.5 * maxPts);   // the leading scorer, or an elite defender
+    });
+    const pool = cands.filter((c) => c.ok).sort((a, b) => b.s - a.s);
+    return (pool.length ? pool : cands.sort((a, b) => b.s - a.s))[0].name;
   }
 
   // ------------------------------------------------------------ retirement / offseason
@@ -1264,7 +1330,7 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
   // the plan is a list of [slot, style] switches; slot = games into the schedule (0-81 regular season, 82+ playoffs)
   const styleAt = (seq, slot) => { let cur = 'balanced'; for (const [at, sty] of seq) { if (at <= slot) cur = sty; } return cur; };
   const styleShare = (seq, total) => { const out = {}; for (let i = 0; i < seq.length; i++) { const from = seq[i][0], to = i + 1 < seq.length ? Math.min(total, seq[i + 1][0]) : total; if (to > from) out[seq[i][1]] = (out[seq[i][1]] || 0) + (to - from) / total; } return out; };
-  let STAR_PULL = (typeof process !== "undefined" && process.env && process.env.STAR_PULL) ? +process.env.STAR_PULL : 0.7;
+  let STAR_PULL = (typeof process !== "undefined" && process.env && process.env.STAR_PULL) ? +process.env.STAR_PULL : 1.0;
   // Salary cap by season start year, $M: real history and the official projection through 2034-35
   // (gabriel1200/site_data cap.csv); after that we keep growing 5% a year, the projected pace.
   const CAP_M = { 2005: 49.5, 2010: 58.0, 2015: 70.0, 2016: 94.1, 2017: 99.1, 2018: 101.9, 2019: 109.1, 2020: 109.1, 2021: 112.4, 2022: 123.7, 2023: 136.0, 2024: 140.6, 2025: 154.6, 2026: 165.0, 2027: 174.0, 2028: 182.7, 2029: 191.8, 2030: 201.4, 2031: 211.5, 2032: 222.1, 2033: 233.2, 2034: 244.8 };
@@ -1485,12 +1551,27 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
     return fx;
   }
 
+  function stratify(games) {
+    const n = games.length; if (n < 10) return games;
+    const idx = games.map((g, i) => i).sort((a, b) => games[a].pts - games[b].pts), u = rand(), phi = 0.6180339887;
+    const slots = games.map((g, i) => ({ i, q: ((i * phi + u) % 1) + 0.03 * randn() })).sort((a, b) => a.q - b.q), out = new Array(n);
+    slots.forEach((sl, rank) => { out[sl.i] = games[idx[rank]]; });
+    return out;
+  }
   function userSeasonLine(st, ctx, avail, fx) {
     const p = st.player;
     const rookie = p.yearsPro === 0;
-    const e0 = expLine(p, { coTax: ctx.coTax, pace: ctx.pace, rookie, minsMult: fx.minsMult, minsFloor: rookie ? NBA.rookieFloor(st.draft && st.draft.slot) : 0 });
-    const sh = 1 + NBA.tuning.formSd * randn() + fx.form;
-    const ind = () => 1 + 0.035 * randn();
+    const coRaw = p.coTaxPrev == null ? ctx.coTax : 0.7 * p.coTaxPrev + 0.3 * ctx.coTax; p.coTaxPrev = coRaw; const coT = coRaw * (1 - 0.4 * clamp((ovr(p) - 80) / 16, 0, 1)); // a franchise player keeps his role when a new star arrives // roles settle: a new teammate changes your game gradually
+    const paceS = p.paceS == null ? ctx.pace : 0.6 * p.paceS + 0.4 * ctx.pace; p.paceS = paceS;
+    const e0 = expLine(p, { coTax: coT, wins: ctx.wins, pace: paceS, rookie, minsMult: fx.minsMult, minsFloor: rookie ? NBA.rookieFloor(st.draft && st.draft.slot) : 0 });
+    // form carries over from year to year (hot streaks do not flip to cold seasons overnight) and is calmer for stars; the prime is a visible multi-year peak
+    const starK = clamp((e0.ovr - 80) / 16, 0, 1), formSd = NBA.tuning.formSd * (1 - 0.5 * starK);
+    p.form = 0.5 * (p.form || 0) + 0.87 * formSd * randn();
+    const peakAge = p.peakAge || (p.peakAge = 25 + Math.floor(rand() * 5));
+    const bell = Math.exp(-Math.pow((p.age - peakAge) / 1.9, 2)), amp = 0.14 * starK;
+    const peakMult = 1 + amp * (bell - 0.36);
+    const sh = (1 + p.form + fx.form * (1 - 0.6 * starK)) * peakMult;
+    const ind = () => 1 + (0.035 - 0.02 * starK) * randn();
     const m = { mins: e0.mins, pts: e0.pts * sh * ind(), reb: e0.reb * sh * ind(), ast: e0.ast * sh * ind(), stl: e0.stl * sh * ind(), blk: e0.blk * sh * ind(), tov: e0.tov };
     const age = p.age; let gp = avail.gp, gpCut = false;
     // 30,000 pts / 10,000 reb / 10,000 ast is a LeBron-only club: without a rare hidden "big three" career, the last category fades as the career winds down
@@ -1511,8 +1592,8 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
     ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k, i) => { m[k] *= eff[i]; });
     const sty = Object.keys(share).sort((a, b) => share[b] - share[a])[0] || 'balanced';
     // everyday scoring is soft-capped; big years (32-33, rarely 34-36) come from the career plan
-    const SOFT = 30.2;
-    if (m.pts > SOFT) m.pts = SOFT + (m.pts - SOFT) * 0.25;
+    const SOFT = 29.2;
+    if (m.pts > SOFT) m.pts = SOFT + (m.pts - SOFT) * 0.6;
     // rookie scoring is capped by reality: even Wembanyama / Luka / LeBron / Iverson topped out around 21-23.5 ppg
     if (rookie && m.pts > 18.5) m.pts = 18.5 + (m.pts - 18.5) * 0.36;
     let tierMode = null;
@@ -1578,6 +1659,9 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
       if (surge && s.pts >= (surge.big ? 30 : 10) && s.reb >= 10 && s.ast >= 10) break;
       if (tierMode && s.pts >= tierMode.lo && s.pts <= tierMode.hi) break;
     }
+    // spread good and bad nights evenly through the schedule so a hot first half does not fade into a lower final average
+    { const cuts = [0]; for (let j = 1; j < games.length; j++) if (styleAt(seq, Math.min(81, Math.floor(((j + 0.5) * 82) / Math.max(1, gp)))) !== styleAt(seq, Math.min(81, Math.floor(((j - 0.5) * 82) / Math.max(1, gp))))) cuts.push(j); cuts.push(games.length);
+      const out = []; for (let c = 0; c + 1 < cuts.length; c++) out.push.apply(out, stratify(games.slice(cuts[c], cuts[c + 1]))); games = out; }
     if (s.pts >= 34) p.tier34Done = true;
     if (s.pts >= 32) p.tier32Done = true;
     const used = e0.usg * (s.pts / Math.max(1, e0.pts));
@@ -1593,7 +1677,7 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
     // real stars (n=202, 2001-26): minutes x1.086, points x1.005, rebounds x1.055, assists x0.944, steals x0.98, blocks x1.15, turnovers x1.09
     const mult = { mins: 1.085, pts: 1.0, reb: 1.055, ast: 0.95, stl: 0.98, blk: 1.15, tov: 1.09 };
     // a postseason's overall form varies far more than a single game's noise (real sd of the points ratio is 0.155)
-    const fp = clamp(1 + 0.13 * randn(), 0.7, 1.34), fo = clamp(1 + 0.07 * randn(), 0.8, 1.22);
+    const starP = clamp((base.ovr - 80) / 14, 0, 1), fp = clamp(1 + (0.13 - 0.05 * starP) * randn(), 0.7 + 0.12 * starP, 1.34 - 0.1 * starP), fo = clamp(1 + 0.07 * randn(), 0.8, 1.22);
     mult.ast = clamp(0.95 - 0.015 * (base.ast - 5), 0.85, 0.95); // real 7+ apg players lose ~10% of their assists in the playoffs
     mult.pts *= 1 + clamp((base.ovr - 84) * 0.0045, 0, 0.055); // real superstars score MORE in the playoffs (Jordan +3, LeBron +1.4, Durant +2.2, Curry +1.4)
     mult.pts *= fp; mult.reb *= fo; mult.ast *= fo; mult.stl *= fo; mult.blk *= fo;
@@ -1797,7 +1881,7 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
     if (po.champion.id === st.teamId) {
       st.career.titles++; cnt('Championships'); awardsHere.push('NBA Champion');
       const fin = perSeries.find((x) => x.round === 'NBA Finals');
-      const who = NBA.finalsMVP(L, st.teamId, fin ? { pts: fin.pts, reb: fin.reb, ast: fin.ast, reg: { pts: userLine.pts, reb: userLine.reb, ast: userLine.ast } } : null);
+      const who = NBA.finalsMVP(L, st.teamId, fin ? { pts: fin.pts, reb: fin.reb, ast: fin.ast, stl: userLine.stl, blk: userLine.blk } : null);
       if (who === 'user') { cnt('Finals MVP'); awardsHere.push('Finals MVP'); fmvp = true; }
     }
 
@@ -1810,7 +1894,7 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
       awards: awardsHere, playoffText: resultText, playoff: pline ? { gp: pline.gp, pts: pline.pts, reb: pline.reb, ast: pline.ast, stl: pline.stl, blk: pline.blk, mins: pline.mins, fgp: pline.fgp, tpp: pline.tpp, ts: pline.ts, td: pline.td, high: pline.high } : null,
       perSeries, heater, legend, ranks: res.ranks, events: fx.notes, injury: avail.major ? 'Suffered a ' + avail.major + ' and missed ' + avail.miss + ' games.' : avail.notable ? 'Missed ' + avail.miss + ' games with a ' + avail.notable + '.' : avail.miss >= 12 ? 'Missed ' + avail.miss + ' games with injuries.' : null,
       salary: st.contract.salary, mvp: A.mvp ? A.mvp.name + ' (' + r1(A.mvp.pts) + '/' + r1(A.mvp.reb) + '/' + r1(A.mvp.ast) + ')' : '', champion: po.champion.name, league: res.league,
-      rookie: p.rookie, leaders: res.leaders,
+      rookie: p.rookie, leaders: res.leaders, perfRank: 1 + res.entries.filter((e) => !e.isUser && e.l.gp >= 58 && e.l.perf > userLine.perf).length,
     };
     const gl = l.gameList; delete l.gameList;
     if (l.gpCut && !rec.injury) rec.injury = 'Suffered a season-ending injury and missed the rest of the year.';
@@ -2046,7 +2130,7 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 21 Oct · BallerSim dashboard v11';
+  const BUILD = 'build 21 Oct · BallerSim dashboard v12';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
@@ -2104,7 +2188,7 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
     nav.textContent = ''; who.textContent = '';
     if (!S || S.stage === 'create') return;
     const p = S.player, ini = p.name.split(/\s+/).map((x) => x[0]).join('').slice(0, 2).toUpperCase();
-    [['season', 'Season'], ['league', 'Around the league'], ['career', 'Career']].forEach(([k, l]) => nav.append(h('button', { class: view === k ? 'on' : '', onclick: () => { if (view !== k) { stopAuto(); view = k; render(); window.scrollTo(0, 0); } } }, l)));
+    [['season', 'Season', 'Season'], ['team', 'Team', 'Team'], ['league', 'Around the league', 'League'], ['career', 'Career', 'Career']].forEach(([k, l, sh]) => nav.append(h('button', { class: view === k ? 'on' : '', onclick: () => { if (view !== k) { stopAuto(); view = k; render(); window.scrollTo(0, 0); } } }, h('span', { class: 'nlg' }, l), h('span', { class: 'nsm' }, sh))));
     who.append(h('div', { class: 'whotxt' }, h('div', null, 'OVR ' + Math.round(NBA.ovr(p)) + ' · ' + D.ARCHETYPES[p.arch].name), h('div', { class: 'muted' }, 'Age ' + p.age + ' · ' + p.pos + (S.proSeasons.length ? ' · Year ' + S.proSeasons.length : ''))),
       confirmBtn('New', 'danger tiny', () => { wipe(); S = null; view = 'season'; stopAuto(); boot(); }), h('div', { class: 'avatar' }, ini));
   }
@@ -2285,6 +2369,7 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
   }
 
   // autoplay engine for the season screen
+  let mTab = 'box';
   let speed = '2x', playing = false, timer = null, leagueRace = 'mvp';
   function stopAuto() { playing = false; if (timer) { clearTimeout(timer); timer = null; } }
   function advanceOne() {
@@ -2323,19 +2408,20 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
     const ord2 = (n) => ord(n);
 
     // ---- hero
-    const ctl = (label, fn, cls, icon) => h('button', { class: cls || '', onclick: fn }, icon ? h('span', { class: 'ic' }, icon) : null, label);
+    const ICON = { play: '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M7 4.5v15l12-7.5z" fill="currentColor"/></svg>', ff: '<svg viewBox="0 0 24 24" width="18" height="18"><path d="M3 5v14l9-7zm9 0v14l9-7z" fill="currentColor"/></svg>', pause: '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 4h4v16H6zm8 0h4v16h-4z" fill="currentColor"/></svg>' };
+    const ctl = (label, fn, cls, icon) => h('button', { class: cls || '', onclick: fn }, icon ? h('span', { class: 'ic', html: ICON[icon] }) : null, label);
     const step = (n) => () => { stopAuto(); let c = 0; autoplay(() => c++ >= n); };
     const sim1 = () => { stopAuto(); advanceOne(); save(); render(); };
     const simBar = done
       ? h('div', { class: 'simbar well' }, ctl('Season recap →', () => { stopAuto(); S.stage = 'season_recap'; go(); }, 'primary big-btn'))
       : h('div', { class: 'simbar well' },
-        playing ? ctl('Pause', () => { stopAuto(); render(); }, 'primary big-btn', '❚❚') : ctl(nextIsPo ? 'Sim next playoff game' : 'Sim next game', sim1, 'primary big-btn', '▷'),
-        !asDone && asIdx >= 0 && !nextIsPo ? ctl('Sim to All-Star', () => autoplay(() => S.matchIdx > asIdx), 'ghost', '▶▶') : (regEndIdx >= 0 && idx <= regEndIdx ? ctl('Sim to playoffs', () => autoplay(() => S.matchIdx > regEndIdx), 'ghost', '▶▶') : null),
+        playing ? ctl('Pause', () => { stopAuto(); render(); }, 'primary big-btn', 'pause') : ctl(nextIsPo ? 'Sim next playoff game' : 'Sim next game', sim1, 'primary big-btn', 'play'),
+        !asDone && asIdx >= 0 && !nextIsPo ? ctl('Sim to All-Star', () => autoplay(() => S.matchIdx > asIdx), 'ghost', 'ff') : (regEndIdx >= 0 && idx <= regEndIdx ? ctl('Sim to playoffs', () => autoplay(() => S.matchIdx > regEndIdx), 'ghost', 'ff') : null),
         h('div', { class: 'speed' }, h('span', null, 'SPEED'), ['1x', '2x', 'inst'].map((k) => h('button', { class: speed === k ? 'on' : '', onclick: () => { speed = k; render(); } }, k === 'inst' ? 'Instant' : k))),
         h('div', { class: 'simmini' }, ctl('Sim 10', () => { let c = 0; autoplay(() => c++ >= 10); }, 'tiny'), ctl('Skip to recap »', () => { stopAuto(); S.matchIdx = items.length; S.stage = 'season_recap'; go(); }, 'tiny')));
     const schedule = nextIsPo || poG.length
       ? h('div', null, h('div', { class: 'row small caps' }, h('span', null, 'Postseason'), h('span', { class: 'spacer' }), h('span', null, (poG.length ? poG[poG.length - 1].rnd + ' · ' + poG[poG.length - 1].ser : 'Bracket set'))), h('div', { class: 'bar2' }, h('i', { style: 'width:100%' })))
-      : h('div', null, h('div', { class: 'row small caps' }, h('span', null, 'Regular season schedule'), h('span', { class: 'spacer' }), h('span', null, 'Game ' + reg.length + ' / ' + regTotal + ' (' + (100 * reg.length / Math.max(1, regTotal)).toFixed(1) + '% completed)')),
+      : h('div', null, h('div', { class: 'row small caps' }, h('span', null, 'Regular season schedule'), h('span', { class: 'spacer' }), h('span', null, 'Game ' + reg.length + ' / ' + regTotal + ' · ' + (100 * reg.length / Math.max(1, regTotal)).toFixed(0) + '%')),
         h('div', { class: 'bar2' }, h('i', { style: 'width:' + Math.round(100 * reg.length / Math.max(1, regTotal)) + '%' })),
         h('div', { class: 'row small caps muted', style: 'justify-content:space-between' }, h('span', null, (first ? first.d : '') + ' opener' + (reg.length ? ' (' + (reg[0].w ? 'W' : 'L') + ')' : '')), h('span', null, asDone ? '✓ All-Star weekend' : asIdx >= 0 ? '◉ All-Star weekend [in ' + Math.max(0, gamesToAS) + ' games]' : ''), h('span', null, (lastReg ? lastReg.d : '') + ' finale')));
     const plans = [['balanced', '⚖ Balanced', 'Natural game.'], ['score', '🎯 Scoring', 'More shots and points, fewer assists and boards.'], ['playmake', '🤝 Pass & rebound', 'More assists and boards, more triple-double chances, a few fewer points.'], ['defend', '🛡 Defend', 'More steals and blocks, slightly less scoring.']];
@@ -2369,7 +2455,7 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
     const vis = dots.filter((d) => shotTab === 'all' || d.z === shotTab);
     const shotSvg = '<svg viewBox="0 0 500 470" class="court">' + COURT + vis.map((d) => d.made ? '<circle cx="' + d.x.toFixed(0) + '" cy="' + d.y.toFixed(0) + '" r="5.5" fill="#fff"/>' : '<g stroke="rgba(255,255,255,.55)" stroke-width="1.8"><line x1="' + (d.x - 4).toFixed(0) + '" y1="' + (d.y - 4).toFixed(0) + '" x2="' + (d.x + 4).toFixed(0) + '" y2="' + (d.y + 4).toFixed(0) + '"/><line x1="' + (d.x + 4).toFixed(0) + '" y1="' + (d.y - 4).toFixed(0) + '" x2="' + (d.x - 4).toFixed(0) + '" y2="' + (d.y + 4).toFixed(0) + '"/></g>').join('') + '</svg>';
     const tabBtn = (k, lbl, pc) => h('button', { class: shotTab === k ? 'on' : '', onclick: () => setShotTab(k) }, lbl + ' (' + pc + '%)');
-    const telemetry = h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '◎'), h('div', null, h('h2', null, 'Shot telemetry'), h('div', { class: 'cap2' }, 'Season shot chart')), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, NBA.seasonLabel(L.year))),
+    const telemetry = h('section', { class: 'panel mp', 'data-mt': 'shots' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '◎'), h('div', null, h('h2', null, 'Shot telemetry'), h('div', { class: 'cap2' }, 'Season shot chart')), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, NBA.seasonLabel(L.year))),
       h('div', { class: 'seg2' }, tabBtn('all', 'All', T.fga ? (100 * T.fgm / T.fga).toFixed(1) : '–'), tabBtn('paint', 'Paint', zpct(zones.paint)), tabBtn('mid', 'Mid', zpct(zones.mid)), tabBtn('three', '3PT', zpct(zones.three))),
       h('div', { class: 'courtwrap well' }, T.fga ? svgEl(shotSvg) : h('p', { class: 'muted', style: 'text-align:center;padding:60px 0' }, 'Shots show up here once the season tips off.')),
       h('div', { class: 'row legend well' }, h('span', null, h('i', { class: 'dotm' }), Math.round(T.fgm) + ' FGM ', h('em', null, '(made)')), h('span', null, '✕ ' + Math.round(T.fga - T.fgm) + ' misses'), h('span', { class: 'spacer' }), h('b', null, (T.fga ? (100 * T.fgm / T.fga).toFixed(1) : '–') + '% FG')));
@@ -2383,7 +2469,7 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
       h('div', { class: 'kv' }, h('span', null, 'Shooting split'), h('b', null, feat.fgm + '/' + feat.fga + ' FG (' + Math.round(100 * feat.fgm / Math.max(1, feat.fga)) + '%) · ' + feat.tpm + '/' + feat.tpa + ' 3PT · ' + feat.ftm + '/' + feat.fta + ' FT')),
       h('div', { class: 'kv' }, h('span', null, 'Rebounds'), h('b', null, feat.or + ' OFF · ' + (feat.rb - feat.or) + ' DEF (' + feat.rb + ' TOT)')),
       h('div', { class: 'kv' }, h('span', null, 'Hustle / discipline'), h('b', null, feat.st + ' STL · ' + feat.bk + ' BLK · ' + feat.to + ' TO · ' + feat.pf + ' PF'))) : null;
-    const stream = h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '☰'), h('h2', null, 'Sim stream & box score'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, 'Last ' + Math.max(0, last3.length) + ' games')),
+    const stream = h('section', { class: 'panel mp', 'data-mt': 'box' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '☰'), h('h2', null, 'Sim stream & box score'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, 'Last ' + Math.max(0, last3.length) + ' games')),
       last3.length ? last3.map(streamRow) : h('p', { class: 'muted' }, 'No games yet. Hit "Sim next game" to start the season.'), featured,
       h('button', { class: 'wide', onclick: () => showGameLog(shown) }, '▤ View full ' + (reg.length + poG.length) + '-game game log'));
 
@@ -2395,7 +2481,7 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
     const ts = T.fga ? A.pt / (2 * (A.fga + 0.44 * A.fta)) : 0;
     const bar = (lbl, made, att) => { const pc = att ? made / att : 0; return h('div', { class: 'sbar' }, h('div', { class: 'row small' }, h('span', null, lbl), h('span', { class: 'spacer' }), h('b', null, (100 * pc).toFixed(1) + '% (' + Math.round(made) + ' / ' + Math.round(att) + ')')), h('div', { class: 'bar2' }, h('i', { style: 'width:' + Math.min(100, 100 * pc) + '%' }))); };
     const mvp = S.leagueSnap && S.leagueSnap.race && S.leagueSnap.race.mvp ? S.leagueSnap.race.mvp : [], mvpPlace = mvp.findIndex((x) => x.isUser);
-    const averages = h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🏀'), h('h2', null, 'Season averages'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, 'Per game stats')),
+    const averages = h('section', { class: 'panel mp', 'data-mt': 'stats' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🏀'), h('h2', null, 'Season averages'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, 'Per game stats')),
       h('div', { class: 'grid2' }, avgCard('Scoring (PPG)', A.pt.toFixed(1), sel('pts'), T.n + ' games', lastVals('pt'), dlt(A.pt, prev && prev.pts)), avgCard('Playmaking (APG)', A.as.toFixed(1), sel('ast'), A.to ? (A.as / A.to).toFixed(1) + ' A/TO' : '–', lastVals('as'), dlt(A.as, prev && prev.ast)),
         avgCard('Rebounds (RPG)', A.rb.toFixed(1), sel('reb'), A.or.toFixed(1) + ' OFF · ' + (A.rb - A.or).toFixed(1) + ' DEF', lastVals('rb'), dlt(A.rb, prev && prev.reb)), avgCard('Minutes (MPG)', A.m.toFixed(1), A.m >= 34 ? 'Heavy load' : A.m >= 28 ? 'Starter' : 'Rotation', (A.r || 0).toFixed(2) + ' avg rating', lastVals('m'))),
       h('div', { class: 'well' }, h('div', { class: 'row small caps' }, h('span', null, 'Shooting splits'), h('span', { class: 'spacer' }), h('span', null, (T.fga ? (100 * T.fgm / T.fga).toFixed(1) : '–') + ' / ' + (T.tpa ? (100 * T.tpm / T.tpa).toFixed(1) : '–') + ' / ' + (T.fta ? (100 * T.ftm / T.fta).toFixed(1) : '–'))),
@@ -2406,7 +2492,7 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
     // ---- defensive impact
     const att = p.attrs || {};
     const skill = (l, v) => h('div', { class: 'sk' }, h('span', null, l), h('div', { class: 'bar2' }, h('i', { style: 'width:' + Math.round(v) + '%' })), h('b', null, Math.round(v)));
-    const defense = h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '⛨'), h('h2', null, 'Defensive impact'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, (rec && rec.awards && rec.awards.some((a) => /Defens/.test(a)) && done) ? 'All-Defense' : 'Two-way tracker')),
+    const defense = h('section', { class: 'panel mp', 'data-mt': 'def' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '⛨'), h('h2', null, 'Defensive impact'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, (rec && rec.awards && rec.awards.some((a) => /Defens/.test(a)) && done) ? 'All-Defense' : 'Two-way tracker')),
       h('div', { class: 'grid2' }, avgCard('Steals (SPG)', A.st.toFixed(1), sel('stl'), Math.round(T.st) + ' total steals', lastVals('st')), avgCard('Blocks (BPG)', A.bk.toFixed(1), sel('blk'), Math.round(T.bk) + ' total blocks', lastVals('bk'))),
       h('div', { class: 'grid2' }, [['Turnovers / gm', A.to.toFixed(1), A.to ? (A.as / A.to).toFixed(1) + ' assist-to-TO' : '–'], ['Fouls / gm', A.pf.toFixed(1), 'Discipline'], ['Avg +/-', (A.pm > 0 ? '+' : '') + A.pm.toFixed(1), 'On-court margin'], ['Stocks / gm', (A.st + A.bk).toFixed(1), 'Steals + blocks']].map(([l, v, s]) => h('div', { class: 'well' }, h('div', { class: 'small caps muted' }, l), h('div', { class: 'bignum sm' }, v), h('div', { class: 'small muted' }, s)))),
       h('div', { class: 'well' }, h('div', { class: 'row small caps' }, h('span', null, 'Skill spectrum profile'), h('span', { class: 'spacer' }), h('span', null, D.ARCHETYPES[p.arch].name)),
@@ -2415,10 +2501,18 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
 
     const poP = poG.filter((x) => !x.dnp), poAv = (k) => (poP.length ? poP.reduce((a, g) => a + g[k], 0) / poP.length : 0), lastPo = poG[poG.length - 1];
     const pk = (cls, lbl, val, sub) => h('div', { class: 'kpi ' + cls }, h('div', { class: 'k-lbl' }, lbl), h('div', { class: 'k-val' }, val), h('div', { class: 'k-sub' }, sub || ' '));
-    const playoffPanel = poP.length ? h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🏆'), h('h2', null, 'Playoff run'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, lastPo ? lastPo.rnd + ' · ' + lastPo.ser : 'Postseason')),
+    const playoffPanel = poP.length ? h('section', { class: 'panel mp', 'data-mt': 'po' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🏆'), h('h2', null, 'Playoff run'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, lastPo ? lastPo.rnd + ' · ' + lastPo.ser : 'Postseason')),
       h('div', { class: 'kpis', style: 'margin:0' }, pk('hot', 'Playoff points', poAv('pt').toFixed(1), poP.length + ' games'), pk('', 'Playoff rebounds', poAv('rb').toFixed(1), (poAv('rb') - poAv('or')).toFixed(1) + ' def'), pk('', 'Playoff assists', poAv('as').toFixed(1), poAv('to') ? (poAv('as') / poAv('to')).toFixed(1) + ' A/TO' : ' '),
         h('div', { class: 'kpi ink' }, h('div', { class: 'k-lbl' }, 'Playoff rating'), ratingBadge(poP.reduce((a, g) => a + g.r, 0) / poP.length, 2), h('div', { class: 'k-sub' }, poG.filter((g) => g.w).length + '-' + poG.filter((g) => !g.w).length + ' in the playoffs')))) : null;
-    const wrap = h('div', { class: 'dash' }, h('div', { class: 'dtop' }, hero, telemetry), playoffPanel, h('div', { class: 'dmid' }, stream, averages, defense));
+    const planPanel = h('section', { class: 'panel mp mplan', 'data-mt': 'plan' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '⚙'), h('h2', null, 'Game plan'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, 'Switch any time')),
+      h('div', { class: 'plist' }, plans.map(([k, l, d]) => h('button', { class: 'popt' + (curPlan === k ? ' on' : ''), disabled: done, onclick: choose(k) }, h('b', null, l), h('span', null, d)))));
+    const lastG = last3[0];
+    const quick = h('div', { class: 'mquick' }, h('div', { class: 'qgrid' }, [[A.pt.toFixed(1), 'PPG'], [A.rb.toFixed(1), 'RPG'], [A.as.toFixed(1), 'APG']].map(([v, l]) => h('div', { class: 'qt' }, h('b', null, v), h('span', { class: 'ql' }, l))), h('div', { class: 'qt' }, T.n ? ratingBadge((gl.reduce((a, g) => a + g.r, 0) / gl.length), 2) : h('b', null, '–'), h('span', { class: 'ql' }, 'RTG'))),
+      lastG ? h('div', { class: 'qlast' }, h('span', { class: 'wl ' + (lastG.w ? 'w' : 'l') }, lastG.w ? 'W' : 'L'), h('b', null, (lastG.h ? 'VS ' : '@ ') + ab(lastG.o)), h('span', { class: 'muted' }, lastG.f + '-' + lastG.a), h('span', { class: 'spacer' }), h('span', null, lastG.pt + ' pts · ' + lastG.rb + ' reb · ' + lastG.as + ' ast'), h('span', { class: 'rating xs ' + rClass(lastG.r) }, lastG.r.toFixed(1))) : h('div', { class: 'qlast muted' }, 'Tap Sim next game to tip off.'));
+    const tabs = [['box', 'Box'], ['shots', 'Shots'], ['stats', 'Stats'], ['def', 'Defense'], ['plan', 'Plan']].concat(poP.length ? [['po', 'Playoffs']] : []);
+    if (!tabs.some((x) => x[0] === mTab)) mTab = 'box';
+    const mtabs = h('div', { class: 'mtabs' }, tabs.map(([k, l]) => h('button', { class: mTab === k ? 'on' : '', onclick: () => { mTab = k; render(); } }, l)));
+    const wrap = h('div', { class: 'dash mt-' + mTab }, h('div', { class: 'dtop' }, hero, quick, mtabs, telemetry), playoffPanel, h('div', { class: 'dmid' }, stream, averages, defense), planPanel);
     return wrap;
   }
   function showModal(title, body) {
@@ -2433,6 +2527,40 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
       h('tbody', null, rows.map((g) => g.dnp
         ? h('tr', { class: 'muted' }, h('td', null, g.d), h('td', { class: 'l' }, (g.h ? 'vs ' : '@ ') + g.o), h('td', { class: 'l' }, h('span', { class: 'res ' + (g.w ? 'w' : 'l') }, g.w ? 'W' : 'L'), ' ' + g.f + '-' + g.a), h('td', { colspan: 7 }, 'DNP · ' + g.dnp))
         : h('tr', null, h('td', null, g.d), h('td', { class: 'l' }, (g.h ? 'vs ' : '@ ') + g.o + (g.po ? ' · G' + g.n : '')), h('td', { class: 'l' }, h('span', { class: 'res ' + (g.w ? 'w' : 'l') }, g.w ? 'W' : 'L'), ' ' + g.f + '-' + g.a), h('td', null, g.m), h('td', null, g.pt), h('td', null, g.rb), h('td', null, g.as), h('td', null, g.fgm + '/' + g.fga), h('td', null, (g.pm > 0 ? '+' : '') + g.pm), h('td', null, h('span', { class: 'rating xs ' + rClass(g.r) }, g.r.toFixed(1)))))))));
+  }
+
+  // ------------------------------------------------------------ team page
+  function screenTeam() {
+    const L = S.league, t = L.teams[S.teamId], items = S.matchLog || [], idx = S.matchIdx || 0, p = S.player;
+    if (!(S.proSeasons.length || S.draft)) return h('div', { class: 'dash' }, h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '👥'), h('h2', null, 'Team')), h('p', { class: 'muted' }, 'You get a team after the draft. Come back then to see your teammates.')));
+    const inSeason = S.stage === 'season_play' && S.matchLog && idx < items.length, reg = items.slice(0, idx).filter((x) => x.k === 'g' && !x.po), N = inSeason ? reg.length : 82, prog = inSeason ? Math.min(1, N / 82) : 1;
+    const wins = inSeason ? reg.filter((x) => x.w).length : t.wins, losses = inSeason ? reg.length - wins : t.losses;
+    const noise = (k) => seeded(k * 131 + N * 7 + 3), bridge = (v, k) => v * (1 + (noise(k)() - 0.5) * 0.12 * (1 - prog));
+    const rate = (l, mins) => { const den = l.pts / (2 * Math.max(0.4, l.ts || 0.56)), fga = den / 1.088, fta = 0.2 * fga; return NBA.gameRating({ pts: l.pts, reb: l.reb, ast: l.ast, stl: l.stl, blk: l.blk, tov: l.tov, min: mins }, { fga, fta }); };
+    const rows = (t.core || []).concat(t.bench || []).map((id, i) => {
+      const q = L.players[id], l = L.lines[id]; if (!q || !l) return null;
+      const line = { pts: bridge(l.pts, id * 3 + 1), reb: bridge(l.reb, id * 3 + 2), ast: bridge(l.ast, id * 3 + 3), stl: l.stl, blk: l.blk, tov: l.tov, ts: l.ts };
+      return { name: q.name, pos: q.pos, age: q.age, ovr: Math.round(NBA.ovr(q)), mins: l.mins, gp: Math.round(l.gp * prog), line, rating: rate(line, l.mins) };
+    }).filter(Boolean);
+    // you: games so far this season (or last season when the season is over)
+    const shown = items.slice(0, idx), { t: T, av: A, g: gl } = seasonTotals(shown), last = S.proSeasons[S.proSeasons.length - 1];
+    if (inSeason && T.n) rows.push({ me: true, name: p.name, pos: p.pos, age: p.age, ovr: Math.round(NBA.ovr(p)), mins: A.m, gp: T.n, line: { pts: A.pt, reb: A.rb, ast: A.as, stl: A.st, blk: A.bk, tov: A.to }, rating: gl.reduce((a, g) => a + g.r, 0) / gl.length });
+    else if (!inSeason && last) rows.push({ me: true, name: p.name, pos: p.pos, age: p.age, ovr: Math.round(NBA.ovr(p)), mins: last.mins, gp: last.gp, line: { pts: last.pts, reb: last.reb, ast: last.ast, stl: last.stl, blk: last.blk, tov: last.tov }, rating: last.avgRating || rate(last, last.mins) });
+    else rows.push({ me: true, name: p.name, pos: p.pos, age: p.age, ovr: Math.round(NBA.ovr(p)), mins: 0, gp: 0, line: { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, tov: 0 }, rating: null });
+    rows.sort((a, b) => b.mins - a.mins);
+    const mates = rows.filter((r) => !r.me), mm = mates.reduce((a, r) => a + r.mins, 0) || 1;
+    const avgOvr = mates.length ? mates.slice(0, 8).reduce((a, r) => a + r.ovr, 0) / Math.min(8, mates.length) : 0, avgRate = mates.reduce((a, r) => a + r.rating * r.mins, 0) / mm;
+    const teamPts = rows.reduce((a, r) => a + r.line.pts, 0), me = rows.find((r) => r.me), best = mates.slice().sort((a, b) => b.ovr - a.ovr)[0];
+    const role = (r) => (r.me ? 'You' : r.mins >= 32 ? 'Starter' : r.mins >= 24 ? 'Starter' : r.mins >= 14 ? 'Rotation' : 'Bench');
+    const tile = (cls, lbl, val, sub) => h('div', { class: 'kpi ' + cls }, h('div', { class: 'k-lbl' }, lbl), h('div', { class: 'k-val' }, val), h('div', { class: 'k-sub' }, sub || ' '));
+    const confRows = L.teams.filter((x) => x.conf === t.conf).sort((a, b) => b.wins - a.wins);
+    return h('div', { class: 'dash' },
+      h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '👥'), h('div', null, h('h2', null, t.name), h('div', { class: 'cap2' }, (inSeason ? NBA.seasonLabel(L.year) + ' · after ' + N + ' games' : 'Roster and production'))), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, wins + '-' + losses)),
+        h('div', { class: 'kpis', style: 'margin:0' }, tile('hot', 'Record', wins + '-' + losses, (t.conf === 'W' ? 'Western' : 'Eastern') + ' Conf.'), tile('', 'Teammate OVR', avgOvr ? avgOvr.toFixed(0) : '–', 'avg of the top 8'), h('div', { class: 'kpi ink' }, h('div', { class: 'k-lbl' }, 'Teammate rating'), avgRate ? ratingBadge(avgRate, 2) : h('div', { class: 'k-val' }, '–'), h('div', { class: 'k-sub' }, 'minutes-weighted')), tile('', 'Your scoring share', me && teamPts ? Math.round(100 * me.line.pts / teamPts) + '%' : '–', best ? 'Best teammate: ' + best.name.split(' ').slice(-1)[0] + ' (' + best.ovr + ')' : ' '))),
+      h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '☰'), h('h2', null, 'Roster'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, rows.length + ' players')),
+        h('div', { class: 'scroll' }, h('table', { class: 'st roster' }, h('thead', null, h('tr', null, ['Player', 'Role', 'OVR', 'GP', 'MPG', 'PPG', 'RPG', 'APG', 'STL', 'BLK', 'RTG'].map((x, i) => h('th', { class: i < 2 ? 'l' : '' }, x)))),
+          h('tbody', null, rows.map((r) => h('tr', { class: r.me ? 'me' : '' }, h('td', { class: 'l' }, h('b', null, r.name), h('div', { class: 'small muted' }, r.pos + ' · age ' + r.age)), h('td', { class: 'l muted' }, role(r)), h('td', null, r.ovr), h('td', null, r.gp), h('td', null, r.mins ? r.mins.toFixed(1) : '–'), h('td', null, r.line.pts.toFixed(1)), h('td', null, r.line.reb.toFixed(1)), h('td', null, r.line.ast.toFixed(1)), h('td', null, r.line.stl.toFixed(1)), h('td', null, r.line.blk.toFixed(1)), h('td', null, r.rating ? ratingBadge(r.rating, 1) : '–')))))),
+        h('p', { class: 'small muted', style: 'margin-top:10px' }, 'Teammate ratings are the match rating of their average line. Yours is the real average of your games.')));
   }
 
   // ------------------------------------------------------------ around the league
@@ -2632,6 +2760,7 @@ table .rating.sm { font-size: 15px; padding: 3px 7px; border-radius: 5px; }
     if (!S) { app.append(screenCreate()); return; }
     if (report) { app.append(screenReport()); return; }
     const st = S.stage;
+    if (view === 'team' && st !== 'create') { app.append(screenTeam()); return; }
     if (view === 'league' && st !== 'create') { app.append(screenLeague()); return; }
     if (view === 'career' && st !== 'create') { app.append(screenCareer()); return; }
     const m = { scouting: screenScouting, college_pick: screenCollegePick, college_ready: screenCollegeReady, college_decision: screenCollegeDecision, draft_night: screenDraft, training: screenTraining, pro_ready: screenProReady, season_play: screenSeasonPlay, season_recap: screenRecap, decision: screenDecision, retired: screenRetired };

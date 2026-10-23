@@ -219,3 +219,15 @@ Per-game shot volume is now loosely tied to points (bricky nights exist), so bad
 ## Scoring title / MVP eligibility fixes
 - A mid-season game-plan switch re-ran the season, so the "Scoring Champion (30.6)" text and title came from the re-run line while the tiles said 31.2. After a switch the scoring title, its text, the league ranks and the leaders table are now recomputed from the final tile averages against the league's best other scorer (`scripts/style-switch-test.js`).
 - Removed the invented 36-team-win minimum for MVP. Only the real 65-game rule remains; team wins still count through the vote formula.
+
+## Round 5: stability, awards, scoring titles, usage, phone layout
+- **Career highs / best game** per player on the career page (regular season + playoffs; stored per season so they survive the match log being replaced).
+- **Stable primes (`scripts/stability-check.js`):** form now carries over year to year and is calmer for stars (AR(0.5), sd 3.5%), teammate impact and team pace settle gradually, stars' rating noise after 23 is cut 40%, and a visible 4-year peak (peak age 25-29, +9% at the top, -5% at the tails) shapes elite careers. Prime year-to-year change 2.7 → 2.0 ppg (real LeBron ≈ 1.8), changes of 4+ ppg 24% → 12% (most of them are the planned 32+/triple-double seasons), up/down zig-zags of 3+ ppg 0.95 → 0.30 per career.
+- **Playoff scoring:** star playoff/regular-season ppg ratio sd 0.137 → 0.112, floor 0.82 for stars (no more 17-19 ppg playoff runs in a prime), small +0-5.5% star lift. Playoff ppg ≥30 in 25-30% of elite seasons.
+- **MVP plausibility:** candidates must be top-5 in production, have 44+ team wins and be a real scorer/playmaker (22+ ppg, 9.5+ apg, or 11+ reb with 18+ pts); weaker candidates only fill out the ballot. Sim MVP winners: 25.2 ppg at the 5th percentile, none under 22, team wins ≥ 44. Best producer in the league wins 93% of the time.
+- **Finals MVP:** the champion's leading Finals scorer (within 86% of the top scorer), or an elite defender (3+ stocks/g) with a strong line; teammates' Finals lines are drawn around their season averages.
+- **Scoring titles:** the soft cap that made 30.2-31 ppg rare is now a smooth curve (no 30-31 gap), and if the league's best scorer would end under ~31, the best other scorer is lifted to the target: top scorer ppg median 33, 4% under 31 (real: 2 of the last 12 years).
+- **Even-handed season:** each season's games are spread by quality (low-discrepancy order) so a hot first half no longer fades; half-season average is within ~0.3 ppg of the final.
+- **Usage and minutes by team quality:** stars on bad teams get up to +5.5% usage and 38-40 mpg, stars on good teams 33-34 mpg. Elite usage cap 35.4% → 37%.
+- **Team page** with teammates' lines, OVR and match ratings, plus **phone layout v2**: sim controls in the flow (no floating bar), quick stats under them, one panel at a time (Box / Shots / Stats / Defense / Plan), standings fit the screen.
+- Generational careers (200 sims): MVP 2.4, Finals MVP 2.6, titles 3.9 (targets 2.7 / 2.8 / 4.0; the MVP rules are now strict, so MVP sits ~10% under).

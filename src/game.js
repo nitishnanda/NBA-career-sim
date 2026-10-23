@@ -16,7 +16,7 @@
   // the plan is a list of [slot, style] switches; slot = games into the schedule (0-81 regular season, 82+ playoffs)
   const styleAt = (seq, slot) => { let cur = 'balanced'; for (const [at, sty] of seq) { if (at <= slot) cur = sty; } return cur; };
   const styleShare = (seq, total) => { const out = {}; for (let i = 0; i < seq.length; i++) { const from = seq[i][0], to = i + 1 < seq.length ? Math.min(total, seq[i + 1][0]) : total; if (to > from) out[seq[i][1]] = (out[seq[i][1]] || 0) + (to - from) / total; } return out; };
-  let STAR_PULL = (typeof process !== "undefined" && process.env && process.env.STAR_PULL) ? +process.env.STAR_PULL : 0.7;
+  let STAR_PULL = (typeof process !== "undefined" && process.env && process.env.STAR_PULL) ? +process.env.STAR_PULL : 1.0;
   // Salary cap by season start year, $M: real history and the official projection through 2034-35
   // (gabriel1200/site_data cap.csv); after that we keep growing 5% a year, the projected pace.
   const CAP_M = { 2005: 49.5, 2010: 58.0, 2015: 70.0, 2016: 94.1, 2017: 99.1, 2018: 101.9, 2019: 109.1, 2020: 109.1, 2021: 112.4, 2022: 123.7, 2023: 136.0, 2024: 140.6, 2025: 154.6, 2026: 165.0, 2027: 174.0, 2028: 182.7, 2029: 191.8, 2030: 201.4, 2031: 211.5, 2032: 222.1, 2033: 233.2, 2034: 244.8 };
@@ -237,12 +237,27 @@
     return fx;
   }
 
+  function stratify(games) {
+    const n = games.length; if (n < 10) return games;
+    const idx = games.map((g, i) => i).sort((a, b) => games[a].pts - games[b].pts), u = rand(), phi = 0.6180339887;
+    const slots = games.map((g, i) => ({ i, q: ((i * phi + u) % 1) + 0.03 * randn() })).sort((a, b) => a.q - b.q), out = new Array(n);
+    slots.forEach((sl, rank) => { out[sl.i] = games[idx[rank]]; });
+    return out;
+  }
   function userSeasonLine(st, ctx, avail, fx) {
     const p = st.player;
     const rookie = p.yearsPro === 0;
-    const e0 = expLine(p, { coTax: ctx.coTax, pace: ctx.pace, rookie, minsMult: fx.minsMult, minsFloor: rookie ? NBA.rookieFloor(st.draft && st.draft.slot) : 0 });
-    const sh = 1 + NBA.tuning.formSd * randn() + fx.form;
-    const ind = () => 1 + 0.035 * randn();
+    const coRaw = p.coTaxPrev == null ? ctx.coTax : 0.7 * p.coTaxPrev + 0.3 * ctx.coTax; p.coTaxPrev = coRaw; const coT = coRaw * (1 - 0.4 * clamp((ovr(p) - 80) / 16, 0, 1)); // a franchise player keeps his role when a new star arrives // roles settle: a new teammate changes your game gradually
+    const paceS = p.paceS == null ? ctx.pace : 0.6 * p.paceS + 0.4 * ctx.pace; p.paceS = paceS;
+    const e0 = expLine(p, { coTax: coT, wins: ctx.wins, pace: paceS, rookie, minsMult: fx.minsMult, minsFloor: rookie ? NBA.rookieFloor(st.draft && st.draft.slot) : 0 });
+    // form carries over from year to year (hot streaks do not flip to cold seasons overnight) and is calmer for stars; the prime is a visible multi-year peak
+    const starK = clamp((e0.ovr - 80) / 16, 0, 1), formSd = NBA.tuning.formSd * (1 - 0.5 * starK);
+    p.form = 0.5 * (p.form || 0) + 0.87 * formSd * randn();
+    const peakAge = p.peakAge || (p.peakAge = 25 + Math.floor(rand() * 5));
+    const bell = Math.exp(-Math.pow((p.age - peakAge) / 1.9, 2)), amp = 0.14 * starK;
+    const peakMult = 1 + amp * (bell - 0.36);
+    const sh = (1 + p.form + fx.form * (1 - 0.6 * starK)) * peakMult;
+    const ind = () => 1 + (0.035 - 0.02 * starK) * randn();
     const m = { mins: e0.mins, pts: e0.pts * sh * ind(), reb: e0.reb * sh * ind(), ast: e0.ast * sh * ind(), stl: e0.stl * sh * ind(), blk: e0.blk * sh * ind(), tov: e0.tov };
     const age = p.age; let gp = avail.gp, gpCut = false;
     // 30,000 pts / 10,000 reb / 10,000 ast is a LeBron-only club: without a rare hidden "big three" career, the last category fades as the career winds down
@@ -263,8 +278,8 @@
     ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k, i) => { m[k] *= eff[i]; });
     const sty = Object.keys(share).sort((a, b) => share[b] - share[a])[0] || 'balanced';
     // everyday scoring is soft-capped; big years (32-33, rarely 34-36) come from the career plan
-    const SOFT = 30.2;
-    if (m.pts > SOFT) m.pts = SOFT + (m.pts - SOFT) * 0.25;
+    const SOFT = 29.2;
+    if (m.pts > SOFT) m.pts = SOFT + (m.pts - SOFT) * 0.6;
     // rookie scoring is capped by reality: even Wembanyama / Luka / LeBron / Iverson topped out around 21-23.5 ppg
     if (rookie && m.pts > 18.5) m.pts = 18.5 + (m.pts - 18.5) * 0.36;
     let tierMode = null;
@@ -330,6 +345,9 @@
       if (surge && s.pts >= (surge.big ? 30 : 10) && s.reb >= 10 && s.ast >= 10) break;
       if (tierMode && s.pts >= tierMode.lo && s.pts <= tierMode.hi) break;
     }
+    // spread good and bad nights evenly through the schedule so a hot first half does not fade into a lower final average
+    { const cuts = [0]; for (let j = 1; j < games.length; j++) if (styleAt(seq, Math.min(81, Math.floor(((j + 0.5) * 82) / Math.max(1, gp)))) !== styleAt(seq, Math.min(81, Math.floor(((j - 0.5) * 82) / Math.max(1, gp))))) cuts.push(j); cuts.push(games.length);
+      const out = []; for (let c = 0; c + 1 < cuts.length; c++) out.push.apply(out, stratify(games.slice(cuts[c], cuts[c + 1]))); games = out; }
     if (s.pts >= 34) p.tier34Done = true;
     if (s.pts >= 32) p.tier32Done = true;
     const used = e0.usg * (s.pts / Math.max(1, e0.pts));
@@ -345,7 +363,7 @@
     // real stars (n=202, 2001-26): minutes x1.086, points x1.005, rebounds x1.055, assists x0.944, steals x0.98, blocks x1.15, turnovers x1.09
     const mult = { mins: 1.085, pts: 1.0, reb: 1.055, ast: 0.95, stl: 0.98, blk: 1.15, tov: 1.09 };
     // a postseason's overall form varies far more than a single game's noise (real sd of the points ratio is 0.155)
-    const fp = clamp(1 + 0.13 * randn(), 0.7, 1.34), fo = clamp(1 + 0.07 * randn(), 0.8, 1.22);
+    const starP = clamp((base.ovr - 80) / 14, 0, 1), fp = clamp(1 + (0.13 - 0.05 * starP) * randn(), 0.7 + 0.12 * starP, 1.34 - 0.1 * starP), fo = clamp(1 + 0.07 * randn(), 0.8, 1.22);
     mult.ast = clamp(0.95 - 0.015 * (base.ast - 5), 0.85, 0.95); // real 7+ apg players lose ~10% of their assists in the playoffs
     mult.pts *= 1 + clamp((base.ovr - 84) * 0.0045, 0, 0.055); // real superstars score MORE in the playoffs (Jordan +3, LeBron +1.4, Durant +2.2, Curry +1.4)
     mult.pts *= fp; mult.reb *= fo; mult.ast *= fo; mult.stl *= fo; mult.blk *= fo;
@@ -549,7 +567,7 @@
     if (po.champion.id === st.teamId) {
       st.career.titles++; cnt('Championships'); awardsHere.push('NBA Champion');
       const fin = perSeries.find((x) => x.round === 'NBA Finals');
-      const who = NBA.finalsMVP(L, st.teamId, fin ? { pts: fin.pts, reb: fin.reb, ast: fin.ast, reg: { pts: userLine.pts, reb: userLine.reb, ast: userLine.ast } } : null);
+      const who = NBA.finalsMVP(L, st.teamId, fin ? { pts: fin.pts, reb: fin.reb, ast: fin.ast, stl: userLine.stl, blk: userLine.blk } : null);
       if (who === 'user') { cnt('Finals MVP'); awardsHere.push('Finals MVP'); fmvp = true; }
     }
 
@@ -562,7 +580,7 @@
       awards: awardsHere, playoffText: resultText, playoff: pline ? { gp: pline.gp, pts: pline.pts, reb: pline.reb, ast: pline.ast, stl: pline.stl, blk: pline.blk, mins: pline.mins, fgp: pline.fgp, tpp: pline.tpp, ts: pline.ts, td: pline.td, high: pline.high } : null,
       perSeries, heater, legend, ranks: res.ranks, events: fx.notes, injury: avail.major ? 'Suffered a ' + avail.major + ' and missed ' + avail.miss + ' games.' : avail.notable ? 'Missed ' + avail.miss + ' games with a ' + avail.notable + '.' : avail.miss >= 12 ? 'Missed ' + avail.miss + ' games with injuries.' : null,
       salary: st.contract.salary, mvp: A.mvp ? A.mvp.name + ' (' + r1(A.mvp.pts) + '/' + r1(A.mvp.reb) + '/' + r1(A.mvp.ast) + ')' : '', champion: po.champion.name, league: res.league,
-      rookie: p.rookie, leaders: res.leaders,
+      rookie: p.rookie, leaders: res.leaders, perfRank: 1 + res.entries.filter((e) => !e.isUser && e.l.gp >= 58 && e.l.perf > userLine.perf).length,
     };
     const gl = l.gameList; delete l.gameList;
     if (l.gpCut && !rec.injury) rec.injury = 'Suffered a season-ending injury and missed the rest of the year.';

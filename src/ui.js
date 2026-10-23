@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 21 Oct · BallerSim dashboard v11';
+  const BUILD = 'build 21 Oct · BallerSim dashboard v12';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
@@ -60,7 +60,7 @@
     nav.textContent = ''; who.textContent = '';
     if (!S || S.stage === 'create') return;
     const p = S.player, ini = p.name.split(/\s+/).map((x) => x[0]).join('').slice(0, 2).toUpperCase();
-    [['season', 'Season'], ['league', 'Around the league'], ['career', 'Career']].forEach(([k, l]) => nav.append(h('button', { class: view === k ? 'on' : '', onclick: () => { if (view !== k) { stopAuto(); view = k; render(); window.scrollTo(0, 0); } } }, l)));
+    [['season', 'Season', 'Season'], ['team', 'Team', 'Team'], ['league', 'Around the league', 'League'], ['career', 'Career', 'Career']].forEach(([k, l, sh]) => nav.append(h('button', { class: view === k ? 'on' : '', onclick: () => { if (view !== k) { stopAuto(); view = k; render(); window.scrollTo(0, 0); } } }, h('span', { class: 'nlg' }, l), h('span', { class: 'nsm' }, sh))));
     who.append(h('div', { class: 'whotxt' }, h('div', null, 'OVR ' + Math.round(NBA.ovr(p)) + ' · ' + D.ARCHETYPES[p.arch].name), h('div', { class: 'muted' }, 'Age ' + p.age + ' · ' + p.pos + (S.proSeasons.length ? ' · Year ' + S.proSeasons.length : ''))),
       confirmBtn('New', 'danger tiny', () => { wipe(); S = null; view = 'season'; stopAuto(); boot(); }), h('div', { class: 'avatar' }, ini));
   }
@@ -241,6 +241,7 @@
   }
 
   // autoplay engine for the season screen
+  let mTab = 'box';
   let speed = '2x', playing = false, timer = null, leagueRace = 'mvp';
   function stopAuto() { playing = false; if (timer) { clearTimeout(timer); timer = null; } }
   function advanceOne() {
@@ -279,19 +280,20 @@
     const ord2 = (n) => ord(n);
 
     // ---- hero
-    const ctl = (label, fn, cls, icon) => h('button', { class: cls || '', onclick: fn }, icon ? h('span', { class: 'ic' }, icon) : null, label);
+    const ICON = { play: '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M7 4.5v15l12-7.5z" fill="currentColor"/></svg>', ff: '<svg viewBox="0 0 24 24" width="18" height="18"><path d="M3 5v14l9-7zm9 0v14l9-7z" fill="currentColor"/></svg>', pause: '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 4h4v16H6zm8 0h4v16h-4z" fill="currentColor"/></svg>' };
+    const ctl = (label, fn, cls, icon) => h('button', { class: cls || '', onclick: fn }, icon ? h('span', { class: 'ic', html: ICON[icon] }) : null, label);
     const step = (n) => () => { stopAuto(); let c = 0; autoplay(() => c++ >= n); };
     const sim1 = () => { stopAuto(); advanceOne(); save(); render(); };
     const simBar = done
       ? h('div', { class: 'simbar well' }, ctl('Season recap →', () => { stopAuto(); S.stage = 'season_recap'; go(); }, 'primary big-btn'))
       : h('div', { class: 'simbar well' },
-        playing ? ctl('Pause', () => { stopAuto(); render(); }, 'primary big-btn', '❚❚') : ctl(nextIsPo ? 'Sim next playoff game' : 'Sim next game', sim1, 'primary big-btn', '▷'),
-        !asDone && asIdx >= 0 && !nextIsPo ? ctl('Sim to All-Star', () => autoplay(() => S.matchIdx > asIdx), 'ghost', '▶▶') : (regEndIdx >= 0 && idx <= regEndIdx ? ctl('Sim to playoffs', () => autoplay(() => S.matchIdx > regEndIdx), 'ghost', '▶▶') : null),
+        playing ? ctl('Pause', () => { stopAuto(); render(); }, 'primary big-btn', 'pause') : ctl(nextIsPo ? 'Sim next playoff game' : 'Sim next game', sim1, 'primary big-btn', 'play'),
+        !asDone && asIdx >= 0 && !nextIsPo ? ctl('Sim to All-Star', () => autoplay(() => S.matchIdx > asIdx), 'ghost', 'ff') : (regEndIdx >= 0 && idx <= regEndIdx ? ctl('Sim to playoffs', () => autoplay(() => S.matchIdx > regEndIdx), 'ghost', 'ff') : null),
         h('div', { class: 'speed' }, h('span', null, 'SPEED'), ['1x', '2x', 'inst'].map((k) => h('button', { class: speed === k ? 'on' : '', onclick: () => { speed = k; render(); } }, k === 'inst' ? 'Instant' : k))),
         h('div', { class: 'simmini' }, ctl('Sim 10', () => { let c = 0; autoplay(() => c++ >= 10); }, 'tiny'), ctl('Skip to recap »', () => { stopAuto(); S.matchIdx = items.length; S.stage = 'season_recap'; go(); }, 'tiny')));
     const schedule = nextIsPo || poG.length
       ? h('div', null, h('div', { class: 'row small caps' }, h('span', null, 'Postseason'), h('span', { class: 'spacer' }), h('span', null, (poG.length ? poG[poG.length - 1].rnd + ' · ' + poG[poG.length - 1].ser : 'Bracket set'))), h('div', { class: 'bar2' }, h('i', { style: 'width:100%' })))
-      : h('div', null, h('div', { class: 'row small caps' }, h('span', null, 'Regular season schedule'), h('span', { class: 'spacer' }), h('span', null, 'Game ' + reg.length + ' / ' + regTotal + ' (' + (100 * reg.length / Math.max(1, regTotal)).toFixed(1) + '% completed)')),
+      : h('div', null, h('div', { class: 'row small caps' }, h('span', null, 'Regular season schedule'), h('span', { class: 'spacer' }), h('span', null, 'Game ' + reg.length + ' / ' + regTotal + ' · ' + (100 * reg.length / Math.max(1, regTotal)).toFixed(0) + '%')),
         h('div', { class: 'bar2' }, h('i', { style: 'width:' + Math.round(100 * reg.length / Math.max(1, regTotal)) + '%' })),
         h('div', { class: 'row small caps muted', style: 'justify-content:space-between' }, h('span', null, (first ? first.d : '') + ' opener' + (reg.length ? ' (' + (reg[0].w ? 'W' : 'L') + ')' : '')), h('span', null, asDone ? '✓ All-Star weekend' : asIdx >= 0 ? '◉ All-Star weekend [in ' + Math.max(0, gamesToAS) + ' games]' : ''), h('span', null, (lastReg ? lastReg.d : '') + ' finale')));
     const plans = [['balanced', '⚖ Balanced', 'Natural game.'], ['score', '🎯 Scoring', 'More shots and points, fewer assists and boards.'], ['playmake', '🤝 Pass & rebound', 'More assists and boards, more triple-double chances, a few fewer points.'], ['defend', '🛡 Defend', 'More steals and blocks, slightly less scoring.']];
@@ -325,7 +327,7 @@
     const vis = dots.filter((d) => shotTab === 'all' || d.z === shotTab);
     const shotSvg = '<svg viewBox="0 0 500 470" class="court">' + COURT + vis.map((d) => d.made ? '<circle cx="' + d.x.toFixed(0) + '" cy="' + d.y.toFixed(0) + '" r="5.5" fill="#fff"/>' : '<g stroke="rgba(255,255,255,.55)" stroke-width="1.8"><line x1="' + (d.x - 4).toFixed(0) + '" y1="' + (d.y - 4).toFixed(0) + '" x2="' + (d.x + 4).toFixed(0) + '" y2="' + (d.y + 4).toFixed(0) + '"/><line x1="' + (d.x + 4).toFixed(0) + '" y1="' + (d.y - 4).toFixed(0) + '" x2="' + (d.x - 4).toFixed(0) + '" y2="' + (d.y + 4).toFixed(0) + '"/></g>').join('') + '</svg>';
     const tabBtn = (k, lbl, pc) => h('button', { class: shotTab === k ? 'on' : '', onclick: () => setShotTab(k) }, lbl + ' (' + pc + '%)');
-    const telemetry = h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '◎'), h('div', null, h('h2', null, 'Shot telemetry'), h('div', { class: 'cap2' }, 'Season shot chart')), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, NBA.seasonLabel(L.year))),
+    const telemetry = h('section', { class: 'panel mp', 'data-mt': 'shots' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '◎'), h('div', null, h('h2', null, 'Shot telemetry'), h('div', { class: 'cap2' }, 'Season shot chart')), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, NBA.seasonLabel(L.year))),
       h('div', { class: 'seg2' }, tabBtn('all', 'All', T.fga ? (100 * T.fgm / T.fga).toFixed(1) : '–'), tabBtn('paint', 'Paint', zpct(zones.paint)), tabBtn('mid', 'Mid', zpct(zones.mid)), tabBtn('three', '3PT', zpct(zones.three))),
       h('div', { class: 'courtwrap well' }, T.fga ? svgEl(shotSvg) : h('p', { class: 'muted', style: 'text-align:center;padding:60px 0' }, 'Shots show up here once the season tips off.')),
       h('div', { class: 'row legend well' }, h('span', null, h('i', { class: 'dotm' }), Math.round(T.fgm) + ' FGM ', h('em', null, '(made)')), h('span', null, '✕ ' + Math.round(T.fga - T.fgm) + ' misses'), h('span', { class: 'spacer' }), h('b', null, (T.fga ? (100 * T.fgm / T.fga).toFixed(1) : '–') + '% FG')));
@@ -339,7 +341,7 @@
       h('div', { class: 'kv' }, h('span', null, 'Shooting split'), h('b', null, feat.fgm + '/' + feat.fga + ' FG (' + Math.round(100 * feat.fgm / Math.max(1, feat.fga)) + '%) · ' + feat.tpm + '/' + feat.tpa + ' 3PT · ' + feat.ftm + '/' + feat.fta + ' FT')),
       h('div', { class: 'kv' }, h('span', null, 'Rebounds'), h('b', null, feat.or + ' OFF · ' + (feat.rb - feat.or) + ' DEF (' + feat.rb + ' TOT)')),
       h('div', { class: 'kv' }, h('span', null, 'Hustle / discipline'), h('b', null, feat.st + ' STL · ' + feat.bk + ' BLK · ' + feat.to + ' TO · ' + feat.pf + ' PF'))) : null;
-    const stream = h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '☰'), h('h2', null, 'Sim stream & box score'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, 'Last ' + Math.max(0, last3.length) + ' games')),
+    const stream = h('section', { class: 'panel mp', 'data-mt': 'box' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '☰'), h('h2', null, 'Sim stream & box score'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, 'Last ' + Math.max(0, last3.length) + ' games')),
       last3.length ? last3.map(streamRow) : h('p', { class: 'muted' }, 'No games yet. Hit "Sim next game" to start the season.'), featured,
       h('button', { class: 'wide', onclick: () => showGameLog(shown) }, '▤ View full ' + (reg.length + poG.length) + '-game game log'));
 
@@ -351,7 +353,7 @@
     const ts = T.fga ? A.pt / (2 * (A.fga + 0.44 * A.fta)) : 0;
     const bar = (lbl, made, att) => { const pc = att ? made / att : 0; return h('div', { class: 'sbar' }, h('div', { class: 'row small' }, h('span', null, lbl), h('span', { class: 'spacer' }), h('b', null, (100 * pc).toFixed(1) + '% (' + Math.round(made) + ' / ' + Math.round(att) + ')')), h('div', { class: 'bar2' }, h('i', { style: 'width:' + Math.min(100, 100 * pc) + '%' }))); };
     const mvp = S.leagueSnap && S.leagueSnap.race && S.leagueSnap.race.mvp ? S.leagueSnap.race.mvp : [], mvpPlace = mvp.findIndex((x) => x.isUser);
-    const averages = h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🏀'), h('h2', null, 'Season averages'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, 'Per game stats')),
+    const averages = h('section', { class: 'panel mp', 'data-mt': 'stats' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🏀'), h('h2', null, 'Season averages'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, 'Per game stats')),
       h('div', { class: 'grid2' }, avgCard('Scoring (PPG)', A.pt.toFixed(1), sel('pts'), T.n + ' games', lastVals('pt'), dlt(A.pt, prev && prev.pts)), avgCard('Playmaking (APG)', A.as.toFixed(1), sel('ast'), A.to ? (A.as / A.to).toFixed(1) + ' A/TO' : '–', lastVals('as'), dlt(A.as, prev && prev.ast)),
         avgCard('Rebounds (RPG)', A.rb.toFixed(1), sel('reb'), A.or.toFixed(1) + ' OFF · ' + (A.rb - A.or).toFixed(1) + ' DEF', lastVals('rb'), dlt(A.rb, prev && prev.reb)), avgCard('Minutes (MPG)', A.m.toFixed(1), A.m >= 34 ? 'Heavy load' : A.m >= 28 ? 'Starter' : 'Rotation', (A.r || 0).toFixed(2) + ' avg rating', lastVals('m'))),
       h('div', { class: 'well' }, h('div', { class: 'row small caps' }, h('span', null, 'Shooting splits'), h('span', { class: 'spacer' }), h('span', null, (T.fga ? (100 * T.fgm / T.fga).toFixed(1) : '–') + ' / ' + (T.tpa ? (100 * T.tpm / T.tpa).toFixed(1) : '–') + ' / ' + (T.fta ? (100 * T.ftm / T.fta).toFixed(1) : '–'))),
@@ -362,7 +364,7 @@
     // ---- defensive impact
     const att = p.attrs || {};
     const skill = (l, v) => h('div', { class: 'sk' }, h('span', null, l), h('div', { class: 'bar2' }, h('i', { style: 'width:' + Math.round(v) + '%' })), h('b', null, Math.round(v)));
-    const defense = h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '⛨'), h('h2', null, 'Defensive impact'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, (rec && rec.awards && rec.awards.some((a) => /Defens/.test(a)) && done) ? 'All-Defense' : 'Two-way tracker')),
+    const defense = h('section', { class: 'panel mp', 'data-mt': 'def' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '⛨'), h('h2', null, 'Defensive impact'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, (rec && rec.awards && rec.awards.some((a) => /Defens/.test(a)) && done) ? 'All-Defense' : 'Two-way tracker')),
       h('div', { class: 'grid2' }, avgCard('Steals (SPG)', A.st.toFixed(1), sel('stl'), Math.round(T.st) + ' total steals', lastVals('st')), avgCard('Blocks (BPG)', A.bk.toFixed(1), sel('blk'), Math.round(T.bk) + ' total blocks', lastVals('bk'))),
       h('div', { class: 'grid2' }, [['Turnovers / gm', A.to.toFixed(1), A.to ? (A.as / A.to).toFixed(1) + ' assist-to-TO' : '–'], ['Fouls / gm', A.pf.toFixed(1), 'Discipline'], ['Avg +/-', (A.pm > 0 ? '+' : '') + A.pm.toFixed(1), 'On-court margin'], ['Stocks / gm', (A.st + A.bk).toFixed(1), 'Steals + blocks']].map(([l, v, s]) => h('div', { class: 'well' }, h('div', { class: 'small caps muted' }, l), h('div', { class: 'bignum sm' }, v), h('div', { class: 'small muted' }, s)))),
       h('div', { class: 'well' }, h('div', { class: 'row small caps' }, h('span', null, 'Skill spectrum profile'), h('span', { class: 'spacer' }), h('span', null, D.ARCHETYPES[p.arch].name)),
@@ -371,10 +373,18 @@
 
     const poP = poG.filter((x) => !x.dnp), poAv = (k) => (poP.length ? poP.reduce((a, g) => a + g[k], 0) / poP.length : 0), lastPo = poG[poG.length - 1];
     const pk = (cls, lbl, val, sub) => h('div', { class: 'kpi ' + cls }, h('div', { class: 'k-lbl' }, lbl), h('div', { class: 'k-val' }, val), h('div', { class: 'k-sub' }, sub || ' '));
-    const playoffPanel = poP.length ? h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🏆'), h('h2', null, 'Playoff run'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, lastPo ? lastPo.rnd + ' · ' + lastPo.ser : 'Postseason')),
+    const playoffPanel = poP.length ? h('section', { class: 'panel mp', 'data-mt': 'po' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🏆'), h('h2', null, 'Playoff run'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, lastPo ? lastPo.rnd + ' · ' + lastPo.ser : 'Postseason')),
       h('div', { class: 'kpis', style: 'margin:0' }, pk('hot', 'Playoff points', poAv('pt').toFixed(1), poP.length + ' games'), pk('', 'Playoff rebounds', poAv('rb').toFixed(1), (poAv('rb') - poAv('or')).toFixed(1) + ' def'), pk('', 'Playoff assists', poAv('as').toFixed(1), poAv('to') ? (poAv('as') / poAv('to')).toFixed(1) + ' A/TO' : ' '),
         h('div', { class: 'kpi ink' }, h('div', { class: 'k-lbl' }, 'Playoff rating'), ratingBadge(poP.reduce((a, g) => a + g.r, 0) / poP.length, 2), h('div', { class: 'k-sub' }, poG.filter((g) => g.w).length + '-' + poG.filter((g) => !g.w).length + ' in the playoffs')))) : null;
-    const wrap = h('div', { class: 'dash' }, h('div', { class: 'dtop' }, hero, telemetry), playoffPanel, h('div', { class: 'dmid' }, stream, averages, defense));
+    const planPanel = h('section', { class: 'panel mp mplan', 'data-mt': 'plan' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '⚙'), h('h2', null, 'Game plan'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, 'Switch any time')),
+      h('div', { class: 'plist' }, plans.map(([k, l, d]) => h('button', { class: 'popt' + (curPlan === k ? ' on' : ''), disabled: done, onclick: choose(k) }, h('b', null, l), h('span', null, d)))));
+    const lastG = last3[0];
+    const quick = h('div', { class: 'mquick' }, h('div', { class: 'qgrid' }, [[A.pt.toFixed(1), 'PPG'], [A.rb.toFixed(1), 'RPG'], [A.as.toFixed(1), 'APG']].map(([v, l]) => h('div', { class: 'qt' }, h('b', null, v), h('span', { class: 'ql' }, l))), h('div', { class: 'qt' }, T.n ? ratingBadge((gl.reduce((a, g) => a + g.r, 0) / gl.length), 2) : h('b', null, '–'), h('span', { class: 'ql' }, 'RTG'))),
+      lastG ? h('div', { class: 'qlast' }, h('span', { class: 'wl ' + (lastG.w ? 'w' : 'l') }, lastG.w ? 'W' : 'L'), h('b', null, (lastG.h ? 'VS ' : '@ ') + ab(lastG.o)), h('span', { class: 'muted' }, lastG.f + '-' + lastG.a), h('span', { class: 'spacer' }), h('span', null, lastG.pt + ' pts · ' + lastG.rb + ' reb · ' + lastG.as + ' ast'), h('span', { class: 'rating xs ' + rClass(lastG.r) }, lastG.r.toFixed(1))) : h('div', { class: 'qlast muted' }, 'Tap Sim next game to tip off.'));
+    const tabs = [['box', 'Box'], ['shots', 'Shots'], ['stats', 'Stats'], ['def', 'Defense'], ['plan', 'Plan']].concat(poP.length ? [['po', 'Playoffs']] : []);
+    if (!tabs.some((x) => x[0] === mTab)) mTab = 'box';
+    const mtabs = h('div', { class: 'mtabs' }, tabs.map(([k, l]) => h('button', { class: mTab === k ? 'on' : '', onclick: () => { mTab = k; render(); } }, l)));
+    const wrap = h('div', { class: 'dash mt-' + mTab }, h('div', { class: 'dtop' }, hero, quick, mtabs, telemetry), playoffPanel, h('div', { class: 'dmid' }, stream, averages, defense), planPanel);
     return wrap;
   }
   function showModal(title, body) {
@@ -389,6 +399,40 @@
       h('tbody', null, rows.map((g) => g.dnp
         ? h('tr', { class: 'muted' }, h('td', null, g.d), h('td', { class: 'l' }, (g.h ? 'vs ' : '@ ') + g.o), h('td', { class: 'l' }, h('span', { class: 'res ' + (g.w ? 'w' : 'l') }, g.w ? 'W' : 'L'), ' ' + g.f + '-' + g.a), h('td', { colspan: 7 }, 'DNP · ' + g.dnp))
         : h('tr', null, h('td', null, g.d), h('td', { class: 'l' }, (g.h ? 'vs ' : '@ ') + g.o + (g.po ? ' · G' + g.n : '')), h('td', { class: 'l' }, h('span', { class: 'res ' + (g.w ? 'w' : 'l') }, g.w ? 'W' : 'L'), ' ' + g.f + '-' + g.a), h('td', null, g.m), h('td', null, g.pt), h('td', null, g.rb), h('td', null, g.as), h('td', null, g.fgm + '/' + g.fga), h('td', null, (g.pm > 0 ? '+' : '') + g.pm), h('td', null, h('span', { class: 'rating xs ' + rClass(g.r) }, g.r.toFixed(1)))))))));
+  }
+
+  // ------------------------------------------------------------ team page
+  function screenTeam() {
+    const L = S.league, t = L.teams[S.teamId], items = S.matchLog || [], idx = S.matchIdx || 0, p = S.player;
+    if (!(S.proSeasons.length || S.draft)) return h('div', { class: 'dash' }, h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '👥'), h('h2', null, 'Team')), h('p', { class: 'muted' }, 'You get a team after the draft. Come back then to see your teammates.')));
+    const inSeason = S.stage === 'season_play' && S.matchLog && idx < items.length, reg = items.slice(0, idx).filter((x) => x.k === 'g' && !x.po), N = inSeason ? reg.length : 82, prog = inSeason ? Math.min(1, N / 82) : 1;
+    const wins = inSeason ? reg.filter((x) => x.w).length : t.wins, losses = inSeason ? reg.length - wins : t.losses;
+    const noise = (k) => seeded(k * 131 + N * 7 + 3), bridge = (v, k) => v * (1 + (noise(k)() - 0.5) * 0.12 * (1 - prog));
+    const rate = (l, mins) => { const den = l.pts / (2 * Math.max(0.4, l.ts || 0.56)), fga = den / 1.088, fta = 0.2 * fga; return NBA.gameRating({ pts: l.pts, reb: l.reb, ast: l.ast, stl: l.stl, blk: l.blk, tov: l.tov, min: mins }, { fga, fta }); };
+    const rows = (t.core || []).concat(t.bench || []).map((id, i) => {
+      const q = L.players[id], l = L.lines[id]; if (!q || !l) return null;
+      const line = { pts: bridge(l.pts, id * 3 + 1), reb: bridge(l.reb, id * 3 + 2), ast: bridge(l.ast, id * 3 + 3), stl: l.stl, blk: l.blk, tov: l.tov, ts: l.ts };
+      return { name: q.name, pos: q.pos, age: q.age, ovr: Math.round(NBA.ovr(q)), mins: l.mins, gp: Math.round(l.gp * prog), line, rating: rate(line, l.mins) };
+    }).filter(Boolean);
+    // you: games so far this season (or last season when the season is over)
+    const shown = items.slice(0, idx), { t: T, av: A, g: gl } = seasonTotals(shown), last = S.proSeasons[S.proSeasons.length - 1];
+    if (inSeason && T.n) rows.push({ me: true, name: p.name, pos: p.pos, age: p.age, ovr: Math.round(NBA.ovr(p)), mins: A.m, gp: T.n, line: { pts: A.pt, reb: A.rb, ast: A.as, stl: A.st, blk: A.bk, tov: A.to }, rating: gl.reduce((a, g) => a + g.r, 0) / gl.length });
+    else if (!inSeason && last) rows.push({ me: true, name: p.name, pos: p.pos, age: p.age, ovr: Math.round(NBA.ovr(p)), mins: last.mins, gp: last.gp, line: { pts: last.pts, reb: last.reb, ast: last.ast, stl: last.stl, blk: last.blk, tov: last.tov }, rating: last.avgRating || rate(last, last.mins) });
+    else rows.push({ me: true, name: p.name, pos: p.pos, age: p.age, ovr: Math.round(NBA.ovr(p)), mins: 0, gp: 0, line: { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, tov: 0 }, rating: null });
+    rows.sort((a, b) => b.mins - a.mins);
+    const mates = rows.filter((r) => !r.me), mm = mates.reduce((a, r) => a + r.mins, 0) || 1;
+    const avgOvr = mates.length ? mates.slice(0, 8).reduce((a, r) => a + r.ovr, 0) / Math.min(8, mates.length) : 0, avgRate = mates.reduce((a, r) => a + r.rating * r.mins, 0) / mm;
+    const teamPts = rows.reduce((a, r) => a + r.line.pts, 0), me = rows.find((r) => r.me), best = mates.slice().sort((a, b) => b.ovr - a.ovr)[0];
+    const role = (r) => (r.me ? 'You' : r.mins >= 32 ? 'Starter' : r.mins >= 24 ? 'Starter' : r.mins >= 14 ? 'Rotation' : 'Bench');
+    const tile = (cls, lbl, val, sub) => h('div', { class: 'kpi ' + cls }, h('div', { class: 'k-lbl' }, lbl), h('div', { class: 'k-val' }, val), h('div', { class: 'k-sub' }, sub || ' '));
+    const confRows = L.teams.filter((x) => x.conf === t.conf).sort((a, b) => b.wins - a.wins);
+    return h('div', { class: 'dash' },
+      h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '👥'), h('div', null, h('h2', null, t.name), h('div', { class: 'cap2' }, (inSeason ? NBA.seasonLabel(L.year) + ' · after ' + N + ' games' : 'Roster and production'))), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, wins + '-' + losses)),
+        h('div', { class: 'kpis', style: 'margin:0' }, tile('hot', 'Record', wins + '-' + losses, (t.conf === 'W' ? 'Western' : 'Eastern') + ' Conf.'), tile('', 'Teammate OVR', avgOvr ? avgOvr.toFixed(0) : '–', 'avg of the top 8'), h('div', { class: 'kpi ink' }, h('div', { class: 'k-lbl' }, 'Teammate rating'), avgRate ? ratingBadge(avgRate, 2) : h('div', { class: 'k-val' }, '–'), h('div', { class: 'k-sub' }, 'minutes-weighted')), tile('', 'Your scoring share', me && teamPts ? Math.round(100 * me.line.pts / teamPts) + '%' : '–', best ? 'Best teammate: ' + best.name.split(' ').slice(-1)[0] + ' (' + best.ovr + ')' : ' '))),
+      h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '☰'), h('h2', null, 'Roster'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, rows.length + ' players')),
+        h('div', { class: 'scroll' }, h('table', { class: 'st roster' }, h('thead', null, h('tr', null, ['Player', 'Role', 'OVR', 'GP', 'MPG', 'PPG', 'RPG', 'APG', 'STL', 'BLK', 'RTG'].map((x, i) => h('th', { class: i < 2 ? 'l' : '' }, x)))),
+          h('tbody', null, rows.map((r) => h('tr', { class: r.me ? 'me' : '' }, h('td', { class: 'l' }, h('b', null, r.name), h('div', { class: 'small muted' }, r.pos + ' · age ' + r.age)), h('td', { class: 'l muted' }, role(r)), h('td', null, r.ovr), h('td', null, r.gp), h('td', null, r.mins ? r.mins.toFixed(1) : '–'), h('td', null, r.line.pts.toFixed(1)), h('td', null, r.line.reb.toFixed(1)), h('td', null, r.line.ast.toFixed(1)), h('td', null, r.line.stl.toFixed(1)), h('td', null, r.line.blk.toFixed(1)), h('td', null, r.rating ? ratingBadge(r.rating, 1) : '–')))))),
+        h('p', { class: 'small muted', style: 'margin-top:10px' }, 'Teammate ratings are the match rating of their average line. Yours is the real average of your games.')));
   }
 
   // ------------------------------------------------------------ around the league
@@ -588,6 +632,7 @@
     if (!S) { app.append(screenCreate()); return; }
     if (report) { app.append(screenReport()); return; }
     const st = S.stage;
+    if (view === 'team' && st !== 'create') { app.append(screenTeam()); return; }
     if (view === 'league' && st !== 'create') { app.append(screenLeague()); return; }
     if (view === 'career' && st !== 'create') { app.append(screenCareer()); return; }
     const m = { scouting: screenScouting, college_pick: screenCollegePick, college_ready: screenCollegeReady, college_decision: screenCollegeDecision, draft_night: screenDraft, training: screenTraining, pro_ready: screenProReady, season_play: screenSeasonPlay, season_recap: screenRecap, decision: screenDecision, retired: screenRetired };
