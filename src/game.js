@@ -394,6 +394,18 @@
   }
   const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const dateStr = (y, m, d) => { const t = new Date(Date.UTC(y, m, d)); return MON[t.getUTCMonth()] + ' ' + t.getUTCDate(); };
+  // the best single games of a season (regular season and playoffs): kept on the season record so career highs survive after the match log is replaced
+  function seasonBests(items, label, age) {
+    const keep = ['d', 'o', 'oc', 'h', 'w', 'f', 'a', 'ot', 'm', 'pt', 'rb', 'or', 'as', 'st', 'bk', 'to', 'pf', 'pm', 'fgm', 'fga', 'tpm', 'tpa', 'ftm', 'fta', 'r', 'n', 'po', 'rnd'];
+    const pick = (g) => { const o = {}; keep.forEach((k) => { if (g[k] != null) o[k] = g[k]; }); o.s = label; o.age = age; return o; };
+    const out = {};
+    [['reg', (g) => !g.po], ['po', (g) => g.po]].forEach(([key, f]) => {
+      const gs = items.filter((x) => x.k === 'g' && f(x) && !x.dnp); if (!gs.length) return;
+      const top = (k) => gs.reduce((b, g) => (!b || g[k] > b[k] || (g[k] === b[k] && g.r > b.r) ? g : b), null);
+      out[key] = { pts: pick(top('pt')), reb: pick(top('rb')), ast: pick(top('as')), stl: pick(top('st')), blk: pick(top('bk')), best: pick(gs.reduce((b, g) => (!b || g.r > b.r ? g : b), null)) };
+    });
+    return out;
+  }
   function gameScore(won, scoreMin) {
     const margin = 1 + Math.round(Math.abs(randn()) * 11.5);
     const win = Math.max(Math.round(112 + margin / 2 + randn() * 7), scoreMin);
@@ -557,6 +569,7 @@
     st.leagueSnap = { year: L.year, label: res.label, standings: res.standings, leaders: res.leaders, leadersO: res.leadersOthers, race: A.race, raceO: A.raceOthers };
     st.matchLog = buildMatchLog(st, rec, l, gl, perSeries, t, rec.injury); st.matchIdx = 0;
     if (rec.playoff) rec.playoff.rating = rec.poRating;
+    rec.bests = seasonBests(st.matchLog, rec.label, rec.age);
     if (NBA.onSeasonLog) NBA.onSeasonLog(st, rec);
     rec.perSeries = perSeries.map((x) => { const y = Object.assign({}, x); delete y.list; delete y.w; delete y.l; delete y.won; return y; });
     st.proSeasons.push(rec);
@@ -611,6 +624,7 @@
     }
     st.career.td += rec.td - oldTd;
     if (!!rec.avgTD !== !!oldAvg) { const d = rec.avgTD ? 1 : -1; st.career.tdSeasons += d; if (rec.pts >= 30) st.career.td30Seasons += d; }
+    rec.bests = seasonBests(items, rec.label, rec.age);
     // league-facing results that depend only on the user's final numbers: scoring title, league ranks and the leaders table
     const lo = st.leagueSnap && st.leagueSnap.leadersO;
     if (lo && n) {
@@ -776,6 +790,6 @@
     return st;
   }
 
-  Object.assign(NBA, { Game: { newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, startPro, trainingInfo, autoAlloc, train, playSeason, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { Game: { newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

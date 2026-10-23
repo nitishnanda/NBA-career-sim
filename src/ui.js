@@ -532,9 +532,24 @@
     };
     const regAll = shown.filter((x) => x.k === 'g' && !x.po), reg = regAll.filter((x) => !x.dnp), po = shown.filter((x) => x.k === 'g' && !x.po === false && !x.dnp);
     const live = lineOf(reg, cur.label + ' ●'), lw = regAll.filter((x) => x.w).length;
+    if (live || po.length) live && (live.bests = G.seasonBests(shown, cur.label, cur.age));
     if (live) { live.wins = lw; live.losses = regAll.length - lw; live.avgRating = live.rating; ps.push(live); }
     const pLive = lineOf(po, cur.label + ' ●'); if (pLive) pl.push(pLive);
     return { ps, pl, career: S.pre.career, earnings: S.pre.earnings, earnings26: S.pre.earnings26, td: S.pre.career.td + (live ? live.td : 0) };
+  }
+  // career highs and the best box score of the career, across regular season and playoffs
+  function highsSection(ps, live) {
+    const all = ps.filter((s) => s.bests); if (!all.length) return null;
+    const pickMax = (key, k) => { let b = null; all.forEach((s) => { const g = s.bests[key] && s.bests[key][k]; if (g && (!b || g[({ pts: 'pt', reb: 'rb', ast: 'as', stl: 'st', blk: 'bk' })[k]] > b[({ pts: 'pt', reb: 'rb', ast: 'as', stl: 'st', blk: 'bk' })[k]])) b = g; }); return b; };
+    const field = { pts: 'pt', reb: 'rb', ast: 'as', stl: 'st', blk: 'bk' }, names = { pts: 'Points', reb: 'Rebounds', ast: 'Assists', stl: 'Steals', blk: 'Blocks' };
+    const where = (g) => (g.h ? 'vs ' : '@ ') + g.o + ' · ' + g.d + ' · ' + String(g.s).replace(' ●', '') + (g.po ? ' · ' + (g.rnd || 'Playoffs') : '');
+    const tiles = (key) => h('div', { class: 'grid stats' }, Object.keys(names).map((k) => { const g = pickMax(key, k); return g ? h('div', { class: 'statbox' }, h('div', { class: 'big' }, g[field[k]]), h('div', { class: 'lbl' }, 'Career-high ' + names[k].toLowerCase()), h('div', { class: 'small muted', style: 'margin-top:4px' }, where(g))) : null; }));
+    let best = null; all.forEach((s) => ['reg', 'po'].forEach((key) => { const g = s.bests[key] && s.bests[key].best; if (g && (!best || g.r > best.r)) best = g; }));
+    const box = best ? h('div', { class: 'card', style: 'margin:10px 0' }, h('div', { class: 'row' }, h('div', null, h('div', { class: 'small caps muted' }, 'Career-best game'), h('div', { class: 'small' }, (best.w ? 'W ' : 'L ') + best.f + '-' + best.a + (best.ot ? ' (OT)' : '') + ' · ' + where(best))), h('span', { class: 'spacer' }), ratingBadge(best.r, 1)),
+      h('div', { class: 'tiles4', style: 'margin-top:12px' }, [[best.pt, 'PTS'], [best.rb, 'REB'], [best.as, 'AST'], [(best.pm > 0 ? '+' : '') + (best.pm == null ? 0 : best.pm), '+/-']].map(([v, l]) => h('div', { class: 'tile' }, h('b', null, v), h('span', null, l)))),
+      h('p', { class: 'small', style: 'margin-top:10px' }, best.fgm + '/' + best.fga + ' FG · ' + best.tpm + '/' + best.tpa + ' 3PT · ' + best.ftm + '/' + best.fta + ' FT · ' + best.st + ' STL · ' + best.bk + ' BLK · ' + best.to + ' TO · ' + best.m + ' MIN')) : null;
+    const hasPo = all.some((s) => s.bests.po);
+    return h('div', null, h('h3', null, 'Career highs · regular season'), tiles('reg'), hasPo ? h('div', null, h('h3', null, 'Career highs · playoffs'), tiles('po')) : null, h('h3', null, 'Career-best game'), box);
   }
   function careerBody() {
     const cv = careerView(); CV_TD = cv.td;
@@ -545,6 +560,7 @@
       (() => { const pt = playoffTotals(cv.pl); return pt ? h('div', null, h('h3', null, 'Playoff career'), h('div', { class: 'grid stats' }, pt.rating ? ratingBox(pt.rating, 'Playoff avg rating') : null, statBox(f1(pt.pts), 'PPG'), statBox(f1(pt.reb), 'RPG'), statBox(f1(pt.ast), 'APG'), statBox(f1(pt.stl), 'SPG'), statBox(f1(pt.blk), 'BPG'), statBox(pt.gp.toLocaleString(), 'Playoff games'), statBox(pt.totPts.toLocaleString(), 'Playoff points'), statBox(pt.totReb.toLocaleString(), 'Playoff rebounds'), statBox(pt.totAst.toLocaleString(), 'Playoff assists'), statBox(cv.career.titles || 0, 'Championships'))) : null; })(),
       h('div', { style: 'margin-top:8px' }, Object.keys(aw).map((k) => h('span', { class: 'pill gold' }, aw[k] + '× ' + k))),
       h('p', { class: 'muted small' }, 'Seasons averaging a triple-double: ' + cv.career.tdSeasons + (cv.career.td30Seasons ? ' (' + cv.career.td30Seasons + ' with 30+ ppg)' : '')),
+      highsSection(ps),
       h('h3', null, 'Regular season'), seasonTable(ps, false));
     if (cv.pl.length) wrap.append(h('h3', null, 'Playoffs'), seasonTable(cv.pl, true));
     if (S.collegeYears.length) wrap.append(h('h3', null, 'College'), collegeTable());
