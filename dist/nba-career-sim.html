@@ -531,7 +531,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   function progress(p) {
     const next = p.age + 1;
     const wk = 0.88 + 0.24 * p.work;
-    const shock = randn() * (next <= 22 ? 1.9 : next <= 26 ? 1.1 : 0.7) * (next > 23 && ovrOf(p) >= 88 ? 0.6 : 1); // stars' ratings move steadily; the prime is not a coin flip
+    const shock = randn() * (next <= 22 ? 1.9 : next <= 26 ? 1.1 : 0.7) * (next > 23 && ovrOf(p) >= 84 ? 0.5 : 1); // stars' ratings move steadily; the prime is not a coin flip
     const before = ovrOf(p);
     ATTRS.forEach((a) => {
       let cur = p.attrs[a];
@@ -2020,7 +2020,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 21 Oct · BallerSim dashboard v13';
+  const BUILD = 'build 21 Oct · BallerSim dashboard v14';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
