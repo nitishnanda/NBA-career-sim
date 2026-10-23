@@ -231,3 +231,13 @@ Per-game shot volume is now loosely tied to points (bricky nights exist), so bad
 - **Usage and minutes by team quality:** stars on bad teams get up to +5.5% usage and 38-40 mpg, stars on good teams 33-34 mpg. Elite usage cap 35.4% → 37%.
 - **Team page** with teammates' lines, OVR and match ratings, plus **phone layout v2**: sim controls in the flow (no floating bar), quick stats under them, one panel at a time (Box / Shots / Stats / Defense / Plan), standings fit the screen.
 - Generational careers (200 sims): MVP 2.4, Finals MVP 2.6, titles 3.9 (targets 2.7 / 2.8 / 4.0; the MVP rules are now strict, so MVP sits ~10% under).
+
+## v13: careers follow real archetype blueprints (no scripted caps)
+
+The sim no longer clamps or scripts careers. Everything below is fitted to real Basketball-Reference data and results emerge from production.
+
+- **League production by rank** (`scripts/fit-league-profile.js`, target `data/real-rank-profile.json`): usage, TS, minutes, rebounds/assists by perf rank band plus tails (30+/27+/25+ ppg counts, top scorer ≈32.5). `p.vol` adds a usage-spread trait so volume scorers exist.
+- **Career blueprints** (`scripts/real-blueprints.py` -> `data/real-blueprints.json`): per archetype peak age, peak width, career length, games by age, season-to-season noise. Sim careers are classified with the same rules as the real cohorts (`scripts/sim-blueprints.js`) before comparing. Knobs: growthScale, declineLate, injScale, retireScale, genCeilDrop. The autopilot retires with the same hazard as the league.
+- **Awards** come from fitted voting models (`data/real-mvp-model.json`): MVP conditional logit, All-NBA logistic, Finals MVP scorer-or-defender rule. Nothing forces a winner.
+- Honest note: real generational careers (22 of them) average ~2.0 MVPs, not 2.7; the sim gens land around 2.2 MVP / 2.2 Finals MVP.
+- Known gaps: sim careers still run ~1.5 seasons longer than real ones, gens still use slightly more usage (~33% vs 29%) than the real cohort average.

@@ -41,8 +41,8 @@
     let stars = o.stars, ceiling = o.ceiling, gap = 10 + rand() * 12;
     if (genLevel && !lateBloomer) {
       if (!stars) stars = +weighted(genLevel === 2 ? { 5: 70, 4: 25, 3: 5 } : { 5: 40, 4: 35, 3: 25 });
-      if (ceiling == null) ceiling = (genLevel === 2 ? 86 : 82) + (genLevel === 2 ? 12 : 12) * Math.pow(rand(), 1.9);
-      gap = 6 + rand() * 7;
+      if (ceiling == null) ceiling = (genLevel === 2 ? 86 : 82) - NBA.tuning.genCeilDrop + (genLevel === 2 ? 12 : 12) * Math.pow(rand(), 1.9);
+      gap = NBA.tuning.genGapA + rand() * NBA.tuning.genGapB;
     } else if (lateBloomer) {
       if (!stars) stars = +weighted({ 1: 50, 2: 50 });
       if (ceiling == null) ceiling = 88 + 8 * rand();
@@ -245,117 +245,38 @@
     return out;
   }
   function userSeasonLine(st, ctx, avail, fx) {
-    const p = st.player;
-    const rookie = p.yearsPro === 0;
-    const coRaw = p.coTaxPrev == null ? ctx.coTax : 0.7 * p.coTaxPrev + 0.3 * ctx.coTax; p.coTaxPrev = coRaw; const coT = coRaw * (1 - 0.4 * clamp((ovr(p) - 80) / 16, 0, 1)); // a franchise player keeps his role when a new star arrives // roles settle: a new teammate changes your game gradually
+    const p = st.player, rookie = p.yearsPro === 0, age = p.age;
+    // a new teammate changes your role gradually; a franchise player keeps most of it
+    const coRaw = p.coTaxPrev == null ? ctx.coTax : 0.7 * p.coTaxPrev + 0.3 * ctx.coTax; p.coTaxPrev = coRaw;
+    const coT = coRaw * (1 - 0.4 * clamp((ovr(p) - 80) / 16, 0, 1));
     const paceS = p.paceS == null ? ctx.pace : 0.6 * p.paceS + 0.4 * ctx.pace; p.paceS = paceS;
     const e0 = expLine(p, { coTax: coT, wins: ctx.wins, pace: paceS, rookie, minsMult: fx.minsMult, minsFloor: rookie ? NBA.rookieFloor(st.draft && st.draft.slot) : 0 });
-    // form carries over from year to year (hot streaks do not flip to cold seasons overnight) and is calmer for stars; the prime is a visible multi-year peak
-    const starK = clamp((e0.ovr - 80) / 16, 0, 1), formSd = NBA.tuning.formSd * (1 - 0.5 * starK);
-    p.form = 0.5 * (p.form || 0) + 0.87 * formSd * randn();
-    const peakAge = p.peakAge || (p.peakAge = 25 + Math.floor(rand() * 5));
-    const bell = Math.exp(-Math.pow((p.age - peakAge) / 1.9, 2)), amp = 0.14 * starK;
-    const peakMult = 1 + amp * (bell - 0.36);
-    const sh = (1 + p.form + fx.form * (1 - 0.6 * starK)) * peakMult;
-    const ind = () => 1 + (0.035 - 0.02 * starK) * randn();
-    const m = { mins: e0.mins, pts: e0.pts * sh * ind(), reb: e0.reb * sh * ind(), ast: e0.ast * sh * ind(), stl: e0.stl * sh * ind(), blk: e0.blk * sh * ind(), tov: e0.tov };
-    const age = p.age; let gp = avail.gp, gpCut = false;
-    // 30,000 pts / 10,000 reb / 10,000 ast is a LeBron-only club: without a rare hidden "big three" career, the last category fades as the career winds down
-    if (!p.big3) {
-      if (p.big3Roll == null) p.big3Roll = rand() < (p.arch === 'generational' ? 0.04 : p.arch === 'dominator' ? 0.015 : 0.004);
-      p.big3 = p.big3Roll;
-      const tot = (k) => sum(st.proSeasons.map((x) => x[k]));
-      const P = tot('totPts'), R = tot('totReb'), A = tot('totAst');
-      if (!p.big3 && P >= 21000 && age >= 31) {
-        if (R >= 7000 && A >= 7000) { m.ast *= 0.8; m.reb *= 0.9; }
-        else if (A >= 7000 && R >= 5500) m.reb *= 0.86;
-        else if (R >= 7500 && A >= 5500) m.ast *= 0.84;
-      }
-    }
+    // Year-to-year shocks sized from real careers (22 generational and ~100 star careers, Basketball-Reference): usage ±6%, TS ±3%, minutes ±4%, rebounds ±10%, assists ±14% between seasons.
+    // Nothing else shapes a season: no caps, plans or quotas, so big years, slumps and the rare triple-double season come from the tails of these distributions.
+    const nm = 1 + 0.028 * randn(), nu = 1 + 0.045 * randn(), nt = 1 + 0.02 * randn(), evt = 1 + fx.form;
+    const m = { mins: e0.mins * nm, pts: e0.pts * nu * nt * nm * evt, reb: e0.reb * (1 + 0.07 * randn()) * nm * evt, ast: e0.ast * (1 + 0.10 * randn()) * nm * Math.sqrt(nu) * evt, stl: e0.stl * (1 + 0.10 * randn()) * nm, blk: e0.blk * (1 + 0.12 * randn()) * nm, tov: e0.tov * nm * nu };
+    let gp = avail.gp; const gpCut = false;
     // game plan: a season-average multiplier from how long each style was used (per-game variation is applied when the games are drawn)
     const seq = st.styleSeq && st.styleSeq.length ? st.styleSeq : [[0, st.style || 'balanced']];
     const share = styleShare(seq, 82), eff = STYLE_KEYS.map((k, i) => Object.keys(share).reduce((a, sty) => a + share[sty] * STYLE_MULT[sty][i], 0));
     ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k, i) => { m[k] *= eff[i]; });
-    const sty = Object.keys(share).sort((a, b) => share[b] - share[a])[0] || 'balanced';
-    // everyday scoring is soft-capped; big years (32-33, rarely 34-36) come from the career plan
-    const SOFT = 29.2;
-    if (m.pts > SOFT) m.pts = SOFT + (m.pts - SOFT) * 0.6;
-    // rookie scoring is capped by reality: even Wembanyama / Luka / LeBron / Iverson topped out around 21-23.5 ppg
+    // rookies: even Wembanyama / Luka / LeBron / Iverson topped out around 21-23.5 ppg (real rookie ppg vs the rating-based expectation)
     if (rookie && m.pts > 18.5) m.pts = 18.5 + (m.pts - 18.5) * 0.36;
-    let tierMode = null;
-    const bigOK = e0.ovr >= 88 && age >= 24 && age <= 32 && gp >= 60;
-
-    // triple-double window: no hints before it, one contiguous run of seasons starting in the late 20s
-    // the window rolls forward (to 34) if injury or form wrecked it before the first triple-double year
-    const inWin = p.tdPlan > 0 && age >= p.tdStart && age <= 34 && (age < p.tdStart + p.tdPlan || p.tdUsed === 0);
-    const bigMan = p.arch === 'dominator' || p.arch === 'generational' || p.sec === 'dominator';
-    const playmakeWin = sty === 'playmake' && bigMan && age >= 25 && age <= 34 && p.tdUsed < TD_CAP && e0.ovr >= 84 && m.ast >= 7.6 && m.reb >= 7.4 && rand() < 0.55;
-    const preWin = p.tdPlan > 0 && age < p.tdStart;
-    let surge = null;
-    if (((inWin && p.tdUsed < p.tdPlan) || playmakeWin) && e0.ovr >= 82 && m.pts >= 16 && rand() < 0.92) {
-      surge = { big: p.td30Ages.includes(age) && p.td30Used < p.td30Plan && e0.ovr >= 86 && m.pts >= 24.5 };
-    }
-    if (surge && surge.big) m.pts = Math.max(m.pts, 30.3 + rand() * 1);
-    if (!surge && p.postTd && age - p.postTd.age <= 4) { // a triple-double year does not vanish overnight: playmaking decays ~20% a year
-      const d = Math.pow(0.8, age - p.postTd.age); m.ast = Math.max(m.ast, p.postTd.ast * d); m.reb = Math.max(m.reb, p.postTd.reb * Math.pow(0.88, age - p.postTd.age));
-    }
-    if (!surge) {
-      if (preWin && m.ast > 8.1) m.ast = 8.1 + (m.ast - 8.1) * 0.3;
-      if (p.tdUsed >= TD_CAP) { m.ast = Math.min(m.ast, 9.4); m.reb = Math.min(m.reb, 9.4); }
-      if (m.reb >= 8 && m.ast >= 7) {
-        // keep natural triple-double rates in the real-world 17-27% band
-        if (m.ast > 8.6) m.ast = 8.6 + (m.ast - 8.6) * 0.3;
-        if (m.reb > 10.6) m.reb = 10.6 + (m.reb - 10.6) * 0.35;
-      }
-      const gpSoFar = sum(st.proSeasons.map((x) => x.gp));
-      if (gpSoFar > 200 && st.career.td / gpSoFar > 0.255) { m.reb = Math.min(m.reb, 9.8); m.ast = Math.min(m.ast, 8.2); }
-      if (bigOK && p.tier34 && !p.tier34Done && m.pts >= 28 && rand() < 0.3) tierMode = { lo: 34.0, hi: 36.6 };
-      else if (bigOK && p.tier32 && !p.tier32Done && m.pts >= 27 && rand() < 0.3) tierMode = { lo: 32.0, hi: 33.9 };
-      if (tierMode) m.pts = Math.max(m.pts, tierMode.lo + 0.3 + rand() * (tierMode.lo >= 34 ? 1.6 : 0.9));
-      if (tierMode) { const h2 = Math.max(0, m.pts - 27); m.ast *= Math.max(0.55, 1 - 0.055 * h2); m.reb *= Math.max(0.7, 1 - 0.03 * h2); } // 33-36 ppg years come with a scorer's playstyle, not 9 boards and 8 dimes
-    } else {
-      m.reb = Math.max(m.reb, 10.25 + rand() * 0.9);
-      m.ast = Math.max(m.ast, 10.25 + rand() * 0.9);
-    }
-    if (!p.big3 && gp > 0) { // glide down toward the cap over a couple of seasons, and only as a last resort end the year early (injury)
-      const tot2 = (k) => sum(st.proSeasons.map((x) => x[k])); const P = tot2('totPts'), R = tot2('totReb'), A = tot2('totAst');
-      const glide = (have, key) => {
-        const rem = 9860 - have, need = m[key] * gp; if (need <= 0) return;
-        const ratio = rem / need;
-        if (ratio < 2.3) m[key] *= clamp(0.45 + 0.55 * (ratio - 0.9) / 1.4, 0.45, 1);
-        const need2 = m[key] * gp;
-        if (need2 > rem) { gp = Math.max(8, Math.floor(rem / Math.max(0.5, m[key]))); gpCut = true; }
-      };
-      if (P >= 22000) {
-        if (R >= 8500 && A >= 5500) glide(A, 'ast');
-        if (A >= 8500 && R >= 5500) glide(R, 'reb');
-      }
-      if (R >= 9860 && A >= 9860) m.pts = Math.min(m.pts, Math.max(1, (29850 - P) / Math.max(1, gp)));
-    }
-    let games, s;
-    for (let tries = 0; tries < 16; tries++) {
-      games = [];
-      for (let i = 0; i < gp; i++) {
-        const gs = styleAt(seq, Math.min(81, Math.floor(((i + 0.5) * 82) / Math.max(1, gp)))), f = STYLE_MULT[gs], mj = Object.assign({}, m);
-        STYLE_KEYS.forEach((k, ki) => { mj[k] = m[k] * f[ki] / (eff[ki] || 1); });
-        games.push(genGame(mj));
-      }
-      s = summarize(games);
-      if (gp < 50 || (!surge && !tierMode)) break;
-      if (surge && s.pts >= (surge.big ? 30 : 10) && s.reb >= 10 && s.ast >= 10) break;
-      if (tierMode && s.pts >= tierMode.lo && s.pts <= tierMode.hi) break;
+    const games = [];
+    for (let i = 0; i < gp; i++) {
+      const gs = styleAt(seq, Math.min(81, Math.floor(((i + 0.5) * 82) / Math.max(1, gp)))), f = STYLE_MULT[gs], mj = Object.assign({}, m);
+      STYLE_KEYS.forEach((k, ki) => { mj[k] = m[k] * f[ki] / (eff[ki] || 1); });
+      games.push(genGame(mj));
     }
     // spread good and bad nights evenly through the schedule so a hot first half does not fade into a lower final average
+    let ordered = games;
     { const cuts = [0]; for (let j = 1; j < games.length; j++) if (styleAt(seq, Math.min(81, Math.floor(((j + 0.5) * 82) / Math.max(1, gp)))) !== styleAt(seq, Math.min(81, Math.floor(((j - 0.5) * 82) / Math.max(1, gp))))) cuts.push(j); cuts.push(games.length);
-      const out = []; for (let c = 0; c + 1 < cuts.length; c++) out.push.apply(out, stratify(games.slice(cuts[c], cuts[c + 1]))); games = out; }
-    if (s.pts >= 34) p.tier34Done = true;
-    if (s.pts >= 32) p.tier32Done = true;
-    const used = e0.usg * (s.pts / Math.max(1, e0.pts));
-    const tsRaw = clamp(e0.ts * (0.5 + 0.5 * (s.pts / Math.max(1, m.pts))), 0.44, 0.72);
+      const out = []; for (let c = 0; c + 1 < cuts.length; c++) out.push.apply(out, stratify(games.slice(cuts[c], cuts[c + 1]))); ordered = out; }
+    const s = summarize(ordered);
+    const tsRaw = clamp(e0.ts * nt * (0.5 + 0.5 * (s.pts / Math.max(1, m.pts))), 0.44, 0.72);
     const sl = shootingLine(p, s.pts, tsRaw, e0.usg);
     const avgTD = gp >= 30 && s.pts >= 10 && s.reb >= 10 && s.ast >= 10;
-    if (avgTD) { p.tdUsed++; if (s.pts >= 30) p.td30Used++; p.postTd = { age, ast: s.ast, reb: s.reb }; }
-    return Object.assign({ gp, usg: e0.usg, ovr: e0.ovr, fga: sl.fga, fgp: sl.fgp, tpa: sl.tpa, tpp: sl.tpp, ftp: sl.ftp, fta: sl.fta, ts: sl.ts, avgTD, games: games.length, gpCut, gameList: games }, s, { pts: s.pts, reb: s.reb, ast: s.ast });
+    return Object.assign({ gp, usg: e0.usg * nu, ovr: e0.ovr, fga: sl.fga, fgp: sl.fgp, tpa: sl.tpa, tpp: sl.tpp, ftp: sl.ftp, fta: sl.fta, ts: sl.ts, avgTD, games: ordered.length, gpCut, gameList: ordered }, s, { pts: s.pts, reb: s.reb, ast: s.ast });
   }
 
   function playoffLine(st, ctx, seriesList, base, mode) {
@@ -363,34 +284,24 @@
     // real stars (n=202, 2001-26): minutes x1.086, points x1.005, rebounds x1.055, assists x0.944, steals x0.98, blocks x1.15, turnovers x1.09
     const mult = { mins: 1.085, pts: 1.0, reb: 1.055, ast: 0.95, stl: 0.98, blk: 1.15, tov: 1.09 };
     // a postseason's overall form varies far more than a single game's noise (real sd of the points ratio is 0.155)
-    const starP = clamp((base.ovr - 80) / 14, 0, 1), fp = clamp(1 + (0.13 - 0.05 * starP) * randn(), 0.7 + 0.12 * starP, 1.34 - 0.1 * starP), fo = clamp(1 + 0.07 * randn(), 0.8, 1.22);
+    // Postseason scoring vs the regular season, measured on 110 real generational-star runs (2001-2024): ratio mean 1.02, sd 0.17 (p10 0.84, p90 1.24); other 20+ ppg scorers: 1.005 / 0.15.
+    const starP = clamp((base.ovr - 80) / 14, 0, 1), fp = clamp(1 + 0.008 * starP + (0.15 + 0.015 * starP) * randn(), 0.62, 1.5), fo = clamp(1 + 0.07 * randn(), 0.8, 1.22);
     mult.ast = clamp(0.95 - 0.015 * (base.ast - 5), 0.85, 0.95); // real 7+ apg players lose ~10% of their assists in the playoffs
-    mult.pts *= 1 + clamp((base.ovr - 84) * 0.0045, 0, 0.055); // real superstars score MORE in the playoffs (Jordan +3, LeBron +1.4, Durant +2.2, Curry +1.4)
     mult.pts *= fp; mult.reb *= fo; mult.ast *= fo; mult.stl *= fo; mult.blk *= fo;
-    let cap = Math.max(35.5, base.pts + 2.2), maxAvg = Math.max(35.8, base.pts + 2.6);
-    if (mode === 'heater') { const h = 1.15 + rand() * 0.07; mult.pts *= h; mult.reb *= 1.08; mult.ast *= 1.12; mult.mins *= 1.03; cap = Math.min(37.2, Math.max(35.4, base.pts + 2)); maxAvg = Math.min(38.6, Math.max(37.4, base.pts + 3.5)); }
-    if (mode === 'legend') { mult.pts *= 1.22; mult.reb *= 1.15; mult.ast *= 1.2; mult.mins *= 1.04; cap = 37.2; maxAvg = 38.6; }
-    const m = { mins: Math.min(base.mins * mult.mins, 43), pts: Math.min(base.pts * mult.pts, cap), reb: base.reb * mult.reb, ast: base.ast * mult.ast, stl: base.stl * mult.stl, blk: base.blk * mult.blk, tov: base.tov * mult.tov };
-    if (mode === 'legend') { m.reb = Math.max(m.reb, 10.6); m.ast = Math.max(m.ast, 10.6); m.pts = Math.max(m.pts, 36.2); }
+    const m = { mins: Math.min(base.mins * mult.mins, 43), pts: base.pts * mult.pts, reb: base.reb * mult.reb, ast: base.ast * mult.ast, stl: base.stl * mult.stl, blk: base.blk * mult.blk, tov: base.tov * mult.tov };
     const seq = st.styleSeq && st.styleSeq.length ? st.styleSeq : [[0, st.style || 'balanced']];
     const share = styleShare(seq, 82), eff = STYLE_KEYS.map((k, i) => Object.keys(share).reduce((a, sty) => a + share[sty] * STYLE_MULT[sty][i], 0));
     const poStyleM = (mm, slot) => { const f = STYLE_MULT[styleAt(seq, slot)], o = Object.assign({}, mm); STYLE_KEYS.forEach((k, ki) => { o[k] = mm[k] * f[ki] / (eff[ki] || 1); }); return o; };
-    let all, s, perSeries, poCount;
-    for (let tries = 0; tries < 24; tries++) {
-      all = []; poCount = 0;
-      perSeries = seriesList.map((sr) => {
-        const gs = []; for (let i = 0; i < sr.games; i++) { gs.push(genGame(poStyleM(m, 82 + poCount))); poCount++; }
-        all.push.apply(all, gs);
-        const ss = summarize(gs);
-        return { round: sr.round, opp: sr.opp, result: (sr.won ? 'W ' : 'L ') + sr.w + '-' + sr.l, pts: ss.pts, reb: ss.reb, ast: ss.ast, gp: sr.games, list: gs, w: sr.w, l: sr.l, won: sr.won };
-      });
-      s = summarize(all);
-      const ok = s.pts <= maxAvg && (mode !== 'legend' || (s.pts >= 35.5 && s.reb >= 10 && s.ast >= 10));
-      if (ok) break;
-    }
-    const legendHit = mode === 'legend' && s.pts >= 35.5 && s.reb >= 10 && s.ast >= 10;
+    const all = []; let poCount = 0;
+    const perSeries = seriesList.map((sr) => {
+      const gs = []; for (let i = 0; i < sr.games; i++) { gs.push(genGame(poStyleM(m, 82 + poCount))); poCount++; }
+      all.push.apply(all, gs);
+      const ss = summarize(gs);
+      return { round: sr.round, opp: sr.opp, result: (sr.won ? 'W ' : 'L ') + sr.w + '-' + sr.l, pts: ss.pts, reb: ss.reb, ast: ss.ast, gp: sr.games, list: gs, w: sr.w, l: sr.l, won: sr.won };
+    });
+    const s = summarize(all);
     const sl = shootingLine(p, s.pts, clamp(base.ts - 0.014, 0.44, 0.7), base.usg * 1.03);
-    return { line: Object.assign({}, s, { fgp: sl.fgp, tpp: sl.tpp, ftp: sl.ftp, ts: sl.ts }), perSeries, heater: mode !== 'normal', legend: legendHit };
+    return { line: Object.assign({}, s, { fgp: sl.fgp, tpp: sl.tpp, ftp: sl.ftp, ts: sl.ts }), perSeries, heater: false, legend: false };
   }
 
   // ---------------------------------------------------------------- match-by-match log (a reveal of the already-simulated season)
@@ -554,14 +465,8 @@
       resultText = po.champion.id === st.teamId ? 'NBA Champions 🏆' : lost ? 'Lost in the ' + lost.round + ' to ' + lost.opp + ' (' + lost.w + '-' + lost.l + ')' : '';
       if (!series.length) resultText = 'Lost in the play-in';
       if (series.length && avail.gp >= 30 || series.length) {
-        const elite = userLine.ovr >= 85;
-        const domish = p.arch === 'dominator' || p.sec === 'dominator' || p.arch === 'generational';
-        const wantLegend = p.legendUsed < p.legendPlan && elite && domish && p.age >= 23 && userLine.pts >= 25.5 && userLine.reb >= 8 && userLine.ast >= 7.5 && rand() < 0.4;
-        const wantHeater = !wantLegend && p.heatersUsed < p.heaterPlan && elite && p.age >= 23 && rand() < 0.3;
-        const out = playoffLine(st, user.ctx, series, userLine, wantLegend ? 'legend' : wantHeater ? 'heater' : 'normal');
+        const out = playoffLine(st, user.ctx, series, userLine, 'normal');
         pline = out.line; perSeries = out.perSeries; heater = out.heater; legend = out.legend;
-        if (wantLegend && out.legend) p.legendUsed++;
-        else if (heater) p.heatersUsed++;
       }
     } else if (po.userOut === null) resultText = 'Missed the playoffs';
     if (po.champion.id === st.teamId) {
@@ -795,7 +700,7 @@
       const rec = playSeason(st);
       const d = decisionOptions(st);
       const p = st.player;
-      const retireNow = d.mustRetire || (p.age >= 36 && ovr(p) < 72 && rand() < 0.5) || (p.age >= 38 && rand() < 0.45);
+      const retireNow = d.mustRetire || NBA.retireP(p);
       if (retireNow) { retire(st); break; }
       if (d.expiring) {
         const best = d.offers && d.offers[0];

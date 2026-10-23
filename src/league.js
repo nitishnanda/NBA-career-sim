@@ -13,7 +13,7 @@
   function rollAvail(p, opts) {
     opts = opts || {};
     const A = D.ARCHETYPES[p.arch];
-    const lam = 1.45 * p.prone * (A.injury || 1) * clamp(1.25 - p.attrs.dur / 110, 0.35, 1.2) * (1 + Math.max(0, p.age - 28) * 0.04);
+    const lam = 1.45 * T.injScale * p.prone * (A.injury || 1) * clamp(1.25 - p.attrs.dur / 110, 0.35, 1.2) * (1 + Math.max(0, p.age - 28) * 0.04);
     const n = poisson(lam);
     let miss = 0;
     const list = [];
@@ -22,7 +22,7 @@
       miss += d; list.push(d);
     }
     let major = null, notable = null;
-    const mp = 0.02 * p.prone * (A.injury || 1) * (1 + Math.max(0, p.age - 26) * 0.05) * (1 + clamp((p.target.ath - 70) / 60, 0, 0.5));
+    const mp = 0.02 * T.injScale * p.prone * (A.injury || 1) * (1 + Math.max(0, p.age - 26) * 0.05) * (1 + clamp((p.target.ath - 70) / 60, 0, 0.5));
     if (rand() < mp) {
       major = pick(['torn ACL', 'torn Achilles', 'fractured foot', 'torn meniscus', 'ruptured patellar tendon']);
       miss = rint(48, 82);
@@ -289,18 +289,17 @@
     }
     // awards
     const q65 = entries.filter((e) => e.l.gp >= 65);
-    const tdBonus = (l) => (l.pts >= 25 && l.reb >= 7.5 && l.ast >= 7.5 ? 3 : 0) + (l.reb >= 9.5 && l.ast >= 9.5 && l.pts >= 18 ? 7 + (l.pts >= 28 ? 3 : 0) : 0); // voters love the triple-double story
-    // MVPs come from the top handful of producers on winning teams: nobody wins at 24/7/5, and sub-.500 teams do not produce MVPs
-    const perfSorted = q65.map((e) => e.l.perf).sort((x, y) => y - x), perfCut = perfSorted[Math.min(4, perfSorted.length - 1)] || 0;
-    const mvpAll = q65.map((e) => {
-      const l = e.l, star = l.pts >= 22 || l.ast >= 9.5 || (l.reb >= 11 && l.pts >= 18);
-      return { e, s: 0.85 * l.perf + 0.35 * l.pts + 0.65 * (l.wins - 41) - 1.6 * Math.max(0, 45 - l.wins) + tdBonus(l) + (l.wins >= 58 ? 2.5 : 0) + (l.perf >= perfSorted[0] ? 5 : 0) + randn() * 1.8 - (e.p.mvpRecent || 0), ok: l.perf >= perfCut && star && l.wins >= 44 };
-    }).sort((a, b) => b.s - a.s);
-    const byMVP = mvpAll.filter((x) => x.ok).concat(mvpAll.filter((x) => !x.ok)); // eligible candidates first, then the also-rans fill out the ballot
+    // Voting models fitted to real data (scripts/real-mvp-model.py, 1981-2025): MVP = conditional logit over the league's 14 best producers on production, team wins and scoring;
+    // All-NBA = logistic on the same three. Voters' randomness is the Gumbel / logistic noise of those models, nothing else is bolted on.
+    const gumbel = () => -Math.log(-Math.log(Math.max(1e-9, rand())));
+    const pool = q65.slice().sort((a, b) => b.l.perf - a.l.perf);
+    const mvpAll = pool.map((e, i) => ({ e, s: 0.303 * e.l.perf + 0.289 * e.l.wins + 0.062 * e.l.pts + (i < 14 ? gumbel() : -50) })).sort((a, b) => b.s - a.s);
+    const byMVP = mvpAll;
     const dpoy = q65.map((e) => ({ e, s: defScore(e.p, e.l) + 0.12 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s);
     const roy = entries.filter((e) => e.p.rookie && e.l.gp >= 50).map((e) => ({ e, s: e.l.perf + 0.1 * (e.l.wins - 41) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
     const mip = q65.filter((e) => !e.p.rookie && e.p.prevPerf != null && e.p.age <= 28).map((e) => ({ e, s: (e.l.perf - e.p.prevPerf) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
-    const allNBA = q65.map((e) => ({ e, s: 0.85 * e.l.perf + 0.45 * e.l.pts + 0.3 * (e.l.wins - 41) + tdBonus(e.l) + randn() * 3 })).sort((a, b) => b.s - a.s).slice(0, 15);
+    const logisticNoise = () => { const u = Math.max(1e-9, Math.min(1 - 1e-9, rand())); return Math.log(u / (1 - u)); };
+    const allNBA = pool.slice(0, 35).map((e) => ({ e, s: -16.75 + 0.218 * e.l.perf + 0.124 * e.l.wins + 0.097 * e.l.pts + logisticNoise() })).sort((a, b) => b.s - a.s).slice(0, 15);
     const allDef = dpoy.slice(0, 10);
     const stars = entries.filter((e) => e.l.gp >= 40).map((e) => ({ e, s: e.l.perf + randn() * 3 })).sort((a, b) => b.s - a.s).slice(0, 24);
     const qual = entries.filter((e) => e.l.gp >= 58);
@@ -331,7 +330,7 @@
     };
     const playoffs = simPlayoffs(L, user ? user.teamId : null);
     // remember perf for MIP, and voter fatigue for repeat MVPs
-    entries.forEach((e) => { e.p.prevPerf = e.l.perf; e.p.mvpRecent = (e.p.mvpRecent || 0) * 0.5 + (awards.mvp && awards.mvp.id === e.id ? 1.2 : 0); });
+    entries.forEach((e) => { e.p.prevPerf = e.l.perf; e.p.mvpRecent = 0; });
     const stand = L.teams.map((t) => ({ id: t.id, name: t.name, nick: t.nick, conf: t.conf, wins: t.wins, losses: t.losses }));
     const res = { year: L.year, label: seasonLabel(L.year), awards, playoffs, standings: stand, leaders, leadersOthers, league, ranks: user ? { pts: rankOf('pts', 'user'), reb: rankOf('reb', 'user'), ast: rankOf('ast', 'user'), stl: rankOf('stl', 'user'), blk: rankOf('blk', 'user') } : null, entries };
     // history record
@@ -366,7 +365,7 @@
     let h = p.age < 32 ? 0 : p.age < 34 ? 0.04 : p.age < 36 ? 0.14 : p.age < 38 ? 0.3 : p.age < 40 ? 0.55 : 0.9;
     const o = ovr(p);
     if (p.age >= 30 && o < 64) h += 0.18;
-    return rand() < h;
+    return rand() < h * T.retireScale;
   }
 
   function lotteryOrder(L) {

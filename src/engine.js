@@ -40,12 +40,16 @@
   // ---------------------------------------------------------------- tuning knobs
   const T = {
     pace: 99,            // possessions per game, 2025-ish
-    usgBase: 0.196, usgPerSS: 0.005, usgConvex: 0.00012,
-    tsBase: 0.402, tsPerSkill: 0.0025, tsEra: 0.012, usgTax: 0.22,
-    minsBase: 12, minsPerOvr: 0.95, minsCap: 35.4,
+    usgBase: 0.16785, usgPerSS: 0.00584, usgConvex: 0.00003,
+    tsBase: 0.36421, tsPerSkill: 0.00265, tsEra: 0.012, usgTax: 0.16733,
+    minsBase: 11.78235, minsPerOvr: 0.91888, minsCap: 35.74855,
     declineScale: 1.15,
     ceilA: 55, ceilLambda: 11.5, ceilK: 1.3,
     winsPerPt: 0.95, formSd: 0.07, winsCoreAvg: 48, ovrStretch: 1.3,
+    growthScale: 0.85, declineLate: 1.5, genGapA: 6, genGapB: 7, injScale: 0.6, retireScale: 3.2,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
+    astKnee: 7, astK: 0.88991, rebKnee: 7.23037, rebK: 0.76112,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
+    volSpread: 0.43399, genCeilDrop: 2.5,
+    starTs: 0.04142, starReb: 0.06173, starAst: 0.32616,   // extra production for the very best (fitted to the real top of the league)
   };
   NBA.tuning = T;
 
@@ -108,31 +112,8 @@
     return clamp(base + nudge + bonus, 55, 99);
   }
 
-  function rollTdPlan(p) {
-    const dom = p.arch === 'dominator', sdom = p.sec === 'dominator', gen = p.arch === 'generational';
-    // Triple-double seasons follow the Westbrook/Jokic shape: no early hints, then one contiguous
-    // window starting in the late 20s.
-    p.tdPlan = +weighted(dom ? { 1: 28, 2: 25, 3: 20, 4: 15, 5: 12 } : sdom ? (gen ? { 0: 20, 1: 35, 2: 25, 3: 20 } : { 0: 35, 1: 35, 2: 20, 3: 10 }) : gen ? { 0: 80, 1: 15, 2: 5 } : { 0: 100 });
-    p.tdStart = 26 + +weighted({ 0: 12, 1: 22, 2: 28, 3: 24, 4: 14 });
-    p.td30Plan = p.tdPlan > 0 ? Math.min(p.tdPlan, rand() < 0.45 ? 2 : 1) : 0;
-    const win = []; for (let i = 0; i < p.tdPlan; i++) win.push(p.tdStart + i);
-    p.td30Ages = win.slice().sort(() => rand() - 0.5).slice(0, p.td30Plan);
-    p.tdUsed = 0; p.td30Used = 0;
-    p.heaterPlan = 0; // real playoff scoring variance is already covered by series-level form noise
-    p.heatersUsed = 0;
-    p.legendPlan = +weighted(dom ? { 0: 88, 1: 12 } : sdom ? { 0: 96, 1: 4 } : gen ? { 0: 98, 1: 2 } : { 0: 100 });
-    p.legendUsed = 0;
-    // one big scoring year (32-33 ppg) is common for elite scorers; a 34-36 ppg year is rare
-    const tier = { scorer: [0.62, 0.12], shooter: [0.5, 0.11], generational: [0.35, 0.05], dominator: [0.2, 0.03], twoway: [0.2, 0.02] }[p.arch] || [0, 0];
-    p.tier32 = rand() < tier[0]; p.tier34 = rand() < tier[1];
-    p.tier32Done = false; p.tier34Done = false;
-    // consistent scorers carry one or two real injury seasons
-    p.injYears = [];
-    if (p.arch === 'scorer') {
-      const n = +weighted({ 1: 50, 2: 38, 3: 12 });
-      while (p.injYears.length < n) { const ag = rint(24, 34); if (!p.injYears.includes(ag)) p.injYears.push(ag); }
-    }
-  }
+  // (no scripted career plans: triple-double years, 32-36 ppg years, legend playoff runs and forced injury seasons now come from the fitted distributions alone)
+  function rollTdPlan(p) { p.injYears = []; }
 
   function nameGen() { return pick(D.FIRST) + ' ' + pick(D.LAST); }
 
@@ -143,6 +124,7 @@
       ceiling: o.ceiling, work: o.work != null ? o.work : clamp(0.5 + randn() * 0.22, 0, 1),
       prone: o.prone != null ? o.prone : clamp(1 + randn() * 0.3, 0.5, 1.8),
       stars: o.stars || 0, yearsPro: 0, teamId: -1, injuries: [],
+      vol: o.vol != null ? o.vol : clamp(randn() * 0.08, -0.2, 0.2),
     };
     p.target = buildTarget(p, p.ceiling);
     const gap = o.gap != null ? o.gap : 10 + rand() * 12;
@@ -167,7 +149,8 @@
   }
 
   // ---------------------------------------------------------------- progression
-  function growthRate(age) {
+  function growthRate(age) { return T.growthScale * growthRate0(age); }
+  function growthRate0(age) {
     if (age <= 19) return 0.3; if (age === 20) return 0.3; if (age === 21) return 0.28;
     if (age === 22) return 0.27; if (age === 23) return 0.25; if (age === 24) return 0.23;
     if (age === 25) return 0.2; if (age === 26) return 0.17; if (age === 27) return 0.13;
@@ -193,7 +176,7 @@
     else if (a === 'three' || a === 'passing') base = decAt(SKL_DEC, age) * 0.7;
     else if (a === 'inside') base = decAt(SKL_DEC, age) * 1.1 + decAt(ATH_DEC, age) * 0.15;
     else base = decAt(SKL_DEC, age);
-    return base * m * T.declineScale * (age >= 31 ? 0.78 : 1);
+    return base * m * T.declineScale * (age >= 31 ? 0.78 : 1) * (age >= 33 ? T.declineLate : 1);
   }
 
   function progress(p) {
@@ -252,6 +235,7 @@
     const SS = 0.34 * sh[0] + 0.14 * sh[1] + 0.12 * a.ft + 0.12 * a.handling + 0.1 * a.iq + 0.18 * a.ath;
     let usg = T.usgBase + T.usgPerSS * (SS - 55) + T.usgConvex * Math.pow(Math.max(0, SS - 70), 2) + A.usg + (S ? 0.4 * S.usg : 0) - (c.coTax || 0);
     { const tw = (c.wins == null ? 41 : c.wins) - 41; usg *= 1 + ks0(o) * (tw < 0 ? 0.0055 * Math.min(22, -tw) : -0.0006 * Math.min(28, tw)); } // good players on good teams share the ball; stars on bad teams take over
+    usg *= 1 + (p.vol || 0) * (1 + T.volSpread);   // some players just shoot more (or less) than their skill suggests: the usage/efficiency spread of real rosters
     usg = clamp(usg * (c.usgMult || 1) * (AGE_USG[Math.min(Math.max(p.age, 28), 38)] || 1), 0.12, 0.354 + 0.016 * ks0(o));
     let mins = clamp(T.minsBase + T.minsPerOvr * (o - 58), 8, T.minsCap);
     if (p.age >= 33) mins -= (p.age - 32) * 0.6;
@@ -268,6 +252,8 @@
     let ts = T.tsBase + T.tsPerSkill * skillShoot + T.tsEra - T.usgTax * (usg - 0.2) * 1.0 + A.ts + (S ? 0.4 * S.ts : 0);
     ts += 0.5 * Math.max(0, 0.2 - usg);
     ts += (c.tsAdj || 0) - (c.rookie ? 0.012 : 0);
+    const top = clamp((o - 90) / 9, 0, 1);
+    ts += T.starTs * top;
     ts = clamp(ts, 0.44, 0.7);
 
     const pace = c.pace || T.pace;
@@ -275,8 +261,8 @@
     let pts = used * 1.82 * ts;
     const pm = 0.65 * a.passing + 0.35 * a.handling;
     const soft = (x, knee, k) => (x > knee ? knee + (x - knee) * k : x);
-    const reb36 = soft(Math.max(1.6, 0.18 * a.reb - 3.8), 7.8, 0.5);
-    const ast36 = soft(Math.max(1.0, 0.125 * (pm - 30) + 10 * (usg - 0.2)), 7.5, 0.55);
+    const reb36 = soft(Math.max(1.6, 0.18 * a.reb - 3.8), T.rebKnee, T.rebK);
+    const ast36 = soft(Math.max(1.0, 0.125 * (pm - 30) + 10 * (usg - 0.2)), T.astKnee, T.astK);
     const defx = 0.65 * a.perD + 0.35 * a.ath;
     const stl36 = Math.max(0.62, 0.031 * (defx - 33) + 0.08);
     const blk36 = soft(Math.max(0.15, 0.043 * (a.rimP - 28)), 1.25, 0.5);
@@ -286,7 +272,7 @@
     const hi = Math.max(0, pts - 27), astTrade = Math.max(0.52, 1 - 0.07 * hi), rebTrade = Math.max(0.66, 1 - 0.04 * hi);
     return {
       ovr: o, usg, ts, mins, pace,
-      pts, reb: reb36 * k * (c.rebMult || 1) * (p.arch === 'generational' ? 0.97 : 1) * rebTrade, ast: ast36 * k * (c.astMult || 1) * (p.arch === 'generational' ? 0.88 : 1) * astTrade,
+      pts, reb: reb36 * k * (c.rebMult || 1) * (p.arch === 'generational' ? 0.97 : 1) * rebTrade * (1 + T.starReb * top), ast: ast36 * k * (c.astMult || 1) * (p.arch === 'generational' ? 0.88 : 1) * astTrade * (1 + T.starAst * top),
       stl: stl36 * k, blk: blk36 * k, tov: tov36 * k,
     };
   }
