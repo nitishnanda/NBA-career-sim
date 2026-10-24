@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 21 Oct · BallerSim dashboard v18';
+  const BUILD = 'build 21 Oct · BallerSim dashboard v19';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
@@ -220,6 +220,8 @@
     return h('span', { class: 'logo', style: 'width:' + size + 'px;height:' + size + 'px', title: nick, html: '<svg viewBox="0 0 100 100" width="' + size + '" height="' + size + '" aria-hidden="true">' + shape + '<text x="50" y="' + (a.length > 3 ? 58 : 60) + '" text-anchor="middle" font-family="system-ui,Arial,sans-serif" font-weight="800" font-size="' + (a.length > 3 ? 26 : 30) + '" fill="' + tc + '">' + a + '</text></svg>' });
   }
   const withLogo = (nick, size, label) => h('span', { class: 'tl' }, logo(nick, size || 20), label == null ? nick : label);
+  // the league mark replaces the basketball in the header
+  (function () { const el = document.querySelector('.brand .logo'); if (el && NBA.logos && NBA.logos._NBA) { el.className = 'nbamark'; el.textContent = ''; el.append(h('img', { src: NBA.logos._NBA, alt: 'NBA' })); } })();
   let leagueTeam = null;   // team page being viewed from Around the league
   const jersey = (name) => { let x = 7; for (let i = 0; i < name.length; i++) x = (x * 31 + name.charCodeAt(i)) % 97; return x % 99; };
   function seeded(seed) { let a = seed | 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
