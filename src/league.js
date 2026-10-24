@@ -34,6 +34,8 @@
     const o = ovr(p);
     let rest = o >= 74 ? (p.age >= 30 ? rint(3, 3 + T.restOld) : rint(0, T.restStar)) : o >= 68 ? rint(0, 8) : rint(0, 26); // role players churn: DNPs, waivers, two-way deals
     if (opts.noRest) rest = 0;
+    // the 65-game rule for awards (2024-): stars close to the line skip rest days to qualify (real stars' seasons since cluster at 65+)
+    { const left = 82 - miss - (opts.extraMiss || 0); if (o >= T.qualifyOvr && !major && left - rest < 65 && left >= 65) rest = Math.min(rest, left - 65); }
     return { gp: clamp(82 - miss - rest - (opts.extraMiss || 0), 0, 82), miss, rest, injuries: list, major, notable };
   }
   function applyMajorInjury(p) {
