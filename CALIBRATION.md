@@ -244,5 +244,6 @@ The sim no longer clamps or scripts careers. Everything below is fitted to real 
 
 ## v23: generational box-score dominators vs Jokic / Westbrook
 
-`data/ref-gen-dominators.json` holds per-season lines for Jokic and Westbrook (supplied by the project owner); `scripts/sim-gen-dominator.js` prints the sim's gen-tagged dominator careers by age next to them.
+`scripts/real-gen-dominators.py` builds `data/real-gen-dominators.json` from the Basketball-Reference CSVs (pool: MVP winners averaging 6.5+ apg and 7+ rpg over their best five seasons: Jokic, Westbrook, Bird, LeBron). `scripts/sim-gen-dominator.js` prints the sim's gen-tagged dominator careers by age next to that curve. The pool is small (four players), so treat it as a rough target.
 Fitted: a slower start for a generational *tag* (`genSecGap`; ~13 ppg at 20, 17 at 21, 22 at 22), more rebounding and passing (`gdReb`, `gdAst`), and Jokic-style efficiency plus volume (`gdTs`, `genDomUsg`) instead of volume alone (usage 33%, TS 61% at the peak, ~27 ppg at 26-30, 76% of careers have a 28+ season, 42% a 30+). Regular-season minutes are capped at 39.
+Minutes: +1.5 mpg for this build (`gdMins`), so the prime sits near the real 36 mpg; usage lift set to `genDomUsg` 0.12 to keep the peak near 28 ppg.
