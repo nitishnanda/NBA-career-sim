@@ -65,6 +65,9 @@ const INFO = new Set(['usg']);   // shown, not scored: era-adjusting old seasons
 const COMPLETE = new Set(['seasons', 'finalAge', 'careerPts', 'allstar', 'allnba', 'mvp', 'alldef', 'n30']);   // career totals: only finished real careers (last season 2021 or earlier)
 // a finished (or nearly finished) real career: retired by 2024, or a veteran who debuted by 2008 (LeBron, Durant, Curry, Harden...)
 const done = (x) => x.last <= 2024 || x.debut <= 2008;
+// mean debut age of all notable real careers by debut era, relative to the 2006+ era (same rules as the sim's draft)
+const DEBUT_SHIFT = (() => { const all = [].concat(...Object.values(REAL)), eras = [[0, 1989], [1990, 1999], [2000, 2005], [2006, 9999]], mean = (a) => a.reduce((x, y) => x + y, 0) / Math.max(1, a.length);
+  const em = eras.map(([a, b]) => mean(all.filter((r) => r.debut >= a && r.debut <= b).map((r) => r.debutAge))); return (y) => em[3] - em[eras.findIndex(([a, b]) => y >= a && y <= b)]; })();
 // career profile used by the copy check
 const CF = ['pts', 'reb', 'ast', 'ts', 'mpg', 'peakAge', 'seasons', 'finalAge', 'n30', 'best', 'allstar', 'allnba', 'mvp', 'alldef', 'gpRate'];
 const PLAUS = ['pts', 'reb', 'ast', 'best', 'peakAge', 'allstar', 'mvp', 'seasons', 'finalAge'];
@@ -101,10 +104,9 @@ SCORE.forEach((arch) => {
   if (sim.length < 8) { lines.push(`\n${arch}: only ${sim.length} sim careers classified as ${arch}; not enough to score`); return; }
   const rows = []; let sc = 0, n = 0;
   FEATS.forEach(([k, label]) => {
-    let base = COMPLETE.has(k) ? real.filter(done) : real;
-    // debut age depends on the draft rules: the sim drafts under today's (age 19, since 2006), so compare with careers that started under them when there are enough
-    if (k === 'debutAge' && real.filter((x) => x.debut >= 2006).length >= 8) base = real.filter((x) => x.debut >= 2006);
-    const r = base.map((x) => x[k]).filter((v) => v != null && Number.isFinite(v));
+    const base = COMPLETE.has(k) ? real.filter(done) : real;
+    // debut age is era-adjusted like the stats: notable players debuted at 22.1 in the 1980s and 20.6 since the 2006 age-19 rule the sim drafts under
+    const r = base.map((x) => (k === 'debutAge' ? x[k] + DEBUT_SHIFT(x.debut) : x[k])).filter((v) => v != null && Number.isFinite(v));
     const s = sim.map((x) => x[k]).filter((v) => v != null && Number.isFinite(v));
     if (r.length < 8 || s.length < 8) return;
     const d = ks(s, r), d0 = nullD(r, s.length), score = Math.max(0, Math.min(1, (1 - d) / (1 - d0)));
