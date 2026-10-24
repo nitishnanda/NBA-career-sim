@@ -7,7 +7,7 @@ require('../src/data.js'); require('../src/engine.js'); require('../src/league.j
 const real = require('../data/real-rank-profile.json'), turn = require('../data/real-scoring-turnover.json'); const T = NBA.tuning; const ITER = +process.argv[2] || 60; const SEASONS = +process.env.SEASONS || 50;
 if (process.env.START) Object.assign(T, JSON.parse(process.env.START));
 const KNOBS = { usgBase: [0.15, 0.23], usgPerSS: [0.003, 0.008], usgConvex: [0.00002, 0.0004], tsBase: [0.33, 0.44], tsPerSkill: [0.0015, 0.0045], usgTax: [0.1, 0.4], minsBase: [8, 16], minsPerOvr: [0.6, 1.3], minsCap: [34, 38.5], starTs: [0, 0.05], starReb: [0, 0.3], starAst: [0, 0.6], volSpread: [0, 2], astKnee: [7, 11], astK: [0.4, 0.95], rebKnee: [7, 11], rebK: [0.4, 0.95],
-  coTaxK: [0, 0.003], coTaxMax: [0.01, 0.06], capPts: [118, 170], formSd: [0.025, 0.08] };
+  coTaxK: [0, 0.004], coTaxDown: [0, 1], coTaxMax: [0.01, 0.06], capPts: [118, 170], formSd: [0.025, 0.08] };
 const W = { mpg: 1 / 1.0, usg: 1 / 4,   // usage barely counts: the sim's points-per-used-possession constant differs from Basketball-Reference's usage formula, and usage is never shown
   ts: 1 / 0.8, pts: 1 / 1.0, reb: 1 / 0.6, ast: 1 / 0.5, perf: 1 / 1.5 };
 const TAILS = { pts30: ['pts', 30], pts27: ['pts', 27], pts25: ['pts', 25], pts20: ['pts', 20], pts15: ['pts', 15], ast10: ['ast', 10], ast8: ['ast', 8], ast6: ['ast', 6], reb12: ['reb', 12], reb10: ['reb', 10], reb8: ['reb', 8], stl2: ['stl', 2], blk2: ['blk', 2] };
@@ -35,7 +35,7 @@ function evaluate() {
   Object.keys(TAILS).forEach((k) => { const sim = tl[k] / ns, re = real._tails[k]; lt += 0.8 * sq((sim - re) / Math.max(0.6, 0.12 * re)); });
   lt += 3 * sq((top / ns - real._tails.top_scorer) / 0.9);
   ['pts', 'reb', 'ast'].forEach((k) => { for (let i = 0; i < 4; i++) lh += sq((tm[k][i] / tm.n - TEAM[k][i]) / (k === 'pts' ? 0.5 : 0.3)); });
-  lh += sq((tm.two20 / tm.n - TEAM.two20) / 0.04) + sq((tm.two25 / tm.n - TEAM.two25) / 0.015) + sq((tm.three20 / tm.n - TEAM.three20) / 0.015);
+  lh += sq((tm.two20 / tm.n - TEAM.two20) / 0.025) + sq((tm.two25 / tm.n - TEAM.two25) / 0.015) + sq((tm.three20 / tm.n - TEAM.three20) / 0.015);
   const ddm = dd.reduce((a, b) => a + b, 0) / dd.length, dsd = Math.sqrt(dd.reduce((a, b) => a + sq(b - ddm), 0) / dd.length), rp = rep.reduce((a, b) => a + b, 0) / rep.length;
   lr += sq((rp - turn.top5_repeat) / 0.1) + sq((dsd - turn.top10_next_dppg_sd) / 0.15);
   loss += lt + lh + lr;
