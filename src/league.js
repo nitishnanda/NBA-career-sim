@@ -332,6 +332,10 @@
     // remember perf for MIP, and voter fatigue for repeat MVPs
     entries.forEach((e) => { e.p.prevPerf = e.l.perf; e.p.mvpRecent = 0; });
     const stand = L.teams.map((t) => ({ id: t.id, name: t.name, nick: t.nick, conf: t.conf, wins: t.wins, losses: t.losses }));
+    // each team's result this year (kept for the team pages)
+    const po = {}; playoffs.rounds.forEach((rd, ri) => rd.series.forEach((sr) => { po[sr.a.id] = po[sr.a.id] || 0; po[sr.b.id] = po[sr.b.id] || 0; po[sr.loser.id] = ri + 1; po[sr.winner.id] = Math.max(po[sr.winner.id], ri + 2); }));
+    const PO_TXT = ['Missed the playoffs', 'Lost in the first round', 'Lost in the conference semifinals', 'Lost in the conference finals', 'Lost in the NBA Finals', 'NBA champions'];
+    L.teams.forEach((t) => { const k = po[t.id] == null ? 0 : Math.min(5, po[t.id]); t.hist = (t.hist || []).concat([{ year: L.year, label: seasonLabel(L.year), w: t.wins, l: t.losses, po: k, text: PO_TXT[k] }]).slice(-12); });
     const res = { year: L.year, label: seasonLabel(L.year), awards, playoffs, standings: stand, leaders, leadersOthers, league, ranks: user ? { pts: rankOf('pts', 'user'), reb: rankOf('reb', 'user'), ast: rankOf('ast', 'user'), stl: rankOf('stl', 'user'), blk: rankOf('blk', 'user') } : null, entries };
     // history record
     L.history.push({ year: L.year, champion: playoffs.champion.name, mvp: awards.mvp && awards.mvp.name, dpoy: awards.dpoy && awards.dpoy.name, roy: awards.roy && awards.roy.name, scoring: awards.scoring && (awards.scoring.name + ' ' + awards.scoring.ppg.toFixed(1)) });

@@ -47,6 +47,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
       await page.click('button:has-text("Sim to All-Star")');
       await shot('06d-all-star');
       await page.click('nav button:has-text("Around the league")'); await shot('06f-league');
+      await page.click('.tlink >> nth=3'); await page.waitForSelector('text=Roster and stats'); await shot('06j-league-team'); await page.selectOption('.tsel', { index: 10 }); await page.waitForSelector('text=Roster and stats'); await page.click('button:has-text("← League")'); await page.waitForSelector('.tlink');
       await page.click('nav button:has-text("Team")'); await shot('06i-team');
       await page.click('nav button:has-text("Career")'); await shot('06g-career');
       await page.click('nav button:has-text("Season")');
