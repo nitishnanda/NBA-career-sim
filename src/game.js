@@ -589,7 +589,7 @@
   // ---------------------------------------------------------------- contracts and decisions
   function marketPct(st) {
     const p = st.player;
-    let v = ovr(p) - (p.age >= 33 ? 2 * (p.age - 32) : 0);
+    let v = ovr(p) - (p.age >= 33 ? 1.2 * (p.age - 32) : 0);
     const raw = marketCurve(v);
     const yrs = p.yearsPro;
     const maxPct = yrs >= 10 ? 0.35 : yrs >= 7 ? 0.3 : 0.25;
@@ -607,7 +607,7 @@
     const mk = marketPct(st);
     const baseSal = mk.pct * cap;
     const out = { age: p.age, ovr: Math.round(ovr(p)), expiring: c.left <= 0, contract: c, cap: r1(cap), marketSalary: r1(baseSal), team: L.teams[st.teamId].name };
-    const forceRetire = p.age >= 41 || (p.age >= 35 && mk.v < 57) || (p.age >= 25 && mk.v < 55) || (p.age >= 31 && mk.v < 60) || (c.left <= 0 && p.age >= 26 && mk.v < (p.age <= 27 ? 62 : 62 + (p.age - 27) * 1.7));
+    const forceRetire = p.age >= 41 || (p.age >= 35 && mk.v < 57) || (p.age >= 25 && mk.v < 55) || (p.age >= 31 && mk.v < 60) || (c.left <= 0 && p.age >= 26 && mk.v < (p.age <= 27 ? 62 : 62 + (p.age - 27) * 0.8));
     out.mustRetire = forceRetire;
     if (out.expiring) {
       const own = L.teams[st.teamId];

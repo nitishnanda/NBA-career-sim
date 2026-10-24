@@ -362,8 +362,9 @@
 
   // ------------------------------------------------------------ retirement / offseason
   function retireP(p) {
-    let h = p.age < 32 ? 0 : p.age < 34 ? 0.04 : p.age < 36 ? 0.14 : p.age < 38 ? 0.3 : p.age < 40 ? 0.55 : 0.9;
     const o = ovr(p);
+    let h = p.age < 32 ? 0 : p.age < 34 ? 0.03 : p.age < 36 ? 0.09 : p.age < 38 ? 0.18 : p.age < 40 ? 0.3 : p.age < 42 ? 0.5 : 0.9;
+    h *= clamp((80 - o) / 10, 0.12, 2.4);   // players still producing keep playing; the declining ones get squeezed out
     if (p.age >= 30 && o < 64) h += 0.18;
     return rand() < h * T.retireScale;
   }
