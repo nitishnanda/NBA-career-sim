@@ -239,7 +239,7 @@
         const x = ovr(p) - 60;
         // young players have a smaller impact on winning than their rating suggests
         const expF = 0.85 + 0.05 * Math.min(3, p.yearsPro || 0);
-        return (x <= 20 ? x : 20 + (x - 20) * 0.72) * (gp / 82) * expF;
+        return (x <= 20 ? x : 20 + (x - 20) * T.starWinK) * (gp / 82) * expF;
       }).sort((x, y) => y - x).slice(0, 4);
       t.S = sum(vals);
       t.pace = 99 + randn() * 1.4;
@@ -300,7 +300,7 @@
     L.lines = lines;
 
     // awards
-    const q65 = entries.filter((e) => e.l.gp >= 65);
+    const q65 = entries.filter((e) => e.l.gp >= T.awardMinGp);
     // Voting models fitted to real data (scripts/real-mvp-model.py, 1981-2025): MVP = conditional logit over the league's 14 best producers on production, team wins and scoring;
     // All-NBA = logistic on the same three. Voters' randomness is the Gumbel / logistic noise of those models, nothing else is bolted on.
     const gumbel = () => -Math.log(-Math.log(Math.max(1e-9, rand())));
