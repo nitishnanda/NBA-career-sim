@@ -72,12 +72,21 @@ else ARCHS.forEach((arch, ai) => {
   const mix = {}; (REAL[arch] || []).forEach((r) => { mix[r.pos] = (mix[r.pos] || 0) + 1; }); const pk = Object.keys(mix), tot = pk.reduce((t, k) => t + mix[k], 0);
   for (let i = 0; i < (arch === 'generational' ? NGEN : N); i++) {
     let u = rnd() * tot, pos = pk[0]; for (const k of pk) { u -= mix[k]; if (u <= 0) { pos = k; break; } }
-    const st = G.newCareer({ name: 'x', pos: ['PG', 'SG', 'SF', 'PF', 'C'].includes(pos) ? pos : 'SF', arch, home: 'Ohio', seed: 777000 + ['generational', 'scorer', 'dominator', 'shooter', 'twoway', 'defender'].indexOf(arch) * 1000 + i });
+    const st = G.newCareer({ name: 'x', pos: ['PG', 'SG', 'SF', 'PF', 'C'].includes(pos) ? pos : 'SF', arch, home: 'Ohio', seed: 777000 + (+process.env.SEEDOFF || 0) * 100000 + ['generational', 'scorer', 'dominator', 'shooter', 'twoway', 'defender'].indexOf(arch) * 1000 + i });
     G.auto(st); const f = features(st); if (!f) continue; const c = classify(f); if (c === arch) (pool[c] = pool[c] || []).push(f);   // a career made as archetype X that became a notable X, compared with real X careers
   }
 });
 
 if (process.env.DUMP) { require('fs').writeFileSync(process.env.DUMP, JSON.stringify(pool)); console.log('dumped', Object.keys(pool).map((k) => k + ' ' + pool[k].length).join(', ')); process.exit(0); }
+// pooled real reference for the copy check
+const CREF = (() => {
+  const R = []; Object.keys(REAL).forEach((a) => REAL[a].filter(done).forEach((r) => { if (CF.every((k) => r[k] != null && Number.isFinite(r[k]))) R.push(Object.assign({ __arch: a }, r)); }));
+  const mu = CF.map((k) => mean(R.map((x) => x[k]))), sd = CF.map((k, i) => Math.sqrt(mean(R.map((x) => (x[k] - mu[i]) ** 2))) + 1e-9);
+  const z = (x) => CF.map((k, i) => (x[k] - mu[i]) / sd[i]), dist = (p, q) => Math.sqrt(p.reduce((t, v, i) => t + (v - q[i]) ** 2, 0)), Z = R.map(z);
+  const nn = Z.map((p, i) => Math.min(...Z.filter((_, j) => j !== i).map((q) => dist(p, q))));
+  const srt = nn.slice().sort((p, q) => p - q);
+  return { R, Z, z, dist, nn, thr: srt[Math.floor(0.05 * (srt.length - 1))], hi: srt[Math.floor(0.95 * (srt.length - 1))] };
+})();
 const SCORE = process.env.LOAD ? (process.env.SCORE_ARCHS || 'generational,scorer,dominator,shooter,twoway,defender').split(',') : ARCHS;
 const out = {}; let lines = [];
 SCORE.forEach((arch) => {
@@ -95,28 +104,27 @@ SCORE.forEach((arch) => {
   const rng = {}; PLAUS.forEach((k) => { const v = real.filter((x) => !COMPLETE.has(k) || done(x)).map((x) => x[k]).filter((z) => z != null); if (v.length >= 5) rng[k] = [Math.min(...v), Math.max(...v)]; });
   const plaus = sim.filter((f) => Object.keys(rng).every((k) => f[k] == null || (f[k] >= rng[k][0] - 1e-9 && f[k] <= rng[k][1] + 1e-9))).length / sim.length;
   const fails = Object.keys(rng).map((k) => [k, sim.filter((f) => f[k] != null && (f[k] < rng[k][0] - 1e-9 || f[k] > rng[k][1] + 1e-9)).length]).filter((x) => x[1]).sort((a, b) => b[1] - a[1]);
-  // copy check: is a sim career closer to ONE real career than real careers are to their own nearest twin?
-  // standardized distance over the career profile; threshold = 5th percentile of real-to-real nearest-neighbour distance, so ~5% of real careers are "copies" too
-  const R = real.filter(done).filter((x) => CF.every((k) => x[k] != null && Number.isFinite(x[k])));
+  // copy check: is a sim career a near-clone of ANY real notable career? (what people notice: "wait, this is just Kobe")
+  // reference = all finished real careers of every archetype (~250), stats standardized over that pool; the copy line is the 5th percentile
+  // of real careers' distance to their nearest other real career, so ~5% of real careers are "copies" of someone too (baseline shown per archetype)
   let copy = null;
-  if (R.length >= 8) {
-    const mu = CF.map((k) => mean(R.map((x) => x[k]))), sd = CF.map((k, i) => Math.sqrt(mean(R.map((x) => (x[k] - mu[i]) ** 2))) + 1e-9);
-    const z = (x) => CF.map((k, i) => (x[k] - mu[i]) / sd[i]), RZ = R.map(z);
-    const dist = (a, b) => Math.sqrt(a.reduce((t, v, i) => t + (v - b[i]) ** 2, 0));
-    const nnReal = RZ.map((a, i) => Math.min(...RZ.filter((_, j) => j !== i).map((b) => dist(a, b)))).sort((p, q) => p - q);
-    const thr = nnReal[Math.floor(0.05 * (nnReal.length - 1))], who = {};
-    const nnSim = sim.filter((f) => CF.every((k) => f[k] != null)).map((f) => { const a = z(f); let best = Infinity, bi = 0; RZ.forEach((b, j) => { const d = dist(a, b); if (d < best) { best = d; bi = j; } }); if (best < thr) who[R[bi].player] = (who[R[bi].player] || 0) + 1; return best; });
-    copy = { rate: nnSim.filter((d) => d < thr).length / nnSim.length, thr, medSim: nnSim.slice().sort((p, q) => p - q)[Math.floor(nnSim.length / 2)], medReal: nnReal[Math.floor(nnReal.length / 2)], who: Object.entries(who).sort((p, q) => q[1] - p[1]).slice(0, 3) };
+  {
+    const a = (f) => { const v = CREF.z(f); let best = Infinity, bi = -1; CREF.Z.forEach((b, j) => { if (b === f.__z) return; const d = CREF.dist(v, b); if (d < best) { best = d; bi = j; } }); return [best, bi]; };
+    const who = {}, nnSim = sim.filter((f) => CF.every((k) => f[k] != null)).map((f) => { const [d, j] = a(f); if (d < CREF.thr) who[CREF.R[j].player] = (who[CREF.R[j].player] || 0) + 1; return d; });
+    const realHere = CREF.R.map((r, j) => [r, CREF.nn[j]]).filter(([r]) => r.__arch === arch);
+    copy = { rate: nnSim.filter((d) => d < CREF.thr).length / nnSim.length, base: realHere.filter(([, d]) => d < CREF.thr).length / Math.max(1, realHere.length), thr: CREF.thr,
+      far: nnSim.filter((d) => d > CREF.hi).length / nnSim.length, farBase: realHere.filter(([, d]) => d > CREF.hi).length / Math.max(1, realHere.length),
+      medSim: nnSim.slice().sort((p, q) => p - q)[Math.floor(nnSim.length / 2)], medReal: realHere.map(([, d]) => d).sort((p, q) => p - q)[Math.floor(realHere.length / 2)], who: Object.entries(who).sort((p, q) => q[1] - p[1]).slice(0, 3) };
   }
-  out[arch] = { score: sc / n, plaus, copy: copy && copy.rate, nSim: sim.length, nReal: real.length, rows };
-  lines.push(`\n==== ${arch}: realism ${(100 * sc / n).toFixed(0)}% | plausible careers ${(100 * plaus).toFixed(0)}% | copies ${copy ? (100 * copy.rate).toFixed(0) + '%' : 'n/a'} | ${sim.length} sim vs ${real.length} real careers`);
-  if (copy) lines.push(`  copy check: nearest real career typically ${copy.medSim.toFixed(2)} away (real players to their nearest twin: ${copy.medReal.toFixed(2)}); copy line ${copy.thr.toFixed(2)}` + (copy.who.length ? '; closest copies of ' + copy.who.map(([p, c]) => p + ' x' + c).join(', ') : ''));
+  out[arch] = { score: sc / n, plaus, copy: copy.rate, far: copy.far, sweet: 1 - copy.rate - copy.far, nSim: sim.length, nReal: real.length, rows };
+  lines.push(`\n==== ${arch}: realism ${(100 * sc / n).toFixed(0)}% | sweet spot ${(100 * (1 - copy.rate - copy.far)).toFixed(0)}% (real ${(100 * (1 - copy.base - copy.farBase)).toFixed(0)}%) | copies ${(100 * copy.rate).toFixed(0)}% (real ${(100 * copy.base).toFixed(0)}%) | unprecedented ${(100 * copy.far).toFixed(0)}% (real ${(100 * copy.farBase).toFixed(0)}%) | inside every real range ${(100 * plaus).toFixed(0)}% | ${sim.length} sim vs ${real.length} real careers`);
+  lines.push(`  copy check: nearest real career typically ${copy.medSim.toFixed(2)} away (real ${arch}s to their nearest other real career: ${copy.medReal.toFixed(2)}); copy line ${copy.thr.toFixed(2)}, unprecedented beyond ${CREF.hi.toFixed(2)}` + (copy.who.length ? '; closest copies of ' + copy.who.map(([p, c]) => p + ' x' + c).join(', ') : ''));
   lines.push('  ' + 'feature'.padEnd(26) + 'real'.padStart(9) + 'sim'.padStart(9) + 'match'.padStart(8));
   if (fails.length) lines.push('  outside the real range most often: ' + fails.slice(0, 4).map(([k, c]) => k + ' ' + Math.round(100 * c / sim.length) + '% (real ' + rng[k].map((v) => +v.toFixed(1)).join('-') + ')').join(', '));
   rows.forEach((r) => lines.push('  ' + r.label.padEnd(26) + r.real.toFixed(1).padStart(9) + r.sim.toFixed(1).padStart(9) + ((100 * r.score).toFixed(0) + '%').padStart(8)));
 });
 console.log(lines.join('\n'));
 const all = Object.values(out), cps = all.filter((x) => x.copy != null);
-console.log('\nOVERALL realism', (100 * mean(all.map((x) => x.score))).toFixed(0) + '%', '| plausible careers', (100 * mean(all.map((x) => x.plaus))).toFixed(0) + '%', '| copies', (100 * mean(cps.map((x) => x.copy))).toFixed(0) + '% (real baseline 5%)');
+console.log('\nOVERALL realism', (100 * mean(all.map((x) => x.score))).toFixed(0) + '%', '| sweet spot', (100 * mean(all.map((x) => x.sweet))).toFixed(0) + '% (real 90%)', '| copies', (100 * mean(cps.map((x) => x.copy))).toFixed(0) + '% (real 5%)', '| unprecedented', (100 * mean(all.map((x) => x.far))).toFixed(0) + '% (real 5%)', '| inside every real range', (100 * mean(all.map((x) => x.plaus))).toFixed(0) + '%');
 console.log('(* career totals use finished real careers: retired by 2024, or debuted by 2008)');
 if (process.env.JSON) require('fs').writeFileSync(process.env.JSON, JSON.stringify(out));

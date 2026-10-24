@@ -1,5 +1,6 @@
 // Sim league: same persistence metrics as top-persistence.py
 require('../src/data.js'); require('../src/engine.js'); require('../src/league.js'); require('../src/game.js');
+if (process.env.TUNE) Object.assign(NBA.tuning, JSON.parse(process.env.TUNE));
 NBA.setSeed(777); const L = NBA.newLeague(2027, { real: true }); const tops = [];
 for (let y = 0; y < 40; y++) { const r = NBA.simSeason(L, null); tops.push(r.entries.filter((x) => x.l.gp >= 58).sort((a, b) => b.l.pts - a.l.pts).map((x) => x.p.id)); NBA.offseason(L, { draft: true }); }
 [5, 10].forEach((k) => { const ov = []; for (let y = 1; y < tops.length; y++) ov.push(tops[y].slice(0, k).filter((i) => tops[y - 1].slice(0, k).includes(i)).length); console.log('sim top', k, 'repeat from prior year: mean', (ov.reduce((a, b) => a + b, 0) / ov.length).toFixed(2)); });

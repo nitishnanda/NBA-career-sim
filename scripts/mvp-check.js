@@ -1,5 +1,6 @@
 // How often do generational careers win MVP / FMVP / All-NBA 1st given their lines?
 require('../src/data.js'); require('../src/engine.js'); require('../src/league.js'); const N = require('../src/game.js'); const G = N.Game;
+if (process.env.TUNE) Object.assign(NBA.tuning, JSON.parse(process.env.TUNE));
 const rows = []; let careers = 0; const tot = { mvp: 0, fmvp: 0, a1: 0, titles: 0, seasons: 0, tdSeasons: 0 };
 NBA.onSeasonLog = (st, rec) => rows.push({ pr: rec.perfRank, pts: rec.pts, reb: rec.reb, ast: rec.ast, gp: rec.gp, wins: rec.wins, aw: rec.awards, po: rec.playoffText, rating: rec.avgRating });
 for (let i = 0; i < +(process.env.N || 60); i++) {

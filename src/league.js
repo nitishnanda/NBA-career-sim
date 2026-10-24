@@ -393,10 +393,13 @@
 
   // ------------------------------------------------------------ retirement / offseason
   function retireP(p) {
-    const o = ovr(p);
+    const o = ovr(p), st = (p.tr && p.tr.stay) || 0;
     let h = p.age < 32 ? 0 : p.age < 34 ? 0.03 : p.age < 36 ? 0.09 : p.age < 38 ? 0.18 : p.age < 40 ? 0.3 : p.age < 42 ? 0.5 : 0.9;
     h *= clamp((T.retireKnee - o) / T.retireSpan, T.retireFloor, 2.0);   // players still producing keep playing; the declining ones get squeezed out
+    // fading players can be out of the league at 29-31 (no offers, injuries, overseas); stars still producing do not walk away that early
+    if (p.age >= 29 && p.age < 32) h += T.earlyExit * (p.age - 28) * clamp((80 - o) / 10, 0, 1.5);
     if (p.age >= 30 && o < 64) h += 0.18;
+    h *= Math.exp(-T.trStay * st * (o >= 80 ? 0.4 : 1));   // some walk away early, some hang on as role players into their late 30s; stars' choices vary less
     return rand() < h * T.retireScale;
   }
 

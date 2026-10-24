@@ -58,7 +58,7 @@
       comps: 'Curry · Klay · Reggie Miller · Ray Allen',
       boost: { inside: -2, mid: 20, three: 38, ft: 32, handling: 14, passing: 6, iq: 14, reb: 0, perD: 2, rimP: -14, ath: 2, dur: 4 },
       weights: { inside: .04, mid: .14, three: .26, ft: .1, handling: .1, passing: .06, iq: .12, reb: .01, perD: .02, rimP: 0, ath: .08, dur: .07 },
-      usg: -0.04, ts: 0.012, declineMult: 0.55, ceilingBonus: -1,
+      usg: -0.04, ts: 0.012, declineMult: 0.8, ceilingBonus: -1,
     },
     dominator: {
       name: 'Box-Score Dominator', icon: '📊',
@@ -66,7 +66,7 @@
       comps: 'Oscar · Westbrook · Magic · Luka · Jokic',
       boost: { inside: 12, mid: 6, three: 4, ft: 2, handling: 24, passing: 38, iq: 18, reb: 8, perD: 0, rimP: -10, ath: 18, dur: 6 },
       weights: { inside: .09, mid: .06, three: .06, ft: .03, handling: .1, passing: .16, iq: .14, reb: .15, perD: .03, rimP: .01, ath: .12, dur: .05 },
-      usg: 0.03, ts: 0.03, declineMult: 1.3, ceilingBonus: 0,
+      usg: 0.045, ts: 0.03, declineMult: 1.3, ceilingBonus: 0,
     },
   };
 

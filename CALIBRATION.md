@@ -272,3 +272,18 @@ like real recruits of its star rating (2009-24 draft ages); more and longer majo
 retirement depends less on talent; archetype TS% offsets fitted to the real (era-adjusted) archetypes; scorers' perimeter defence up (real-like steals);
 role players' minutes swing more year to year.
 - Copy check (v26+): a sim career counts as a copy when it sits closer to one finished real career (standardized over 15 career stats) than the 5th percentile of real careers to their own nearest real twin, so ~5% is the real baseline. First run: 12% overall (gens 7%, scorers 6%, defenders 3%, two-way 10%, shooters 19%, dominators 23%); the shooter and dominator "copies" are of role-player profiles (Wesley Matthews, Grant Hill, Fat Lever) and come from sim careers clustering, with only 11-14 finished real careers setting the line.
+
+## v27: individual traits, career variety, copy check v2
+
+- The first copy check (nearest real career within the same archetype) over-counted for small groups: with 11-14 finished real shooters/dominators the
+  copy line was the gap between the two most similar real players (Matthews-Redick, Drexler-Hill), and award stats that are zero for everyone did not
+  separate anyone (a 15.5/10.8/7.2 sim dominator was flagged as a "Fat Lever copy"). v2 compares every sim career with ALL ~250 finished real notable
+  careers, stats standardized over that pool; copy = closer than the 5th percentile of real-to-real nearest distances; unprecedented = farther than the
+  95th; the sweet spot in between holds 90% of real careers. `scripts/realism-spread.js <dumpdir>` shows sim vs real spread per stat.
+- Diagnosis: sim careers were far too uniform (final age +-1 year vs +-3 real, career length, TS%, assists, rebounds, peak age, durability).
+- Fix: hidden per-player traits (`p.tr`): passing and rebounding instinct, shooting efficiency, development speed, aging speed, appetite to keep playing,
+  plus a wider injury-proneness spread. Fading players can be out of the league at 29-31; veterans who love the game keep getting minimum deals.
+- League refit on the new engine (`fit-league-profile.js`, loss 134 -> 59); franchise usage boost halved; star rating shocks smaller (top-scorer turnover).
+- Result (150 careers per archetype; scorer/shooter/defender re-checked with 300-600): realism 85%, sweet spot 87% (real 90%), copies: gens 0%, dominators 0%,
+  two-way 0%, defenders 1%, shooters 4%, scorers 8% (real scorers: 7%). Generational picks average 1.8 MVPs (real gens 1.9); the ones that reach the gen bar
+  play ~2 seasons longer and make ~3 more All-Star teams than real gens.

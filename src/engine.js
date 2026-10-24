@@ -40,18 +40,19 @@
   // ---------------------------------------------------------------- tuning knobs
   const T = {
     pace: 99,            // possessions per game, 2025-ish
-    usgBase: 0.16785, usgPerSS: 0.00584, usgConvex: 0.00003,
-    tsBase: 0.3582, tsPerSkill: 0.00265, tsEra: 0.012, usgTax: 0.16733,
-    minsBase: 11.78235, minsPerOvr: 0.91888, minsCap: 35.74855,
+    usgBase: 0.17735, usgPerSS: 0.00602, usgConvex: 2e-05,
+    tsBase: 0.3582, tsPerSkill: 0.00265, tsEra: 0.012, usgTax: 0.15791,
+    minsBase: 12.37978, minsPerOvr: 0.93296, minsCap: 35.18803,
     declineScale: 1.5,
     ceilA: 55, ceilLambda: 11.5, ceilK: 1.3,
     winsPerPt: 0.95, formSd: 0.07, winsCoreAvg: 48, ovrStretch: 1.3,
-    growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.8, retireScale: 0.9,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
-    astKnee: 7, astK: 0.88991, rebKnee: 7.23037, rebK: 0.76112,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
-    volSpread: 0.43399, frUsg: 0.05, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.06, genSecGap: 4, gdReb: 1.0, gdAst: 1.06, gdTs: 0.03, gdMins: 1.5, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 2.2, majorRate: 0.035, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.2, minsNoiseNon: 1.6, starAgeKeep: 0.6, genCeilDrop: 2.5,
-    starTs: 0.05, starReb: 0.06173, starAst: 0.32616,   // extra production for the very best (fitted to the real top of the league)
+    growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.65, retireScale: 0.9,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
+    astKnee: 7, astK: 0.7, rebKnee: 7, rebK: 0.71253,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
+    volSpread: 0, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.06, genSecGap: 4, gdReb: 1.0, gdAst: 1.06, gdTs: 0.03, gdMins: 1.5, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 2.2, majorRate: 0.025, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: 2.0,
+    starTs: 0.02925, starReb: 0.23948, starAst: 0.22211,   // extra production for the very best (fitted to the real top of the league)
   };
   NBA.tuning = T;
+  const NOTR = { pass: 0, glass: 0, eff: 0, dev: 0, aging: 0, stay: 0 };   // players from saves made before the traits existed
 
   // ---------------------------------------------------------------- ratings
   function weightsFor(arch, sec) {
@@ -126,6 +127,10 @@
       stars: o.stars || 0, yearsPro: 0, teamId: -1, injuries: [],
       vol: o.vol != null ? o.vol : clamp(randn() * 0.08, -0.2, 0.2),
     };
+    // hidden individual traits: real players of one archetype differ a lot in playmaking, rebounding instinct, shooting efficiency,
+    // how fast they develop, how fast they age and how long they want to keep playing (spreads fitted in scripts/realism-test.js)
+    p.tr = o.tr || { pass: clamp(randn(), -2.5, 2.5), glass: clamp(randn(), -2.5, 2.5), eff: clamp(randn(), -2.5, 2.5), dev: clamp(randn(), -2.5, 2.5), aging: clamp(randn(), -2.5, 2.5), stay: clamp(randn(), -2.5, 2.5) };
+    if (o.prone == null) p.prone = clamp(1 + randn() * T.proneSd, 0.4, 2.5);
     p.target = buildTarget(p, p.ceiling);
     const gap = o.gap != null ? o.gap : 10 + rand() * 12;
     p.attrs = {};
@@ -183,14 +188,14 @@
   function progress(p) {
     const next = p.age + 1;
     const wk = 0.88 + 0.24 * p.work;
-    const shock = randn() * T.shockScale * (next <= 22 ? 1.9 : next <= 26 ? 1.1 : 0.7) * (next > 23 && ovrOf(p) >= 84 ? 0.5 : 1); // stars' ratings move steadily; the prime is not a coin flip
+    const shock = randn() * T.shockScale * (next <= 22 ? 1.9 : next <= 26 ? 1.1 : 0.7) * (next > 23 && ovrOf(p) >= 84 ? T.starShock : 1); // stars' ratings move steadily; the prime is not a coin flip
     const before = ovrOf(p);
     ATTRS.forEach((a) => {
       let cur = p.attrs[a];
-      const rate = growthRate(next) * wk;
+      const rate = growthRate(next) * wk * (1 + T.trDev * (p.tr || NOTR).dev);   // early and late bloomers
       if (rate > 0) cur += (p.target[a] - cur) * rate + randn() * (next <= 21 ? 1.6 : 0.9) + shock;
       else cur += shock * 0.35;
-      cur -= declineFor(a, next, p) * (0.85 + rand() * 0.3);
+      cur -= declineFor(a, next, p) * (0.85 + rand() * 0.3) * Math.exp(T.trAging * (p.tr || NOTR).aging - T.trAging * T.trAging / 2);   // some age at 30, some play at 40
       p.attrs[a] = clamp(cur, 8, 99);
     });
     // young players do not lose rating through noise alone; small dips only appear in the mid/late 20s
@@ -259,7 +264,8 @@
     ts += (c.tsAdj || 0) - (c.rookie ? 0.012 : 0);
     const top = clamp((o - 90) / 9, 0, 1);
     ts += T.starTs * top;
-    if (p.arch === 'dominator' && p.sec === 'generational') ts += T.gdTs;   // Jokic-type efficiency on top of the volume
+    if (p.arch === 'dominator' && p.sec === 'generational') ts += T.gdTs;
+    ts += T.trEff * ((p.tr || NOTR).eff);   // some players are just more (or less) efficient than their ratings suggest   // Jokic-type efficiency on top of the volume
     ts = clamp(ts, 0.44, 0.7);
 
     const pace = c.pace || T.pace;
@@ -279,7 +285,7 @@
     const hi = Math.max(0, pts - 27), astTrade = Math.max(0.52, 1 - 0.07 * gl * hi), rebTrade = Math.max(0.66, 1 - 0.04 * gl * hi);
     return {
       ovr: o, usg, ts, mins, pace,
-      pts, reb: reb36 * k * (c.rebMult || 1) * (p.arch === 'dominator' && p.sec === 'generational' ? T.gdReb : 1) * (p.arch === 'generational' ? 0.97 : 1) * rebTrade * (1 + T.starReb * top), ast: ast36 * k * (c.astMult || 1) * (p.arch === 'dominator' && p.sec === 'generational' ? T.gdAst : 1) * (p.arch === 'generational' ? 0.88 : 1) * astTrade * (1 + T.starAst * top),
+      pts, reb: reb36 * k * Math.exp(T.trGlass * (p.tr || NOTR).glass - T.trGlass * T.trGlass / 2) * (c.rebMult || 1) * (p.arch === 'dominator' && p.sec === 'generational' ? T.gdReb : 1) * (p.arch === 'generational' ? 0.97 : 1) * rebTrade * (1 + T.starReb * top), ast: ast36 * k * Math.exp(T.trPass * (p.tr || NOTR).pass - T.trPass * T.trPass / 2) * (c.astMult || 1) * (p.arch === 'dominator' && p.sec === 'generational' ? T.gdAst : 1) * (p.arch === 'generational' ? 0.88 : 1) * astTrade * (1 + T.starAst * top),
       stl: stl36 * k, blk: blk36 * k, tov: tov36 * k,
     };
   }
