@@ -101,7 +101,10 @@ SCORE.forEach((arch) => {
   if (sim.length < 8) { lines.push(`\n${arch}: only ${sim.length} sim careers classified as ${arch}; not enough to score`); return; }
   const rows = []; let sc = 0, n = 0;
   FEATS.forEach(([k, label]) => {
-    const r = (COMPLETE.has(k) ? real.filter(done) : real).map((x) => x[k]).filter((v) => v != null && Number.isFinite(v));
+    let base = COMPLETE.has(k) ? real.filter(done) : real;
+    // debut age depends on the draft rules: the sim drafts under today's (age 19, since 2006), so compare with careers that started under them when there are enough
+    if (k === 'debutAge' && real.filter((x) => x.debut >= 2006).length >= 8) base = real.filter((x) => x.debut >= 2006);
+    const r = base.map((x) => x[k]).filter((v) => v != null && Number.isFinite(v));
     const s = sim.map((x) => x[k]).filter((v) => v != null && Number.isFinite(v));
     if (r.length < 8 || s.length < 8) return;
     const d = ks(s, r), d0 = nullD(r, s.length), score = Math.max(0, Math.min(1, (1 - d) / (1 - d0)));
