@@ -325,7 +325,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       comps: 'Curry · Klay · Reggie Miller · Ray Allen',
       boost: { inside: -2, mid: 20, three: 38, ft: 32, handling: 14, passing: 6, iq: 14, reb: 0, perD: 2, rimP: -14, ath: 2, dur: 4 },
       weights: { inside: .04, mid: .14, three: .26, ft: .1, handling: .1, passing: .06, iq: .12, reb: .01, perD: .02, rimP: 0, ath: .08, dur: .07 },
-      usg: -0.04, ts: 0.012, declineMult: 0.55, ceilingBonus: -1,
+      usg: -0.04, ts: 0.012, declineMult: 0.8, ceilingBonus: -1,
     },
     dominator: {
       name: 'Box-Score Dominator', icon: '📊',
@@ -333,7 +333,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       comps: 'Oscar · Westbrook · Magic · Luka · Jokic',
       boost: { inside: 12, mid: 6, three: 4, ft: 2, handling: 24, passing: 38, iq: 18, reb: 8, perD: 0, rimP: -10, ath: 18, dur: 6 },
       weights: { inside: .09, mid: .06, three: .06, ft: .03, handling: .1, passing: .16, iq: .14, reb: .15, perD: .03, rimP: .01, ath: .12, dur: .05 },
-      usg: 0.03, ts: 0.03, declineMult: 1.3, ceilingBonus: 0,
+      usg: 0.045, ts: 0.03, declineMult: 1.3, ceilingBonus: 0,
     },
   };
 
@@ -430,18 +430,19 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   // ---------------------------------------------------------------- tuning knobs
   const T = {
     pace: 99,            // possessions per game, 2025-ish
-    usgBase: 0.16785, usgPerSS: 0.00584, usgConvex: 0.00003,
-    tsBase: 0.3582, tsPerSkill: 0.00265, tsEra: 0.012, usgTax: 0.16733,
-    minsBase: 11.78235, minsPerOvr: 0.91888, minsCap: 35.74855,
+    usgBase: 0.17735, usgPerSS: 0.00602, usgConvex: 2e-05,
+    tsBase: 0.3582, tsPerSkill: 0.00265, tsEra: 0.012, usgTax: 0.15791,
+    minsBase: 12.37978, minsPerOvr: 0.93296, minsCap: 35.18803,
     declineScale: 1.5,
     ceilA: 55, ceilLambda: 11.5, ceilK: 1.3,
     winsPerPt: 0.95, formSd: 0.07, winsCoreAvg: 48, ovrStretch: 1.3,
-    growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.8, retireScale: 0.9,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
-    astKnee: 7, astK: 0.88991, rebKnee: 7.23037, rebK: 0.76112,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
-    volSpread: 0.43399, frUsg: 0.05, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.06, genSecGap: 4, gdReb: 1.0, gdAst: 1.06, gdTs: 0.03, gdMins: 1.5, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 2.2, majorRate: 0.035, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.2, minsNoiseNon: 1.6, starAgeKeep: 0.6, genCeilDrop: 2.5,
-    starTs: 0.05, starReb: 0.06173, starAst: 0.32616,   // extra production for the very best (fitted to the real top of the league)
+    growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.65, retireScale: 0.9,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
+    astKnee: 7, astK: 0.7, rebKnee: 7, rebK: 0.71253,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
+    volSpread: 0, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.06, genSecGap: 4, gdReb: 1.0, gdAst: 1.06, gdTs: 0.03, gdMins: 1.5, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 2.2, majorRate: 0.025, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: 2.0,
+    starTs: 0.02925, starReb: 0.23948, starAst: 0.22211,   // extra production for the very best (fitted to the real top of the league)
   };
   NBA.tuning = T;
+  const NOTR = { pass: 0, glass: 0, eff: 0, dev: 0, aging: 0, stay: 0 };   // players from saves made before the traits existed
 
   // ---------------------------------------------------------------- ratings
   function weightsFor(arch, sec) {
@@ -516,6 +517,10 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       stars: o.stars || 0, yearsPro: 0, teamId: -1, injuries: [],
       vol: o.vol != null ? o.vol : clamp(randn() * 0.08, -0.2, 0.2),
     };
+    // hidden individual traits: real players of one archetype differ a lot in playmaking, rebounding instinct, shooting efficiency,
+    // how fast they develop, how fast they age and how long they want to keep playing (spreads fitted in scripts/realism-test.js)
+    p.tr = o.tr || { pass: clamp(randn(), -2.5, 2.5), glass: clamp(randn(), -2.5, 2.5), eff: clamp(randn(), -2.5, 2.5), dev: clamp(randn(), -2.5, 2.5), aging: clamp(randn(), -2.5, 2.5), stay: clamp(randn(), -2.5, 2.5) };
+    if (o.prone == null) p.prone = clamp(1 + randn() * T.proneSd, 0.4, 2.5);
     p.target = buildTarget(p, p.ceiling);
     const gap = o.gap != null ? o.gap : 10 + rand() * 12;
     p.attrs = {};
@@ -573,14 +578,14 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   function progress(p) {
     const next = p.age + 1;
     const wk = 0.88 + 0.24 * p.work;
-    const shock = randn() * T.shockScale * (next <= 22 ? 1.9 : next <= 26 ? 1.1 : 0.7) * (next > 23 && ovrOf(p) >= 84 ? 0.5 : 1); // stars' ratings move steadily; the prime is not a coin flip
+    const shock = randn() * T.shockScale * (next <= 22 ? 1.9 : next <= 26 ? 1.1 : 0.7) * (next > 23 && ovrOf(p) >= 84 ? T.starShock : 1); // stars' ratings move steadily; the prime is not a coin flip
     const before = ovrOf(p);
     ATTRS.forEach((a) => {
       let cur = p.attrs[a];
-      const rate = growthRate(next) * wk;
+      const rate = growthRate(next) * wk * (1 + T.trDev * (p.tr || NOTR).dev);   // early and late bloomers
       if (rate > 0) cur += (p.target[a] - cur) * rate + randn() * (next <= 21 ? 1.6 : 0.9) + shock;
       else cur += shock * 0.35;
-      cur -= declineFor(a, next, p) * (0.85 + rand() * 0.3);
+      cur -= declineFor(a, next, p) * (0.85 + rand() * 0.3) * Math.exp(T.trAging * (p.tr || NOTR).aging - T.trAging * T.trAging / 2);   // some age at 30, some play at 40
       p.attrs[a] = clamp(cur, 8, 99);
     });
     // young players do not lose rating through noise alone; small dips only appear in the mid/late 20s
@@ -649,7 +654,8 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     ts += (c.tsAdj || 0) - (c.rookie ? 0.012 : 0);
     const top = clamp((o - 90) / 9, 0, 1);
     ts += T.starTs * top;
-    if (p.arch === 'dominator' && p.sec === 'generational') ts += T.gdTs;   // Jokic-type efficiency on top of the volume
+    if (p.arch === 'dominator' && p.sec === 'generational') ts += T.gdTs;
+    ts += T.trEff * ((p.tr || NOTR).eff);   // some players are just more (or less) efficient than their ratings suggest   // Jokic-type efficiency on top of the volume
     ts = clamp(ts, 0.44, 0.7);
 
     const pace = c.pace || T.pace;
@@ -669,7 +675,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const hi = Math.max(0, pts - 27), astTrade = Math.max(0.52, 1 - 0.07 * gl * hi), rebTrade = Math.max(0.66, 1 - 0.04 * gl * hi);
     return {
       ovr: o, usg, ts, mins, pace,
-      pts, reb: reb36 * k * (c.rebMult || 1) * (p.arch === 'dominator' && p.sec === 'generational' ? T.gdReb : 1) * (p.arch === 'generational' ? 0.97 : 1) * rebTrade * (1 + T.starReb * top), ast: ast36 * k * (c.astMult || 1) * (p.arch === 'dominator' && p.sec === 'generational' ? T.gdAst : 1) * (p.arch === 'generational' ? 0.88 : 1) * astTrade * (1 + T.starAst * top),
+      pts, reb: reb36 * k * Math.exp(T.trGlass * (p.tr || NOTR).glass - T.trGlass * T.trGlass / 2) * (c.rebMult || 1) * (p.arch === 'dominator' && p.sec === 'generational' ? T.gdReb : 1) * (p.arch === 'generational' ? 0.97 : 1) * rebTrade * (1 + T.starReb * top), ast: ast36 * k * Math.exp(T.trPass * (p.tr || NOTR).pass - T.trPass * T.trPass / 2) * (c.astMult || 1) * (p.arch === 'dominator' && p.sec === 'generational' ? T.gdAst : 1) * (p.arch === 'generational' ? 0.88 : 1) * astTrade * (1 + T.starAst * top),
       stl: stl36 * k, blk: blk36 * k, tov: tov36 * k,
     };
   }
@@ -1149,10 +1155,13 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 
   // ------------------------------------------------------------ retirement / offseason
   function retireP(p) {
-    const o = ovr(p);
+    const o = ovr(p), st = (p.tr && p.tr.stay) || 0;
     let h = p.age < 32 ? 0 : p.age < 34 ? 0.03 : p.age < 36 ? 0.09 : p.age < 38 ? 0.18 : p.age < 40 ? 0.3 : p.age < 42 ? 0.5 : 0.9;
     h *= clamp((T.retireKnee - o) / T.retireSpan, T.retireFloor, 2.0);   // players still producing keep playing; the declining ones get squeezed out
+    // fading players can be out of the league at 29-31 (no offers, injuries, overseas); stars still producing do not walk away that early
+    if (p.age >= 29 && p.age < 32) h += T.earlyExit * (p.age - 28) * clamp((80 - o) / 10, 0, 1.5);
     if (p.age >= 30 && o < 64) h += 0.18;
+    h *= Math.exp(-T.trStay * st * (o >= 80 ? 0.4 : 1));   // some walk away early, some hang on as role players into their late 30s; stars' choices vary less
     return rand() < h * T.retireScale;
   }
 
@@ -2029,7 +2038,9 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const mk = marketPct(st);
     const baseSal = mk.pct * cap;
     const out = { age: p.age, ovr: Math.round(ovr(p)), expiring: c.left <= 0, contract: c, cap: r1(cap), marketSalary: r1(baseSal), team: L.teams[st.teamId].name };
-    const forceRetire = p.age >= 41 || (p.age >= 35 && mk.v < 57) || (p.age >= 25 && mk.v < 55) || (p.age >= 31 && mk.v < 60) || (c.left <= 0 && p.age >= 26 && mk.v < (p.age <= 27 ? 62 : 62 + (p.age - 27) * 0.8));
+    // whether anyone still wants you: players who love the game keep finding minimum deals (Haslem, Vince), others walk away while they still could play
+    const st0 = (p.tr && p.tr.stay) || 0, sty = p.age >= 31 ? NBA.tuning.stayMarket * (st0 > 0 ? st0 : 0.5 * st0) : 0, v = mk.v + sty;   // only veterans: young players get offers on talent
+    const forceRetire = p.age >= 42 || (p.age >= 35 && v < 57) || (p.age >= 25 && v < 55) || (p.age >= 31 && v < 60) || (c.left <= 0 && p.age >= 26 && v < (p.age <= 27 ? 62 : 62 + (p.age - 27) * NBA.tuning.marketSlope));
     out.mustRetire = forceRetire;
     if (out.expiring) {
       const own = L.teams[st.teamId];
@@ -2150,7 +2161,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 21 Oct · BallerSim dashboard v26';
+  const BUILD = 'build 21 Oct · BallerSim dashboard v27';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
