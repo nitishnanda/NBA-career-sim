@@ -301,7 +301,7 @@ role players' minutes swing more year to year.
 - Gen box-score dominators: usage/efficiency extras cut (genDomUsg 0.02, gdTs 0.01), start gap 11: ~14 / 18 / 21 / 24 / 25-27 ppg at 20 / 21 / 22 / 23 / peak,
   on the real CSV curve (15 / 17 / 20 / 25 / 24-28).
 
-## v29: league scoring, top-scorer turnover, availability (bigger samples)
+## v29: league scoring, top-scorer turnover, stars and winning, availability (bigger samples)
 
 Readings now use 400 simulated seasons (4 seeds x 100) for the league and ~1000 careers per archetype for the realism test
 (`scripts/realism-run.sh` splits every archetype into chunks of 100 across all cores). Real references come from more seasons too:
@@ -309,15 +309,35 @@ Readings now use 400 simulated seasons (4 seeds x 100) for the league and ~1000 
 
 - With large samples the old turnover gap was mostly noise (real top-5 repeat is 2.63 over 41 seasons, 2.30-2.71 depending on era; the sim was 2.54 over 400).
   What was really off: top scorers' ppg moved too much year to year (sd 3.7 vs 3.1), they were too healthy (91% of top-10 scorers played 58+ games
-  the next season vs 80% real), and the top of the league was ~1 ppg too high (scoring champion 33.5 vs 32.6) while #2 options were too low.
+  the next season vs 80% real), the top of the league was ~1 ppg too high (scoring champion 33.5 vs 32.6) and #2 options were too low.
 - Availability: injury lengths fitted to real next-season games of the top 150 scorers (2001-25): the sim had almost no 20-40 game absences
   (10th percentile 55 games vs 41 real). Minor injuries are more frequent and longer-tailed (`minorRate`, `injMu`, `injSd`, `injMax`); major injuries unchanged.
-- Removed a scripted rule: the league used to force its scoring champion up to 31+ ppg every year. The top scorer now lands at ~32.3 on its own (real 32.5).
+- Removed a scripted rule: the league used to force its scoring champion up to 31+ ppg every year. The top scorer now lands at ~32.5 on its own (real 32.5).
 - Team hierarchy (new real target, `real-rank-profile.json` `_team`): real teams' 1st-4th scorers average 23.7 / 18.6 / 15.1 / 12.7 and 34% of teams have
   two 20-ppg scorers; the sim had 23.3 / 16.4 / 13.3 / 11.1 and 12%. The teammate usage tax was too steep and the "one ball" points cap (122 summed ppg)
-  sat far below real rotations' sums (~149), shaving every second option. Both refitted (`coTaxK`, `coTaxMax`, `capPts`); no team has two 20/8/8 players.
-- `scripts/fit-league-profile.js` now fits rank profile + tails + team hierarchy + turnover together (two seeds x 50 seasons per evaluation; usage%
+  sat far below real rotations' sums (~149), shaving every second option. Both refitted (`coTaxK`, `coTaxMax`, `capPts`): now 23.3 / 18.0 / 14.9 / 12.7
+  and ~25%; still no team with two 20/8/8 players.
+- Stars and winning: the league's best producer played on a 44-win team on average (real 1985-2025: 55). Two causes: a "stars on bad teams carry the load"
+  boost (+5 mpg, +12% usage) that the CSVs contradict (real top-30 producers play ~36 mpg whatever the record and score MORE on better teams), and stars
+  counting too little toward team strength. `scripts/fit-star-wins.js` fits both: the boost goes to zero, star value up (`starWinK`), per-point wins down
+  (`winsPerPt`) so team records keep the real spread (sd 12.2). Producers #1 / #2-3 / #4-10 / #11-30 now play on 54 / 51 / 47 / 44-win teams (real 55 / 52 / 49 / 44).
+- `scripts/fit-league-profile.js` fits rank profile + tails + team hierarchy + turnover together (two seeds x 50 seasons per evaluation; usage%
   down-weighted because the sim's points-per-possession constant differs from Basketball-Reference's usage formula and usage is never shown).
+  Fresh-seed result: top-5 repeat 2.62 (2.63), top-10 5.85 (5.83), next-year ppg swing sd 3.2 (3.1), scoring champion 32.8 (32.6), 20-ppg players 28.6 (28.8), 30-ppg 2.4 (2.0).
 - Real careers' games-played share is era-adjusted like the per-game stats (rotation players played 90% of games in the 1980s, 76% in 2022-25),
   to the 2001-25 level the injury model is fitted to.
-- Fixes found in review: rookies were missing from team pages in their first season; the aging table returned NaN for a fractional decline shift.
+- Efficiency: real career TS% varies ~1.5x more among low-usage players (sd 3.9 pts below 15% usage vs 2.6 above 18%); the efficiency trait now scales
+  up at low usage (`effLowUsg`). Defenders' TS spread went from 0.81 to ~1.0 of real, and their "too few oddballs" gap (p = 0.02) is gone.
+- Realism test: the sweet-spot test is now split into its two sides (too many near-clones of real careers vs too many/few careers unlike any real one).
+  Two-way's combined difference comes from the real cohort itself: Conley and Harper are each other's near-twin and Stockton's 14 apg is an outlier;
+  neither side is significant on its own.
+- Gens: MVP voter fatigue re-checked on 1981-2025 voting (`scripts/real-mvp-fatigue.py`): beyond "won the last two", past MVPs do not cost votes.
+  The sim's NPC league converts production rank into MVPs exactly like the real league (P(MVP) 0.39 / 0.16 / 0.04 at rank 1 / 2-3 / 4-10; real 0.41 / 0.15 / 0.03).
+  Removed a user-only perk (`userTaxCut`: the user's usage ignored good teammates; NPC franchise players never had it) and gens now age like real gens
+  in their 30s (`declineMult` 0.8: top-10 producer in ~51% of seasons at 32-35, real 53%).
+- Fixes found in review: rookies were missing from team pages in their first season; the aging table returned NaN for a fractional decline shift;
+  a dead condition in the playoff-line check.
+- Final realism run (~7,700 careers): realism 84%, sweet spot 86% (real 90%), copies 2% (real 5%).
+- Still off: sim careers that reach the real gen bar average ~2.6 MVPs vs 1.9 (only 14 finished real gens, so +-0.45), and ~8% reach 6+ (only Kareem ever).
+  The cause is structural: every sim gen is a box-score superstar who is a top-10 producer in ~95% of prime seasons, while real "gens" include Nash, Kidd,
+  Duncan and Dwight types and real gens miss the top 10 in 16-31% of prime seasons (injuries, co-stars). Assists are also too uniform for gens and two-ways.
