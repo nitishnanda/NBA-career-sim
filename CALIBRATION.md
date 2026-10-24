@@ -360,3 +360,25 @@ Readings now use 400 simulated seasons (4 seeds x 100) for the league and ~1000 
   top-10 producers in essentially every prime season, 2.18 MVPs) and gens by reputation (Nash, Kidd, Dwight). The sim gen is the box-score
   type; its margin over the league's #10 producer matched (8 pts) but too many careers were Jordan-level (27% leading #10 by 12+ vs 1 in 11).
   The hidden gen ceiling is narrower with the same average (`genCeilRange` 8, `genCeilDrop` -0.35): Jordan-level 18%, MVPs per gen ~2.0.
+
+## v31: era-consistent tests, archetype retune, big threes, gen MVPs, gen box-score aging
+
+- One era everywhere: real careers are now era-adjusted to 2016-25 (was 2022-25), the same window as the league profile, availability and turnover.
+  2022-25 runs +1.2 TS% / +3.5% ppg / +4.6% apg over 2016-25, so careers were being graded against a hotter league than the one they play in.
+  Debut age is compared with careers that started under today's draft rules (2006+, age 19) when an archetype has 8+ of them.
+- Archetype retune from measured gaps (`src/data.js`): usage and TS offsets, passing/rebounding boosts, a per-archetype minutes offset (`mins`:
+  rim protectors sit more), durability per archetype fitted to real era-adjusted games played (real gens/scorers/two-ways/dominators play more
+  than the sim gave them; the old two-way x1.35 injury rate had no support in the data), dominators defend like Pippen/Kidd/Rondo, defenders'
+  boards and blocks depend on position (centres like Gobert, perimeter stoppers not). Role players' season noise down (`noiseNon` 1.9).
+- New traits: a generational style (`genStyleUsg`/`genStyleAst`: volume scorer vs floor general, Jordan vs Nash/Magic) and a minutes trait (`trMins`).
+- Stars near the 65-game award line skip rest days to qualify (`qualifyOvr`), as real stars have since the rule (2024).
+- Big threes: the usage-tax cap stacks with each good teammate ahead of you (`coTaxStack`): teams with three 20-ppg scorers ~4.6% (real 4.3%),
+  two 20-ppg scorers ~30% (34%).
+- Gen MVPs: narrower hidden gen ceiling (`genCeilRange` 6, `genCeilPow` 1.3): 1.93 MVPs per gen (real 1.86), 4+ 15% (14%), 6+ 3%.
+- Gen box-score dominators fitted to the CSV curve (`scripts/fit-gen-dominator.js`): 25.5 / 25.2 / 23.3 / 22.0 / 19.1 ppg at 30-34
+  (real 26.5 / 25.3 / 22.2 / 21.0 / 19.4).
+- League refit twice more (rounds 7-8) to absorb the archetype changes.
+- Realism (~7,700 careers): 83% -> 87%; sweet spot 88% (real 90%), copies 3%, no archetype significantly different from real.
+  Scorers 90, two-way 90, shooters 89, defenders 85, gens 83, dominators 83. Gens are held back by era (real gens debuted at 20-23 before
+  one-and-done; sim gens enter at 19, which moves debut age, career length, final age and career points together); dominators by awards
+  (their real cohort is Garnett, Pippen, Drexler, Hill, McGrady: All-NBA regulars and elite defenders).
