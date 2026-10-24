@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 21 Oct · BallerSim dashboard v17';
+  const BUILD = 'build 21 Oct · BallerSim dashboard v18';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
@@ -207,6 +207,8 @@
   // generated team crests (stylised, not the real marks): team colours, a shape per club and the abbreviation
   const lum = (hex) => { const n = parseInt(hex.slice(1), 16); return 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255); };
   function logo(nick, size) {
+    const img = NBA.logos && NBA.logos[nick];
+    if (img) return h('span', { class: 'logo real', style: 'width:' + size + 'px;height:' + size + 'px;padding:' + Math.round(size * 0.12) + 'px', title: nick }, h('img', { src: img, alt: nick }));
     const c = (D.TEAM_COLORS && D.TEAM_COLORS[nick]) || ['#555555', '#ffffff'], a = ab(nick); let k = 0; for (let i = 0; i < (nick || '').length; i++) k = (k * 7 + nick.charCodeAt(i)) % 4;
     const shape = [
       '<circle cx="50" cy="50" r="46" fill="' + c[0] + '" stroke="' + c[1] + '" stroke-width="7"/><circle cx="50" cy="50" r="35" fill="none" stroke="' + c[1] + '" stroke-opacity=".45" stroke-width="2"/>',
