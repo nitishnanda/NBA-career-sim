@@ -341,3 +341,22 @@ Readings now use 400 simulated seasons (4 seeds x 100) for the league and ~1000 
 - Still off: sim careers that reach the real gen bar average ~2.6 MVPs vs 1.9 (only 14 finished real gens, so +-0.45), and ~8% reach 6+ (only Kareem ever).
   The cause is structural: every sim gen is a box-score superstar who is a top-10 producer in ~95% of prime seasons, while real "gens" include Nash, Kidd,
   Duncan and Dwight types and real gens miss the top 10 in 16-31% of prime seasons (injuries, co-stars). Assists are also too uniform for gens and two-ways.
+
+## v30: second options, modern availability, aging usage, gen dominance
+
+- Second options: the missing #2 scorers were mostly 20-ppg players who play 40-57 games (real 2016-25: 5.9 a season, sim 3.4). The availability
+  fit moved from 2001-25 to the 2016-25 load-management era (`scripts/fit-availability.js`: next-season games of the top 150 scorers, 5th-90th
+  percentile 14-79 vs real 18-80; top-10 scorers playing 58+ again 0.73 vs 0.75), and stars' rest days became knobs (`restStar`, `restOld`).
+  Usage tax follows the pecking order (`coTaxDown`: a lesser teammate takes fewer of your shots than a better one).
+  Teams' #1-#4 scorers 23.7 / 18.4 / 15.2 / 12.8 (real 23.7 / 18.6 / 15.1 / 12.7), two 20-ppg teammates 32% (34%), three ~6.6% (4.3%).
+- Real careers' games-played share is now put on the 2016-25 level too, and the turnover reference is 2014-25 (top-5 repeat 2.42, top-10 5.5,
+  next-year ppg sd 3.06; `scripts/scoring-turnover.py`), so league, availability and careers all target the same era.
+- Aging usage: the sim cut usage by age (x0.91 at 30) on top of rating decline. Real usage relative to a player's own 26-28 level is
+  stars 0.97 / 0.90 / 0.86 and starters 0.95 / 0.88 / 0.79 at 30 / 33 / 35; rating decline alone reproduces that, so the extra cut is off
+  (`ageUsgK` 0). Top scorers' age 26.5 (real 26.7, was 26.0).
+- Gen box-score dominators no longer fade at 30: 25.0 / 24.9 / 24.9 / 22.5 / 19.9 ppg at 30-34 (real CSV pool 26.5 / 25.3 / 22.2 / 21.0 / 19.4);
+  their physical decline is also slower (`gdDecline` 0.7).
+- Gen dominance: real "gens" split into box-score gens (Jordan, LeBron, Shaq, Bird, Magic, Durant, Hakeem, Barkley, Kobe, Malone, Duncan:
+  top-10 producers in essentially every prime season, 2.18 MVPs) and gens by reputation (Nash, Kidd, Dwight). The sim gen is the box-score
+  type; its margin over the league's #10 producer matched (8 pts) but too many careers were Jordan-level (27% leading #10 by 12+ vs 1 in 11).
+  The hidden gen ceiling is narrower with the same average (`genCeilRange` 8, `genCeilDrop` -0.35): Jordan-level 18%, MVPs per gen ~2.0.
