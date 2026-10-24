@@ -244,9 +244,13 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 .ph .logo { margin-right: 4px; } td .tl { white-space: nowrap; }
 
 /* real logos sit on a light chip so dark marks (Nets, Spurs, Jazz...) stay readable on the dark UI */
-.logo.real { background: rgba(255,255,255,.93); border-radius: 50%; box-sizing: border-box; align-items: center; justify-content: center; } .logo.real img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.logo.real { background: #fff; border-radius: 22%; box-sizing: border-box; align-items: center; justify-content: center; } .logo.real img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
 .brand .nbamark { display: flex; align-items: center; flex: none; height: 38px; } .brand .nbamark img { height: 38px; width: auto; display: block; filter: drop-shadow(0 1px 3px rgba(0,0,0,.5)); }
+
+/* the league mark keeps its white background: the white figure in it disappears on dark */
+.brand .nbamark { background: #fff; border-radius: 8px; padding: 3px 5px; height: 38px; box-sizing: border-box; } .brand .nbamark img { height: 32px; filter: none; }
+.nbahero { display: flex; justify-content: center; margin: 4px 0 14px; } .nbahero span { background: #fff; border-radius: 14px; padding: 8px 12px; display: inline-flex; } .nbahero img { height: 84px; width: auto; display: block; }
 
 </style>
 </head>
@@ -2056,7 +2060,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 21 Oct · BallerSim dashboard v19';
+  const BUILD = 'build 21 Oct · BallerSim dashboard v20';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
@@ -2744,7 +2748,8 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 
   function screenRetired() {
     const hof = S.hof, p = S.player;
-    return h('div', null, h('h1', null, p.name + ' retires'),
+    const mark = NBA.logos && NBA.logos._NBA ? h('div', { class: 'nbahero' }, h('span', null, h('img', { src: NBA.logos._NBA, alt: 'NBA' }))) : null;
+    return h('div', null, mark, h('h1', null, p.name + ' retires'),
       h('div', { class: 'card' }, h('div', { class: 'big', style: 'color:' + (hof.hall ? 'var(--gold)' : 'inherit') }, hof.hall ? '🏛️ ' + hof.tier : hof.tier), (() => { const ct = careerTotals(S.proSeasons), pt = playoffTotals(S.playoffLines); return ct && ct.rating ? h('p', null, h('b', null, 'Career avg match rating '), ratingBadge(ct.rating, 2), pt && pt.rating ? h('span', null, '  ·  playoffs ', ratingBadge(pt.rating, 2)) : null) : null; })(),
         h('p', { class: 'muted' }, 'Legacy score ' + hof.score + ' (Hall of Fame line: 85) · ' + S.proSeasons.length + ' seasons · ' + D.ARCHETYPES[p.arch].name + ' · hidden ceiling was ' + Math.round(p.ceiling) + ' · ' + S.stars + '★ recruit' + (S.draft && S.draft.slot ? ' · drafted #' + S.draft.slot : ' · undrafted'))),
       h('div', { class: 'card' }, careerBody()),
