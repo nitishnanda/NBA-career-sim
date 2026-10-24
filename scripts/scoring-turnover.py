@@ -1,9 +1,10 @@
 """Real top-scorer turnover and scoring tails: who stays a top scorer, how much top scorers' ppg moves year to year, ages.
-Usage: python3 -I scripts/scoring-turnover.py [first_season] [last_season]   -> data/real-scoring-turnover.json (for the default window)"""
+Usage: python3 -I scripts/scoring-turnover.py [first_season] [last_season]   -> data/real-scoring-turnover.json (for the default window, 2014-25:
+the load-management era the sim's availability is fitted to; 1985-2025 gives top-5 repeat 2.63, 2016-25 2.30, 2011-25 2.67)"""
 import json, os, sys
 import numpy as np, pandas as pd
 D = '/home/user/sumitrodatta/bball-reference-datasets/Data/'
-A, B = (int(sys.argv[1]), int(sys.argv[2])) if len(sys.argv) > 2 else (1985, 2025)
+A, B = (int(sys.argv[1]), int(sys.argv[2])) if len(sys.argv) > 2 else (2014, 2025)
 pg = pd.read_csv(D + 'Player Per Game.csv'); pg = pg[(pg.lg == 'NBA') & (pg.season >= A - 1) & (pg.season <= B)]
 pg = pg.sort_values('team', key=lambda s: (s != 'TOT')).drop_duplicates(['season', 'player_id'])
 full = {1999: 50, 2012: 66, 2020: 72, 2021: 72}
