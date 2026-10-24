@@ -293,7 +293,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       comps: 'LeBron · Jordan · Jokic · Wembanyama',
       boost: { inside: 14, mid: 12, three: 10, ft: 10, handling: 8, passing: 8, iq: 20, reb: 5, perD: 8, rimP: 8, ath: 12, dur: 6 },
       weights: { inside: .11, mid: .08, three: .08, ft: .04, handling: .09, passing: .1, iq: .14, reb: .08, perD: .07, rimP: .05, ath: .12, dur: .04 },
-      usg: 0.01, ts: 0.012, declineMult: 0.75, ceilingBonus: 3,
+      usg: 0.01, ts: 0.012, declineMult: 0.6, ceilingBonus: 3,
     },
     scorer: {
       name: 'Consistent Scorer', icon: '🎯',
@@ -301,7 +301,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       comps: 'Karl Malone · Durant · Kobe',
       boost: { inside: 14, mid: 22, three: 12, ft: 16, handling: 12, passing: -2, iq: 10, reb: -4, perD: -6, rimP: -4, ath: 8, dur: 12 },
       weights: { inside: .14, mid: .17, three: .13, ft: .09, handling: .1, passing: .03, iq: .1, reb: .03, perD: .03, rimP: .01, ath: .11, dur: .06 },
-      usg: 0.012, ts: 0.004, declineMult: 1.0, ceilingBonus: 0, injury: 1.05,
+      usg: 0.012, ts: 0.004, declineMult: 1.5, ceilingBonus: 0, injury: 1.05,
     },
     twoway: {
       name: 'Two-Way Demon', icon: '🔒',
@@ -333,7 +333,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       comps: 'Oscar · Westbrook · Magic · Luka · Jokic',
       boost: { inside: 12, mid: 6, three: 4, ft: 2, handling: 24, passing: 38, iq: 18, reb: 8, perD: 0, rimP: -10, ath: 18, dur: 6 },
       weights: { inside: .09, mid: .06, three: .06, ft: .03, handling: .1, passing: .16, iq: .14, reb: .15, perD: .03, rimP: .01, ath: .12, dur: .05 },
-      usg: 0.03, ts: -0.004, declineMult: 1.0, ceilingBonus: 0,
+      usg: 0.012, ts: -0.004, declineMult: 1.15, ceilingBonus: 0,
     },
   };
 
@@ -436,9 +436,9 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     declineScale: 1.5,
     ceilA: 55, ceilLambda: 11.5, ceilK: 1.3,
     winsPerPt: 0.95, formSd: 0.07, winsCoreAvg: 48, ovrStretch: 1.3,
-    growthScale: 0.85, declineLate: 1.2, genGapA: 6, genGapB: 7, injScale: 0.6, retireScale: 1.2,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
+    growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.6, retireScale: 0.9,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
     astKnee: 7, astK: 0.88991, rebKnee: 7.23037, rebK: 0.76112,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
-    volSpread: 0.43399, frUsg: 0.05, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.12, genSecGap: 8, gdReb: 1.12, gdAst: 1.06, gdTs: 0.06, gdMins: 1.5, genCeilDrop: 3.5,
+    volSpread: 0.43399, frUsg: 0.05, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.12, genSecGap: 4, gdReb: 1.0, gdAst: 1.06, gdTs: 0.06, gdMins: 1.5, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 2.2, starAgeKeep: 0.6, genCeilDrop: 2.5,
     starTs: 0.04142, starReb: 0.06173, starAst: 0.32616,   // extra production for the very best (fitted to the real top of the league)
   };
   NBA.tuning = T;
@@ -539,7 +539,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   }
 
   // ---------------------------------------------------------------- progression
-  function growthRate(age) { return T.growthScale * growthRate0(age); }
+  function growthRate(age) { return T.growthScale * growthRate0(age) * (age <= 24 ? T.growthFront : age >= 26 ? 1 / T.growthFront : 1); }   // front-loaded growth: real cohorts peak at 26-27, not 28-29
   function growthRate0(age) {
     if (age <= 19) return 0.3; if (age === 20) return 0.3; if (age === 21) return 0.28;
     if (age === 22) return 0.27; if (age === 23) return 0.25; if (age === 24) return 0.23;
@@ -550,6 +550,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   const PHY_DEC = { 29: 0.2, 30: 0.5, 31: 0.8, 32: 1.1, 33: 1.5, 34: 1.9, 35: 2.5 };
   const SKL_DEC = { 31: 0.3, 32: 0.5, 33: 0.9, 34: 1.3, 35: 1.8 };
   function decAt(tbl, age, max) {
+    age += T.declineShift;   // >0 starts the physical decline earlier
     if (age < +Object.keys(tbl)[0]) return 0;
     return tbl[Math.min(age, 35)] * (age > 35 ? 1 + (age - 35) * 0.1 : 1);
   }
@@ -572,7 +573,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   function progress(p) {
     const next = p.age + 1;
     const wk = 0.88 + 0.24 * p.work;
-    const shock = randn() * (next <= 22 ? 1.9 : next <= 26 ? 1.1 : 0.7) * (next > 23 && ovrOf(p) >= 84 ? 0.5 : 1); // stars' ratings move steadily; the prime is not a coin flip
+    const shock = randn() * T.shockScale * (next <= 22 ? 1.9 : next <= 26 ? 1.1 : 0.7) * (next > 23 && ovrOf(p) >= 84 ? 0.5 : 1); // stars' ratings move steadily; the prime is not a coin flip
     const before = ovrOf(p);
     ATTRS.forEach((a) => {
       let cur = p.attrs[a];
@@ -630,7 +631,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     usg *= 1 + T.frUsg * (c.fr || 0);   // franchise player: the offence runs through him
     usg = clamp(usg * (c.usgMult || 1) * (AGE_USG[Math.min(Math.max(p.age, 28), 38)] || 1), 0.12, 0.354 + 0.016 * ks0(o));
     let mins = clamp(T.minsBase + T.minsPerOvr * (o - 58), 8, T.minsCap);
-    if (p.age >= 33) mins -= (p.age - 32) * 0.6;
+    if (p.age >= 33) mins -= (p.age - 32) * T.minsAgeDecay * (1 - T.starAgeKeep * clamp((o - 80) / 10, 0, 1));   // stars keep their heavy minutes late (LeBron, Magic, Westbrook at 34-36)
     if (c.rookie && o < 84) mins *= 0.93;
     if (c.rookie) { usg *= 0.96; }
     // stars on bad teams carry the load (38-40 mpg, extra shots); stars on winners share it and get rested in blowouts
@@ -1638,7 +1639,8 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const e0 = expLine(p, { coTax: coT, fr: ctx.fr, wins: ctx.wins, pace: paceS, rookie, minsMult: fx.minsMult, minsFloor: rookie ? NBA.rookieFloor(st.draft && st.draft.slot) : 0 });
     // Year-to-year shocks sized from real careers (22 generational and ~100 star careers, Basketball-Reference): usage ±6%, TS ±3%, minutes ±4%, rebounds ±10%, assists ±14% between seasons.
     // Nothing else shapes a season: no caps, plans or quotas, so big years, slumps and the rare triple-double season come from the tails of these distributions.
-    const nm = 1 + 0.028 * randn(), nu = 1 + 0.045 * randn(), nt = 1 + 0.02 * randn(), evt = 1 + fx.form;
+    const sn = ovr(p) >= 84 ? 1 : NBA.tuning.noiseNon;   // real non-stars swing more from year to year than the all-time greats (mean |change in ppg| 2.1-2.9)
+    const nm = 1 + 0.028 * sn * randn(), nu = 1 + 0.045 * sn * randn(), nt = 1 + 0.02 * randn(), evt = 1 + fx.form;
     const m = { mins: Math.min(NBA.tuning.minsHard - 0.6, e0.mins * nm), pts: e0.pts * nu * nt * nm * evt, reb: e0.reb * (1 + 0.07 * randn()) * nm * evt, ast: e0.ast * (1 + 0.10 * randn()) * nm * Math.sqrt(nu) * evt, stl: e0.stl * (1 + 0.10 * randn()) * nm, blk: e0.blk * (1 + 0.12 * randn()) * nm, tov: e0.tov * nm * nu };
     let gp = avail.gp; const gpCut = false;
     // game plan: a season-average multiplier from how long each style was used (per-game variation is applied when the games are drawn)
@@ -2133,7 +2135,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 21 Oct · BallerSim dashboard v24';
+  const BUILD = 'build 21 Oct · BallerSim dashboard v25';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
