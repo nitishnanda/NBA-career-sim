@@ -59,6 +59,8 @@ const INFO = new Set(['usg']);   // shown, not scored: era-adjusting old seasons
 const COMPLETE = new Set(['seasons', 'finalAge', 'careerPts', 'allstar', 'allnba', 'mvp', 'alldef', 'n30']);   // career totals: only finished real careers (last season 2021 or earlier)
 // a finished (or nearly finished) real career: retired by 2024, or a veteran who debuted by 2008 (LeBron, Durant, Curry, Harden...)
 const done = (x) => x.last <= 2024 || x.debut <= 2008;
+// career profile used by the copy check
+const CF = ['pts', 'reb', 'ast', 'ts', 'mpg', 'peakAge', 'seasons', 'finalAge', 'n30', 'best', 'allstar', 'allnba', 'mvp', 'alldef', 'gpRate'];
 const PLAUS = ['pts', 'reb', 'ast', 'best', 'peakAge', 'allstar', 'mvp', 'seasons', 'finalAge'];
 
 // generate: positions follow the real archetype's position mix. Each career is scored against the real cohort of the archetype it was
@@ -93,13 +95,28 @@ SCORE.forEach((arch) => {
   const rng = {}; PLAUS.forEach((k) => { const v = real.filter((x) => !COMPLETE.has(k) || done(x)).map((x) => x[k]).filter((z) => z != null); if (v.length >= 5) rng[k] = [Math.min(...v), Math.max(...v)]; });
   const plaus = sim.filter((f) => Object.keys(rng).every((k) => f[k] == null || (f[k] >= rng[k][0] - 1e-9 && f[k] <= rng[k][1] + 1e-9))).length / sim.length;
   const fails = Object.keys(rng).map((k) => [k, sim.filter((f) => f[k] != null && (f[k] < rng[k][0] - 1e-9 || f[k] > rng[k][1] + 1e-9)).length]).filter((x) => x[1]).sort((a, b) => b[1] - a[1]);
-  out[arch] = { score: sc / n, plaus, nSim: sim.length, nReal: real.length, rows };
-  lines.push(`\n==== ${arch}: realism ${(100 * sc / n).toFixed(0)}% | plausible careers ${(100 * plaus).toFixed(0)}% | ${sim.length} sim vs ${real.length} real careers`);
+  // copy check: is a sim career closer to ONE real career than real careers are to their own nearest twin?
+  // standardized distance over the career profile; threshold = 5th percentile of real-to-real nearest-neighbour distance, so ~5% of real careers are "copies" too
+  const R = real.filter(done).filter((x) => CF.every((k) => x[k] != null && Number.isFinite(x[k])));
+  let copy = null;
+  if (R.length >= 8) {
+    const mu = CF.map((k) => mean(R.map((x) => x[k]))), sd = CF.map((k, i) => Math.sqrt(mean(R.map((x) => (x[k] - mu[i]) ** 2))) + 1e-9);
+    const z = (x) => CF.map((k, i) => (x[k] - mu[i]) / sd[i]), RZ = R.map(z);
+    const dist = (a, b) => Math.sqrt(a.reduce((t, v, i) => t + (v - b[i]) ** 2, 0));
+    const nnReal = RZ.map((a, i) => Math.min(...RZ.filter((_, j) => j !== i).map((b) => dist(a, b)))).sort((p, q) => p - q);
+    const thr = nnReal[Math.floor(0.05 * (nnReal.length - 1))], who = {};
+    const nnSim = sim.filter((f) => CF.every((k) => f[k] != null)).map((f) => { const a = z(f); let best = Infinity, bi = 0; RZ.forEach((b, j) => { const d = dist(a, b); if (d < best) { best = d; bi = j; } }); if (best < thr) who[R[bi].player] = (who[R[bi].player] || 0) + 1; return best; });
+    copy = { rate: nnSim.filter((d) => d < thr).length / nnSim.length, thr, medSim: nnSim.slice().sort((p, q) => p - q)[Math.floor(nnSim.length / 2)], medReal: nnReal[Math.floor(nnReal.length / 2)], who: Object.entries(who).sort((p, q) => q[1] - p[1]).slice(0, 3) };
+  }
+  out[arch] = { score: sc / n, plaus, copy: copy && copy.rate, nSim: sim.length, nReal: real.length, rows };
+  lines.push(`\n==== ${arch}: realism ${(100 * sc / n).toFixed(0)}% | plausible careers ${(100 * plaus).toFixed(0)}% | copies ${copy ? (100 * copy.rate).toFixed(0) + '%' : 'n/a'} | ${sim.length} sim vs ${real.length} real careers`);
+  if (copy) lines.push(`  copy check: nearest real career typically ${copy.medSim.toFixed(2)} away (real players to their nearest twin: ${copy.medReal.toFixed(2)}); copy line ${copy.thr.toFixed(2)}` + (copy.who.length ? '; closest copies of ' + copy.who.map(([p, c]) => p + ' x' + c).join(', ') : ''));
   lines.push('  ' + 'feature'.padEnd(26) + 'real'.padStart(9) + 'sim'.padStart(9) + 'match'.padStart(8));
   if (fails.length) lines.push('  outside the real range most often: ' + fails.slice(0, 4).map(([k, c]) => k + ' ' + Math.round(100 * c / sim.length) + '% (real ' + rng[k].map((v) => +v.toFixed(1)).join('-') + ')').join(', '));
   rows.forEach((r) => lines.push('  ' + r.label.padEnd(26) + r.real.toFixed(1).padStart(9) + r.sim.toFixed(1).padStart(9) + ((100 * r.score).toFixed(0) + '%').padStart(8)));
 });
 console.log(lines.join('\n'));
-const all = Object.values(out); console.log('\nOVERALL realism', (100 * mean(all.map((x) => x.score))).toFixed(0) + '%', '| plausible careers', (100 * mean(all.map((x) => x.plaus))).toFixed(0) + '%');
+const all = Object.values(out), cps = all.filter((x) => x.copy != null);
+console.log('\nOVERALL realism', (100 * mean(all.map((x) => x.score))).toFixed(0) + '%', '| plausible careers', (100 * mean(all.map((x) => x.plaus))).toFixed(0) + '%', '| copies', (100 * mean(cps.map((x) => x.copy))).toFixed(0) + '% (real baseline 5%)');
 console.log('(* career totals use finished real careers: retired by 2024, or debuted by 2008)');
 if (process.env.JSON) require('fs').writeFileSync(process.env.JSON, JSON.stringify(out));

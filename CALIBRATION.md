@@ -271,3 +271,4 @@ like real recruits of its star rating (2009-24 draft ages); more and longer majo
 2001-25 voting (`scripts/real-allstar-model.py`; 12 All-Stars per conference, reputation from last year's selection, steals weigh most for All-Defense);
 retirement depends less on talent; archetype TS% offsets fitted to the real (era-adjusted) archetypes; scorers' perimeter defence up (real-like steals);
 role players' minutes swing more year to year.
+- Copy check (v26+): a sim career counts as a copy when it sits closer to one finished real career (standardized over 15 career stats) than the 5th percentile of real careers to their own nearest real twin, so ~5% is the real baseline. First run: 12% overall (gens 7%, scorers 6%, defenders 3%, two-way 10%, shooters 19%, dominators 23%); the shooter and dominator "copies" are of role-player profiles (Wesley Matthews, Grant Hill, Fat Lever) and come from sim careers clustering, with only 11-14 finished real careers setting the line.
