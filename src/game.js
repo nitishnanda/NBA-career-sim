@@ -52,6 +52,7 @@
     if (ceiling == null) ceiling = NBA.rollCeiling(stars, o.arch);
     const genBonus = genLevel && !lateBloomer ? (genLevel === 2 ? 8 : 4) : 0; // true generational talents are seen as such by scouts
     const p = NBA.makePlayer({ id: 'user', name: o.name || 'Rookie', pos: o.pos, arch: o.arch, sec: o.sec && o.sec !== o.arch ? o.sec : null, home: o.home, ceiling, age: 18, stars, gap });
+    p.vis = clamp(0.15 + 0.19 * (stars - 1), 0.15, 0.92);
     const L = NBA.newLeague(2026, { real: true }); // the real league as of 20 Oct 2026
     const st = {
       v: 1, stage: 'scouting', player: p, league: L, stars,
@@ -123,7 +124,7 @@
 
   function stockBonus(st) {
     const c = st.college, last = st.collegeYears[st.collegeYears.length - 1];
-    let b = (c.prestige - 3) * 0.9 + (st.genBonus || 0);
+    let b = (c.prestige - 3) * 0.9 + (st.genBonus || 0) * Math.min(1, Math.max(0, (st.stars - 1) / 3));   // scouts only credit 'generational' once the recruit is a known name
     if (last.honors.includes('National Player of the Year')) b += 3;
     else if (last.honors.includes('Consensus All-American')) b += 1.5;
     if (st.collegeYears.some((y) => y.tourney.includes('Won the National'))) b += 0.8;
@@ -250,7 +251,7 @@
     const coRaw = p.coTaxPrev == null ? ctx.coTax : 0.7 * p.coTaxPrev + 0.3 * ctx.coTax; p.coTaxPrev = coRaw;
     const coT = coRaw * (1 - 0.4 * clamp((ovr(p) - 80) / 16, 0, 1));
     const paceS = p.paceS == null ? ctx.pace : 0.6 * p.paceS + 0.4 * ctx.pace; p.paceS = paceS;
-    const e0 = expLine(p, { coTax: coT, wins: ctx.wins, pace: paceS, rookie, minsMult: fx.minsMult, minsFloor: rookie ? NBA.rookieFloor(st.draft && st.draft.slot) : 0 });
+    const e0 = expLine(p, { coTax: coT, fr: ctx.fr, wins: ctx.wins, pace: paceS, rookie, minsMult: fx.minsMult, minsFloor: rookie ? NBA.rookieFloor(st.draft && st.draft.slot) : 0 });
     // Year-to-year shocks sized from real careers (22 generational and ~100 star careers, Basketball-Reference): usage ±6%, TS ±3%, minutes ±4%, rebounds ±10%, assists ±14% between seasons.
     // Nothing else shapes a season: no caps, plans or quotas, so big years, slumps and the rare triple-double season come from the tails of these distributions.
     const nm = 1 + 0.028 * randn(), nu = 1 + 0.045 * randn(), nt = 1 + 0.02 * randn(), evt = 1 + fx.form;
@@ -601,6 +602,28 @@
     const core = t.core.map((id) => ovr(L.players[id])).sort((a, b) => b - a);
     return o >= core[0] ? 'Franchise player' : o >= core[1] ? 'Co-star' : o >= core[3] ? 'Starter' : 'Role player';
   }
+  // A trade is a swap, not a wish: your club must be willing to move you and must get a comparable player back,
+  // and the other club must be willing to give that player up.
+  function tradeDeal(st, t) {
+    const L = st.league, p = st.player, mine = L.teams[st.teamId], o = ovr(p);
+    const base = { teamId: t.id, name: t.name, wins: t.wins, label: teamLabel(t, t.wins), role: role(st, t) };
+    const mates = NBA.rosterOf(L, mine), myRank = mates.filter((q) => ovr(q) > o).length;   // 0 = best player on his team
+    const franchise = myRank === 0 && o >= 74, system = myRank <= 2 && !franchise;       // starters who hold the system together
+    const rb = NBA.rosterOf(L, t), top = rb[0] ? ovr(rb[0]) : 0;
+    // the player coming back: close in value; their franchise player is only available if you are clearly better
+    const lo = franchise ? o - 5 : system ? o - 7 : o - 12, hi = franchise ? o + 4 : o + 3;
+    const cand = rb.filter((q, i) => ovr(q) >= lo && ovr(q) <= hi && (i > 0 || o >= top + 2));
+    if (!cand.length) return Object.assign(base, { ok: false, reason: 'The ' + t.nick + ' have nobody close to your value to send back.' });
+    const partner = cand.sort((a, b) => ovr(b) - ovr(a))[0];
+    base.partner = { id: partner.id, name: partner.name, pos: partner.pos, age: partner.age, ovr: Math.round(ovr(partner)) };
+    // your own club
+    let accept = 1, why = '';
+    if (franchise) { accept = mine.wins < 34 ? 0.75 : mine.wins < 43 ? 0.3 : 0.06; why = 'The ' + mine.nick + ' will not move their franchise player' + (mine.wins >= 43 ? ' while they are winning.' : ' for that offer.'); }
+    else if (system) { accept = ovr(partner) >= o - 3 ? 0.85 : 0.3; why = 'The ' + mine.nick + ' will not move a core starter without a real replacement in return.'; }
+    else if (myRank >= 5) accept = 0.95;
+    if (rand() > accept) return Object.assign(base, { ok: false, reason: why || 'The ' + mine.nick + ' turned the deal down.' });
+    return Object.assign(base, { ok: true });
+  }
   function decisionOptions(st) {
     const L = st.league, p = st.player, c = st.contract;
     const cap = capNow(L);
@@ -622,8 +645,8 @@
       });
       out.offers = offers.sort((a, b) => b.salary - a.salary);
     } else {
-      const dest = L.teams.filter((t) => t.id !== st.teamId).sort(() => rand() - 0.5).slice(0, 3);
-      out.tradeOptions = dest.map((t) => ({ teamId: t.id, name: t.name, wins: t.wins, label: teamLabel(t, t.wins), role: role(st, t) }));
+      const dest = L.teams.filter((t) => t.id !== st.teamId).sort(() => rand() - 0.5).slice(0, 4);
+      out.tradeOptions = dest.map((t) => tradeDeal(st, t));
     }
     return out;
   }
@@ -637,11 +660,15 @@
       return { text: 'Staying put with the ' + L.teams[st.teamId].nick + '.' };
     }
     if (action === 'trade') {
-      const t = L.teams[arg.teamId];
+      const t = L.teams[arg.teamId], opt = (st.decision && st.decision.tradeOptions || []).find((x) => x.teamId === t.id);
+      if (!opt || !opt.ok) throw new Error('trade not available');
+      const old = L.teams[st.teamId], partner = L.players[opt.partner.id];
+      if (partner) { t.core = t.core.filter((id) => id !== partner.id); t.bench = (t.bench || []).filter((id) => id !== partner.id); old.bench = (old.bench || []).concat([partner.id]); partner.teamId = old.id; }   // the user is not in a roster list: only the partner moves
       st.teamId = t.id; p.teamId = t.id;
-      note('Traded to ' + t.name);
+      (st.trades = st.trades || []).push({ year: L.year, label: NBA.seasonLabel(L.year), from: old.name, to: t.name, ovr: Math.round(ovr(p)), age: p.age, partner: opt.partner.name + ' (' + opt.partner.ovr + ' ovr)', requested: true });
+      note('Traded to ' + t.name + ' for ' + opt.partner.name);
       st.stage = 'training'; st.afterTraining = 'pro';
-      return { text: 'Trade request granted. You are now a ' + t.nick + '.' };
+      return { text: 'Trade done. You are now a ' + t.nick + '; the ' + old.nick + ' got ' + opt.partner.name + '.' };
     }
     if (action === 'resign' || action === 'switch') {
       const years = arg.years;
@@ -700,6 +727,7 @@
       const rec = playSeason(st);
       const d = decisionOptions(st);
       const p = st.player;
+      if (opt.onDecision) opt.onDecision(st, d);
       const retireNow = d.mustRetire || NBA.retireP(p);
       if (retireNow) { retire(st); break; }
       if (d.expiring) {

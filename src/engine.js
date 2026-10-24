@@ -48,7 +48,7 @@
     winsPerPt: 0.95, formSd: 0.07, winsCoreAvg: 48, ovrStretch: 1.3,
     growthScale: 0.85, declineLate: 1.2, genGapA: 6, genGapB: 7, injScale: 0.6, retireScale: 1.2,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
     astKnee: 7, astK: 0.88991, rebKnee: 7.23037, rebK: 0.76112,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
-    volSpread: 0.43399, genCeilDrop: 3.5,
+    volSpread: 0.43399, frUsg: 0.05, frMins: 0.9, genCeilDrop: 3.5,
     starTs: 0.04142, starReb: 0.06173, starAst: 0.32616,   // extra production for the very best (fitted to the real top of the league)
   };
   NBA.tuning = T;
@@ -236,6 +236,7 @@
     let usg = T.usgBase + T.usgPerSS * (SS - 55) + T.usgConvex * Math.pow(Math.max(0, SS - 70), 2) + A.usg + (S ? 0.4 * S.usg : 0) - (c.coTax || 0);
     { const tw = (c.wins == null ? 41 : c.wins) - 41; usg *= 1 + ks0(o) * (tw < 0 ? 0.0055 * Math.min(22, -tw) : -0.0006 * Math.min(28, tw)); } // good players on good teams share the ball; stars on bad teams take over
     usg *= 1 + (p.vol || 0) * (1 + T.volSpread);   // some players just shoot more (or less) than their skill suggests: the usage/efficiency spread of real rosters
+    usg *= 1 + T.frUsg * (c.fr || 0);   // franchise player: the offence runs through him
     usg = clamp(usg * (c.usgMult || 1) * (AGE_USG[Math.min(Math.max(p.age, 28), 38)] || 1), 0.12, 0.354 + 0.016 * ks0(o));
     let mins = clamp(T.minsBase + T.minsPerOvr * (o - 58), 8, T.minsCap);
     if (p.age >= 33) mins -= (p.age - 32) * 0.6;
@@ -244,7 +245,8 @@
     // stars on bad teams carry the load (38-40 mpg, extra shots); stars on winners share it and get rested in blowouts
     const tg = (c.wins == null ? 41 : c.wins) - 41, ks = clamp((o - 78) / 14, 0, 1);
     mins += ks * clamp(-tg * 0.3, -1.8, 5.2);
-    mins = clamp(mins * (c.minsMult || 1), 6, c.minsMax || (38 + 2.6 * ks * clamp(-tg / 12, 0, 1)));
+    mins += T.frMins * (c.fr || 0);
+    mins = clamp(mins * (c.minsMult || 1), 6, c.minsMax || (38 + 2.6 * ks * clamp(-tg / 12, 0, 1) + 0.8 * (c.fr || 0)));
     if (c.minsFixed) mins = c.minsFixed;
     else if (c.minsFloor) mins = Math.max(mins, c.minsFloor);
 

@@ -143,6 +143,11 @@
     });
     return clamp(tax, -0.03, 0.05);
   }
+  // the clear #1 on his roster is the franchise player: the offence runs through him and he plays heavy minutes
+  function franchiseFor(self, roster) {
+    const o = ovr(self); let best = 0; roster.forEach((q) => { if (q !== self) best = Math.max(best, ovr(q)); });
+    return clamp((o - best - 1) / 9, 0, 1) * clamp((o - 70) / 14, 0, 1);
+  }
   const perfOf = (l) => l.pts * (1 + 2.2 * (l.ts - 0.57)) + 1.15 * l.reb + 1.5 * l.ast + 2 * (l.stl + l.blk) - 1.1 * l.tov;
   function defScore(p, l) {
     return 4 * l.blk + 3.5 * l.stl + 0.12 * Math.max(p.attrs.rimP, p.attrs.perD);
@@ -256,7 +261,7 @@
     if (user) {
       const t = L.teams[user.teamId];
       const roster = teamRoster(L, t, user);
-      user.ctx = { coTax: coTaxFor(user.p, roster), pace: t.pace, wins: t.wins };
+      user.ctx = { coTax: coTaxFor(user.p, roster), fr: franchiseFor(user.p, roster), pace: t.pace, wins: t.wins };
       user.line = user.getLine(user.ctx);
     }
     // everyone else
@@ -264,7 +269,7 @@
     allPlayers.forEach((p) => {
       const t = L.teams[p.teamId];
       const roster = teamRoster(L, t, user);
-      const e = expLine(p, { coTax: coTaxFor(p, roster), wins: t.wins, pace: t.pace, rookie: p.rookie, minsFloor: p.rookie ? NBA.rookieFloor(p.draftSlot) : 0 });
+      const e = expLine(p, { coTax: coTaxFor(p, roster), fr: franchiseFor(p, roster), wins: t.wins, pace: t.pace, rookie: p.rookie, minsFloor: p.rookie ? NBA.rookieFloor(p.draftSlot) : 0 });
       const l = lineFromExp(p, e, avail[p.id].gp);
       l.id = p.id; l.teamId = p.teamId; l.wins = t.wins;
       lines[p.id] = l;
@@ -276,6 +281,22 @@
       entries.push({ p: user.p, l, t: L.teams[user.teamId], id: 'user', isUser: true });
       user.line.perf = l.perf;
     }
+    // one ball, one set of boards: a roster cannot have two players each taking a star's assists/rebounds/points
+    // (a real team's rotation totals ~29 ast, ~46 reb); the extra is shaved off the lesser producers, never off the user
+    const byTeam = {}; entries.forEach((e) => { if (e.l.gp >= 20) (byTeam[e.t.id] = byTeam[e.t.id] || []).push(e); });
+    const CAP = { ast: 32, reb: 50, pts: 122 };
+    Object.keys(byTeam).forEach((tid) => {
+      const es = byTeam[tid];
+      Object.keys(CAP).forEach((k) => {
+        const tot = sum(es.map((e) => e.l[k])); if (tot <= CAP[k]) return;
+        const fixed = sum(es.filter((e) => e.isUser).map((e) => e.l[k])), npc = es.filter((e) => !e.isUser).sort((a, b) => b.l[k] - a.l[k]);
+        const top = npc.length && !es.some((e) => e.isUser && e.l[k] >= npc[0].l[k]) ? npc[0].l[k] : 0;   // the team's lead producer of that stat keeps his line unless the user is the lead
+        const rest = tot - fixed - top; if (rest <= 0) return;
+        const f = clamp((CAP[k] - fixed - top) / rest, 0.5, 1);
+        npc.forEach((e, i) => { if (i === 0 && top) return; e.l[k] *= f; });
+      });
+    });
+    entries.forEach((e) => { if (!e.isUser && byTeam[e.t.id]) e.l.perf = perfOf(e.l); });
     L.lines = lines;
 
     // the scoring champion nearly always clears 31 ppg (every year but two since 2014); a user who leads with 30.3+ is left alone
@@ -403,8 +424,9 @@
     return p;
   }
   function stockOf(p, bonus) {
-    const o = ovr(p);
-    const est = p.ceiling + randn() * 9 + (rand() < 0.12 ? randn() * 16 : 0);
+    // scouts only see the true ceiling in proportion to how visible the prospect is (recruit tier); an under-scouted talent is judged on what they look like now
+    const vis = p.vis == null ? 1 : p.vis, o = ovr(p) - 7 * (1 - vis), seen = vis * p.ceiling + (1 - vis) * 76;
+    const est = seen + randn() * (9 + 10 * (1 - vis)) + (rand() < 0.12 ? randn() * 16 : 0);
     return 0.5 * o + 0.5 * est - 1.4 * (p.age - 19) + (bonus || 0) + randn() * 5;
   }
   function projectStock(p) { // deterministic version for mock draft
@@ -486,6 +508,23 @@
     });
   }
 
+  // teams shop their lesser players for similar value; a franchise player only moves when a bad team sells him to a contender
+  const rosterOf = (L, t) => t.core.concat(t.bench || []).map((id) => L.players[id]).filter((q) => q && !q.rookie).sort((x, y) => ovr(y) - ovr(x));
+  function swapPlayers(L, a, pa, b, pb) {
+    [a, b].forEach((t) => { t.core = t.core.filter((id) => id !== pa.id && id !== pb.id); t.bench = (t.bench || []).filter((id) => id !== pa.id && id !== pb.id); });
+    a.bench.push(pb.id); b.bench.push(pa.id); pa.teamId = b.id; pb.teamId = a.id;
+  }
+  function npcTrades(L, n) {
+    for (let k = 0, done = 0; k < 60 && done < n; k++) {
+      const a = pick(L.teams), b = pick(L.teams); if (a === b) continue;
+      const ra = rosterOf(L, a), rb = rosterOf(L, b); if (ra.length < 6 || rb.length < 6) continue;
+      const star = done === 0 && rand() < 0.3 && a.wins < 33 && b.wins >= 44 && ovr(ra[0]) >= 80 && ra[0].age >= 26;
+      const pa = star ? ra[0] : ra[rint(3, ra.length - 1)], tg = ovr(pa);
+      const cand = rb.filter((q, i) => (star ? i <= 2 && ovr(q) >= tg - 7 && ovr(q) <= tg + 1 : i >= 3 && Math.abs(ovr(q) - tg) <= 4));
+      if (!cand.length) continue;
+      swapPlayers(L, a, pa, b, pick(cand)); done++;
+    }
+  }
   function offseason(L, opts) {
     opts = opts || {};
     Object.values(L.players).forEach((p) => {
@@ -498,13 +537,7 @@
       }
     });
     settleRookies(L);
-    for (let i = 0; i < 6; i++) {
-      const a = pick(L.teams), b = pick(L.teams);
-      if (a === b || !a.core.length || !b.core.length) continue;
-      const ia = rint(0, a.core.length - 1), ib = rint(0, b.core.length - 1);
-      const pa = L.players[a.core[ia]], pb = L.players[b.core[ib]];
-      a.core[ia] = pb.id; b.core[ib] = pa.id; pa.teamId = b.id; pb.teamId = a.id;
-    }
+    npcTrades(L, 5);
     L.teams.forEach((t) => fillCore(L, t));
     if (opts.draft !== false) npcDraft(L);
     L.year++;
@@ -522,6 +555,6 @@
     return { n90: o.filter((x) => x >= 90).length, n85: o.filter((x) => x >= 85).length, n80: o.filter((x) => x >= 80).length, mean: sum(o) / o.length, top: o.slice(0, 6).map((x) => Math.round(x)) };
   }
 
-  Object.assign(NBA, { seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, makeReal, userDraft, npcDraft, draftClass, makeProspect, retireP, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
+  Object.assign(NBA, { rosterOf, swapPlayers, seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, makeReal, userDraft, npcDraft, draftClass, makeProspect, retireP, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

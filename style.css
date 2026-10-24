@@ -235,3 +235,9 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 /* the league mark keeps its white background: the white figure in it disappears on dark */
 .brand .nbamark { background: #fff; border-radius: 8px; padding: 3px 5px; height: 38px; box-sizing: border-box; } .brand .nbamark img { height: 32px; filter: none; }
 .nbahero { display: flex; justify-content: center; margin: 4px 0 14px; } .nbahero span { background: #fff; border-radius: 14px; padding: 8px 12px; display: inline-flex; } .nbahero img { height: 84px; width: auto; display: block; }
+
+/* archetype picker spacing: room under the section heading, even padding and gaps inside every card */
+.card > h2 + .grid { margin-top: 16px; } .card > h2 + .grid.g3 { gap: 14px; }
+.opt { display: flex; flex-direction: column; gap: 7px; padding: 16px 18px; } .opt b { margin: 0; } .opt .small { line-height: 1.45; } .opt .comps { margin-top: 2px; line-height: 1.4; }
+
+.card.off { opacity: .72; } .small.bad { color: #ff8b8b; margin-top: 4px; }
