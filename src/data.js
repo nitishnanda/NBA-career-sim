@@ -26,7 +26,7 @@
       comps: 'LeBron · Jordan · Jokic · Wembanyama',
       boost: { inside: 14, mid: 12, three: 10, ft: 10, handling: 8, passing: 8, iq: 20, reb: 5, perD: 8, rimP: 8, ath: 12, dur: 6 },
       weights: { inside: .11, mid: .08, three: .08, ft: .04, handling: .09, passing: .1, iq: .14, reb: .08, perD: .07, rimP: .05, ath: .12, dur: .04 },
-      usg: 0.01, ts: 0.028, declineMult: 0.6, ceilingBonus: 3,
+      usg: 0.01, ts: 0.028, declineMult: 0.8, ceilingBonus: 3,
     },
     scorer: {
       name: 'Consistent Scorer', icon: '🎯',

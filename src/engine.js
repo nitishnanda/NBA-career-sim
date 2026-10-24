@@ -48,7 +48,7 @@
     winsPerPt: 0.738, formSd: 0.069394, winsCoreAvg: 48, ovrStretch: 1.3,
     growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.65, coTaxK: 0.0027074, starWinK: 1.275, badTeamUsg: 0, awardMinGp: 65, badTeamMins: 0, coTaxMax: 0.032875, capPts: 156.78, minorRate: 1.35, injMu: 1.8, injSd: 0.95, injMax: 60, retireScale: 0.9,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
     astKnee: 7.0237, astK: 0.70762, rebKnee: 7.039, rebK: 0.72429,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
-    volSpread: 0.30029, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.02, genSecGap: 11, gdReb: 1.0, gdAst: 1.06, gdTs: 0.01, gdMins: 1.5, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 2.2, majorRate: 0.025, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, tailShare: 0.25, tailMult: 3.2, starRetire: 1.5, userWinShrink: 0.2, userTaxCut: 0.4, trainCap: 3, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, effLowUsg: 0.4, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: 1.0, genCeilRange: 12, genCeilPow: 1.9,
+    volSpread: 0.30029, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.02, genSecGap: 11, gdReb: 1.0, gdAst: 1.06, gdTs: 0.01, gdMins: 1.5, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 2.2, majorRate: 0.025, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, tailShare: 0.25, tailMult: 3.2, starRetire: 1.5, userWinShrink: 0.2, userTaxCut: 0, trainCap: 3, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, effLowUsg: 0.4, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: 1.0, genCeilRange: 12, genCeilPow: 1.9,
     starTs: 0.041469, starReb: 0.11722, starAst: 0.3069,   // extra production for the very best (fitted to the real top of the league)
   };
   NBA.tuning = T;
@@ -248,7 +248,7 @@
     const sh = top3shots(a);
     const SS = 0.34 * sh[0] + 0.14 * sh[1] + 0.12 * a.ft + 0.12 * a.handling + 0.1 * a.iq + 0.18 * a.ath;
     let usg = T.usgBase + T.usgPerSS * (SS - 55) + T.usgConvex * Math.pow(Math.max(0, SS - 70), 2) + A.usg + (S ? 0.4 * S.usg : 0) - (c.coTax || 0);
-    { const tw = (c.wins == null ? 41 : c.wins) - 41; usg *= 1 + ks0(o) * (tw < 0 ? T.badTeamUsg * Math.min(22, -tw) : -0.0006 * Math.min(28, tw)); } // good players on good teams share the ball; stars on bad teams take over
+    { const tw = (c.wins == null ? 41 : c.wins) - 41; usg *= 1 + ks0(o) * (tw < 0 ? T.badTeamUsg * Math.min(22, -tw) : -0.0006 * Math.min(28, tw)); } // good players on good teams share the ball (the bad-team usage boost is fitted to ~0, see below)
     usg *= 1 + (p.vol || 0) * (1 + T.volSpread);   // some players just shoot more (or less) than their skill suggests: the usage/efficiency spread of real rosters
     if (p.arch === 'dominator' && p.sec === 'generational') usg *= 1 + T.genDomUsg;   // a generational box-score dominator carries the volume of the Westbrook / Luka / Jokic seasons
     usg *= 1 + T.frUsg * (c.fr || 0);   // franchise player: the offence runs through him
@@ -257,7 +257,8 @@
     if (p.age >= 33) mins -= (p.age - 32) * T.minsAgeDecay * (1 - T.starAgeKeep * clamp((o - 80) / 10, 0, 1));   // stars keep their heavy minutes late (LeBron, Magic, Westbrook at 34-36)
     if (c.rookie && o < 84) mins *= 0.93;
     if (c.rookie) { usg *= 0.96; }
-    // stars on bad teams carry the load (38-40 mpg, extra shots); stars on winners share it and get rested in blowouts
+    // stars on winners get rested in blowouts; the extra load stars on bad teams used to get is fitted to zero (badTeamMins / badTeamUsg, scripts/fit-star-wins.js):
+    // real top-30 producers play ~36 mpg whatever the record, and score MORE on better teams
     const tg = (c.wins == null ? 41 : c.wins) - 41, ks = clamp((o - 78) / 14, 0, 1);
     mins += ks * clamp(-tg * T.badTeamMins, -1.8, 5.2);
     mins += T.frMins * (c.fr || 0);
