@@ -253,7 +253,7 @@
     L.teams.forEach((t) => { t.wins = 0.9 * t.wins + 0.1 * (t.prevWins == null ? 41 : t.prevWins); });
     const mw = sum(L.teams.map((t) => t.wins)) / L.teams.length;
     // real tails: more truly bad teams, fewer 60+ juggernauts
-    L.teams.forEach((t) => { let w = t.wins - (mw - 41); if (w < 33) w -= (33 - w) * 0.22; if (w > 54) w -= (w - 54) * ((user && t.id === user.teamId && ovr(user.p) >= 88) ? 0.08 : 0.2); t.wins = clamp(Math.round(w), 12, 73); t.losses = 82 - t.wins; });
+    L.teams.forEach((t) => { let w = t.wins - (mw - 41); if (w < 33) w -= (33 - w) * 0.22; if (w > 54) w -= (w - 54) * ((user && t.id === user.teamId && ovr(user.p) >= 88) ? T.userWinShrink : 0.2); t.wins = clamp(Math.round(w), 12, 73); t.losses = 82 - t.wins; });
     L.teams.forEach((t) => { t.power = (t.wins - 41) / 2.7 + randn() * 0.8; t.prevWins = t.wins; });
     if (user) { const ut = L.teams[user.teamId]; ut.power += clamp((ovr(user.p) - 84) * 0.1, 0, 1.5); } // superstars matter more in the playoffs: shorter rotations, more minutes
 
@@ -314,7 +314,9 @@
     // All-NBA = logistic on the same three. Voters' randomness is the Gumbel / logistic noise of those models, nothing else is bolted on.
     const gumbel = () => -Math.log(-Math.log(Math.max(1e-9, rand())));
     const pool = q65.slice().sort((a, b) => b.l.perf - a.l.perf);
-    const mvpAll = pool.map((e, i) => ({ e, s: 0.303 * e.l.perf + 0.289 * e.l.wins + 0.062 * e.l.pts + (i < 14 ? gumbel() : -50) })).sort((a, b) => b.s - a.s);
+    // voter fatigue fitted on 1981-2025 voting (scripts/real-mvp-model.py): winning last year changes nothing, but a two-time reigning MVP is a big underdog
+    // for a third straight (12 chances, Bird the only one to do it)
+    const mvpAll = pool.map((e, i) => ({ e, s: 0.318 * e.l.perf + 0.294 * e.l.wins + 0.068 * e.l.pts + ((e.p.mvpStreak || 0) >= 2 ? -2.05 : 0) + (i < 14 ? gumbel() : -50) })).sort((a, b) => b.s - a.s);
     const byMVP = mvpAll;
     const dpoy = q65.map((e) => ({ e, s: defScore(e.p, e.l) + 0.12 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s);
     const roy = entries.filter((e) => e.p.rookie && e.l.gp >= 50).map((e) => ({ e, s: e.l.perf + 0.1 * (e.l.wins - 41) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
@@ -327,7 +329,7 @@
     const allDef = q65.map((e) => ({ e, s: ADM.b0 + ADM.stl * e.l.stl + ADM.blk * e.l.blk + ADM.reb * e.l.reb + ADM.mins * e.l.mins + ADM.wins * e.l.wins + (e.p.prevAD ? ADM.prevAD : 0) + logisticNoise() })).sort((a, b) => b.s - a.s).slice(0, 10);
     const asCand = entries.filter((e) => e.l.gp >= 40).map((e) => ({ e, s: ASM.b0 + ASM.perf * e.l.perf + ASM.pts * e.l.pts + ASM.wins * e.l.wins + (e.p.prevAS ? ASM.prevAS : 0) + logisticNoise() })).sort((a, b) => b.s - a.s);
     const stars = ['E', 'W'].reduce((acc, c) => acc.concat(asCand.filter((x) => x.e.t.conf === c).slice(0, 12)), []);
-    entries.forEach((e) => { e.p.prevAS = false; e.p.prevAD = false; });
+    entries.forEach((e) => { e.p.prevAS = false; e.p.prevAD = false; e.p.mvpStreak = mvpAll[0] && mvpAll[0].e === e ? (e.p.mvpStreak || 0) + 1 : 0; });
     stars.forEach((x) => { x.e.p.prevAS = true; }); allDef.forEach((x) => { x.e.p.prevAD = true; });
     const qual = entries.filter((e) => e.l.gp >= 58);
     const lead = (k) => qual.slice().sort((a, b) => b.l[k] - a.l[k]);
@@ -400,6 +402,7 @@
     if (p.age >= 29 && p.age < 32) h += T.earlyExit * (p.age - 28) * clamp((80 - o) / 10, 0, 1.5);
     if (p.age >= 30 && o < 64) h += 0.18;
     h *= Math.exp(-T.trStay * st * (o >= 80 ? 0.4 : 1));   // some walk away early, some hang on as role players into their late 30s; stars' choices vary less
+    if (o >= 84 && p.age >= 33) h *= T.starRetire;   // superstars in their mid-30s leave on their own terms: the real gens' careers end at 35-40, not in the 40s
     return rand() < h * T.retireScale;
   }
 

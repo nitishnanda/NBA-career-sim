@@ -425,7 +425,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     winsPerPt: 0.95, formSd: 0.07, winsCoreAvg: 48, ovrStretch: 1.3,
     growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.65, retireScale: 0.9,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
     astKnee: 7, astK: 0.7, rebKnee: 7, rebK: 0.71253,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
-    volSpread: 0, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.06, genSecGap: 4, gdReb: 1.0, gdAst: 1.06, gdTs: 0.03, gdMins: 1.5, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 2.2, majorRate: 0.025, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: 2.0,
+    volSpread: 0, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.02, genSecGap: 11, gdReb: 1.0, gdAst: 1.06, gdTs: 0.01, gdMins: 1.5, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 2.2, majorRate: 0.025, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, tailShare: 0.25, tailMult: 3.2, starRetire: 1.5, userWinShrink: 0.2, userTaxCut: 0.4, trainCap: 3, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: 1.0, genCeilRange: 12, genCeilPow: 1.9,
     starTs: 0.02925, starReb: 0.23948, starAst: 0.22211,   // extra production for the very best (fitted to the real top of the league)
   };
   NBA.tuning = T;
@@ -506,7 +506,12 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     };
     // hidden individual traits: real players of one archetype differ a lot in playmaking, rebounding instinct, shooting efficiency,
     // how fast they develop, how fast they age and how long they want to keep playing (spreads fitted in scripts/realism-test.js)
-    p.tr = o.tr || { pass: clamp(randn(), -2.5, 2.5), glass: clamp(randn(), -2.5, 2.5), eff: clamp(randn(), -2.5, 2.5), dev: clamp(randn(), -2.5, 2.5), aging: clamp(randn(), -2.5, 2.5), stay: clamp(randn(), -2.5, 2.5) };
+    // heavy tails: about 1 in 4 players has a trait far from his archetype's norm (the late bloomer, the one who falls off a cliff at 29, the 40-year-old role player)
+    const trait = () => clamp(randn() * (rand() < T.tailShare ? T.tailMult : 1), -3.5, 3.5);
+    const norm = () => clamp(randn(), -3.5, 3.5);   // passing and rebounding stay near the archetype norm (fat tails there inflate assists)
+    // aging is floored at -1.8 sd: nobody escapes it entirely (LeBron is the one exception in history)
+    p.tr = o.tr || { pass: norm(), glass: norm(), eff: norm(), dev: trait(), aging: clamp(randn() * (rand() < T.tailShare ? 1.6 : 1), -1.8, 3), stay: trait() };   // fat tails for career shape only: efficiency outliers made 70% TS scorers, aging outliers made 37-year-old MVPs
+    if (rand() < T.tailShare) p.tr.stay = clamp(p.tr.stay * 1.6 + (rand() < 0.5 ? -1 : 1) * T.tailMult * 0.5, -3.5, 3.5);   // the short career and the 19-year journeyman
     if (o.prone == null) p.prone = clamp(1 + randn() * T.proneSd, 0.4, 2.5);
     p.target = buildTarget(p, p.ceiling);
     const gap = o.gap != null ? o.gap : 10 + rand() * 12;
@@ -597,8 +602,9 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       let eff = pts * (0.85 + 0.3 * p.work) * 0.7;
       if (p.attrs[a] > 92) eff *= 0.35; else if (p.attrs[a] > 85) eff *= 0.6;
       if (p.age >= 31) eff *= 0.8;
-      p.attrs[a] = clamp(p.attrs[a] + eff, 8, 99);
-      p.target[a] = clamp(p.target[a] + eff * 0.8, 8, 99);
+      p.attrs[a] = clamp(Math.min(p.attrs[a] + eff, Math.max(p.attrs[a], p.target[a] + 1)), 8, 99);   // training speeds you toward your ceiling, not past it
+      if (!p.target0) p.target0 = Object.assign({}, p.target);   // the hidden ceiling as scouted; training can lift it only a little (otherwise the 'ceiling' meant nothing: peaks ran up to +8 over it)
+      p.target[a] = clamp(Math.min(p.target[a] + eff * 0.8, p.target0[a] + T.trainCap), 8, 99);
     });
   }
 
@@ -643,7 +649,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     ts += T.starTs * top;
     if (p.arch === 'dominator' && p.sec === 'generational') ts += T.gdTs;
     ts += T.trEff * ((p.tr || NOTR).eff);   // some players are just more (or less) efficient than their ratings suggest   // Jokic-type efficiency on top of the volume
-    ts = clamp(ts, 0.44, 0.7);
+    ts = clamp(ts, 0.44, Math.min(0.7, 0.735 - 0.2 * usg));   // the more you shoot, the lower the ceiling on efficiency: no 30-ppg season has topped ~67% TS (Curry '16, Embiid '23)
 
     const pace = c.pace || T.pace;
     const used = usg * (mins / 48) * pace;
@@ -1002,7 +1008,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     L.teams.forEach((t) => { t.wins = 0.9 * t.wins + 0.1 * (t.prevWins == null ? 41 : t.prevWins); });
     const mw = sum(L.teams.map((t) => t.wins)) / L.teams.length;
     // real tails: more truly bad teams, fewer 60+ juggernauts
-    L.teams.forEach((t) => { let w = t.wins - (mw - 41); if (w < 33) w -= (33 - w) * 0.22; if (w > 54) w -= (w - 54) * ((user && t.id === user.teamId && ovr(user.p) >= 88) ? 0.08 : 0.2); t.wins = clamp(Math.round(w), 12, 73); t.losses = 82 - t.wins; });
+    L.teams.forEach((t) => { let w = t.wins - (mw - 41); if (w < 33) w -= (33 - w) * 0.22; if (w > 54) w -= (w - 54) * ((user && t.id === user.teamId && ovr(user.p) >= 88) ? T.userWinShrink : 0.2); t.wins = clamp(Math.round(w), 12, 73); t.losses = 82 - t.wins; });
     L.teams.forEach((t) => { t.power = (t.wins - 41) / 2.7 + randn() * 0.8; t.prevWins = t.wins; });
     if (user) { const ut = L.teams[user.teamId]; ut.power += clamp((ovr(user.p) - 84) * 0.1, 0, 1.5); } // superstars matter more in the playoffs: shorter rotations, more minutes
 
@@ -1063,7 +1069,9 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     // All-NBA = logistic on the same three. Voters' randomness is the Gumbel / logistic noise of those models, nothing else is bolted on.
     const gumbel = () => -Math.log(-Math.log(Math.max(1e-9, rand())));
     const pool = q65.slice().sort((a, b) => b.l.perf - a.l.perf);
-    const mvpAll = pool.map((e, i) => ({ e, s: 0.303 * e.l.perf + 0.289 * e.l.wins + 0.062 * e.l.pts + (i < 14 ? gumbel() : -50) })).sort((a, b) => b.s - a.s);
+    // voter fatigue fitted on 1981-2025 voting (scripts/real-mvp-model.py): winning last year changes nothing, but a two-time reigning MVP is a big underdog
+    // for a third straight (12 chances, Bird the only one to do it)
+    const mvpAll = pool.map((e, i) => ({ e, s: 0.318 * e.l.perf + 0.294 * e.l.wins + 0.068 * e.l.pts + ((e.p.mvpStreak || 0) >= 2 ? -2.05 : 0) + (i < 14 ? gumbel() : -50) })).sort((a, b) => b.s - a.s);
     const byMVP = mvpAll;
     const dpoy = q65.map((e) => ({ e, s: defScore(e.p, e.l) + 0.12 * (e.l.wins - 41) + randn() * 2 })).sort((a, b) => b.s - a.s);
     const roy = entries.filter((e) => e.p.rookie && e.l.gp >= 50).map((e) => ({ e, s: e.l.perf + 0.1 * (e.l.wins - 41) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
@@ -1076,7 +1084,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const allDef = q65.map((e) => ({ e, s: ADM.b0 + ADM.stl * e.l.stl + ADM.blk * e.l.blk + ADM.reb * e.l.reb + ADM.mins * e.l.mins + ADM.wins * e.l.wins + (e.p.prevAD ? ADM.prevAD : 0) + logisticNoise() })).sort((a, b) => b.s - a.s).slice(0, 10);
     const asCand = entries.filter((e) => e.l.gp >= 40).map((e) => ({ e, s: ASM.b0 + ASM.perf * e.l.perf + ASM.pts * e.l.pts + ASM.wins * e.l.wins + (e.p.prevAS ? ASM.prevAS : 0) + logisticNoise() })).sort((a, b) => b.s - a.s);
     const stars = ['E', 'W'].reduce((acc, c) => acc.concat(asCand.filter((x) => x.e.t.conf === c).slice(0, 12)), []);
-    entries.forEach((e) => { e.p.prevAS = false; e.p.prevAD = false; });
+    entries.forEach((e) => { e.p.prevAS = false; e.p.prevAD = false; e.p.mvpStreak = mvpAll[0] && mvpAll[0].e === e ? (e.p.mvpStreak || 0) + 1 : 0; });
     stars.forEach((x) => { x.e.p.prevAS = true; }); allDef.forEach((x) => { x.e.p.prevAD = true; });
     const qual = entries.filter((e) => e.l.gp >= 58);
     const lead = (k) => qual.slice().sort((a, b) => b.l[k] - a.l[k]);
@@ -1149,6 +1157,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     if (p.age >= 29 && p.age < 32) h += T.earlyExit * (p.age - 28) * clamp((80 - o) / 10, 0, 1.5);
     if (p.age >= 30 && o < 64) h += 0.18;
     h *= Math.exp(-T.trStay * st * (o >= 80 ? 0.4 : 1));   // some walk away early, some hang on as role players into their late 30s; stars' choices vary less
+    if (o >= 84 && p.age >= 33) h *= T.starRetire;   // superstars in their mid-30s leave on their own terms: the real gens' careers end at 35-40, not in the 40s
     return rand() < h * T.retireScale;
   }
 
@@ -1435,7 +1444,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     let stars = o.stars, ceiling = o.ceiling, gap = 10 + rand() * 12;
     if (genLevel && !lateBloomer) {
       if (!stars) stars = +weighted(genLevel === 2 ? { 5: 70, 4: 25, 3: 5 } : { 5: 40, 4: 35, 3: 25 });
-      if (ceiling == null) ceiling = (genLevel === 2 ? 86 : 82) - NBA.tuning.genCeilDrop + (genLevel === 2 ? 12 : 12) * Math.pow(rand(), 1.9);
+      if (ceiling == null) ceiling = (genLevel === 2 ? 86 : 82) - NBA.tuning.genCeilDrop + NBA.tuning.genCeilRange * Math.pow(rand(), NBA.tuning.genCeilPow);
       gap = NBA.tuning.genGapA + rand() * NBA.tuning.genGapB + (genLevel === 1 ? NBA.tuning.genSecGap : 0);   // a generational tag on top of another archetype starts further from the ceiling (Jokic: 10 ppg at 20)
     } else if (lateBloomer) {
       if (!stars) stars = +weighted({ 1: 50, 2: 50 });
@@ -1643,7 +1652,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const p = st.player, rookie = p.yearsPro === 0, age = p.age;
     // a new teammate changes your role gradually; a franchise player keeps most of it
     const coRaw = p.coTaxPrev == null ? ctx.coTax : 0.7 * p.coTaxPrev + 0.3 * ctx.coTax; p.coTaxPrev = coRaw;
-    const coT = coRaw * (1 - 0.4 * clamp((ovr(p) - 80) / 16, 0, 1));
+    const coT = coRaw * (1 - NBA.tuning.userTaxCut * clamp((ovr(p) - 80) / 16, 0, 1));
     const paceS = p.paceS == null ? ctx.pace : 0.6 * p.paceS + 0.4 * ctx.pace; p.paceS = paceS;
     const e0 = expLine(p, { coTax: coT, fr: ctx.fr, wins: ctx.wins, pace: paceS, rookie, minsMult: fx.minsMult, minsFloor: rookie ? NBA.rookieFloor(st.draft && st.draft.slot) : 0 });
     // Year-to-year shocks sized from real careers (22 generational and ~100 star careers, Basketball-Reference): usage ±6%, TS ±3%, minutes ±4%, rebounds ±10%, assists ±14% between seasons.
@@ -2148,7 +2157,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 21 Oct · BallerSim dashboard v27';
+  const BUILD = 'build 21 Oct · BallerSim dashboard v28';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
@@ -2684,7 +2693,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     if (live) {
       const pace = (nick) => { const r = rows.find((t) => t.nick === nick); return r && r.gp ? (r.wins / r.gp) * 82 : 41; }, rec = (nick) => { const r = rows.find((t) => t.nick === nick); return r ? r.wins + '-' + r.losses : ''; };
       const prod = (c) => c.perf;
-      const idxOf = (c) => (leagueRace === 'dpoy' ? 2.2 * c.stl + 2 * c.blk + 0.1 * (c.pace - 41) : leagueRace === 'mvp' ? 0.303 * c.perf + 0.289 * c.pace + 0.062 * c.pts : c.perf + 0.1 * (c.pace - 41));
+      const idxOf = (c) => (leagueRace === 'dpoy' ? 2.2 * c.stl + 2 * c.blk + 0.1 * (c.pace - 41) : leagueRace === 'mvp' ? 0.318 * c.perf + 0.294 * c.pace + 0.068 * c.pts : c.perf + 0.1 * (c.pace - 41));
       if (N < 15) raceBody = h('p', { class: 'muted' }, 'The ladder opens after 15 games.');
       else {
         const list = ((snap.raceO || {})[leagueRace] || []).map((x, i) => { const c = { name: x.name, team: x.team, pts: bridge(x.pts, 60 + i), reb: bridge(x.reb, 70 + i), ast: bridge(x.ast, 80 + i), stl: bridge(x.stl, 90 + i), blk: bridge(x.blk, 100 + i), perf: bridge(x.perf || 0, 110 + i) }; c.pace = pace(x.team); return c; });

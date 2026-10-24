@@ -49,6 +49,12 @@ function ks(a, b) {
   for (const v of all) { while (i < x.length && x[i] <= v) i++; while (j < y.length && y[j] <= v) j++; dmax = Math.max(dmax, Math.abs(i / x.length - j / y.length)); }
   return dmax;
 }
+// two-sided Fisher exact test on a 2x2 table [[a, b], [c, d]]: is the sim's sweet-spot rate statistically different from real careers'?
+function fisher(a, b, c, d) {
+  const lf = (n) => { let t = 0; for (let i = 2; i <= n; i++) t += Math.log(i); return t; };
+  const r1 = a + b, r2 = c + d, c1 = a + c, n = r1 + r2, pr = (x) => Math.exp(lf(r1) + lf(r2) + lf(c1) + lf(n - c1) - lf(n) - lf(x) - lf(r1 - x) - lf(c1 - x) - lf(r2 - c1 + x));
+  const p0 = pr(a); let p = 0; for (let x = Math.max(0, c1 - r2); x <= Math.min(r1, c1); x++) { const q = pr(x); if (q <= p0 * (1 + 1e-9)) p += q; } return Math.min(1, p);
+}
 let seed = 12345; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
 function nullD(real, m) { let t = 0; for (let k = 0; k < 150; k++) { const s = []; for (let i = 0; i < m; i++) s.push(real[Math.floor(rnd() * real.length)]); t += ks(s, real); } return t / 150; }
 
@@ -112,12 +118,14 @@ SCORE.forEach((arch) => {
     const a = (f) => { const v = CREF.z(f); let best = Infinity, bi = -1; CREF.Z.forEach((b, j) => { if (b === f.__z) return; const d = CREF.dist(v, b); if (d < best) { best = d; bi = j; } }); return [best, bi]; };
     const who = {}, nnSim = sim.filter((f) => CF.every((k) => f[k] != null)).map((f) => { const [d, j] = a(f); if (d < CREF.thr) who[CREF.R[j].player] = (who[CREF.R[j].player] || 0) + 1; return d; });
     const realHere = CREF.R.map((r, j) => [r, CREF.nn[j]]).filter(([r]) => r.__arch === arch);
-    copy = { rate: nnSim.filter((d) => d < CREF.thr).length / nnSim.length, base: realHere.filter(([, d]) => d < CREF.thr).length / Math.max(1, realHere.length), thr: CREF.thr,
+    const sIn = nnSim.filter((d) => d >= CREF.thr && d <= CREF.hi).length, rIn = realHere.filter(([, d]) => d >= CREF.thr && d <= CREF.hi).length;
+    const pSweet = fisher(sIn, nnSim.length - sIn, rIn, realHere.length - rIn);
+    copy = { pSweet, rate: nnSim.filter((d) => d < CREF.thr).length / nnSim.length, base: realHere.filter(([, d]) => d < CREF.thr).length / Math.max(1, realHere.length), thr: CREF.thr,
       far: nnSim.filter((d) => d > CREF.hi).length / nnSim.length, farBase: realHere.filter(([, d]) => d > CREF.hi).length / Math.max(1, realHere.length),
       medSim: nnSim.slice().sort((p, q) => p - q)[Math.floor(nnSim.length / 2)], medReal: realHere.map(([, d]) => d).sort((p, q) => p - q)[Math.floor(realHere.length / 2)], who: Object.entries(who).sort((p, q) => q[1] - p[1]).slice(0, 3) };
   }
   out[arch] = { score: sc / n, plaus, copy: copy.rate, far: copy.far, sweet: 1 - copy.rate - copy.far, nSim: sim.length, nReal: real.length, rows };
-  lines.push(`\n==== ${arch}: realism ${(100 * sc / n).toFixed(0)}% | sweet spot ${(100 * (1 - copy.rate - copy.far)).toFixed(0)}% (real ${(100 * (1 - copy.base - copy.farBase)).toFixed(0)}%) | copies ${(100 * copy.rate).toFixed(0)}% (real ${(100 * copy.base).toFixed(0)}%) | unprecedented ${(100 * copy.far).toFixed(0)}% (real ${(100 * copy.farBase).toFixed(0)}%) | inside every real range ${(100 * plaus).toFixed(0)}% | ${sim.length} sim vs ${real.length} real careers`);
+  lines.push(`\n==== ${arch}: realism ${(100 * sc / n).toFixed(0)}% | sweet spot ${(100 * (1 - copy.rate - copy.far)).toFixed(0)}% (real ${(100 * (1 - copy.base - copy.farBase)).toFixed(0)}%) | copies ${(100 * copy.rate).toFixed(0)}% (real ${(100 * copy.base).toFixed(0)}%) | unprecedented ${(100 * copy.far).toFixed(0)}% (real ${(100 * copy.farBase).toFixed(0)}%) | sweet-spot difference ${copy.pSweet < 0.05 ? 'SIGNIFICANT' : 'not significant'} (p=${copy.pSweet.toFixed(2)}) | inside every real range ${(100 * plaus).toFixed(0)}% | ${sim.length} sim vs ${real.length} real careers`);
   lines.push(`  copy check: nearest real career typically ${copy.medSim.toFixed(2)} away (real ${arch}s to their nearest other real career: ${copy.medReal.toFixed(2)}); copy line ${copy.thr.toFixed(2)}, unprecedented beyond ${CREF.hi.toFixed(2)}` + (copy.who.length ? '; closest copies of ' + copy.who.map(([p, c]) => p + ' x' + c).join(', ') : ''));
   lines.push('  ' + 'feature'.padEnd(26) + 'real'.padStart(9) + 'sim'.padStart(9) + 'match'.padStart(8));
   if (fails.length) lines.push('  outside the real range most often: ' + fails.slice(0, 4).map(([k, c]) => k + ' ' + Math.round(100 * c / sim.length) + '% (real ' + rng[k].map((v) => +v.toFixed(1)).join('-') + ')').join(', '));

@@ -287,3 +287,16 @@ role players' minutes swing more year to year.
 - Result (150 careers per archetype; scorer/shooter/defender re-checked with 300-600): realism 85%, sweet spot 87% (real 90%), copies: gens 0%, dominators 0%,
   two-way 0%, defenders 1%, shooters 4%, scorers 8% (real scorers: 7%). Generational picks average 1.8 MVPs (real gens 1.9); the ones that reach the gen bar
   play ~2 seasons longer and make ~3 more All-Star teams than real gens.
+
+## v28: matching the sweet spot, fewer runaway gens, gen box-score scoring
+
+- Career-shape tails: about 1 in 4 players gets a development / staying-power trait far from the norm (the short career, the 19-year journeyman),
+  so the non-gen archetypes have real-like oddballs instead of every career landing in the middle. Efficiency and aging are NOT heavy-tailed
+  (they produced 70% TS scorers and 37-year-old MVPs).
+- Sweet spot (sim vs real, Fisher exact test on the rates): no archetype differs significantly; gens are borderline (31% vs 57%, p = 0.11, only 14
+  finished real gens) and remain the most extreme group.
+- Runaway gens: training could lift ratings past the hidden ceiling (peaks up to +8); capped. MVP voter fatigue fitted on 1981-2025 voting (`won the last two`
+  -2.05, 12 three-peat chances, only Bird converted). TS ceiling falls with usage (no 30-ppg season above ~67% TS). The user's team no longer gets lighter
+  win shrinkage (no more 73-win dynasties). Slowest-aging trait floored. Gen picks average ~1.9 MVPs (real gens 1.9); ~3% still reach 8-9.
+- Gen box-score dominators: usage/efficiency extras cut (genDomUsg 0.02, gdTs 0.01), start gap 11: ~14 / 18 / 21 / 24 / 25-27 ppg at 20 / 21 / 22 / 23 / peak,
+  on the real CSV curve (15 / 17 / 20 / 25 / 24-28).

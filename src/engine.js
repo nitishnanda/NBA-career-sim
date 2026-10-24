@@ -48,7 +48,7 @@
     winsPerPt: 0.95, formSd: 0.07, winsCoreAvg: 48, ovrStretch: 1.3,
     growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.65, retireScale: 0.9,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
     astKnee: 7, astK: 0.7, rebKnee: 7, rebK: 0.71253,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
-    volSpread: 0, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.06, genSecGap: 4, gdReb: 1.0, gdAst: 1.06, gdTs: 0.03, gdMins: 1.5, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 2.2, majorRate: 0.025, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: 2.0,
+    volSpread: 0, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.02, genSecGap: 11, gdReb: 1.0, gdAst: 1.06, gdTs: 0.01, gdMins: 1.5, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 2.2, majorRate: 0.025, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, tailShare: 0.25, tailMult: 3.2, starRetire: 1.5, userWinShrink: 0.2, userTaxCut: 0.4, trainCap: 3, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: 1.0, genCeilRange: 12, genCeilPow: 1.9,
     starTs: 0.02925, starReb: 0.23948, starAst: 0.22211,   // extra production for the very best (fitted to the real top of the league)
   };
   NBA.tuning = T;
@@ -129,7 +129,12 @@
     };
     // hidden individual traits: real players of one archetype differ a lot in playmaking, rebounding instinct, shooting efficiency,
     // how fast they develop, how fast they age and how long they want to keep playing (spreads fitted in scripts/realism-test.js)
-    p.tr = o.tr || { pass: clamp(randn(), -2.5, 2.5), glass: clamp(randn(), -2.5, 2.5), eff: clamp(randn(), -2.5, 2.5), dev: clamp(randn(), -2.5, 2.5), aging: clamp(randn(), -2.5, 2.5), stay: clamp(randn(), -2.5, 2.5) };
+    // heavy tails: about 1 in 4 players has a trait far from his archetype's norm (the late bloomer, the one who falls off a cliff at 29, the 40-year-old role player)
+    const trait = () => clamp(randn() * (rand() < T.tailShare ? T.tailMult : 1), -3.5, 3.5);
+    const norm = () => clamp(randn(), -3.5, 3.5);   // passing and rebounding stay near the archetype norm (fat tails there inflate assists)
+    // aging is floored at -1.8 sd: nobody escapes it entirely (LeBron is the one exception in history)
+    p.tr = o.tr || { pass: norm(), glass: norm(), eff: norm(), dev: trait(), aging: clamp(randn() * (rand() < T.tailShare ? 1.6 : 1), -1.8, 3), stay: trait() };   // fat tails for career shape only: efficiency outliers made 70% TS scorers, aging outliers made 37-year-old MVPs
+    if (rand() < T.tailShare) p.tr.stay = clamp(p.tr.stay * 1.6 + (rand() < 0.5 ? -1 : 1) * T.tailMult * 0.5, -3.5, 3.5);   // the short career and the 19-year journeyman
     if (o.prone == null) p.prone = clamp(1 + randn() * T.proneSd, 0.4, 2.5);
     p.target = buildTarget(p, p.ceiling);
     const gap = o.gap != null ? o.gap : 10 + rand() * 12;
@@ -220,8 +225,9 @@
       let eff = pts * (0.85 + 0.3 * p.work) * 0.7;
       if (p.attrs[a] > 92) eff *= 0.35; else if (p.attrs[a] > 85) eff *= 0.6;
       if (p.age >= 31) eff *= 0.8;
-      p.attrs[a] = clamp(p.attrs[a] + eff, 8, 99);
-      p.target[a] = clamp(p.target[a] + eff * 0.8, 8, 99);
+      p.attrs[a] = clamp(Math.min(p.attrs[a] + eff, Math.max(p.attrs[a], p.target[a] + 1)), 8, 99);   // training speeds you toward your ceiling, not past it
+      if (!p.target0) p.target0 = Object.assign({}, p.target);   // the hidden ceiling as scouted; training can lift it only a little (otherwise the 'ceiling' meant nothing: peaks ran up to +8 over it)
+      p.target[a] = clamp(Math.min(p.target[a] + eff * 0.8, p.target0[a] + T.trainCap), 8, 99);
     });
   }
 
@@ -266,7 +272,7 @@
     ts += T.starTs * top;
     if (p.arch === 'dominator' && p.sec === 'generational') ts += T.gdTs;
     ts += T.trEff * ((p.tr || NOTR).eff);   // some players are just more (or less) efficient than their ratings suggest   // Jokic-type efficiency on top of the volume
-    ts = clamp(ts, 0.44, 0.7);
+    ts = clamp(ts, 0.44, Math.min(0.7, 0.735 - 0.2 * usg));   // the more you shoot, the lower the ceiling on efficiency: no 30-ppg season has topped ~67% TS (Curry '16, Embiid '23)
 
     const pace = c.pace || T.pace;
     const used = usg * (mins / 48) * pace;

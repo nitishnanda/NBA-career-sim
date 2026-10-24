@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 21 Oct · BallerSim dashboard v27';
+  const BUILD = 'build 21 Oct · BallerSim dashboard v28';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
@@ -538,7 +538,7 @@
     if (live) {
       const pace = (nick) => { const r = rows.find((t) => t.nick === nick); return r && r.gp ? (r.wins / r.gp) * 82 : 41; }, rec = (nick) => { const r = rows.find((t) => t.nick === nick); return r ? r.wins + '-' + r.losses : ''; };
       const prod = (c) => c.perf;
-      const idxOf = (c) => (leagueRace === 'dpoy' ? 2.2 * c.stl + 2 * c.blk + 0.1 * (c.pace - 41) : leagueRace === 'mvp' ? 0.303 * c.perf + 0.289 * c.pace + 0.062 * c.pts : c.perf + 0.1 * (c.pace - 41));
+      const idxOf = (c) => (leagueRace === 'dpoy' ? 2.2 * c.stl + 2 * c.blk + 0.1 * (c.pace - 41) : leagueRace === 'mvp' ? 0.318 * c.perf + 0.294 * c.pace + 0.068 * c.pts : c.perf + 0.1 * (c.pace - 41));
       if (N < 15) raceBody = h('p', { class: 'muted' }, 'The ladder opens after 15 games.');
       else {
         const list = ((snap.raceO || {})[leagueRace] || []).map((x, i) => { const c = { name: x.name, team: x.team, pts: bridge(x.pts, 60 + i), reb: bridge(x.reb, 70 + i), ast: bridge(x.ast, 80 + i), stl: bridge(x.stl, 90 + i), blk: bridge(x.blk, 100 + i), perf: bridge(x.perf || 0, 110 + i) }; c.pace = pace(x.team); return c; });

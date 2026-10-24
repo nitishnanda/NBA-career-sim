@@ -41,7 +41,7 @@
     let stars = o.stars, ceiling = o.ceiling, gap = 10 + rand() * 12;
     if (genLevel && !lateBloomer) {
       if (!stars) stars = +weighted(genLevel === 2 ? { 5: 70, 4: 25, 3: 5 } : { 5: 40, 4: 35, 3: 25 });
-      if (ceiling == null) ceiling = (genLevel === 2 ? 86 : 82) - NBA.tuning.genCeilDrop + (genLevel === 2 ? 12 : 12) * Math.pow(rand(), 1.9);
+      if (ceiling == null) ceiling = (genLevel === 2 ? 86 : 82) - NBA.tuning.genCeilDrop + NBA.tuning.genCeilRange * Math.pow(rand(), NBA.tuning.genCeilPow);
       gap = NBA.tuning.genGapA + rand() * NBA.tuning.genGapB + (genLevel === 1 ? NBA.tuning.genSecGap : 0);   // a generational tag on top of another archetype starts further from the ceiling (Jokic: 10 ppg at 20)
     } else if (lateBloomer) {
       if (!stars) stars = +weighted({ 1: 50, 2: 50 });
@@ -249,7 +249,7 @@
     const p = st.player, rookie = p.yearsPro === 0, age = p.age;
     // a new teammate changes your role gradually; a franchise player keeps most of it
     const coRaw = p.coTaxPrev == null ? ctx.coTax : 0.7 * p.coTaxPrev + 0.3 * ctx.coTax; p.coTaxPrev = coRaw;
-    const coT = coRaw * (1 - 0.4 * clamp((ovr(p) - 80) / 16, 0, 1));
+    const coT = coRaw * (1 - NBA.tuning.userTaxCut * clamp((ovr(p) - 80) / 16, 0, 1));
     const paceS = p.paceS == null ? ctx.pace : 0.6 * p.paceS + 0.4 * ctx.pace; p.paceS = paceS;
     const e0 = expLine(p, { coTax: coT, fr: ctx.fr, wins: ctx.wins, pace: paceS, rookie, minsMult: fx.minsMult, minsFloor: rookie ? NBA.rookieFloor(st.draft && st.draft.slot) : 0 });
     // Year-to-year shocks sized from real careers (22 generational and ~100 star careers, Basketball-Reference): usage ±6%, TS ±3%, minutes ±4%, rebounds ±10%, assists ±14% between seasons.
