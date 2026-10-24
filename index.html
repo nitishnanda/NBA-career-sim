@@ -438,7 +438,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     winsPerPt: 0.95, formSd: 0.07, winsCoreAvg: 48, ovrStretch: 1.3,
     growthScale: 0.85, declineLate: 1.2, genGapA: 6, genGapB: 7, injScale: 0.6, retireScale: 1.2,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
     astKnee: 7, astK: 0.88991, rebKnee: 7.23037, rebK: 0.76112,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
-    volSpread: 0.43399, frUsg: 0.05, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.2, genSecGap: 8, gdReb: 1.12, gdAst: 1.06, gdTs: 0.06, genCeilDrop: 3.5,
+    volSpread: 0.43399, frUsg: 0.05, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.12, genSecGap: 8, gdReb: 1.12, gdAst: 1.06, gdTs: 0.06, gdMins: 1.5, genCeilDrop: 3.5,
     starTs: 0.04142, starReb: 0.06173, starAst: 0.32616,   // extra production for the very best (fitted to the real top of the league)
   };
   NBA.tuning = T;
@@ -637,6 +637,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const tg = (c.wins == null ? 41 : c.wins) - 41, ks = clamp((o - 78) / 14, 0, 1);
     mins += ks * clamp(-tg * 0.3, -1.8, 5.2);
     mins += T.frMins * (c.fr || 0);
+    if (p.arch === 'dominator' && p.sec === 'generational') mins += T.gdMins;   // real gen box-score stars play 36+ through the prime (scripts/real-gen-dominators.py)
     mins = clamp(mins * (c.minsMult || 1), 6, c.minsMax || Math.min(T.minsHard, 38 + 2.6 * ks * clamp(-tg / 12, 0, 1) + 0.8 * (c.fr || 0)));
     if (c.minsFixed) mins = c.minsFixed;
     else if (c.minsFloor) mins = Math.max(mins, c.minsFloor);
@@ -2132,7 +2133,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 21 Oct · BallerSim dashboard v23';
+  const BUILD = 'build 21 Oct · BallerSim dashboard v24';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
