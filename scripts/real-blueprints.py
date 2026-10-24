@@ -4,7 +4,7 @@ Usage: python3 scripts/real-blueprints.py [path/to/bball-reference-datasets/Data
 Writes data/real-blueprints.json and prints a summary.
 
 Cohorts: players who debuted 1980-2018 (3-point era, mostly complete careers), classified from their five best seasons.
-generational (2+ MVP or 5+ All-NBA 1st), dominator (box-score: 5.5+ ast and 6.5+ reb), shooter (3-point heavy, 80%+ FT),
+generational (2+ MVP or 5+ All-NBA 1st), dominator (box-score: 5+ ast and 6+ reb, or 30+ triple-doubles), shooter (3-point heavy, 80%+ FT),
 scorer (20+ ppg), twoway (1.4+ stl or 1.2+ blk, 15+ ppg, an All-Defense nod), defender (<15 ppg, rim/glass/All-Defense).
 Metrics: age curves (absolute and relative to the player's own peak), peak age and width, career length, games played, season-to-season noise,
 awards per career (all of which emerge from production, none are quotas).
@@ -23,6 +23,7 @@ def clean(o):
 D = (sys.argv[1] if len(sys.argv) > 1 else '/home/user/sumitrodatta/bball-reference-datasets/Data').rstrip('/') + '/'
 OUT = os.path.join(os.path.dirname(__file__), '..', 'data', 'real-blueprints.json')
 
+GL = pd.read_csv(os.path.join(os.path.dirname(__file__), '..', 'data', 'real-player-season-games.csv')); TD = GL[GL.type == 'rg'].groupby('player').td.sum()
 pg = pd.read_csv(D + 'Player Per Game.csv'); adv = pd.read_csv(D + 'Advanced.csv')
 aw = pd.read_csv(D + 'Player Award Shares.csv'); eot = pd.read_csv(D + 'End of Season Teams.csv'); asg = pd.read_csv(D + 'All-Star Selections.csv')
 car = pd.read_csv(D + 'Player Career Info.csv')
@@ -57,14 +58,14 @@ for pid, g in d.groupby('player_id'):
     gg = g[g.gf >= 0.55].sort_values('perf', ascending=False)
     if len(gg) < 5: continue
     t5 = gg.head(5)
-    rows.append(dict(player_id=pid, player=g.player.iloc[0], debut=int(g.debut.iloc[0]), last=int(g.last.iloc[0]), seasons=len(g[g.g >= 20]), pts=t5.pts.mean(), reb=t5.reb.mean(), ast=t5.ast.mean(), stl=t5.stl.mean(), blk=t5.blk.mean(), ftp=t5.ftp.mean(), ar3=t5.x3p_ar.mean(), usg=t5.usg_percent.mean(), perf=t5.perf.mean(), peakperf=t5.perf.max()))
+    rows.append(dict(player_id=pid, player=g.player.iloc[0], td=float(TD.get(g.player.iloc[0], 0)), debut=int(g.debut.iloc[0]), last=int(g.last.iloc[0]), seasons=len(g[g.g >= 20]), pts=t5.pts.mean(), reb=t5.reb.mean(), ast=t5.ast.mean(), stl=t5.stl.mean(), blk=t5.blk.mean(), ftp=t5.ftp.mean(), ar3=t5.x3p_ar.mean(), usg=t5.usg_percent.mean(), perf=t5.perf.mean(), peakperf=t5.perf.max()))
 S = pd.DataFrame(rows).merge(vals, left_on='player_id', right_index=True, how='left').fillna(0)
 S = S[(S.debut >= 1980) & (S.debut <= 2018)]
 
 def arch(r):
     if r.mvp >= 2 or r.allnba1 >= 5: return 'generational'
-    if r.allstar < 2 and r.allnba < 1 and r.alldef < 1: return None
-    if r.ast >= 5.5 and r.reb >= 6.5: return 'dominator'
+    if r.allstar < 1 and r.allnba < 1 and r.alldef < 1 and r.perf < 27: return None   # any All-Star / All-NBA / All-Defense nod, or a solid-starter level of production
+    if (r.ast >= 5.0 and r.reb >= 6.0) or r.td >= 30: return 'dominator'   # box-score profile, or 30+ triple-doubles in the game logs
     if r.ar3 >= 0.38 and r.ftp >= 0.80 and r.pts >= 15 and r.reb < 6: return 'shooter'
     if r.pts >= 20: return 'scorer'
     if (r.stl >= 1.4 or r.blk >= 1.2) and r.pts >= 15 and r.alldef >= 1: return 'twoway'

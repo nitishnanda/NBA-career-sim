@@ -12,8 +12,8 @@ const ARCHS = ONLY ? [ONLY] : ['generational', 'scorer', 'dominator', 'shooter',
 const pool = {}; const awN = (ps, k) => ps.filter((s) => s.awards.includes(k)).length;
 const classify = (ps, aw) => { const q = ps.filter((s) => s.gp >= 0.55 * 82); if (q.length < 5) return null; const t5 = q.slice().sort((a, b) => b.perf - a.perf).slice(0, 5); const m = (k) => mean(t5.map((s) => s[k] || 0));
   const as = aw['All-Star'] || 0, an = aw['All-NBA'] || 0, ad = aw['All-Defense'] || 0; const pts = m('pts'), reb = m('reb'), ast = m('ast'), stl = m('stl'), blk = m('blk');
-  if ((aw.MVP || 0) >= 2 || (aw['All-NBA 1st Team'] || 0) >= 5) return 'generational'; if (as < 2 && an < 1 && ad < 1) return null;
-  if (ast >= 5.5 && reb >= 6.5) return 'dominator'; if (pts >= 20) return 'scorer'; if ((stl >= 1.4 || blk >= 1.2) && pts >= 15 && ad >= 1) return 'twoway'; if (pts < 15 && (blk >= 1.3 || reb >= 8.5 || ad >= 2)) return 'defender'; return null; };
+  if ((aw.MVP || 0) >= 2 || (aw['All-NBA 1st Team'] || 0) >= 5) return 'generational'; if (as < 1 && an < 1 && ad < 1 && m('perf') < 27) return null;
+  if ((ast >= 5.0 && reb >= 6.0) || ps.reduce((t, s) => t + (s.td || 0), 0) >= 30) return 'dominator'; if (pts >= 20) return 'scorer'; if ((stl >= 1.4 || blk >= 1.2) && pts >= 15 && ad >= 1) return 'twoway'; if (pts < 15 && (blk >= 1.3 || reb >= 8.5 || ad >= 2)) return 'defender'; return null; };
 ['generational', 'scorer', 'dominator', 'shooter', 'twoway', 'defender'].forEach((arch, ai) => { for (let i = 0; i < PER; i++) {
   const st = G.newCareer({ name: 'x', pos: ['PG', 'SG', 'SF', 'PF', 'C'][i % 5], arch, home: 'Ohio', seed: 61000 + i * 7 + ai, stars: arch === 'generational' ? 5 : undefined });
   G.auto(st); const ps = st.proSeasons.map((s) => Object.assign({ perf: perfOf(s) }, s)); const c = classify(ps, st.career.awards); if (c) (pool[c] = pool[c] || []).push({ ps, aw: st.career.awards, asn: awN(ps, 'All-Star') }); } });

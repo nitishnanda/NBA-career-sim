@@ -26,7 +26,7 @@
       comps: 'LeBron · Jordan · Jokic · Wembanyama',
       boost: { inside: 14, mid: 12, three: 10, ft: 10, handling: 8, passing: 8, iq: 20, reb: 5, perD: 8, rimP: 8, ath: 12, dur: 6 },
       weights: { inside: .11, mid: .08, three: .08, ft: .04, handling: .09, passing: .1, iq: .14, reb: .08, perD: .07, rimP: .05, ath: .12, dur: .04 },
-      usg: 0.01, ts: 0.012, declineMult: 0.75, ceilingBonus: 3,
+      usg: 0.01, ts: 0.012, declineMult: 0.6, ceilingBonus: 3,
     },
     scorer: {
       name: 'Consistent Scorer', icon: '🎯',
@@ -34,7 +34,7 @@
       comps: 'Karl Malone · Durant · Kobe',
       boost: { inside: 14, mid: 22, three: 12, ft: 16, handling: 12, passing: -2, iq: 10, reb: -4, perD: -6, rimP: -4, ath: 8, dur: 12 },
       weights: { inside: .14, mid: .17, three: .13, ft: .09, handling: .1, passing: .03, iq: .1, reb: .03, perD: .03, rimP: .01, ath: .11, dur: .06 },
-      usg: 0.012, ts: 0.004, declineMult: 1.0, ceilingBonus: 0, injury: 1.05,
+      usg: 0.012, ts: 0.004, declineMult: 1.5, ceilingBonus: 0, injury: 1.05,
     },
     twoway: {
       name: 'Two-Way Demon', icon: '🔒',
@@ -66,7 +66,7 @@
       comps: 'Oscar · Westbrook · Magic · Luka · Jokic',
       boost: { inside: 12, mid: 6, three: 4, ft: 2, handling: 24, passing: 38, iq: 18, reb: 8, perD: 0, rimP: -10, ath: 18, dur: 6 },
       weights: { inside: .09, mid: .06, three: .06, ft: .03, handling: .1, passing: .16, iq: .14, reb: .15, perD: .03, rimP: .01, ath: .12, dur: .05 },
-      usg: 0.03, ts: -0.004, declineMult: 1.0, ceilingBonus: 0,
+      usg: 0.012, ts: -0.004, declineMult: 1.15, ceilingBonus: 0,
     },
   };
 

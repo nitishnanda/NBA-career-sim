@@ -46,9 +46,9 @@
     declineScale: 1.5,
     ceilA: 55, ceilLambda: 11.5, ceilK: 1.3,
     winsPerPt: 0.95, formSd: 0.07, winsCoreAvg: 48, ovrStretch: 1.3,
-    growthScale: 0.85, declineLate: 1.2, genGapA: 6, genGapB: 7, injScale: 0.6, retireScale: 1.2,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
+    growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.6, retireScale: 0.9,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
     astKnee: 7, astK: 0.88991, rebKnee: 7.23037, rebK: 0.76112,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
-    volSpread: 0.43399, frUsg: 0.05, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.12, genSecGap: 8, gdReb: 1.12, gdAst: 1.06, gdTs: 0.06, gdMins: 1.5, genCeilDrop: 3.5,
+    volSpread: 0.43399, frUsg: 0.05, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.12, genSecGap: 4, gdReb: 1.0, gdAst: 1.06, gdTs: 0.06, gdMins: 1.5, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 2.2, starAgeKeep: 0.6, genCeilDrop: 2.5,
     starTs: 0.04142, starReb: 0.06173, starAst: 0.32616,   // extra production for the very best (fitted to the real top of the league)
   };
   NBA.tuning = T;
@@ -149,7 +149,7 @@
   }
 
   // ---------------------------------------------------------------- progression
-  function growthRate(age) { return T.growthScale * growthRate0(age); }
+  function growthRate(age) { return T.growthScale * growthRate0(age) * (age <= 24 ? T.growthFront : age >= 26 ? 1 / T.growthFront : 1); }   // front-loaded growth: real cohorts peak at 26-27, not 28-29
   function growthRate0(age) {
     if (age <= 19) return 0.3; if (age === 20) return 0.3; if (age === 21) return 0.28;
     if (age === 22) return 0.27; if (age === 23) return 0.25; if (age === 24) return 0.23;
@@ -160,6 +160,7 @@
   const PHY_DEC = { 29: 0.2, 30: 0.5, 31: 0.8, 32: 1.1, 33: 1.5, 34: 1.9, 35: 2.5 };
   const SKL_DEC = { 31: 0.3, 32: 0.5, 33: 0.9, 34: 1.3, 35: 1.8 };
   function decAt(tbl, age, max) {
+    age += T.declineShift;   // >0 starts the physical decline earlier
     if (age < +Object.keys(tbl)[0]) return 0;
     return tbl[Math.min(age, 35)] * (age > 35 ? 1 + (age - 35) * 0.1 : 1);
   }
@@ -182,7 +183,7 @@
   function progress(p) {
     const next = p.age + 1;
     const wk = 0.88 + 0.24 * p.work;
-    const shock = randn() * (next <= 22 ? 1.9 : next <= 26 ? 1.1 : 0.7) * (next > 23 && ovrOf(p) >= 84 ? 0.5 : 1); // stars' ratings move steadily; the prime is not a coin flip
+    const shock = randn() * T.shockScale * (next <= 22 ? 1.9 : next <= 26 ? 1.1 : 0.7) * (next > 23 && ovrOf(p) >= 84 ? 0.5 : 1); // stars' ratings move steadily; the prime is not a coin flip
     const before = ovrOf(p);
     ATTRS.forEach((a) => {
       let cur = p.attrs[a];
@@ -240,7 +241,7 @@
     usg *= 1 + T.frUsg * (c.fr || 0);   // franchise player: the offence runs through him
     usg = clamp(usg * (c.usgMult || 1) * (AGE_USG[Math.min(Math.max(p.age, 28), 38)] || 1), 0.12, 0.354 + 0.016 * ks0(o));
     let mins = clamp(T.minsBase + T.minsPerOvr * (o - 58), 8, T.minsCap);
-    if (p.age >= 33) mins -= (p.age - 32) * 0.6;
+    if (p.age >= 33) mins -= (p.age - 32) * T.minsAgeDecay * (1 - T.starAgeKeep * clamp((o - 80) / 10, 0, 1));   // stars keep their heavy minutes late (LeBron, Magic, Westbrook at 34-36)
     if (c.rookie && o < 84) mins *= 0.93;
     if (c.rookie) { usg *= 0.96; }
     // stars on bad teams carry the load (38-40 mpg, extra shots); stars on winners share it and get rested in blowouts
