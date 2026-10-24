@@ -42,7 +42,7 @@
     if (genLevel && !lateBloomer) {
       if (!stars) stars = +weighted(genLevel === 2 ? { 5: 70, 4: 25, 3: 5 } : { 5: 40, 4: 35, 3: 25 });
       if (ceiling == null) ceiling = (genLevel === 2 ? 86 : 82) - NBA.tuning.genCeilDrop + (genLevel === 2 ? 12 : 12) * Math.pow(rand(), 1.9);
-      gap = NBA.tuning.genGapA + rand() * NBA.tuning.genGapB;
+      gap = NBA.tuning.genGapA + rand() * NBA.tuning.genGapB + (genLevel === 1 ? NBA.tuning.genSecGap : 0);   // a generational tag on top of another archetype starts further from the ceiling (Jokic: 10 ppg at 20)
     } else if (lateBloomer) {
       if (!stars) stars = +weighted({ 1: 50, 2: 50 });
       if (ceiling == null) ceiling = 88 + 8 * rand();

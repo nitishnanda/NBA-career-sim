@@ -48,7 +48,7 @@
     winsPerPt: 0.95, formSd: 0.07, winsCoreAvg: 48, ovrStretch: 1.3,
     growthScale: 0.85, declineLate: 1.2, genGapA: 6, genGapB: 7, injScale: 0.6, retireScale: 1.2,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
     astKnee: 7, astK: 0.88991, rebKnee: 7.23037, rebK: 0.76112,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
-    volSpread: 0.43399, frUsg: 0.05, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.22, genCeilDrop: 3.5,
+    volSpread: 0.43399, frUsg: 0.05, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.2, genSecGap: 8, gdReb: 1.12, gdAst: 1.06, gdTs: 0.06, genCeilDrop: 3.5,
     starTs: 0.04142, starReb: 0.06173, starAst: 0.32616,   // extra production for the very best (fitted to the real top of the league)
   };
   NBA.tuning = T;
@@ -257,6 +257,7 @@
     ts += (c.tsAdj || 0) - (c.rookie ? 0.012 : 0);
     const top = clamp((o - 90) / 9, 0, 1);
     ts += T.starTs * top;
+    if (p.arch === 'dominator' && p.sec === 'generational') ts += T.gdTs;   // Jokic-type efficiency on top of the volume
     ts = clamp(ts, 0.44, 0.7);
 
     const pace = c.pace || T.pace;
@@ -276,7 +277,7 @@
     const hi = Math.max(0, pts - 27), astTrade = Math.max(0.52, 1 - 0.07 * gl * hi), rebTrade = Math.max(0.66, 1 - 0.04 * gl * hi);
     return {
       ovr: o, usg, ts, mins, pace,
-      pts, reb: reb36 * k * (c.rebMult || 1) * (p.arch === 'generational' ? 0.97 : 1) * rebTrade * (1 + T.starReb * top), ast: ast36 * k * (c.astMult || 1) * (p.arch === 'generational' ? 0.88 : 1) * astTrade * (1 + T.starAst * top),
+      pts, reb: reb36 * k * (c.rebMult || 1) * (p.arch === 'dominator' && p.sec === 'generational' ? T.gdReb : 1) * (p.arch === 'generational' ? 0.97 : 1) * rebTrade * (1 + T.starReb * top), ast: ast36 * k * (c.astMult || 1) * (p.arch === 'dominator' && p.sec === 'generational' ? T.gdAst : 1) * (p.arch === 'generational' ? 0.88 : 1) * astTrade * (1 + T.starAst * top),
       stl: stl36 * k, blk: blk36 * k, tov: tov36 * k,
     };
   }

@@ -241,3 +241,8 @@ The sim no longer clamps or scripts careers. Everything below is fitted to real 
 - **Awards** come from fitted voting models (`data/real-mvp-model.json`): MVP conditional logit, All-NBA logistic, Finals MVP scorer-or-defender rule. Nothing forces a winner.
 - Honest note: real generational careers (22 of them) average ~2.0 MVPs, not 2.7; the sim gens land around 2.2 MVP / 2.2 Finals MVP.
 - Known gaps: sim careers still run ~1.5 seasons longer than real ones, gens still use slightly more usage (~33% vs 29%) than the real cohort average.
+
+## v23: generational box-score dominators vs Jokic / Westbrook
+
+`data/ref-gen-dominators.json` holds per-season lines for Jokic and Westbrook (supplied by the project owner); `scripts/sim-gen-dominator.js` prints the sim's gen-tagged dominator careers by age next to them.
+Fitted: a slower start for a generational *tag* (`genSecGap`; ~13 ppg at 20, 17 at 21, 22 at 22), more rebounding and passing (`gdReb`, `gdAst`), and Jokic-style efficiency plus volume (`gdTs`, `genDomUsg`) instead of volume alone (usage 33%, TS 61% at the peak, ~27 ppg at 26-30, 76% of careers have a 28+ season, 42% a 30+). Regular-season minutes are capped at 39.
