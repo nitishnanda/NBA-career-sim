@@ -48,7 +48,7 @@
       name: 'Defensive Anchor', icon: '🧱',
       blurb: 'Rebounds, blocks, DPOYs. Little offence, cheaper contracts, huge impact.',
       comps: 'Russell · Mutombo · Ben Wallace · Gobert · Wembanyama',
-      boost: { inside: 14, mid: -2, three: -12, ft: 0, handling: -8, passing: 23, iq: 8, reb: 16, perD: 34, rimP: 24, ath: 10, dur: 8 },
+      boost: { inside: 14, mid: -2, three: -12, ft: 0, handling: -8, passing: 23, iq: 8, reb: 34, perD: 34, rimP: 36, ath: 10, dur: 8 },
       weights: { inside: .1, mid: .02, three: .02, ft: .03, handling: .02, passing: .04, iq: .1, reb: .16, perD: .1, rimP: .2, ath: .11, dur: .06 },
       usg: 0.045, ts: 0.049, declineMult: 1.25, ceilingBonus: -1, mins: -2.5,
     },
