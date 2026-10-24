@@ -135,15 +135,17 @@
     return r;
   }
   function coTaxFor(self, roster) {
-    let tax = 0;
+    let tax = 0, above = 0;
     const me = ovr(self);
     roster.forEach((q) => {
       if (q === self) return;
       const o = ovr(q);
+      if (o >= me && o > 72) above++;
       // the pecking order: a better teammate takes your shots; a lesser one takes fewer (coTaxDown < 1), so a real #2 option keeps a #2's volume
       tax += (o >= me ? 1 : T.coTaxDown) * T.coTaxK * Math.max(0, o - 72) - 0.0008 * Math.max(0, 70 - o);
     });
-    return clamp(tax, -0.03, T.coTaxMax);
+    // the cap grows with every good player ahead of you: a third option behind two stars gives up more shots than a second option behind one
+    return clamp(tax, -0.03, T.coTaxMax * (1 + T.coTaxStack * Math.max(0, above - 1)));
   }
   // the clear #1 on his roster is the franchise player: the offence runs through him and he plays heavy minutes
   function franchiseFor(self, roster) {

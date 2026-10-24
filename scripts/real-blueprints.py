@@ -35,8 +35,8 @@ pg = one_row(pg[pg.lg == 'NBA']); adv = one_row(adv[adv.lg == 'NBA'])[['season',
 d = pg.merge(adv, on=['season', 'player_id'], how='left')
 full = {y: 82 for y in range(1980, 2027)}; full.update({1999: 50, 2012: 66, 2020: 72, 2021: 72})
 d['gf'] = d.g / d.season.map(full).fillna(82)
-# era adjustment: put every season in today's league environment (the sim is a 2026 league). Per-game stats scale by the ratio of the
-# 2022-25 league average to that season's average among rotation players (40+ games, 24+ mpg); TS% shifts by the difference.
+# era adjustment: put every season in the modern league environment the sim league is fitted to. Per-game stats scale by the ratio of the
+# 2016-25 league average to that season's average among rotation players (40+ games, 24+ mpg); TS% shifts by the difference.
 ERA = os.environ.get('ERA', '1') == '1'
 d['gfa'] = d.gf
 if ERA:
@@ -46,7 +46,7 @@ if ERA:
     d['gfa'] = (d.gf * d.season.map(gr.loc[2016:2025].mean() / gr).fillna(1.0)).clip(upper=1.0)
     rot = d[(d.g >= 40) & (d.mp_per_game >= 24)]
     K = ['pts_per_game', 'trb_per_game', 'ast_per_game', 'stl_per_game', 'blk_per_game', 'tov_per_game', 'mp_per_game']
-    lg = rot.groupby('season')[K + ['ts_percent']].mean(); mod = lg.loc[2022:2025].mean()
+    lg = rot.groupby('season')[K + ['ts_percent']].mean(); mod = lg.loc[2016:2025].mean()   # the league profile, availability and turnover targets are 2016-25 too
     for k in K: d[k] = d[k] * d.season.map(mod[k] / lg[k]).fillna(1.0)
     d['ts_percent'] = d.ts_percent + d.season.map(mod['ts_percent'] - lg['ts_percent']).fillna(0.0)
 d['perf'] = (d.pts_per_game * (1 + 2.2 * (d.ts_percent - 0.57)) + 1.15 * d.trb_per_game + 1.5 * d.ast_per_game + 2 * (d.stl_per_game + d.blk_per_game) - 1.1 * d.tov_per_game)
