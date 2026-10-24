@@ -32,7 +32,7 @@
       miss = Math.max(miss, rint(34, 70));
     }
     const o = ovr(p);
-    let rest = o >= 74 ? (p.age >= 30 ? rint(3, 9) : rint(0, 5)) : o >= 68 ? rint(0, 8) : rint(0, 26); // role players churn: DNPs, waivers, two-way deals
+    let rest = o >= 74 ? (p.age >= 30 ? rint(3, 3 + T.restOld) : rint(0, T.restStar)) : o >= 68 ? rint(0, 8) : rint(0, 26); // role players churn: DNPs, waivers, two-way deals
     if (opts.noRest) rest = 0;
     return { gp: clamp(82 - miss - rest - (opts.extraMiss || 0), 0, 82), miss, rest, injuries: list, major, notable };
   }

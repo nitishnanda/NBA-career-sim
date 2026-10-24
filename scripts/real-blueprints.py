@@ -41,9 +41,9 @@ ERA = os.environ.get('ERA', '1') == '1'
 d['gfa'] = d.gf
 if ERA:
     # games played too: rotation players (24+ mpg, 20+ games) played 90% of games in the 1980s and 76% in 2022-25 (rest, load management);
-    # the sim's injury model is fitted to 2001-25 (scripts/fit-league-profile.js notes), so careers' games-played share is put on that level
+    # the sim's availability is fitted to 2016-25 (scripts/fit-availability.js), so careers' games-played share is put on that level
     gr = d[(d.mp_per_game >= 24) & (d.g >= 20)].groupby('season').gf.mean()
-    d['gfa'] = (d.gf * d.season.map(gr.loc[2001:2025].mean() / gr).fillna(1.0)).clip(upper=1.0)
+    d['gfa'] = (d.gf * d.season.map(gr.loc[2016:2025].mean() / gr).fillna(1.0)).clip(upper=1.0)
     rot = d[(d.g >= 40) & (d.mp_per_game >= 24)]
     K = ['pts_per_game', 'trb_per_game', 'ast_per_game', 'stl_per_game', 'blk_per_game', 'tov_per_game', 'mp_per_game']
     lg = rot.groupby('season')[K + ['ts_percent']].mean(); mod = lg.loc[2022:2025].mean()
