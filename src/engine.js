@@ -48,7 +48,7 @@
     winsPerPt: 0.738, ageUsgK: 0, formSd: 0.055846, winsCoreAvg: 48, ovrStretch: 1.3,
     growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.65, coTaxK: 0.0024571, starWinK: 1.275, badTeamUsg: 0, awardMinGp: 65, badTeamMins: 0, coTaxDown: 0.54017, coTaxStack: 0.92481, coTaxMax: 0.023815, capPts: 164.41, restStar: 7, restOld: 14, minorRate: 1.8, injMu: 2, injSd: 0.9556, injMax: 52, retireScale: 0.9,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
     astKnee: 7.0326, astK: 0.63542, rebKnee: 7.2827, rebK: 0.68392,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
-    volSpread: 0.17817, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.02, genSecGap: 11, gdReb: 1.0, gdAst: 1.06, gdTs: 0.01, gdMins: 1.5, gdDecline: 0.7, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 2.2, majorRate: 0.025, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, tailShare: 0.25, tailMult: 3.2, starRetire: 1.5, userWinShrink: 0.2, userTaxCut: 0, trainCap: 3, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, effLowUsg: 0.4, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: -0.35, genCeilRange: 8, genCeilPow: 1.9,
+    volSpread: 0.17817, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.02, genSecGap: 11, gdReb: 1.0, gdAst: 1.06, gdTs: 0.01, gdMins: 1.5, gdDecline: 0.7, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 1.9, majorRate: 0.025, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, tailShare: 0.25, tailMult: 3.2, starRetire: 1.5, userWinShrink: 0.2, userTaxCut: 0, trainCap: 3, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, effLowUsg: 0.4, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: -0.35, genCeilRange: 8, genCeilPow: 1.9,
     starTs: 0.040693, starReb: 0.12455, starAst: 0.4767,   // extra production for the very best (fitted to the real top of the league)
   };
   NBA.tuning = T;
@@ -257,6 +257,7 @@
     usg *= 1 + T.frUsg * (c.fr || 0);   // franchise player: the offence runs through him
     usg = clamp(usg * (c.usgMult || 1) * (1 - T.ageUsgK * (1 - (AGE_USG[Math.min(Math.max(p.age, 28), 38)] || 1))), 0.12, 0.354 + 0.016 * ks0(o));
     let mins = clamp(T.minsBase + T.minsPerOvr * (o - 58), 8, T.minsCap);
+    mins += (A.mins || 0) + (S ? 0.4 * (S.mins || 0) : 0);   // archetype minutes: rim protectors sit more (fouls, matchups), the real defensive cohort plays ~30 mpg at its peak
     if (p.age >= 33) mins -= (p.age - 32) * T.minsAgeDecay * (1 - T.starAgeKeep * clamp((o - 80) / 10, 0, 1));   // stars keep their heavy minutes late (LeBron, Magic, Westbrook at 34-36)
     if (c.rookie && o < 84) mins *= 0.93;
     if (c.rookie) { usg *= 0.96; }
