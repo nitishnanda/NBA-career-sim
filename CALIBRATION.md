@@ -300,3 +300,24 @@ role players' minutes swing more year to year.
   win shrinkage (no more 73-win dynasties). Slowest-aging trait floored. Gen picks average ~1.9 MVPs (real gens 1.9); ~3% still reach 8-9.
 - Gen box-score dominators: usage/efficiency extras cut (genDomUsg 0.02, gdTs 0.01), start gap 11: ~14 / 18 / 21 / 24 / 25-27 ppg at 20 / 21 / 22 / 23 / peak,
   on the real CSV curve (15 / 17 / 20 / 25 / 24-28).
+
+## v29: league scoring, top-scorer turnover, availability (bigger samples)
+
+Readings now use 400 simulated seasons (4 seeds x 100) for the league and ~1000 careers per archetype for the realism test
+(`scripts/realism-run.sh` splits every archetype into chunks of 100 across all cores). Real references come from more seasons too:
+`scripts/scoring-turnover.py` (1985-2025, ppg era-adjusted to 2016-25 scoring) -> `data/real-scoring-turnover.json`, compared by `scripts/sim-scoring-turnover.js`.
+
+- With large samples the old turnover gap was mostly noise (real top-5 repeat is 2.63 over 41 seasons, 2.30-2.71 depending on era; the sim was 2.54 over 400).
+  What was really off: top scorers' ppg moved too much year to year (sd 3.7 vs 3.1), they were too healthy (91% of top-10 scorers played 58+ games
+  the next season vs 80% real), and the top of the league was ~1 ppg too high (scoring champion 33.5 vs 32.6) while #2 options were too low.
+- Availability: injury lengths fitted to real next-season games of the top 150 scorers (2001-25): the sim had almost no 20-40 game absences
+  (10th percentile 55 games vs 41 real). Minor injuries are more frequent and longer-tailed (`minorRate`, `injMu`, `injSd`, `injMax`); major injuries unchanged.
+- Removed a scripted rule: the league used to force its scoring champion up to 31+ ppg every year. The top scorer now lands at ~32.3 on its own (real 32.5).
+- Team hierarchy (new real target, `real-rank-profile.json` `_team`): real teams' 1st-4th scorers average 23.7 / 18.6 / 15.1 / 12.7 and 34% of teams have
+  two 20-ppg scorers; the sim had 23.3 / 16.4 / 13.3 / 11.1 and 12%. The teammate usage tax was too steep and the "one ball" points cap (122 summed ppg)
+  sat far below real rotations' sums (~149), shaving every second option. Both refitted (`coTaxK`, `coTaxMax`, `capPts`); no team has two 20/8/8 players.
+- `scripts/fit-league-profile.js` now fits rank profile + tails + team hierarchy + turnover together (two seeds x 50 seasons per evaluation; usage%
+  down-weighted because the sim's points-per-possession constant differs from Basketball-Reference's usage formula and usage is never shown).
+- Real careers' games-played share is era-adjusted like the per-game stats (rotation players played 90% of games in the 1980s, 76% in 2022-25),
+  to the 2001-25 level the injury model is fitted to.
+- Fixes found in review: rookies were missing from team pages in their first season; the aging table returned NaN for a fractional decline shift.
