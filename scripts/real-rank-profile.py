@@ -27,3 +27,18 @@ tails['ts_league_avg_qualified'] = float(100 * d.ts_percent.mean())
 out['_tails'] = tails
 json.dump(out, open(os.path.join(os.path.dirname(__file__), '..', 'data', 'real-rank-profile.json'), 'w'))
 print('tails per season', {k: round(v, 2) for k, v in tails.items()})
+
+# team hierarchy, same era: each team's 1st-4th best scorer / rebounder / passer among players with 40+ games for that team (stints, not TOT rows),
+# and how often a team has two 20-ppg scorers etc. (the sim's 'one ball' constraint is checked against this)
+pt = pd.read_csv(D + 'Player Per Game.csv'); pt = pt[(pt.lg == 'NBA') & (pt.season >= 2016) & (pt.season <= 2025) & (pt.team != 'TOT') & (~pt.team.str.match(r'^\dTM$'))]
+pt = pt[pt.g >= 40 * pt.season.map(lambda y: {2020: 72, 2021: 72}.get(y, 82)) / 82]
+team = {}
+for k, col in [('pts', 'pts_per_game'), ('reb', 'trb_per_game'), ('ast', 'ast_per_game')]:
+    r = [sorted(g[col], reverse=True)[:4] + [0] * max(0, 4 - len(g)) for _, g in pt.groupby(['season', 'team'])]
+    team[k] = [float(sum(x[i] for x in r) / len(r)) for i in range(4)]
+    if k == 'pts': team['two20'] = float(sum(x[1] >= 20 for x in r) / len(r)); team['two25'] = float(sum(x[1] >= 25 for x in r) / len(r)); team['three20'] = float(sum(x[2] >= 20 for x in r) / len(r))
+    if k == 'ast': team['two6ast'] = float(sum(x[1] >= 6 for x in r) / len(r))
+    if k == 'reb': team['two8reb'] = float(sum(x[1] >= 8 for x in r) / len(r))
+out['_team'] = team
+json.dump(out, open(os.path.join(os.path.dirname(__file__), '..', 'data', 'real-rank-profile.json'), 'w'))
+print('team hierarchy', {k: (round(v, 3) if isinstance(v, float) else [round(x, 1) for x in v]) for k, v in team.items()})

@@ -466,7 +466,7 @@
       const last = series[series.length - 1];
       resultText = po.champion.id === st.teamId ? 'NBA Champions 🏆' : lost ? 'Lost in the ' + lost.round + ' to ' + lost.opp + ' (' + lost.w + '-' + lost.l + ')' : '';
       if (!series.length) resultText = 'Lost in the play-in';
-      if (series.length && avail.gp >= 30 || series.length) {
+      if (series.length) {
         const out = playoffLine(st, user.ctx, series, userLine, 'normal');
         pline = out.line; perSeries = out.perSeries; heater = out.heater; legend = out.legend;
       }

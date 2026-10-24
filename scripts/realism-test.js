@@ -76,9 +76,10 @@ const pool = {};
 if (process.env.LOAD) process.env.LOAD.split(',').forEach((f) => { const d = JSON.parse(require('fs').readFileSync(f, 'utf8')); Object.keys(d).forEach((k) => { pool[k] = (pool[k] || []).concat(d[k]); }); });
 else ARCHS.forEach((arch, ai) => {
   const mix = {}; (REAL[arch] || []).forEach((r) => { mix[r.pos] = (mix[r.pos] || 0) + 1; }); const pk = Object.keys(mix), tot = pk.reduce((t, k) => t + mix[k], 0);
-  for (let i = 0; i < (arch === 'generational' ? NGEN : N); i++) {
+  const I0 = +process.env.I0 || 0;   // first career index (lets several processes split one archetype)
+  for (let i = I0; i < I0 + (arch === 'generational' ? NGEN : N); i++) {
     let u = rnd() * tot, pos = pk[0]; for (const k of pk) { u -= mix[k]; if (u <= 0) { pos = k; break; } }
-    const st = G.newCareer({ name: 'x', pos: ['PG', 'SG', 'SF', 'PF', 'C'].includes(pos) ? pos : 'SF', arch, home: 'Ohio', seed: 777000 + (+process.env.SEEDOFF || 0) * 100000 + ['generational', 'scorer', 'dominator', 'shooter', 'twoway', 'defender'].indexOf(arch) * 1000 + i });
+    const st = G.newCareer({ name: 'x', pos: ['PG', 'SG', 'SF', 'PF', 'C'].includes(pos) ? pos : 'SF', arch, home: 'Ohio', seed: 7770000 + (+process.env.SEEDOFF || 0) * 1000000 + ['generational', 'scorer', 'dominator', 'shooter', 'twoway', 'defender'].indexOf(arch) * 100000 + i });
     G.auto(st); const f = features(st); if (!f) continue; const c = classify(f); if (c === arch) (pool[c] = pool[c] || []).push(f);   // a career made as archetype X that became a notable X, compared with real X careers
   }
 });
@@ -115,7 +116,7 @@ SCORE.forEach((arch) => {
   // of real careers' distance to their nearest other real career, so ~5% of real careers are "copies" of someone too (baseline shown per archetype)
   let copy = null;
   {
-    const a = (f) => { const v = CREF.z(f); let best = Infinity, bi = -1; CREF.Z.forEach((b, j) => { if (b === f.__z) return; const d = CREF.dist(v, b); if (d < best) { best = d; bi = j; } }); return [best, bi]; };
+    const a = (f) => { const v = CREF.z(f); let best = Infinity, bi = -1; CREF.Z.forEach((b, j) => { const d = CREF.dist(v, b); if (d < best) { best = d; bi = j; } }); return [best, bi]; };
     const who = {}, nnSim = sim.filter((f) => CF.every((k) => f[k] != null)).map((f) => { const [d, j] = a(f); if (d < CREF.thr) who[CREF.R[j].player] = (who[CREF.R[j].player] || 0) + 1; return d; });
     const realHere = CREF.R.map((r, j) => [r, CREF.nn[j]]).filter(([r]) => r.__arch === arch);
     const sIn = nnSim.filter((d) => d >= CREF.thr && d <= CREF.hi).length, rIn = realHere.filter(([, d]) => d >= CREF.thr && d <= CREF.hi).length;
@@ -133,6 +134,7 @@ SCORE.forEach((arch) => {
 });
 console.log(lines.join('\n'));
 const all = Object.values(out), cps = all.filter((x) => x.copy != null);
-console.log('\nOVERALL realism', (100 * mean(all.map((x) => x.score))).toFixed(0) + '%', '| sweet spot', (100 * mean(all.map((x) => x.sweet))).toFixed(0) + '% (real 90%)', '| copies', (100 * mean(cps.map((x) => x.copy))).toFixed(0) + '% (real 5%)', '| unprecedented', (100 * mean(all.map((x) => x.far))).toFixed(0) + '% (real 5%)', '| inside every real range', (100 * mean(all.map((x) => x.plaus))).toFixed(0) + '%');
+const realSweet = CREF.nn.filter((d) => d >= CREF.thr && d <= CREF.hi).length / CREF.nn.length;
+console.log('\nOVERALL realism', (100 * mean(all.map((x) => x.score))).toFixed(0) + '%', '| sweet spot', (100 * mean(all.map((x) => x.sweet))).toFixed(0) + '% (real ' + (100 * realSweet).toFixed(0) + '%)', '| copies', (100 * mean(cps.map((x) => x.copy))).toFixed(0) + '% (real 5%)', '| unprecedented', (100 * mean(all.map((x) => x.far))).toFixed(0) + '% (real 5%)', '| inside every real range', (100 * mean(all.map((x) => x.plaus))).toFixed(0) + '%');
 console.log('(* career totals use finished real careers: retired by 2024, or debuted by 2008)');
 if (process.env.JSON) require('fs').writeFileSync(process.env.JSON, JSON.stringify(out));

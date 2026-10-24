@@ -46,7 +46,7 @@
     declineScale: 1.5,
     ceilA: 55, ceilLambda: 11.5, ceilK: 1.3,
     winsPerPt: 0.95, formSd: 0.07, winsCoreAvg: 48, ovrStretch: 1.3,
-    growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.65, retireScale: 0.9,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
+    growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.65, coTaxK: 0.0022, coTaxMax: 0.05, capPts: 122, minorRate: 1.35, injMu: 1.8, injSd: 0.95, injMax: 60, retireScale: 0.9,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
     astKnee: 7, astK: 0.7, rebKnee: 7, rebK: 0.71253,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
     volSpread: 0, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.02, genSecGap: 11, gdReb: 1.0, gdAst: 1.06, gdTs: 0.01, gdMins: 1.5, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 2.2, majorRate: 0.025, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, tailShare: 0.25, tailMult: 3.2, starRetire: 1.5, userWinShrink: 0.2, userTaxCut: 0.4, trainCap: 3, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: 1.0, genCeilRange: 12, genCeilPow: 1.9,
     starTs: 0.02925, starReb: 0.23948, starAst: 0.22211,   // extra production for the very best (fitted to the real top of the league)
@@ -171,8 +171,10 @@
   const SKL_DEC = { 31: 0.3, 32: 0.5, 33: 0.9, 34: 1.3, 35: 1.8 };
   function decAt(tbl, age, max) {
     age += T.declineShift;   // >0 starts the physical decline earlier
-    if (age < +Object.keys(tbl)[0]) return 0;
-    return tbl[Math.min(age, 35)] * (age > 35 ? 1 + (age - 35) * 0.1 : 1);
+    const a0 = +Object.keys(tbl)[0];
+    if (age < a0) return 0;
+    const at = (x) => tbl[Math.min(Math.max(x, a0), 35)], lo = Math.floor(age), f = age - lo;   // interpolated, so a fractional shift works too
+    return (f ? (1 - f) * at(lo) + f * at(lo + 1) : at(lo)) * (age > 35 ? 1 + (age - 35) * 0.1 : 1);
   }
   function declineFor(a, age, p) {
     const A = ARCHETYPES[p.arch];
@@ -270,8 +272,8 @@
     ts += (c.tsAdj || 0) - (c.rookie ? 0.012 : 0);
     const top = clamp((o - 90) / 9, 0, 1);
     ts += T.starTs * top;
-    if (p.arch === 'dominator' && p.sec === 'generational') ts += T.gdTs;
-    ts += T.trEff * ((p.tr || NOTR).eff);   // some players are just more (or less) efficient than their ratings suggest   // Jokic-type efficiency on top of the volume
+    if (p.arch === 'dominator' && p.sec === 'generational') ts += T.gdTs;   // Jokic-type efficiency on top of the volume
+    ts += T.trEff * ((p.tr || NOTR).eff);   // some players are just more (or less) efficient than their ratings suggest
     ts = clamp(ts, 0.44, Math.min(0.7, 0.735 - 0.2 * usg));   // the more you shoot, the lower the ceiling on efficiency: no 30-ppg season has topped ~67% TS (Curry '16, Embiid '23)
 
     const pace = c.pace || T.pace;

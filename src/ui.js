@@ -464,8 +464,9 @@
     const L = S.league, items = S.matchLog || [], idx = S.matchIdx || 0, p = S.player;
     const noise = (k) => seeded(k * 131 + N * 7 + 3), bridge = (v, k) => v * (1 + (noise(k)() - 0.5) * 0.12 * (1 - prog));
     const rate = (l, mins) => { const den = l.pts / (2 * Math.max(0.4, l.ts || 0.56)), fga = den / 1.088, fta = 0.2 * fga; return NBA.gameRating({ pts: l.pts, reb: l.reb, ast: l.ast, stl: l.stl, blk: l.blk, tov: l.tov, min: mins }, { fga, fta }); };
-    const rows = (t.core || []).concat(t.bench || []).map((id, i) => {
-      const q = L.players[id], l = L.lines[id]; if (!q || !l) return null;
+    // everyone on the club, rookies included (they only join the core/bench lists the summer after their draft)
+    const rows = Object.values(L.players).filter((q) => q.teamId === t.id).map((q) => {
+      const id = q.id, l = L.lines[id]; if (!l) return null;
       const line = { pts: bridge(l.pts, id * 3 + 1), reb: bridge(l.reb, id * 3 + 2), ast: bridge(l.ast, id * 3 + 3), stl: l.stl, blk: l.blk, tov: l.tov, ts: l.ts };
       return { name: q.name, pos: q.pos, age: q.age, ovr: Math.round(NBA.ovr(q)), mins: l.mins, gp: Math.round(l.gp * prog), line, rating: rate(line, l.mins) };
     }).filter(Boolean);

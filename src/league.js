@@ -13,12 +13,12 @@
   function rollAvail(p, opts) {
     opts = opts || {};
     const A = D.ARCHETYPES[p.arch];
-    const lam = 1.45 * T.injScale * p.prone * (A.injury || 1) * clamp(1.25 - p.attrs.dur / 110, 0.35, 1.2) * (1 + Math.max(0, p.age - 28) * 0.04);
+    const lam = T.minorRate * p.prone * (A.injury || 1) * clamp(1.25 - p.attrs.dur / 110, 0.35, 1.2) * (1 + Math.max(0, p.age - 28) * 0.04);
     const n = poisson(lam);
     let miss = 0;
     const list = [];
     for (let i = 0; i < n; i++) {
-      const d = clamp(Math.round(Math.exp(1.6 + 0.9 * randn())), 1, 40);
+      const d = clamp(Math.round(Math.exp(T.injMu + T.injSd * randn())), 1, T.injMax);
       miss += d; list.push(d);
     }
     let major = null, notable = null;
@@ -32,7 +32,7 @@
       miss = Math.max(miss, rint(34, 70));
     }
     const o = ovr(p);
-    let rest = o >= 74 ? (p.age >= 30 ? rint(4, 10) : rint(1, 6)) : o >= 68 ? rint(0, 8) : rint(0, 26); // role players churn: DNPs, waivers, two-way deals
+    let rest = o >= 74 ? (p.age >= 30 ? rint(3, 9) : rint(0, 5)) : o >= 68 ? rint(0, 8) : rint(0, 26); // role players churn: DNPs, waivers, two-way deals
     if (opts.noRest) rest = 0;
     return { gp: clamp(82 - miss - rest - (opts.extraMiss || 0), 0, 82), miss, rest, injuries: list, major, notable };
   }
@@ -139,9 +139,9 @@
     roster.forEach((q) => {
       if (q === self) return;
       const o = ovr(q);
-      tax += 0.0022 * Math.max(0, o - 72) - 0.0008 * Math.max(0, 70 - o);
+      tax += T.coTaxK * Math.max(0, o - 72) - 0.0008 * Math.max(0, 70 - o);
     });
-    return clamp(tax, -0.03, 0.05);
+    return clamp(tax, -0.03, T.coTaxMax);
   }
   // the clear #1 on his roster is the franchise player: the offence runs through him and he plays heavy minutes
   function franchiseFor(self, roster) {
@@ -284,7 +284,7 @@
     // one ball, one set of boards: a roster cannot have two players each taking a star's assists/rebounds/points
     // (a real team's rotation totals ~29 ast, ~46 reb); the extra is shaved off the lesser producers, never off the user
     const byTeam = {}; entries.forEach((e) => { if (e.l.gp >= 20) (byTeam[e.t.id] = byTeam[e.t.id] || []).push(e); });
-    const CAP = { ast: 32, reb: 50, pts: 122 };
+    const CAP = { ast: T.capAst || 32, reb: T.capReb || 50, pts: T.capPts };
     Object.keys(byTeam).forEach((tid) => {
       const es = byTeam[tid];
       Object.keys(CAP).forEach((k) => {
@@ -299,15 +299,6 @@
     entries.forEach((e) => { if (!e.isUser && byTeam[e.t.id]) e.l.perf = perfOf(e.l); });
     L.lines = lines;
 
-    // the scoring champion nearly always clears 31 ppg (every year but two since 2014); a user who leads with 30.3+ is left alone
-    {
-      const qe = entries.filter((e) => e.l.gp >= 58), top = qe.reduce((b, e) => (!b || e.l.pts > b.l.pts ? e : b), null);
-      const tgt = rand() < 0.86 ? 30.95 + Math.abs(randn()) * 1.1 + (rand() < 0.15 ? 1 : 0) : 30.15 + rand() * 0.85;
-      if (top && top.l.pts < tgt && !(top.isUser && top.l.pts >= 30.3)) {
-        const npc = qe.filter((e) => !e.isUser).reduce((b, e) => (!b || e.l.pts > b.l.pts ? e : b), null);
-        if (npc && npc.l.pts < tgt && tgt / npc.l.pts < 1.15) { npc.l.pts = tgt; npc.l.perf = perfOf(npc.l); }
-      }
-    }
     // awards
     const q65 = entries.filter((e) => e.l.gp >= 65);
     // Voting models fitted to real data (scripts/real-mvp-model.py, 1981-2025): MVP = conditional logit over the league's 14 best producers on production, team wins and scoring;
