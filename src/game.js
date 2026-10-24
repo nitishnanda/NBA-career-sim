@@ -255,7 +255,7 @@
     // Year-to-year shocks sized from real careers (22 generational and ~100 star careers, Basketball-Reference): usage ±6%, TS ±3%, minutes ±4%, rebounds ±10%, assists ±14% between seasons.
     // Nothing else shapes a season: no caps, plans or quotas, so big years, slumps and the rare triple-double season come from the tails of these distributions.
     const sn = ovr(p) >= 84 ? 1 : NBA.tuning.noiseNon;   // real non-stars swing more from year to year than the all-time greats (mean |change in ppg| 2.1-2.9)
-    const nm = 1 + 0.028 * sn * randn(), nu = 1 + 0.045 * sn * randn(), nt = 1 + 0.02 * randn(), evt = 1 + fx.form;
+    const nm = 1 + 0.028 * sn * (ovr(p) >= 84 ? 1 : NBA.tuning.minsNoiseNon) * randn(), nu = 1 + 0.045 * sn * randn(), nt = 1 + 0.02 * randn(), evt = 1 + fx.form;
     const m = { mins: Math.min(NBA.tuning.minsHard - 0.6, e0.mins * nm), pts: e0.pts * nu * nt * nm * evt, reb: e0.reb * (1 + 0.07 * randn()) * nm * evt, ast: e0.ast * (1 + 0.10 * randn()) * nm * Math.sqrt(nu) * evt, stl: e0.stl * (1 + 0.10 * randn()) * nm, blk: e0.blk * (1 + 0.12 * randn()) * nm, tov: e0.tov * nm * nu };
     let gp = avail.gp; const gpCut = false;
     // game plan: a season-average multiplier from how long each style was used (per-game variation is applied when the games are drawn)
@@ -482,7 +482,7 @@
     const rec = {
       label: res.label, year: L.year, age, team: t.name, teamId: t.id, wins: t.wins, losses: t.losses,
       gp: l.gp, mins: l.mins, pts: l.pts, reb: l.reb, ast: l.ast, stl: l.stl, blk: l.blk, tov: l.tov,
-      fgp: l.fgp, tpp: l.tpp, ftp: l.ftp, ts: l.ts, td: l.td, dd: l.dd, g40: l.g40, g50: l.g50, high: l.high, ovr: Math.round(l.ovr), usg: l.usg,
+      fgp: l.fgp, tpp: l.tpp, ftp: l.ftp, ts: l.ts, fga: l.fga, tpa: l.tpa, fta: l.fta, td: l.td, dd: l.dd, g40: l.g40, g50: l.g50, high: l.high, ovr: Math.round(l.ovr), usg: l.usg,
       avgTD: l.avgTD, totPts: l.totPts, totReb: l.totReb, totAst: l.totAst,
       awards: awardsHere, playoffText: resultText, playoff: pline ? { gp: pline.gp, pts: pline.pts, reb: pline.reb, ast: pline.ast, stl: pline.stl, blk: pline.blk, mins: pline.mins, fgp: pline.fgp, tpp: pline.tpp, ts: pline.ts, td: pline.td, high: pline.high } : null,
       perSeries, heater, legend, ranks: res.ranks, events: fx.notes, injury: avail.major ? 'Suffered a ' + avail.major + ' and missed ' + avail.miss + ' games.' : avail.notable ? 'Missed ' + avail.miss + ' games with a ' + avail.notable + '.' : avail.miss >= 12 ? 'Missed ' + avail.miss + ' games with injuries.' : null,
@@ -542,7 +542,7 @@
     if (n) {
       const fga = sumOf(reg, 'fga'), fta = sumOf(reg, 'fta');
       Object.assign(rec, { gp: n, mins: mean(reg, 'm'), pts: mean(reg, 'pt'), reb: mean(reg, 'rb'), ast: mean(reg, 'as'), stl: mean(reg, 'st'), blk: mean(reg, 'bk'), tov: mean(reg, 'to'),
-        fgp: fga ? sumOf(reg, 'fgm') / fga : rec.fgp, tpp: sumOf(reg, 'tpa') ? sumOf(reg, 'tpm') / sumOf(reg, 'tpa') : rec.tpp, ftp: fta ? sumOf(reg, 'ftm') / fta : rec.ftp, ts: fga + fta ? sumOf(reg, 'pt') / (2 * (fga + 0.44 * fta)) : rec.ts,
+        fgp: fga ? sumOf(reg, 'fgm') / fga : rec.fgp, tpp: sumOf(reg, 'tpa') ? sumOf(reg, 'tpm') / sumOf(reg, 'tpa') : rec.tpp, ftp: fta ? sumOf(reg, 'ftm') / fta : rec.ftp, ts: fga + fta ? sumOf(reg, 'pt') / (2 * (fga + 0.44 * fta)) : rec.ts, fga: fga / n, tpa: sumOf(reg, 'tpa') / n, fta: fta / n,
         td: reg.filter((g) => g.tg.includes('Triple-double')).length, dd: reg.filter((g) => g.tg.includes('Double-double') || g.tg.includes('Triple-double')).length,
         g40: reg.filter((g) => g.pt >= 40).length, g50: reg.filter((g) => g.pt >= 50).length, high: Math.max.apply(null, reg.map((g) => g.pt)), totPts: sumOf(reg, 'pt'), totReb: sumOf(reg, 'rb'), totAst: sumOf(reg, 'as'), avgRating: Math.round(mean(reg, 'r') * 100) / 100 });
       rec.avgTD = n >= 30 && rec.pts >= 10 && rec.reb >= 10 && rec.ast >= 10;
@@ -717,7 +717,9 @@
     for (;;) {
       const rec = playCollege(st);
       const slot = rec.mock.mid;
-      if (rec.mustDeclare || slot <= (opt.declareAt || 22) || (rec.year >= 2 && slot <= 40)) break;
+      // the autopilot stays in school like real recruits of the same star rating did (2009-24 draft ages); a projected lottery pick may leave early
+      const want = st.autoYears || (st.autoYears = opt.collegeYears || NBA.recruitYears(st.stars));
+      if (rec.mustDeclare || rec.year >= want || (slot <= 5 && rec.year >= Math.min(want, 2))) break;
       stayInCollege(st);
       train(st, autoAlloc(st.player, trainingInfo(st).points));
     }

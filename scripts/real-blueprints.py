@@ -35,11 +35,21 @@ pg = one_row(pg[pg.lg == 'NBA']); adv = one_row(adv[adv.lg == 'NBA'])[['season',
 d = pg.merge(adv, on=['season', 'player_id'], how='left')
 full = {y: 82 for y in range(1980, 2027)}; full.update({1999: 50, 2012: 66, 2020: 72, 2021: 72})
 d['gf'] = d.g / d.season.map(full).fillna(82)
+# era adjustment: put every season in today's league environment (the sim is a 2026 league). Per-game stats scale by the ratio of the
+# 2022-25 league average to that season's average among rotation players (40+ games, 24+ mpg); TS% shifts by the difference.
+ERA = os.environ.get('ERA', '1') == '1'
+if ERA:
+    rot = d[(d.g >= 40) & (d.mp_per_game >= 24)]
+    K = ['pts_per_game', 'trb_per_game', 'ast_per_game', 'stl_per_game', 'blk_per_game', 'tov_per_game', 'mp_per_game']
+    lg = rot.groupby('season')[K + ['ts_percent']].mean(); mod = lg.loc[2022:2025].mean()
+    for k in K: d[k] = d[k] * d.season.map(mod[k] / lg[k]).fillna(1.0)
+    d['ts_percent'] = d.ts_percent + d.season.map(mod['ts_percent'] - lg['ts_percent']).fillna(0.0)
 d['perf'] = (d.pts_per_game * (1 + 2.2 * (d.ts_percent - 0.57)) + 1.15 * d.trb_per_game + 1.5 * d.ast_per_game + 2 * (d.stl_per_game + d.blk_per_game) - 1.1 * d.tov_per_game)
 d = d.rename(columns={'pts_per_game': 'pts', 'trb_per_game': 'reb', 'ast_per_game': 'ast', 'stl_per_game': 'stl', 'blk_per_game': 'blk', 'mp_per_game': 'mpg', 'ft_percent': 'ftp'})
-d = d[d.season >= 1980]
+# debut / last season from the full NBA record, BEFORE the 1980 cut (otherwise Kareem 'debuts' in 1980 with half a career)
 first = d.groupby('player_id').season.min().rename('debut'); last = d.groupby('player_id').season.max().rename('last')
 d = d.merge(first, on='player_id').merge(last, on='player_id')
+d = d[d.season >= 1980]
 d['exp'] = d.season - d.debut + 1
 
 # awards
@@ -58,7 +68,12 @@ for pid, g in d.groupby('player_id'):
     gg = g[g.gf >= 0.55].sort_values('perf', ascending=False)
     if len(gg) < 5: continue
     t5 = gg.head(5)
-    rows.append(dict(player_id=pid, player=g.player.iloc[0], td=float(TD.get(g.player.iloc[0], 0)), debut=int(g.debut.iloc[0]), last=int(g.last.iloc[0]), seasons=len(g[g.g >= 20]), pts=t5.pts.mean(), reb=t5.reb.mean(), ast=t5.ast.mean(), stl=t5.stl.mean(), blk=t5.blk.mean(), ftp=t5.ftp.mean(), ar3=t5.x3p_ar.mean(), usg=t5.usg_percent.mean(), perf=t5.perf.mean(), peakperf=t5.perf.max()))
+    q = g[g.gf >= 0.55].sort_values('age'); bst = q.loc[q.perf.idxmax()]
+    pr = q[(q.age >= bst.age - 3) & (q.age <= bst.age + 3)].pts.diff().dropna().abs()
+    pos0 = g.pos.astype(str).str.split('-').str[0].mode().iloc[0]
+    feat = dict(peakAge=int(bst.age), debutAge=int(g.age.min()), finalAge=int(g.age.max()), seasons=int((g.g >= 20).sum()), careerPts=float((g.pts * g.g).sum()),
+                best=float(q.pts.max()), n30=int((q.pts >= 30).sum()), noise=float(pr.mean()) if len(pr) else None, gpRate=float(g[g.g >= 20].gf.mean()), pos=pos0)
+    rows.append(dict(feat, player_id=pid, player=g.player.iloc[0], td=float(TD.get(g.player.iloc[0], 0)), debut=int(g.debut.iloc[0]), last=int(g.last.iloc[0]), seasons=len(g[g.g >= 20]), pts=t5.pts.mean(), reb=t5.reb.mean(), ast=t5.ast.mean(), ts=100 * t5.ts_percent.mean(), mpg=t5.mpg.mean(), stl=t5.stl.mean(), blk=t5.blk.mean(), ftp=t5.ftp.mean(), ar3=t5.x3p_ar.mean(), usg=t5.usg_percent.mean(), perf=t5.perf.mean(), peakperf=t5.perf.max()))
 S = pd.DataFrame(rows).merge(vals, left_on='player_id', right_index=True, how='left').fillna(0)
 S = S[(S.debut >= 1980) & (S.debut <= 2018)]
 
@@ -137,3 +152,9 @@ for a, g in dd2.groupby('arch'):
     res[a]['dominance'] = prof
     print(a, {k: round(v, 2) for k, v in prof.items()})
 json.dump(clean(res), open(OUT, 'w'))
+
+# ---- per-player career rows for the realism test (scripts/realism-test.js)
+cols = ['player', 'debut', 'last', 'pts', 'reb', 'ast', 'stl', 'blk', 'ts', 'mpg', 'perf', 'usg', 'ar3', 'ftp', 'peakAge', 'debutAge', 'finalAge', 'seasons', 'careerPts', 'best', 'n30', 'noise', 'gpRate', 'pos', 'mvp', 'allnba1', 'allnba', 'allstar', 'alldef', 'dpoy', 'td']
+careers = {a: clean(S[S.arch == a][cols].to_dict('records')) for a in sorted(S.arch.unique())}
+json.dump(careers, open(os.path.join(os.path.dirname(OUT), 'real-careers.json'), 'w'))
+print('career rows:', {a: len(v) for a, v in careers.items()})

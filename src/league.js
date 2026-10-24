@@ -22,10 +22,10 @@
       miss += d; list.push(d);
     }
     let major = null, notable = null;
-    const mp = 0.02 * T.injScale * p.prone * (A.injury || 1) * (1 + Math.max(0, p.age - 26) * 0.05) * (1 + clamp((p.target.ath - 70) / 60, 0, 0.5));
+    const mp = T.majorRate * T.injScale * p.prone * (A.injury || 1) * (1 + Math.max(0, p.age - 26) * 0.05) * (1 + clamp((p.target.ath - 70) / 60, 0, 0.5));
     if (rand() < mp) {
       major = pick(['torn ACL', 'torn Achilles', 'fractured foot', 'torn meniscus', 'ruptured patellar tendon']);
-      miss = rint(48, 82);
+      miss = rand() < T.seasonEnding ? rint(66, 82) : rint(48, 65);   // about half the majors cost the whole season (Durant 2019-20, Klay 2019-21)
     }
     if (!major && (p.injYears || []).includes(p.age)) {
       notable = pick(['stress fracture', 'high ankle sprain', 'torn labrum', 'sports hernia', 'knee sprain', 'broken hand']);
@@ -321,8 +321,14 @@
     const mip = q65.filter((e) => !e.p.rookie && e.p.prevPerf != null && e.p.age <= 28).map((e) => ({ e, s: (e.l.perf - e.p.prevPerf) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
     const logisticNoise = () => { const u = Math.max(1e-9, Math.min(1 - 1e-9, rand())); return Math.log(u / (1 - u)); };
     const allNBA = pool.slice(0, 35).map((e) => ({ e, s: -16.75 + 0.218 * e.l.perf + 0.124 * e.l.wins + 0.097 * e.l.pts + logisticNoise() })).sort((a, b) => b.s - a.s).slice(0, 15);
-    const allDef = dpoy.slice(0, 10);
-    const stars = entries.filter((e) => e.l.gp >= 40).map((e) => ({ e, s: e.l.perf + randn() * 3 })).sort((a, b) => b.s - a.s).slice(0, 24);
+    // All-Star and All-Defense: logistic selection models fitted to 2001-25 voting (scripts/real-allstar-model.py) plus logistic noise;
+    // All-Stars are the top 12 per conference, All-Defense the top 10 in the league (positionless since 2024)
+    const ASM = { b0: -15.572, perf: 0.2108, pts: 0.1557, wins: 0.0916, prevAS: 1.485 }, ADM = { b0: -14.619, stl: 2.4768, blk: 1.5368, reb: 0.0154, mins: 0.0591, wins: 0.1055, prevAD: 3.0275 };
+    const allDef = q65.map((e) => ({ e, s: ADM.b0 + ADM.stl * e.l.stl + ADM.blk * e.l.blk + ADM.reb * e.l.reb + ADM.mins * e.l.mins + ADM.wins * e.l.wins + (e.p.prevAD ? ADM.prevAD : 0) + logisticNoise() })).sort((a, b) => b.s - a.s).slice(0, 10);
+    const asCand = entries.filter((e) => e.l.gp >= 40).map((e) => ({ e, s: ASM.b0 + ASM.perf * e.l.perf + ASM.pts * e.l.pts + ASM.wins * e.l.wins + (e.p.prevAS ? ASM.prevAS : 0) + logisticNoise() })).sort((a, b) => b.s - a.s);
+    const stars = ['E', 'W'].reduce((acc, c) => acc.concat(asCand.filter((x) => x.e.t.conf === c).slice(0, 12)), []);
+    entries.forEach((e) => { e.p.prevAS = false; e.p.prevAD = false; });
+    stars.forEach((x) => { x.e.p.prevAS = true; }); allDef.forEach((x) => { x.e.p.prevAD = true; });
     const qual = entries.filter((e) => e.l.gp >= 58);
     const lead = (k) => qual.slice().sort((a, b) => b.l[k] - a.l[k]);
     const scoring = lead('pts');
@@ -389,7 +395,7 @@
   function retireP(p) {
     const o = ovr(p);
     let h = p.age < 32 ? 0 : p.age < 34 ? 0.03 : p.age < 36 ? 0.09 : p.age < 38 ? 0.18 : p.age < 40 ? 0.3 : p.age < 42 ? 0.5 : 0.9;
-    h *= clamp((80 - o) / 10, 0.12, 2.4);   // players still producing keep playing; the declining ones get squeezed out
+    h *= clamp((T.retireKnee - o) / T.retireSpan, T.retireFloor, 2.0);   // players still producing keep playing; the declining ones get squeezed out
     if (p.age >= 30 && o < 64) h += 0.18;
     return rand() < h * T.retireScale;
   }
@@ -434,6 +440,13 @@
   }
   // Age at draft by recruit tier (real 2009-24 college prospects, data/real-draft-prospects.csv): share of class, then % Fr/So/Jr/Sr
   const RECRUIT_TIERS = [[0.052, [90, 9, 1, 0]], [0.055, [54, 25, 12, 8]], [0.126, [36, 28, 18, 19]], [0.155, [15, 21, 26, 38]], [0.159, [5, 17, 20, 58]], [0.296, [2, 13, 21, 63]], [0.158, [5, 6, 14, 75]]];
+  // years in college a recruit of this star rating chooses, sampled from the real 2009-24 draft-age shares above
+  function recruitYears(stars) {
+    const t = stars >= 5 ? [72, 17, 6.5, 4] : RECRUIT_TIERS[{ 4: 2, 3: 3, 2: 4, 1: 5 }[stars] || 5][1];
+    let u = rand() * (t[0] + t[1] + t[2] + t[3]);
+    for (let i = 0; i < 4; i++) { u -= t[i]; if (u <= 0) return i + 1; }
+    return 4;
+  }
   function draftClass(L, n) {
     const out = [];
     const nInt = Math.round(n * 0.26), nCol = n - nInt; // internationals / pro-pathway prospects skew young and are not in the college table
@@ -555,6 +568,6 @@
     return { n90: o.filter((x) => x >= 90).length, n85: o.filter((x) => x >= 85).length, n80: o.filter((x) => x >= 80).length, mean: sum(o) / o.length, top: o.slice(0, 6).map((x) => Math.round(x)) };
   }
 
-  Object.assign(NBA, { rosterOf, swapPlayers, seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, makeReal, userDraft, npcDraft, draftClass, makeProspect, retireP, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
+  Object.assign(NBA, { recruitYears, rosterOf, swapPlayers, seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, makeReal, userDraft, npcDraft, draftClass, makeProspect, retireP, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

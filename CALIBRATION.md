@@ -254,3 +254,20 @@ Minutes: +1.5 mpg for this build (`gdMins`), so the prime sits near the real 36 
 - `scripts/real-gen-dominators.py`: the generational box-score pool is now nine players (Magic, LeBron, Jokic, Westbrook, Harden, Giannis, Luka, Kidd, Bird).
 - Findings and fixes: non-gen careers peaked ~2 years late (physical decline now starts a year earlier, `declineShift`), season-to-season scoring was too smooth (`noiseNon`), scorers declined too slowly after 30 and dominators carried too much usage (archetype `declineMult` / `usg`), stars were losing minutes too early (`starAgeKeep`), primary gens started too fast (`genGapA`).
 - Not covered: the sim has no 3-point-rate stat to classify shooters, and the real two-way cohort is a different position mix from the sim's.
+
+## v26: realism test (sim careers vs real careers of the same archetype)
+
+`scripts/realism-run.sh [N]` (wraps `scripts/realism-test.js`) creates N careers per archetype, keeps those that became notable players of that archetype
+(the real cohort rules of `scripts/real-blueprints.py`), and compares them with the real careers in `data/real-careers.json` on ~19 features:
+peak-5 ppg/rpg/apg, TS%, minutes, best season, 30-ppg seasons, age of best season, debut age, year-to-year swing, games played, All-Star / All-NBA / MVP / All-Defense,
+career length, final age, career points.
+- Feature score = (1 - KS distance) / (1 - KS distance a perfect sim shows at the same sample size); archetype realism = mean feature score.
+- Plausible careers = share of sim careers whose key stats all sit inside the range real careers of that archetype have covered.
+- Real stats are era-adjusted to the 2022-25 league (per-game stats scaled by league averages, TS% shifted), so 1990s and 2020s players compare fairly.
+- Career totals use finished careers: retired by 2024, or debuted by 2008. Usage is shown but not scored (era adjustment does not translate it cleanly).
+
+Fixes from this round: real-data debut computed before the 1980 cut (Kareem etc. no longer counted with half careers); the autopilot stays in college
+like real recruits of its star rating (2009-24 draft ages); more and longer major injuries; All-Star and All-Defense selection now use logistic models fitted to
+2001-25 voting (`scripts/real-allstar-model.py`; 12 All-Stars per conference, reputation from last year's selection, steals weigh most for All-Defense);
+retirement depends less on talent; archetype TS% offsets fitted to the real (era-adjusted) archetypes; scorers' perimeter defence up (real-like steals);
+role players' minutes swing more year to year.

@@ -41,15 +41,15 @@
   const T = {
     pace: 99,            // possessions per game, 2025-ish
     usgBase: 0.16785, usgPerSS: 0.00584, usgConvex: 0.00003,
-    tsBase: 0.36421, tsPerSkill: 0.00265, tsEra: 0.012, usgTax: 0.16733,
+    tsBase: 0.3582, tsPerSkill: 0.00265, tsEra: 0.012, usgTax: 0.16733,
     minsBase: 11.78235, minsPerOvr: 0.91888, minsCap: 35.74855,
     declineScale: 1.5,
     ceilA: 55, ceilLambda: 11.5, ceilK: 1.3,
     winsPerPt: 0.95, formSd: 0.07, winsCoreAvg: 48, ovrStretch: 1.3,
-    growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.6, retireScale: 0.9,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
+    growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.8, retireScale: 0.9,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
     astKnee: 7, astK: 0.88991, rebKnee: 7.23037, rebK: 0.76112,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
-    volSpread: 0.43399, frUsg: 0.05, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.12, genSecGap: 4, gdReb: 1.0, gdAst: 1.06, gdTs: 0.06, gdMins: 1.5, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 2.2, starAgeKeep: 0.6, genCeilDrop: 2.5,
-    starTs: 0.04142, starReb: 0.06173, starAst: 0.32616,   // extra production for the very best (fitted to the real top of the league)
+    volSpread: 0.43399, frUsg: 0.05, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.06, genSecGap: 4, gdReb: 1.0, gdAst: 1.06, gdTs: 0.03, gdMins: 1.5, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 2.2, majorRate: 0.035, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.2, minsNoiseNon: 1.6, starAgeKeep: 0.6, genCeilDrop: 2.5,
+    starTs: 0.05, starReb: 0.06173, starAst: 0.32616,   // extra production for the very best (fitted to the real top of the league)
   };
   NBA.tuning = T;
 
