@@ -35,7 +35,7 @@ function evaluate() {
   Object.keys(TAILS).forEach((k) => { const sim = tl[k] / ns, re = real._tails[k]; lt += 0.8 * sq((sim - re) / Math.max(0.6, 0.12 * re)); });
   lt += 3 * sq((top / ns - real._tails.top_scorer) / 0.9);
   ['pts', 'reb', 'ast'].forEach((k) => { for (let i = 0; i < 4; i++) lh += sq((tm[k][i] / tm.n - TEAM[k][i]) / (k === 'pts' ? 0.5 : 0.3)); });
-  lh += sq((tm.two20 / tm.n - TEAM.two20) / 0.025) + sq((tm.two25 / tm.n - TEAM.two25) / 0.015) + sq((tm.three20 / tm.n - TEAM.three20) / 0.015);
+  lh += sq((tm.two20 / tm.n - TEAM.two20) / 0.025) + sq((tm.two25 / tm.n - TEAM.two25) / 0.015) + sq((tm.three20 / tm.n - TEAM.three20) / 0.01);
   const ddm = dd.reduce((a, b) => a + b, 0) / dd.length, dsd = Math.sqrt(dd.reduce((a, b) => a + sq(b - ddm), 0) / dd.length), rp = rep.reduce((a, b) => a + b, 0) / rep.length;
   lr += sq((rp - turn.top5_repeat) / 0.1) + sq((dsd - turn.top10_next_dppg_sd) / 0.15);
   loss += lt + lh + lr;
