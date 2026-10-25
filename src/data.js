@@ -48,9 +48,10 @@
       name: 'Defensive Anchor', icon: '🧱',
       blurb: 'Boards, blocks, All-Defense. ~12 ppg on easy looks in ~30 minutes, cheaper contracts, long careers as the anchor.',
       comps: 'Mutombo · Ben Wallace · Camby · Noah · DeAndre Jordan',
-      boost: { inside: 14, mid: -2, three: -12, ft: 0, handling: -8, passing: 23, iq: 8, reb: 24, perD: 40, rimP: 36, ath: 10, dur: 8 },
-      weights: { inside: .1, mid: .02, three: .02, ft: .03, handling: .02, passing: .04, iq: .1, reb: .16, perD: .1, rimP: .2, ath: .11, dur: .06 },
-      usg: 0.057, ts: 0.031, declineMult: 1.25, ceilingBonus: -1, mins: -3.5,
+      boost: { inside: 14, mid: -2, three: -12, ft: 0, handling: -8, passing: 23, iq: 8, reb: 4, perD: 40, rimP: 24, ath: 10, dur: 8 },
+      weights: { inside: .1, mid: .02, three: .02, ft: .03, handling: .02, passing: .04, iq: .1, reb: .11, perD: .1, rimP: .2, ath: .11, dur: .06 },
+      usg: 0.065, ts: 0.045, declineMult: 1.4, ceilingBonus: -1, mins: -3.5,
+      impact: 7, spread: 1.5,   // real anchors' teams win beyond their box score (near-peak team wins 44.7 on ~12 ppg); Bol to Chandler is a wide range of shooting
     },
     shooter: {
       name: 'Lethal Shooter', icon: '🎳',
@@ -67,7 +68,7 @@
       boost: { inside: 12, mid: 6, three: 4, ft: 2, handling: 24, passing: 21, iq: 18, reb: 0, perD: 40, rimP: 8, ath: 18, dur: 6 },
       weights: { inside: .09, mid: .06, three: .06, ft: .03, handling: .1, passing: .16, iq: .14, reb: .15, perD: .03, rimP: .01, ath: .12, dur: .05 },
       usg: 0.04, ts: 0.04, declineMult: 1.5, ceilingBonus: 0, injury: 0.65,
-      impact: 8, dev: 0.6,   // teams win with them beyond their rating (real near-peak team wins 47); they develop fast and peak at ~26
+      impact: 10, dev: 0.6,   // teams win with them beyond their rating (real near-peak team wins 47); they develop fast and peak at ~26
     },
   };
 
