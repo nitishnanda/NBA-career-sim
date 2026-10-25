@@ -64,9 +64,10 @@
       name: 'Box-Score Dominator', icon: '📊',
       blurb: 'Fills every column: ~21/8/7 with steals at the peak, All-NBA and All-Defense teams, triple-doubles on the good nights.',
       comps: 'Westbrook · Garnett · Pippen · Grant Hill · Kidd',
-      boost: { inside: 12, mid: 6, three: 4, ft: 2, handling: 24, passing: 21, iq: 18, reb: 4, perD: 40, rimP: -10, ath: 18, dur: 6 },
+      boost: { inside: 12, mid: 6, three: 4, ft: 2, handling: 24, passing: 21, iq: 18, reb: 0, perD: 40, rimP: 8, ath: 18, dur: 6 },
       weights: { inside: .09, mid: .06, three: .06, ft: .03, handling: .1, passing: .16, iq: .14, reb: .15, perD: .03, rimP: .01, ath: .12, dur: .05 },
-      usg: 0.058, ts: 0.04, declineMult: 1.5, ceilingBonus: 0, injury: 0.65,
+      usg: 0.04, ts: 0.04, declineMult: 1.5, ceilingBonus: 0, injury: 0.65,
+      impact: 8, dev: 0.6,   // teams win with them beyond their rating (real near-peak team wins 47); they develop fast and peak at ~26
     },
   };
 
