@@ -467,3 +467,7 @@ Changes and results:
   gens 83-84, scorers 92, dominators 82-83, shooters 89, two-way 89-91, defenders 88-90; every clone and oddball test not significant in
   both runs. Run-to-run noise is about +-1 per archetype, so v33 (88% on this test) and v34 are equally realistic overall; v34 fixes the
   league's team scoring and turnover, the availability targets and the gen aging curve without giving any of it back.
+- Scoring-champion trim (after the v34 fixes left it at 33.1 vs 32.5, 30+ ppg seasons 2.5 vs 2.0): star usage convexity x0.6 and the stacked
+  co-star tax 2.13 -> 1.83 (convexity alone was a weak lever: x0.4 only gave 32.8 and cost second options). On 12 fresh seeds: champion
+  32.9 (32.5), 30+ ppg 2.3 (2.0), 27+ 5.9 (5.4), two 20-ppg teammates 33% (34%), two 25 3.9% (4.0%), three 20 4.3% (4.3%), top-5 repeat 2.47
+  (2.42), swing 3.12 (3.06); gen MVPs 1.86 per gen over 900 gens (1.86), star wins and the gen curve unchanged. Realism 87%, flags all not significant.
