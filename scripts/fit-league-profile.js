@@ -2,7 +2,7 @@
 //  - production by league rank and the per-season tails (data/real-rank-profile.json, 2016-25, 58+ games)
 //  - team hierarchy: each team's 1st-4th scorer / rebounder / passer, how often two teammates both score 20 (real-rank-profile.json _team)
 //  - top-scorer turnover: top-5 scorers who repeat, how much a top-10 scorer's ppg moves the next year (data/real-scoring-turnover.json, 1985-2025)
-// Usage: node scripts/fit-league-profile.js [iterations]   SEASONS=30 per seed (4 seeds; two seeds overfit team makeup); START='{"usgBase":0.17,...}' to resume; RSEED=7 restart seed; REPORT=1 prints the fit only
+// Usage: node scripts/fit-league-profile.js [iterations]   SEASONS=30 per seed (6 seeds: with fewer, the few superstar careers per seed make the fit noisy; check on fresh seeds with SEEDS='[6001,...]'); START='{"usgBase":0.17,...}' to resume; RSEED=7 restart seed; REPORT=1 prints the fit only
 require('../src/data.js'); require('../src/engine.js'); require('../src/league.js'); require('../src/game.js');
 const real = require('../data/real-rank-profile.json'), turn = require('../data/real-scoring-turnover.json'); const T = NBA.tuning; const ITER = +process.argv[2] || 60; const SEASONS = +process.env.SEASONS || 30;
 if (process.env.START) Object.assign(T, JSON.parse(process.env.START));
@@ -14,7 +14,7 @@ const TAILS = { pts30: ['pts', 30], pts27: ['pts', 27], pts25: ['pts', 25], pts2
 const bands = Object.keys(real).filter((k) => k[0] !== '_'), TEAM = real._team;
 function evaluate() {
   const acc = {}, tl = {}, tm = { pts: [0, 0, 0, 0], reb: [0, 0, 0, 0], ast: [0, 0, 0, 0], two20: 0, two25: 0, three20: 0, n: 0 }, rep = [], dd = []; let top = 0, ns = 0;
-  (process.env.SEEDS ? JSON.parse(process.env.SEEDS) : [4242, 4243, 4244, 4245]).forEach((sd) => {
+  (process.env.SEEDS ? JSON.parse(process.env.SEEDS) : [4242, 4243, 4244, 4245, 4246, 4247]).forEach((sd) => {
     NBA.setSeed(sd); const L = NBA.newLeague(2027, { real: true }); let prev = null;
     for (let y = 0; y < SEASONS; y++) {
       const r = NBA.simSeason(L, null); const q = r.entries.filter((x) => x.l.gp >= 58); const e = q.slice().sort((a, b) => b.l.perf - a.l.perf); ns++;
