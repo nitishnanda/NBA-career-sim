@@ -48,7 +48,7 @@
     winsPerPt: 0.6201, ageUsgK: 0, formSd: 0.06561, winsCoreAvg: 48, ovrStretch: 1.3,
     growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.65, coTaxK: 0.0022401, blkKnee: 1.3094, blkK: 0.63117, usgMin: 0.10, starPull: 0.3891, starWinK: 0.9548, badTeamUsg: 0, awardMinGp: 65, badTeamMins: 0, coTaxDown: 0.55288, coTaxStack: 0.57517, coTaxMax: 0.029294, capPts: 158.03, qualifyOvr: 82, restStar: 7, restOld: 14, minorRate: 1.8, injMu: 2, injSd: 0.9556, injMax: 52, retireScale: 1.2,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
     astKnee: 7, astK: 0.46277, rebKnee: 7.4385, rebK: 0.86712,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
-    volSpread: 0.017541, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0, genSecGap: 11, gdReb: 1.0, gdAst: 1.06, gdTs: 0.01674, gdMins: 1.959, domStyleUsg: 0.08, domStyleAst: 0.12, genStyleUsg: 0.07, genStyleAst: 0.15, trMins: 1.2, gdDecline: 1.085, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 1.9, majorRate: 0.025, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, tailShare: 0.25, tailMult: 3.2, starRetire: 1.15, userWinShrink: 0.2, userTaxCut: 0, trainCap: 3, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, effLowUsg: 0.4, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: -1, genCeilRange: 8, genCeilPow: 1.6,
+    volSpread: 0.017541, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0, genSecGap: 11, gdReb: 1.0, gdAst: 1.06, gdTs: 0.01674, gdMins: 1.959, domStyleUsg: 0.08, domStyleAst: 0.12, genStyleUsg: 0.07, genStyleAst: 0.15, trMins: 1.2, gdDecline: 1.085, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 1.9, majorRate: 0.025, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, tailShare: 0.25, tailMult: 3.2, starRetire: 1.15, userWinShrink: 0.2, userTaxCut: 0, trainCap: 3, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, effLowUsg: 0.4, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: -1, genCeilRange: 8, genCeilPow: 1.6, defRim: 0, defGlass: 0,
     starTs: 0.042633, starReb: 0, starAst: 0.16829,   // extra production for the very best (fitted to the real top of the league)
   };
   NBA.tuning = T;
@@ -105,6 +105,8 @@
       const pb = p.arch === 'defender' && (a === 'reb' || a === 'rimP') ? DEF_POS[p.pos] : 1;
       t[a] = clamp(50 + P[a] + A.boost[a] * pb + (S ? 0.4 * S.boost[a] : 0) + (tilt[a] || 0) + randn() * 4.5, 12, 99);
     });
+    // defensive anchors come in two kinds: the shot-blocker (Mutombo, Eaton, Bol) and the glass cleaner (Rodman, Oakley): real blocks 1.3 +- 0.8, boards 8.4 +- 3.0
+    if (p.arch === 'defender') { const s = (p.tr || NOTR).style || 0; t.rimP = clamp(t.rimP + T.defRim * s, 12, 99); t.reb = clamp(t.reb - T.defGlass * s, 12, 99); }
     fitOvr(t, p, ceiling);
     return t;
   }
