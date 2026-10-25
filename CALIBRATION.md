@@ -382,3 +382,18 @@ Readings now use 400 simulated seasons (4 seeds x 100) for the league and ~1000 
   Scorers 90, two-way 90, shooters 89, defenders 85, gens 83, dominators 83. Gens are held back by era (real gens debuted at 20-23 before
   one-and-done; sim gens enter at 19, which moves debut age, career length, final age and career points together); dominators by awards
   (their real cohort is Garnett, Pippen, Drexler, Hill, McGrady: All-NBA regulars and elite defenders).
+
+## v32: last realism pass, league refit 9
+
+- Debut age: compared with careers that started under today's draft rules (2006+) when an archetype has 8+ of them; otherwise (gens: 5)
+  era-adjusted by the mean debut age of notable players in each debut era (22.1 in the 1980s, 21.7 in the 90s, 20.8 in 2000-05, 20.6 since).
+  Gens' debut-age match 58% -> 77%.
+- Box-score dominators get the same style trait as gens (`domStyleUsg`/`domStyleAst`: Westbrook/McGrady scorers vs Rondo/Draymond passers),
+  their real scoring spread is wider than one template.
+- Careers ended ~1-1.5 seasons late: `retireScale` 1.2; superstars still leave on their own terms (`starRetire` 1.15).
+- Defenders: rebounding boost 24 (position-scaled), more perimeter defence (All-Defense), usage/TS/minutes touched up.
+- League refit round 9 (fit seeds): top-5 repeat 2.41 (2.42), next-year ppg sd 3.06 (3.06), scoring champion 32.5 (32.5), 30/25-ppg scorers 2.0/10.2
+  (2.0/10.5). The fitter overfits its two seeds on team composition (two 20-ppg teammates 32% on its seeds, ~25% on eight others), so the
+  stacked usage cap was set by hand across 8 seeds: `coTaxStack` 0.2 -> two 20-ppg teammates ~28% (real 34%), three ~4.7% (4.3%).
+- Gen box-score dominators at 30-34: 26.1 / 24.5 / 22.6 / 21.0 / 16.1 ppg (real 26.5 / 25.3 / 22.2 / 21.0 / 19.4).
+- Gens: ~2.1 MVPs per gen (real 1.86; box-score gens 2.18); the 6+ tail is 3-8% depending on seeds (~100 gens per check).
