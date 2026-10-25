@@ -39,6 +39,15 @@ for k, col in [('pts', 'pts_per_game'), ('reb', 'trb_per_game'), ('ast', 'ast_pe
     if k == 'pts': team['two20'] = float(sum(x[1] >= 20 for x in r) / len(r)); team['two25'] = float(sum(x[1] >= 25 for x in r) / len(r)); team['three20'] = float(sum(x[2] >= 20 for x in r) / len(r))
     if k == 'ast': team['two6ast'] = float(sum(x[1] >= 6 for x in r) / len(r))
     if k == 'reb': team['two8reb'] = float(sum(x[1] >= 8 for x in r) / len(r))
+# star gravity: the supporting scorers' (#2-#4) TS% by how much the team's #1 scores (under 22 / 22-26 / 26+ ppg); next to a big scorer they shoot better
+adv = pd.read_csv(D + 'Advanced.csv')[['season', 'player_id', 'team', 'lg', 'ts_percent']]; adv = adv[adv.lg == 'NBA'].drop(columns='lg')
+pa = pt.merge(adv, on=['season', 'player_id', 'team'], how='left')
+band = {'lt22': [], '22to26': [], '26up': []}
+for _, g in pa.groupby(['season', 'team']):
+    g = g.sort_values('pts_per_game', ascending=False)
+    if len(g) < 4: continue
+    p1 = g.pts_per_game.iloc[0]; band['lt22' if p1 < 22 else '22to26' if p1 < 26 else '26up'].append(100 * g.ts_percent.iloc[1:4].mean())
+team['supTs'] = {k: float(sum(v) / len(v)) for k, v in band.items()}
 out['_team'] = team
 json.dump(out, open(os.path.join(os.path.dirname(__file__), '..', 'data', 'real-rank-profile.json'), 'w'))
-print('team hierarchy', {k: (round(v, 3) if isinstance(v, float) else [round(x, 1) for x in v]) for k, v in team.items()})
+print('team hierarchy', {k: (round(v, 3) if isinstance(v, float) else {b: round(x, 1) for b, x in v.items()} if isinstance(v, dict) else [round(x, 1) for x in v]) for k, v in team.items()})

@@ -2,7 +2,7 @@
 Pool (1980+, 40+ games a season): five best scoring seasons average 6+ apg and 6+ rpg and 14+ ppg (but under 32 ppg, so scorers like Jordan stay out),
 or 30+ triple-doubles in the 2002-24 game logs; and at least 2 All-Star seasons or an All-NBA nod.
 'gen' = the generational subset (an MVP, or 4+ All-NBA 1st teams); 'all' = the whole pool.
-Writes data/real-gen-dominators.json: {gen: {age: {...}}, all: {...}, _players: {gen: [...], all: [...]}}.
+Writes data/real-gen-dominators.json: {gen: {age: {...}}, all: {...}, genRel: {age: {n, rel}}, _players: {gen: [...], all: [...]}}.
 Usage: python3 scripts/real-gen-dominators.py [path/to/bball-reference-datasets/Data]
 """
 import json, os, sys
@@ -36,6 +36,16 @@ def curves(ids):
         if len(y) < 3: continue
         out[str(a)] = dict(n=int(len(y)), pts=round(float(y.pts.median()), 1), reb=round(float(y.reb.median()), 1), ast=round(float(y.ast.median()), 1), mpg=round(float(y.mpg.median()), 1), usg=round(float(y.usg.median()), 1), ts=round(100 * float(y.ts.median()), 1), gf=round(100 * float(y.gf.median())))
     return out, sorted(x.player.unique().tolist())
+# the same players' ppg relative to their own 27-29 average: the absolute medians past 30 swap players in and out (Giannis, Jokic and Magic leave
+# the pool at 30-31, Kidd's 13 ppg stays), the ratio follows each player's own decline
+def relative(ids):
+    out = {}
+    for _, g in d[d.player_id.isin(ids)].groupby('player_id'):
+        b = g[(g.age >= 27) & (g.age <= 29)].pts
+        if len(b) < 2: continue
+        for a, v in zip(g.age, g.pts):
+            if 30 <= a <= 37: out.setdefault(int(a), []).append(v / b.mean())
+    return {str(a): dict(n=len(v), rel=round(float(pd.Series(v).median()), 3), lo=round(min(v), 2), hi=round(max(v), 2)) for a, v in sorted(out.items()) if len(v) >= 3}
 cg, ng = curves(gen); ca, na = curves(pool)
-json.dump({'gen': cg, 'all': ca, '_players': {'gen': ng, 'all': na}}, open(OUT, 'w'), indent=1)
+json.dump({'gen': cg, 'all': ca, 'genRel': relative(gen), '_players': {'gen': ng, 'all': na}}, open(OUT, 'w'), indent=1)
 print('gen pool', len(ng), ng); print('all pool', len(na))

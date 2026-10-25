@@ -1,10 +1,10 @@
 // Fit games played to the modern league: next-season games of the previous season's top-150 scorers (real 2016-25 percentiles, per 82 games)
-// and how many of the top-10 scorers play 58+ again. Knobs: minor-injury rate and length distribution, stars' rest days.
+// and how many of the top-10 scorers play 58+ again. Knobs: minor-injury rate and length distribution, stars' rest days, major-injury rate.
 // Usage: node scripts/fit-availability.js [iterations]  (RSEED, START)
 require('../src/data.js'); require('../src/engine.js'); require('../src/league.js');
 const T = NBA.tuning; if (process.env.START) Object.assign(T, JSON.parse(process.env.START));
 const REAL = [18, 26, 43, 55, 62, 67, 71, 74, 77, 80], P = [5, 10, 20, 30, 40, 50, 60, 70, 80, 90], REAL_Q10 = 0.75;
-const KNOBS = { minorRate: [0.8, 3], injMu: [1.2, 2.6], injSd: [0.6, 1.5], injMax: [30, 82], restStar: [0, 14], restOld: [0, 16] };
+const KNOBS = { minorRate: [0.8, 3], injMu: [1.2, 2.6], injSd: [0.6, 1.5], injMax: [30, 82], restStar: [0, 14], restOld: [0, 16], majorRate: [0.01, 0.06] };
 function evaluate() {
   const v = []; let q = 0, n = 0;
   [3, 4].forEach((sd) => { NBA.setSeed(sd); const L = NBA.newLeague(2027, { real: true }); let prev = null;

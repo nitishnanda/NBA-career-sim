@@ -37,18 +37,20 @@ rk = np.mean([int((d[(d.season == s)].perf > d[(d.season == s)].sort_values('per
 print('model picks the winner', round(hit, 2), 'winner in model top-3', round(top3, 2), '| mean perf-rank of winners', round(rk, 2))
 json.dump({'perf': raw[0], 'wins': raw[1], 'ppg': raw[2], 'temp': 1.0, 'candidates': 14}, open(os.path.join(os.path.dirname(__file__), '..', 'data', 'real-mvp-model.json'), 'w'))
 
-# ---- All-NBA: who makes the three teams (15 spots)? logistic regression among each season's top-35 producers
+# ---- All-NBA: who makes the three teams (15 spots)? logistic regression among each season's top-35 producers, with a reputation term
+# (made All-NBA last season: voters lean on it as they do for All-Star and All-Defense; likelihood-ratio chi2 ~69 on 1 df)
 rowsX, rowsY = [], []
 an = eot[(eot.type == 'All-NBA')][['season', 'player_id']].drop_duplicates(); an['sel'] = 1
+prev = an.assign(season=an.season + 1).rename(columns={'sel': 'prev'})
 for s, g in d.groupby('season'):
-    g = g.sort_values('perf', ascending=False).head(35).merge(an, on=['season', 'player_id'], how='left').fillna({'sel': 0})
-    rowsX.append(np.c_[g.perf.values, g.wins.values, g.pts_per_game.values]); rowsY.append(g.sel.values)
+    g = g.sort_values('perf', ascending=False).head(35).merge(an, on=['season', 'player_id'], how='left').merge(prev, on=['season', 'player_id'], how='left').fillna({'sel': 0, 'prev': 0})
+    rowsX.append(np.c_[g.perf.values, g.wins.values, g.pts_per_game.values, g.prev.values]); rowsY.append(g.sel.values)
 Xa = np.vstack(rowsX); ya = np.concatenate(rowsY); mua, sda = Xa.mean(0), Xa.std(0); Za = np.c_[np.ones(len(Xa)), (Xa - mua) / sda]
-w = np.zeros(4)
-for it in range(4000):
-    p = 1 / (1 + np.exp(-Za @ w)); w += 0.05 * Za.T @ (ya - p) / len(ya)
+w = np.zeros(5)
+for it in range(8000):
+    p = 1 / (1 + np.exp(-Za @ w)); w += 0.1 * Za.T @ (ya - p) / len(ya)
 ra = w[1:] / sda; icpt = w[0] - (w[1:] * mua / sda).sum()
 p = 1 / (1 + np.exp(-(Za @ w))); acc = np.mean((p > 0.5) == ya)
-print('All-NBA logit: intercept %.2f  perf %.3f  wins %.3f  ppg %.3f | accuracy %.2f (base rate %.2f)' % (icpt, ra[0], ra[1], ra[2], acc, ya.mean()))
-m = json.load(open(os.path.join(os.path.dirname(__file__), '..', 'data', 'real-mvp-model.json'))); m['allnba'] = {'icpt': float(icpt), 'perf': float(ra[0]), 'wins': float(ra[1]), 'ppg': float(ra[2])}
+print('All-NBA logit: intercept %.2f  perf %.3f  wins %.3f  ppg %.3f  last season All-NBA %.3f | accuracy %.2f (base rate %.2f)' % (icpt, ra[0], ra[1], ra[2], ra[3], acc, ya.mean()))
+m = json.load(open(os.path.join(os.path.dirname(__file__), '..', 'data', 'real-mvp-model.json'))); m['allnba'] = {'icpt': float(icpt), 'perf': float(ra[0]), 'wins': float(ra[1]), 'ppg': float(ra[2]), 'prev': float(ra[3])}
 json.dump(m, open(os.path.join(os.path.dirname(__file__), '..', 'data', 'real-mvp-model.json'), 'w'))
