@@ -35,29 +35,46 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   };
   await trainLoop();
   await shot('06-pro-ready');
+  // the shot chart against the box scores of the same games: its own totals, the summed box scores and the marks drawn on the court must all agree
+  const shotCheck = async (label) => {
+    const r = await page.evaluate(() => {
+      const S = window.__NBA_UI.state, shown = S.matchLog.slice(0, S.matchIdx).filter((x) => x.k === 'g' && !x.dnp), anyPo = shown.some((g) => g.po);
+      const scope = !anyPo ? 'reg' : S.shotScope || 'po', games = shown.filter((g) => (scope === 'po' ? g.po : !g.po)), sum = (k) => games.reduce((t, g) => t + (g[k] || 0), 0);
+      const cw = document.querySelector('.courtwrap'); if (!cw) return { missing: true };
+      const svg = cw.querySelector('svg.court'), made = svg ? svg.querySelectorAll(':scope > circle').length : 0, miss = svg ? svg.querySelectorAll(':scope > g').length - 1 : 0;
+      return { scope, games: games.length, shots: cw.dataset.shots, box: cw.dataset.box, state: [sum('fga'), sum('fgm'), sum('tpa'), sum('tpm')].join('/'), drawn: (made + miss) + '/' + made, tab: S.shotTab || 'all' };
+    });
+    const ok = !r.missing && r.shots === r.box && r.box === r.state && (r.tab !== 'all' || r.drawn === r.shots.split('/').slice(0, 2).join('/'));
+    console.log('SHOT CHECK', label, ok ? 'OK' : 'MISMATCH', JSON.stringify(r));
+    if (!ok) errors.push('SHOT CHECK ' + label + ' ' + JSON.stringify(r));
+  };
+  const scopeTo = (lbl) => page.evaluate((t) => { const b = Array.from(document.querySelectorAll('.seg2 button')).find((x) => x.textContent === t); if (b) b.click(); }, lbl);
   for (let i = 0; i < 40; i++) {
     console.log('season', i); await page.click('text=/Tip off the .* season/');
     await page.waitForSelector('text=Sim next game');
     if (i === 0) {
       await shot('06b-opening-night');
       for (let k = 0; k < 3; k++) await page.click('button:has-text("Sim next game")');
-      await shot('06c-three-games');
-      if (mobile) { await page.click('.mtabs button:has-text("Plan")'); await page.click('.popt:has-text("Scoring")'); await page.waitForSelector('.popt.on:has-text("Scoring")'); await page.click('.mtabs button:has-text("Box")'); } else { await page.click('.gplan button:has-text("Scoring")'); await page.waitForSelector('.gplan button.on:has-text("Scoring")'); } await page.click('button:has-text("Sim next game")');
+      await shot('06c-three-games'); await shotCheck('3 games');
+      if (mobile) { await page.click('.mtabs button:has-text("Plan")'); await page.click('.popt:has-text("Scoring")'); await page.waitForSelector('.popt.on:has-text("Scoring")'); await page.click('.mtabs button:has-text("Box")'); } else { await page.click('.gplan button:has-text("Scoring")'); await page.waitForSelector('.gplan button.on:has-text("Scoring")'); } await page.click('button:has-text("Sim next game")'); await shotCheck('after a game-plan switch');
       await page.click('button:has-text("Instant")');
       await page.click('button:has-text("Sim to All-Star")');
-      await shot('06d-all-star');
+      await shot('06d-all-star'); await shotCheck('All-Star break');
       await page.click('nav button:has-text("Around the league")'); await shot('06f-league');
       await page.click('.tlink >> nth=3'); await page.waitForSelector('text=Roster and stats'); await shot('06j-league-team'); await page.selectOption('.tsel', { index: 10 }); await page.waitForSelector('text=Roster and stats'); await page.click('button:has-text("← League")'); await page.waitForSelector('.tlink');
       await page.click('nav button:has-text("Team")'); await shot('06i-team');
       await page.click('nav button:has-text("Career")'); await shot('06g-career');
       await page.click('nav button:has-text("Season")');
       await page.click('button:has-text("Sim to playoffs")');
-      await shot('06h-reg-season-done');
+      await shot('06h-reg-season-done'); await shotCheck('regular season done');
       const po = await page.$('button:has-text("Sim next playoff game")');
-      if (po) { await po.click(); await shot('06e-playoffs'); }
+      if (po) { await po.click(); await shot('06e-playoffs'); await shotCheck('playoff game 1');
+        await scopeTo('Regular season'); await shotCheck('back to the regular-season chart');
+        if (mobile) await page.click('.mtabs button:has-text("Shots")'); await shot('06k-shots-regular'); if (mobile) await page.click('.mtabs button:has-text("Box")');
+        await scopeTo('Playoffs'); }
       const sk = await page.$('button:has-text("Skip to recap")'); if (sk) await sk.click(); else await page.click('button:has-text("Season recap")');
     } else if (i === 1) {
-      await page.click('button:has-text("Instant")'); for (let k = 0; k < 3; k++) await page.click('button:has-text("Sim 10")');
+      await page.click('button:has-text("Instant")'); for (let k = 0; k < 3; k++) await page.click('button:has-text("Sim 10")'); await shotCheck('season 2, 30 games');
       await page.click('nav button:has-text("Career")');
       const chk = await page.evaluate(() => {
         const S = window.__NBA_UI.state, shown = S.matchLog.slice(0, S.matchIdx).filter((x) => x.k === 'g' && !x.po && !x.dnp);

@@ -279,7 +279,7 @@
     const tsRaw = clamp(e0.ts * nt * (0.5 + 0.5 * (s.pts / Math.max(1, m.pts))), 0.44, 0.72);
     const sl = shootingLine(p, s.pts, tsRaw, e0.usg);
     const avgTD = gp >= 30 && s.pts >= 10 && s.reb >= 10 && s.ast >= 10;
-    return Object.assign({ gp, usg: e0.usg * nu, ovr: e0.ovr, fga: sl.fga, fgp: sl.fgp, tpa: sl.tpa, tpp: sl.tpp, ftp: sl.ftp, fta: sl.fta, ts: sl.ts, avgTD, games: ordered.length, gpCut, gameList: ordered }, s, { pts: s.pts, reb: s.reb, ast: s.ast });
+    return Object.assign({ gp, usg: e0.usg * nu, ovr: e0.ovr, fga: sl.fga, fgp: sl.fgp, tpa: sl.tpa, tpp: sl.tpp, ftp: sl.ftp, fta: sl.fta, ts: sl.ts, tpm: sl.tpm, ftm: sl.ftm, avgTD, games: ordered.length, gpCut, gameList: ordered }, s, { pts: s.pts, reb: s.reb, ast: s.ast });
   }
 
   function playoffLine(st, ctx, seriesList, base, mode) {
@@ -304,7 +304,7 @@
     });
     const s = summarize(all);
     const sl = shootingLine(p, s.pts, clamp(base.ts - 0.014, 0.44, 0.7), base.usg * 1.03);
-    return { line: Object.assign({}, s, { fgp: sl.fgp, tpp: sl.tpp, ftp: sl.ftp, ts: sl.ts }), perSeries, heater: false, legend: false, form: fp };   // form: this postseason's scoring multiplier vs the regular season, before game-to-game luck
+    return { line: Object.assign({}, s, { fgp: sl.fgp, tpp: sl.tpp, ftp: sl.ftp, ts: sl.ts, fga: sl.fga, tpa: sl.tpa, fta: sl.fta, tpm: sl.tpm, ftm: sl.ftm }), perSeries, heater: false, legend: false, form: fp };   // form: this postseason's scoring multiplier vs the regular season, before game-to-game luck
   }
 
   // ---------------------------------------------------------------- match-by-match log (a reveal of the already-simulated season)
@@ -322,7 +322,81 @@
     fta = Math.max(fta, ftm);
     const fgm = tpm + rem2 / 2;
     fga = Math.max(fga, fgm); tpa = Math.min(Math.max(tpa, tpm), fga);
+    tpa = Math.min(tpa, fga - (fgm - tpm));   // a box score needs at least as many two-point tries as two-point makes (3% of games broke this)
     return { fgm, fga, tpm, tpa, ftm, fta };
+  }
+
+  // ---------------------------------------------------------------- shot chart
+  // Every shot of a game, consistent with its box score: fga shots, tpa of them threes, fgm made, tpm of the makes threes. Court coordinates in tenths
+  // of a foot with the basket at (250, 52), as the dashboard draws it. Where the twos come from follows the player (rim-heavy bigs and slashers,
+  // mid-range shooters) around the real 2023-24 league mix of two-point tries: restricted area ~50%, rest of the paint ~29%, mid-range ~21%;
+  // corner threes ~22% of threes (more for forwards and bigs). Which tries go in is drawn by each zone's real accuracy (rim 66%, paint 43%, mid 41%,
+  // corner three 39%, above the break 35.5%; the odds are sharpened, power 1.4 for twos and 2 for threes, because a game's makes are a fixed number shared
+  // out without replacement), so the made shots sit where real makes do: sim rim / paint / mid 65.7 / 42.5 / 42.6%, corner / above the break
+  // 41.3 / 37.0% (these careers shoot threes a little better than the league; the corner edge is the real one). One integer a shot keeps saves small:
+  // x | y << 9 | made << 18 | zone << 19, zones 0 rim, 1 paint, 2 mid-range, 3 corner three, 4 above-the-break three.
+  const ZONE_FG = [0.66, 0.43, 0.41, 0.39, 0.355];
+  const mulberry = (seed) => { let a = seed | 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+  function shotMix(p) {
+    const a = p.attrs || {}, lean = clamp(((a.inside || 50) - (a.mid || 50)) / 30 + ({ C: 0.7, PF: 0.35, SF: 0, SG: -0.2, PG: -0.15 }[p.pos] || 0), -1.5, 1.5);
+    const rim = 0.5 * Math.exp(0.45 * lean), paint = 0.29 * Math.exp(0.1 * lean), mid = 0.21 * Math.exp(-0.6 * lean), s = rim + paint + mid;
+    return { rim: rim / s, paint: paint / s, c3: { PG: 0.17, SG: 0.22, SF: 0.25, PF: 0.27, C: 0.27 }[p.pos] || 0.22 };
+  }
+  function shotSpot(z, rnd) {
+    const at = (r, th) => [250 + r * Math.sin(th), 52 + r * Math.cos(th)];
+    for (let k = 0; k < 40; k++) {
+      if (z === 0) { const [x, y] = at(3 + 37 * Math.pow(rnd(), 0.9), (rnd() + rnd() - 1) * 1.9); if (y > 8) return [x, y]; }
+      else if (z === 1) { const r = 42 + 108 * rnd(), [x, y] = at(r, (rnd() - 0.5) * 2.8); if (Math.abs(x - 250) <= 57 && y <= 187 && y > 8) return [x, y]; }
+      else if (z === 2) {
+        const [x, y] = at(90 + 142 * rnd(), (rnd() - 0.5) * 3.0);
+        const inArc = y <= 140 ? Math.abs(x - 250) <= 214 : Math.hypot(x - 250, y - 52) <= 231, inPaint = Math.abs(x - 250) < 61 && y < 191;
+        if (inArc && !inPaint && x > 8 && x < 492 && y > 8) return [x, y];
+      } else if (z === 3) { const x = rnd() < 0.5 ? 5 + 21 * rnd() : 474 + 21 * rnd(); return [x, 8 + 124 * rnd()]; }
+      else { const [x, y] = at(241 + 34 * Math.pow(rnd(), 2), (rnd() + rnd() - 1) * 1.2); if (y > 143 && x > 6 && x < 494 && y < 462) return [x, y]; }
+    }
+    return [[250, 70], [250, 140], [250, 215], [16, 70], [250, 300]][z];
+  }
+  function shotsFor(b, p, seed) {
+    const rnd = mulberry(seed), mix = shotMix(p), zs = [];
+    const tpa = b.tpa || 0, twoA = Math.max(0, (b.fga || 0) - tpa), tpm = Math.min(b.tpm || 0, tpa), twoM = Math.min(Math.max(0, (b.fgm || 0) - tpm), twoA);
+    for (let i = 0; i < twoA; i++) { const u = rnd(); zs.push(u < mix.rim ? 0 : u < mix.rim + mix.paint ? 1 : 2); }
+    for (let i = 0; i < tpa; i++) zs.push(rnd() < mix.c3 ? 3 : 4);
+    // exactly twoM of the twos and tpm of the threes go in, picked in proportion to each zone's odds (weighted sampling without replacement)
+    const made = new Set(), pickMade = (idx, m) => idx.map((i) => { const q = ZONE_FG[zs[i]]; return [Math.pow(rnd(), Math.pow((1 - q) / q, zs[i] < 3 ? 1.4 : 2)), i]; }).sort((x, y) => y[0] - x[0]).slice(0, m).forEach((x) => made.add(x[1]));
+    pickMade(zs.map((z, i) => i).filter((i) => zs[i] < 3), twoM); pickMade(zs.map((z, i) => i).filter((i) => zs[i] >= 3), tpm);
+    return zs.map((z, i) => { const [x, y] = shotSpot(z, rnd); return clamp(Math.round(x), 0, 499) | (clamp(Math.round(y), 0, 469) << 9) | ((made.has(i) ? 1 : 0) << 18) | (z << 19); });
+  }
+  const shotSeed = (st, key) => ((st.seasonSeed || 0) ^ 0x51ed27) + 7919 * key;   // schedule slot (playoff games 1000+): a replayed season draws the same spots for the same box
+  // Box scores drawn game by game drift from the season's shooting line (FG% ~1 point low for regulars, 10-20 points for low-volume players, and a
+  // different split of points between threes, twos and free throws). Two steps put the season's boxes back on its line, each game keeping its points:
+  // 1. makes: a two plus a free throw become a three (or back), then a two becomes two free throws (or back), until the season's made threes and
+  //    free throws are the line's (so are its made twos: points = 2 FGM + 3PM + FTM);
+  // 2. misses: attempts go to or come off games until the totals give the line's 3P%, FG% and FT%, to the nearest attempt.
+  // Games are picked in proportion to how much of that shot they already have. The season record is then the sum of its boxes (shootingFromLog).
+  function fitShooting(bs, tgt, rnd) {
+    if (!bs.length) return;
+    const n = bs.length, sum = (k) => bs.reduce((t, b) => t + (b[k] || 0), 0), two = (b) => b.fgm - b.tpm;
+    const steer = (want, have, wt, okUp, up, okDown, down, size) => {
+      for (let guard = 0; guard < 4000; guard++) {
+        const d = Math.round(want()) - have(); if (Math.abs(d) < (size || 1)) return;
+        const c = bs.filter(d > 0 ? okUp : okDown); if (!c.length) return;
+        let u = rnd() * c.reduce((t, b) => t + wt(b), 0), b = c[c.length - 1]; for (const x of c) { u -= wt(x); if (u <= 0) { b = x; break; } }
+        (d > 0 ? up : down)(b);
+      }
+    };
+    if (tgt.tpa != null && tgt.fta != null) {
+      steer(() => (tgt.tpm != null ? tgt.tpm : tgt.tpa * tgt.tpp) * n, () => sum('tpm'), (b) => b.tpm + two(b) + 0.5,
+        (b) => two(b) >= 1 && b.ftm >= 1, (b) => { b.tpm++; b.tpa++; b.ftm--; },
+        (b) => b.tpm >= 1, (b) => { b.tpm--; b.tpa--; b.ftm++; b.fta++; });
+      steer(() => (tgt.ftm != null ? tgt.ftm : tgt.fta * tgt.ftp) * n, () => sum('ftm'), (b) => b.ftm + two(b) + 0.5,
+        (b) => two(b) >= 1, (b) => { b.fgm--; b.fga--; b.ftm += 2; b.fta += 2; },
+        (b) => b.ftm >= 2, (b) => { b.ftm -= 2; b.fta -= 2; b.fgm++; b.fga++; }, 2);
+    }
+    const TPM = sum('tpm'), FGM = sum('fgm'), FTM = sum('ftm');
+    // a line with too few threes for a 3P% (under 0.3 a game) keeps its number of tries instead
+    if (TPM && tgt.tpp > 0.05 || tgt.tpa != null) steer(() => (TPM && tgt.tpp > 0.05 ? Math.max(TPM, TPM / tgt.tpp) : Math.max(TPM, tgt.tpa * n)), () => sum('tpa'), (b) => b.tpa + 0.5, () => true, (b) => { b.tpa++; b.fga++; }, (b) => b.tpa > b.tpm, (b) => { b.tpa--; b.fga--; });
+    if (FGM && tgt.fgp > 0.05) steer(() => Math.max(FGM + sum('tpa') - TPM, FGM / tgt.fgp), () => sum('fga'), (b) => b.fga - b.tpa + 0.5, () => true, (b) => { b.fga++; }, (b) => b.fga - b.tpa > two(b), (b) => { b.fga--; });
+    if (FTM && tgt.ftp > 0.05) steer(() => Math.max(FTM, FTM / tgt.ftp), () => sum('fta'), (b) => b.fta + 0.5, () => true, (b) => { b.fta++; }, (b) => b.fta > b.ftm, (b) => { b.fta--; });
   }
   const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const dateStr = (y, m, d) => { const t = new Date(Date.UTC(y, m, d)); return MON[t.getUTCMonth()] + ' ' + t.getUTCDate(); };
@@ -344,7 +418,7 @@
     const ot = margin <= 4 && rand() < 0.4 ? 1 : 0;
     return { f: won ? win : win - margin, a: won ? win - margin : win, ot };
   }
-  function buildMatchLog(st, rec, line, games, series, t, injuryText) {
+  function buildMatchLog(st, rec, line, games, series, t, injuryText, poLine) {
     const L = st.league, teams = Object.values(L.teams).filter((x) => x.id !== st.teamId);
     const total = 82, gp = games.length, miss = Math.max(0, total - gp);
     const ppd = line.pts > 0 ? 1 / line.pts : 0;
@@ -371,6 +445,9 @@
     const blockInjury = miss >= 15;
     const played = []; for (let i = 0, k = 0; i < total; i++) if (!missed.has(i)) played.push({ slot: i, g: games[k++] });
     const boxes = {}; played.forEach((x) => { boxes[x.slot] = mk(x.g, line.fgp, line.tpp, line.ftp, line.ts); });
+    // the season's shooting is the season line (fitShooting), then every game gets its shots; both on their own random streams, so nothing else moves
+    fitShooting(played.map((x) => boxes[x.slot]), line, mulberry(shotSeed(st, 5000)));
+    played.forEach((x) => { const b = boxes[x.slot]; b.r = NBA.gameRating(x.g, b); b.sh = shotsFor(b, st.player, shotSeed(st, x.slot)); });
     // wins fall on the nights the star was good, plus noise and streakiness
     let ar = 0; const key = []; for (let i = 0; i < total; i++) { ar = 0.5 * ar + randn(); const b = boxes[i]; key.push((b ? (b.r - 7) * 0.9 : 0) + ar); }
     const order = key.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]); const winSlots = new Set(order.slice(0, t.wins).map((x) => x[1]));
@@ -402,9 +479,13 @@
         let w1 = 0, l1 = 0; for (let q = 0; q <= i; q++) { if (wl[q]) w1++; else l1++; }
         const oNick = sr.opp.split(' ').slice(-1)[0], home = [1, 1, 0, 0, 1, 0, 1][i] ? 1 : 0;
         items.push(Object.assign({ k: 'g', po: 1, n: i + 1, d: dateStr(L.year + 1, 3, 19 + Math.round(poGames.length * 2.2)), o: oNick, oc: sr.opp.split(' ').slice(0, -1).join(' '), h: home, w, ot: sc.ot, f: sc.f, a: sc.a, ar: NBA.data.ARENAS[home ? t.nick : (sr.opp.endsWith('Trail Blazers') ? 'Trail Blazers' : oNick)] || '', pm: Math.round((sc.f - sc.a) * (b.m / 48) * 1.1 + randn() * 4), rnd: sr.round, ser: (w1 === l1 ? 'Series tied ' : w1 > l1 ? 'Up ' : 'Down ') + Math.max(w1, l1) + '-' + Math.min(w1, l1) }, b));
-        poGames.push(1);
+        poGames.push([items[items.length - 1], g]);
       });
     });
+    if (poGames.length) {
+      fitShooting(poGames.map((x) => x[0]), poLine && poLine.fga != null ? poLine : { fgp: rec.playoff ? rec.playoff.fgp : line.fgp, tpp: rec.playoff ? rec.playoff.tpp : line.tpp, ftp: line.ftp }, mulberry(shotSeed(st, 6000)));
+      poGames.forEach(([it, g], i) => { it.r = NBA.gameRating(g, it); it.sh = shotsFor(it, st.player, shotSeed(st, 1000 + i)); });
+    }
     const rg = items.filter((x) => x.k === 'g' && !x.po && !x.dnp), ratings = rg.map((x) => x.r);
     const pr = items.filter((x) => x.k === 'g' && x.po && !x.dnp).map((x) => x.r); rec.poRating = pr.length ? Math.round(pr.reduce((a, b) => a + b, 0) / pr.length * 100) / 100 : null;
     rec.avgRating = ratings.length ? Math.round(ratings.reduce((a, b) => a + b, 0) / ratings.length * 100) / 100 : null;
@@ -418,6 +499,7 @@
     if (!opts.rerun) {
       st.seasonSeed = Math.floor(rand() * 2147483647);
       st.styleSeq = [[0, st.style || 'balanced']];
+      st.shotScope = null;   // a new season's shot chart follows the playoffs once they start
       SNAP = JSON.stringify(st);
     }
     NBA.setSeed(st.seasonSeed);
@@ -497,7 +579,8 @@
     const gl = l.gameList; delete l.gameList;
     if (l.gpCut && !rec.injury) rec.injury = 'Suffered a season-ending injury and missed the rest of the year.';
     st.leagueSnap = { year: L.year, label: res.label, standings: res.standings, leaders: res.leaders, leadersO: res.leadersOthers, race: A.race, raceO: A.raceOthers };
-    st.matchLog = buildMatchLog(st, rec, l, gl, perSeries, t, rec.injury); st.matchIdx = 0;
+    st.matchLog = buildMatchLog(st, rec, l, gl, perSeries, t, rec.injury, pline); st.matchIdx = 0;
+    shootingFromLog(rec, st.matchLog);
     if (rec.playoff) rec.playoff.rating = rec.poRating;
     rec.bests = seasonBests(st.matchLog, rec.label, rec.age);
     if (NBA.onSeasonLog) NBA.onSeasonLog(st, rec);
@@ -539,19 +622,26 @@
     }
     return out;
   }
+  // a season's shooting line is the sum of its box scores (regular season and playoffs): the career page, the dashboard and the shot chart show the same numbers
+  function shootingFromLog(rec, items) {
+    const tot = (gs) => { const t = { fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, pt: 0 }; gs.forEach((g) => { for (const k in t) t[k] += g[k] || 0; }); return t; };
+    const pct = (t) => ({ fgp: t.fga ? t.fgm / t.fga : 0, tpp: t.tpa ? t.tpm / t.tpa : 0, ftp: t.fta ? t.ftm / t.fta : 0, ts: t.fga + t.fta ? t.pt / (2 * (t.fga + 0.44 * t.fta)) : 0 });
+    const reg = items.filter((x) => x.k === 'g' && !x.po && !x.dnp), po = items.filter((x) => x.k === 'g' && x.po && !x.dnp);
+    if (reg.length) { const t = tot(reg); Object.assign(rec, pct(t), { fga: t.fga / reg.length, tpa: t.tpa / reg.length, fta: t.fta / reg.length }); }
+    if (rec.playoff && po.length) { const q = pct(tot(po)); Object.assign(rec.playoff, { fgp: q.fgp, tpp: q.tpp, ts: q.ts }); }
+  }
   // make the season record agree with the games the user actually saw
   function recomputeFromLog(st) {
     const rec = st.proSeasons[st.proSeasons.length - 1], items = st.matchLog;
     const sumOf = (a, k) => a.reduce((x, g) => x + (g[k] || 0), 0), mean = (a, k) => (a.length ? sumOf(a, k) / a.length : 0);
     const reg = items.filter((x) => x.k === 'g' && !x.po && !x.dnp), n = reg.length, oldTd = rec.td, oldAvg = rec.avgTD;
     if (n) {
-      const fga = sumOf(reg, 'fga'), fta = sumOf(reg, 'fta');
       Object.assign(rec, { gp: n, mins: mean(reg, 'm'), pts: mean(reg, 'pt'), reb: mean(reg, 'rb'), ast: mean(reg, 'as'), stl: mean(reg, 'st'), blk: mean(reg, 'bk'), tov: mean(reg, 'to'),
-        fgp: fga ? sumOf(reg, 'fgm') / fga : rec.fgp, tpp: sumOf(reg, 'tpa') ? sumOf(reg, 'tpm') / sumOf(reg, 'tpa') : rec.tpp, ftp: fta ? sumOf(reg, 'ftm') / fta : rec.ftp, ts: fga + fta ? sumOf(reg, 'pt') / (2 * (fga + 0.44 * fta)) : rec.ts, fga: fga / n, tpa: sumOf(reg, 'tpa') / n, fta: fta / n,
         td: reg.filter((g) => g.tg.includes('Triple-double')).length, dd: reg.filter((g) => g.tg.includes('Double-double') || g.tg.includes('Triple-double')).length,
         g40: reg.filter((g) => g.pt >= 40).length, g50: reg.filter((g) => g.pt >= 50).length, high: Math.max.apply(null, reg.map((g) => g.pt)), totPts: sumOf(reg, 'pt'), totReb: sumOf(reg, 'rb'), totAst: sumOf(reg, 'as'), avgRating: Math.round(mean(reg, 'r') * 100) / 100 });
       rec.avgTD = n >= 30 && rec.pts >= 10 && rec.reb >= 10 && rec.ast >= 10;
     }
+    shootingFromLog(rec, items);
     st.career.td += rec.td - oldTd;
     if (!!rec.avgTD !== !!oldAvg) { const d = rec.avgTD ? 1 : -1; st.career.tdSeasons += d; if (rec.pts >= 30) st.career.td30Seasons += d; }
     rec.bests = seasonBests(items, rec.label, rec.age);
@@ -568,8 +658,7 @@
     }
     const po = items.filter((x) => x.k === 'g' && x.po && !x.dnp);
     if (rec.playoff && po.length) {
-      const fga = sumOf(po, 'fga');
-      Object.assign(rec.playoff, { gp: po.length, mins: mean(po, 'm'), pts: mean(po, 'pt'), reb: mean(po, 'rb'), ast: mean(po, 'as'), stl: mean(po, 'st'), blk: mean(po, 'bk'), fgp: fga ? sumOf(po, 'fgm') / fga : rec.playoff.fgp, tpp: sumOf(po, 'tpa') ? sumOf(po, 'tpm') / sumOf(po, 'tpa') : rec.playoff.tpp,
+      Object.assign(rec.playoff, { gp: po.length, mins: mean(po, 'm'), pts: mean(po, 'pt'), reb: mean(po, 'rb'), ast: mean(po, 'as'), stl: mean(po, 'st'), blk: mean(po, 'bk'),
         td: po.filter((g) => g.tg.includes('Triple-double')).length, high: Math.max.apply(null, po.map((g) => g.pt)), rating: Math.round(mean(po, 'r') * 100) / 100 });
       rec.poRating = rec.playoff.rating;
       (rec.perSeries || []).forEach((ps) => { const gs = po.filter((g) => g.rnd === ps.round); if (gs.length) { ps.pts = mean(gs, 'pt'); ps.reb = mean(gs, 'rb'); ps.ast = mean(gs, 'as'); } });
@@ -582,12 +671,12 @@
     const slot = slotNow(st), prev = (st.styleSeq || [[0, st.style || 'balanced']]);
     if (styleAt(prev, slot) === style) return { ok: true, same: true };
     const seq = prev.filter((x) => x[0] < slot); seq.push([slot, style]);
-    const keep = { idx: st.matchIdx || 0, shotTab: st.shotTab, log: st.matchLog, view: st.view };
+    const keep = { idx: st.matchIdx || 0, shotTab: st.shotTab, shotScope: st.shotScope, log: st.matchLog, view: st.view };
     const snapObj = JSON.parse(SNAP);
     Object.keys(st).forEach((k) => delete st[k]); Object.assign(st, snapObj);
     st.style = style; st.styleSeq = seq;
     playSeason(st, { rerun: true });
-    st.matchLog = spliceLog(st, keep.log, st.matchLog, keep.idx); st.matchIdx = keep.idx; st.shotTab = keep.shotTab;
+    st.matchLog = spliceLog(st, keep.log, st.matchLog, keep.idx); st.matchIdx = keep.idx; st.shotTab = keep.shotTab; st.shotScope = keep.shotScope;
     recomputeFromLog(st);
     return { ok: true };
   }
@@ -751,6 +840,6 @@
     return st;
   }
 
-  Object.assign(NBA, { Game: { newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { Game: { shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

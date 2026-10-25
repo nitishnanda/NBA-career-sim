@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 25 Oct · BallerSim dashboard v35';
+  const BUILD = 'build 25 Oct · BallerSim dashboard v36';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
@@ -333,30 +333,33 @@
         h('div', { class: 'jr' }, h('div', { class: 'jersey' }, '#' + jersey(p.name)), h('div', { class: 'recbox2 well' }, h('div', { class: 'lbl' }, 'Record'), h('div', { class: 'num' }, wins + '-' + losses), h('div', { class: 'sub2' }, (reg.length ? (wins / reg.length).toFixed(3).replace(/^0/, '') : '.000') + ' PCT')))),
       schedule, gamePlan, simBar);
 
-    // ---- shot telemetry
-    const attrs = p.attrs || {}, A2 = T.fga - T.tpa, ps = Math.max(0.25, Math.min(0.75, (attrs.inside || 50) / ((attrs.inside || 50) + (attrs.mid || 50)))), ap = Math.round(A2 * ps), am = A2 - ap, m2 = T.fgm - T.tpm;
-    const pm0 = m2 / Math.max(1, ap * 1.42 + am), pMakes = Math.min(ap, Math.round(ap * Math.min(0.85, pm0 * 1.42))), mMakes = Math.max(0, Math.min(am, m2 - pMakes));
-    const zones = { paint: { a: ap, m: pMakes }, mid: { a: am, m: mMakes }, three: { a: T.tpa, m: T.tpm } };
+    // ---- shot telemetry: every shot of the games played so far, as the sim recorded them with each box score (shots = FGA, makes = FGM, threes = 3PA / 3PM).
+    // Regular season and playoffs are separate charts; the last game's shots are picked out in gold, so each game visibly adds to the chart.
+    const scope = !poG.length ? 'reg' : S.shotScope || 'po';
+    const sGames = (scope === 'po' ? poG : reg).filter((x) => !x.dnp), ZT = ['paint', 'paint', 'mid', 'three', 'three'];   // rim and short paint tries are both Paint; corner and above-the-break threes both 3PT
+    const dots = [], box = { fga: 0, fgm: 0, tpa: 0, tpm: 0 };
+    sGames.forEach((g, gi) => {
+      Object.keys(box).forEach((k) => (box[k] += g[k] || 0));
+      (g.sh || G.shotsFor(g, p, G.shotSeed(S, items.indexOf(g)))).forEach((v) => dots.push({ x: v & 511, y: (v >> 9) & 511, made: (v >> 18) & 1, z: ZT[v >> 19], last: gi === sGames.length - 1 }));   // saves from before v36 have no stored shots: drawn from the box the same way
+    });
+    const zones = { paint: { a: 0, m: 0 }, mid: { a: 0, m: 0 }, three: { a: 0, m: 0 } }; dots.forEach((d) => { zones[d.z].a++; zones[d.z].m += d.made; });
+    const fga = dots.length, fgm = dots.reduce((t, d) => t + d.made, 0), fgPct = fga ? (100 * fgm / fga).toFixed(1) : '–';
     const zpct = (z) => (z.a ? (100 * z.m / z.a).toFixed(1) : '–');
-    const rng = seeded(Math.round(T.fga) * 31 + 7), cap = Math.min(1, 210 / Math.max(1, T.fga));
-    const place = (zone) => {
-      for (let tries = 0; tries < 40; tries++) {
-        if (zone === 'paint') { const x = 250 + (rng() + rng() + rng() - 1.5) * 62, y = 54 + Math.abs(rng() + rng() - 1) * 140; if (x > 196 && x < 304 && y < 186) return [x, y]; }
-        else if (zone === 'mid') { const th = (rng() - 0.5) * 2.5, r = 80 + rng() * 135, x = 250 + r * Math.sin(th), y = 52 + r * Math.cos(th); if (!(x > 186 && x < 314 && y < 192) && x > 22 && x < 478 && y > 30 && y < 440 && Math.hypot(x - 250, y - 52) < 228) return [x, y]; }
-        else { if (rng() < 0.22) return [rng() < 0.5 ? 18 + rng() * 8 : 474 + rng() * 8, 14 + rng() * 120]; const th = (rng() - 0.5) * 2.35, r = 240 + (rng() - 0.3) * 24, x = 250 + r * Math.sin(th), y = 52 + r * Math.cos(th); if (x > 8 && x < 492 && y < 450) return [x, y]; }
-      }
-      return [250, 120];
-    };
-    const dots = [];
-    ['paint', 'mid', 'three'].forEach((z) => { const n = Math.round(zones[z].a * cap), mk = Math.round(zones[z].m * cap); for (let i = 0; i < n; i++) { const [x, y] = place(z); dots.push({ z, x, y, made: i < mk }); } });
     const [shotTab, setShotTab] = [S.shotTab || 'all', (v) => { S.shotTab = v; render(); }];
-    const vis = dots.filter((d) => shotTab === 'all' || d.z === shotTab);
-    const shotSvg = '<svg viewBox="0 0 500 470" class="court">' + COURT + vis.map((d) => d.made ? '<circle cx="' + d.x.toFixed(0) + '" cy="' + d.y.toFixed(0) + '" r="5.5" fill="#fff"/>' : '<g stroke="rgba(255,255,255,.55)" stroke-width="1.8"><line x1="' + (d.x - 4).toFixed(0) + '" y1="' + (d.y - 4).toFixed(0) + '" x2="' + (d.x + 4).toFixed(0) + '" y2="' + (d.y + 4).toFixed(0) + '"/><line x1="' + (d.x + 4).toFixed(0) + '" y1="' + (d.y - 4).toFixed(0) + '" x2="' + (d.x - 4).toFixed(0) + '" y2="' + (d.y + 4).toFixed(0) + '"/></g>').join('') + '</svg>';
+    const vis = dots.filter((d) => shotTab === 'all' || d.z === shotTab), shotLastG = sGames[sGames.length - 1], lastVis = vis.filter((d) => d.last);
+    const rad = Math.max(2.2, Math.min(5.5, 5.5 * Math.sqrt(200 / Math.max(1, vis.length)))), arm = rad * 0.75;   // smaller marks as the season fills the court
+    const mark = (d, col) => d.made ? '<circle cx="' + d.x + '" cy="' + d.y + '" r="' + rad.toFixed(1) + '" fill="' + col + '"/>'
+      : '<g stroke="' + col + '" stroke-width="' + (rad > 4 ? 1.8 : 1.3) + '"><line x1="' + (d.x - arm).toFixed(1) + '" y1="' + (d.y - arm).toFixed(1) + '" x2="' + (d.x + arm).toFixed(1) + '" y2="' + (d.y + arm).toFixed(1) + '"/><line x1="' + (d.x + arm).toFixed(1) + '" y1="' + (d.y - arm).toFixed(1) + '" x2="' + (d.x - arm).toFixed(1) + '" y2="' + (d.y + arm).toFixed(1) + '"/></g>';
+    const shotSvg = '<svg viewBox="0 0 500 470" class="court">' + COURT + vis.filter((d) => !d.last).map((d) => mark(d, d.made ? '#fff' : 'rgba(255,255,255,.5)')).join('') + lastVis.map((d) => mark(d, '#ffd166')).join('') + '</svg>';
     const tabBtn = (k, lbl, pc) => h('button', { class: shotTab === k ? 'on' : '', onclick: () => setShotTab(k) }, lbl + ' (' + pc + '%)');
-    const telemetry = h('section', { class: 'panel mp', 'data-mt': 'shots' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '◎'), h('div', null, h('h2', null, 'Shot telemetry'), h('div', { class: 'cap2' }, 'Season shot chart')), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, NBA.seasonLabel(L.year))),
-      h('div', { class: 'seg2' }, tabBtn('all', 'All', T.fga ? (100 * T.fgm / T.fga).toFixed(1) : '–'), tabBtn('paint', 'Paint', zpct(zones.paint)), tabBtn('mid', 'Mid', zpct(zones.mid)), tabBtn('three', '3PT', zpct(zones.three))),
-      h('div', { class: 'courtwrap well' }, T.fga ? svgEl(shotSvg) : h('p', { class: 'muted', style: 'text-align:center;padding:60px 0' }, 'Shots show up here once the season tips off.')),
-      h('div', { class: 'row legend well' }, h('span', null, h('i', { class: 'dotm' }), Math.round(T.fgm) + ' FGM ', h('em', null, '(made)')), h('span', null, '✕ ' + Math.round(T.fga - T.fgm) + ' misses'), h('span', { class: 'spacer' }), h('b', null, (T.fga ? (100 * T.fgm / T.fga).toFixed(1) : '–') + '% FG')));
+    const scopeBtn = (k, lbl) => h('button', { class: scope === k ? 'on' : '', disabled: k === 'po' && !poG.length, onclick: () => { S.shotScope = k; render(); } }, lbl);
+    const lastMade = lastVis.filter((d) => d.made).length;
+    const telemetry = h('section', { class: 'panel mp', 'data-mt': 'shots' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '◎'), h('div', null, h('h2', null, 'Shot telemetry'), h('div', { class: 'cap2' }, 'Every shot this ' + (scope === 'po' ? 'postseason' : 'regular season') + ' · ' + sGames.length + ' game' + (sGames.length === 1 ? '' : 's'))), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, NBA.seasonLabel(L.year))),
+      h('div', { class: 'seg2' }, scopeBtn('reg', 'Regular season'), scopeBtn('po', 'Playoffs')),
+      h('div', { class: 'seg2' }, tabBtn('all', 'All', fgPct), tabBtn('paint', 'Paint', zpct(zones.paint)), tabBtn('mid', 'Mid', zpct(zones.mid)), tabBtn('three', '3PT', zpct(zones.three))),
+      h('div', { class: 'courtwrap well', 'data-shots': fga + '/' + fgm + '/' + zones.three.a + '/' + zones.three.m, 'data-box': box.fga + '/' + box.fgm + '/' + box.tpa + '/' + box.tpm }, fga ? svgEl(shotSvg) : h('p', { class: 'muted', style: 'text-align:center;padding:60px 0' }, scope === 'po' ? 'Playoff shots show up here from game 1.' : 'Shots show up here once the season tips off.')),
+      shotLastG ? h('div', { class: 'small muted lastshots' }, h('i', { class: 'dotg' }), 'Last game ' + (shotLastG.h ? 'vs ' : '@ ') + shotLastG.o + ': ' + lastMade + '/' + lastVis.length + (shotTab === 'all' ? ' FG' : ' from this zone') + ' (gold)') : null,
+      h('div', { class: 'row legend well' }, h('span', null, h('i', { class: 'dotm' }), fgm + ' FGM ', h('em', null, '(made)')), h('span', null, '✕ ' + (fga - fgm) + ' misses'), h('span', { class: 'spacer' }), h('b', null, fgPct + '% FG')));
 
     // ---- sim stream & box score
     const last3 = gl.length || poG.length ? shown.filter((x) => x.k === 'g' && !x.dnp).slice(-3).reverse() : [];

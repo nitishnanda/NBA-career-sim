@@ -513,3 +513,37 @@ From a played generational + scorer career and the points it raised (every real 
 - Guardrails: realism 89% (ceiling ~89%; v34 88%), gen MVPs 1.87 per gen over 900 picks (1.86), 4+ 15% (14%); star wins on 6 seeds
   54.9 / 51.7 / 48.1 / 43.6 (55.1 / 51.5 / 49.2 / 43.8); league on 12 fresh seeds: two 20-ppg teammates 32% (34%), three 20 4.2% (4.3%),
   top-5 repeat 2.33 (2.42), scoring champion 32.6 (32.5); gen box-score curve unchanged.
+
+## v36: a real shot chart
+
+The dashboard's shot chart used to scatter made and missed marks at random in proportion to the season totals (re-drawn whenever the attempt
+count changed), so it never showed where shots were actually taken. Now every game in the season log carries its own shots (`sh`, built in
+`buildMatchLog` from that game's box score by `shotsFor`): exactly FGA shots, 3PA of them threes, FGM made, 3PM of the makes threes. Shots are
+packed one integer each (x | y << 9 | made << 18 | zone << 19) and drawn on their own random stream (seeded by season and schedule slot), so
+nothing else in the season moves and a mid-season game-plan replay draws the same spots for the same box.
+- Where the twos come from follows the player around the 2023-24 league mix of two-point tries (restricted area ~50%, rest of the paint ~29%,
+  mid-range ~21%): inside vs mid-range rating and position shift it (a rim-running center ~70 / 24 / 6). Corner threes are 17-27% of threes by position.
+  Over 3,394 sim games: rim 53%, paint 28%, mid 20% of twos, 22% of threes from the corners.
+- Which tries go in is drawn by each zone's real accuracy, sharpened because a game's makes are a fixed number shared out without replacement:
+  rim / paint / mid 65.7 / 42.5 / 42.6% (real 66 / 43 / 41), corner / above the break 41.3 / 37.0% (real 39 / 35.5; these careers shoot threes a
+  little better than the league, the corner edge is the real x1.1).
+- The chart shows every shot of the games played so far, regular season and playoffs as separate charts (it switches to the playoffs when they
+  start), with the last game's shots in gold. Saves from before v36 have no stored shots: the chart draws them from each game's box the same way.
+- Box-score fixes: 3% of games had more two-point makes than two-point tries (a chart cannot be drawn from that); such games take the
+  shortfall off the three-point tries. And a season's box scores, drawn game by game, drifted from its shooting line (FG% ~1 point low for
+  regulars, 10-20 points for low-volume players: a 1.7-ppg season showed 33% in the boxes and 53% in the record, and a different split of
+  points between threes, twos and free throws), so the career page could show a different FG% from the games. `fitShooting` now puts each
+  season's boxes on its line with every game keeping its points: first makes (a two plus a free throw become a three or back, a two becomes two
+  free throws or back) until the season's made threes and free throws are the line's, then misses (attempts added to or taken off games) until
+  its 3P%, FG% and FT% are the line's to the nearest attempt; game ratings are recomputed (playoffs: the playoff line). The season record's
+  shooting is then the sum of its boxes (`shootingFromLog`, also used after a mid-season game-plan replay). Over 482 seasons: record = box
+  sums exactly, every game's shots = its box; over 27,337 games every box adds up (points = 2 FGM + 3PM + FTM, makes <= attempts). The makes
+  step needs the line's made threes and free throws (the season line now carries `tpm` / `ftm`): a big's line shows no 3P% under 0.3 threes a
+  game but still has a few makes.
+- Realism unchanged at 89%, and the season numbers it reads are the line's again: peak TS / share of shots from three / FT% per archetype within
+  0.01 of v35 (gens 64.36 / .443 / .792, shooters 59.28 / .576 / .894, defenders 57.57 / .026 / .605).
+- The UI test checks the chart against the box scores at seven points of a season (3 games, after a game-plan replay, the All-Star break, the
+  end of the regular season, playoff game 1, back on the regular-season chart, 30 games into season 2): chart totals = summed box scores =
+  marks drawn, desktop and phone.
+- Phone layout: once the playoffs added a sixth tab, the tab row's width stretched the whole dashboard past the screen and the page clipped
+  the right edge (stat chips, buttons, the court). The dashboard column is now `minmax(0, 1fr)`, so the tab row scrolls inside it.
