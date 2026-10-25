@@ -97,13 +97,26 @@ else ARCHS.forEach((arch, ai) => {
 if (process.env.DUMP) { require('fs').writeFileSync(process.env.DUMP, JSON.stringify(pool)); console.log('dumped', Object.keys(pool).map((k) => k + ' ' + pool[k].length).join(', ')); process.exit(0); }
 // pooled real reference for the copy check
 const CREF = (() => {
-  const R = []; Object.keys(REAL).forEach((a) => REAL[a].filter(done).forEach((r) => { if (CF.every((k) => r[k] != null && Number.isFinite(r[k]))) R.push(Object.assign({ __arch: a }, r)); }));
+  const R = []; Object.keys(REAL).forEach((a) => REAL[a].filter(done).forEach((r) => { if (CF.every((k) => r[k] != null && Number.isFinite(r[k]))) R.push(Object.assign({ __arch: a }, r, { seasons: r.seasons - DEBUT_SHIFT(r.debut) })); }));
   const mu = CF.map((k) => mean(R.map((x) => x[k]))), sd = CF.map((k, i) => Math.sqrt(mean(R.map((x) => (x[k] - mu[i]) ** 2))) + 1e-9);
   const z = (x) => CF.map((k, i) => (x[k] - mu[i]) / sd[i]), dist = (p, q) => Math.sqrt(p.reduce((t, v, i) => t + (v - q[i]) ** 2, 0)), Z = R.map(z);
   const nn = Z.map((p, i) => Math.min(...Z.filter((_, j) => j !== i).map((q) => dist(p, q))));
   const srt = nn.slice().sort((p, q) => p - q);
   return { R, Z, z, dist, nn, thr: srt[Math.floor(0.05 * (srt.length - 1))], hi: srt[Math.floor(0.95 * (srt.length - 1))] };
 })();
+// the realism score's ceiling: a 'sim' made of other real careers (independent draws from real basketball) scored against a real cohort of the
+// same size. Small cohorts cap it well below 100% (16 real careers: ~83-86%), so each archetype's score is also shown as a share of its ceiling.
+function scoreFeatures(real, sim) {
+  let sc = 0, n = 0;
+  FEATS.forEach(([k]) => { if (INFO.has(k) || k === 'debutAge') return; const base = COMPLETE.has(k) ? real.filter(done) : real; const r = base.map((x) => x[k]).filter((v) => v != null && Number.isFinite(v)), s = sim.map((x) => x[k]).filter((v) => v != null && Number.isFinite(v));
+    if (r.length < 8 || s.length < 8) return; const d = ks(s, r), d0 = nullD(r, s.length); sc += Math.max(0, Math.min(1, (1 - d) / (1 - d0))); n++; });
+  return sc / Math.max(1, n);
+}
+function ceilingFor(nReal, nSim) {
+  const all = [].concat(...Object.values(REAL)), reps = +process.env.CEIL_REPS || 30; let t = 0;
+  for (let i = 0; i < reps; i++) { const ix = all.map((_, j) => j).sort(() => rnd() - 0.5); t += scoreFeatures(ix.slice(0, nReal).map((j) => all[j]), ix.slice(nReal, nReal + Math.min(nSim, all.length - nReal)).map((j) => all[j])); }
+  return t / reps;
+}
 const SCORE = process.env.LOAD ? (process.env.SCORE_ARCHS || 'generational,scorer,dominator,shooter,twoway,defender').split(',') : ARCHS;
 const out = {}; let lines = [];
 SCORE.forEach((arch) => {
@@ -115,7 +128,11 @@ SCORE.forEach((arch) => {
     // debut age depends on the draft rules the sim uses (age 19, since 2006): compare with careers that started under them when there are 8+,
     // otherwise era-adjust (notable players debuted at 22.1 in the 1980s, 20.6 since 2006)
     if (k === 'debutAge') { const mod = real.filter((x) => x.debut >= 2006); if (mod.length >= 8) base = mod; else shift = (x) => DEBUT_SHIFT(x.debut); }
-    const r = base.map((x) => x[k] + (k === 'debutAge' ? shift(x) : 0)).filter((v) => v != null && Number.isFinite(v));
+    // career length and points get the same draft-rules shift: a 1980s notable who debuted at 22 after college would debut ~1.5 years earlier
+    // today and, retiring at the same age, play ~1.5 more seasons (each extra season counted like his first one)
+    if (k === 'seasons') shift = (x) => -DEBUT_SHIFT(x.debut);
+    if (k === 'careerPts') shift = (x) => -DEBUT_SHIFT(x.debut) * (x.firstPts || 0);
+    const r = base.map((x) => x[k] + shift(x)).filter((v) => v != null && Number.isFinite(v));
     const s = sim.map((x) => x[k]).filter((v) => v != null && Number.isFinite(v));
     if (r.length < 8 || s.length < 8) return;
     const d = ks(s, r), d0 = nullD(r, s.length), score = Math.max(0, Math.min(1, (1 - d) / (1 - d0)));
@@ -143,8 +160,9 @@ SCORE.forEach((arch) => {
       far: nnSim.filter((d) => d > CREF.hi).length / nnSim.length, farBase: realHere.filter(([, d]) => d > CREF.hi).length / Math.max(1, realHere.length),
       medSim: nnSim.slice().sort((p, q) => p - q)[Math.floor(nnSim.length / 2)], medReal: realHere.map(([, d]) => d).sort((p, q) => p - q)[Math.floor(realHere.length / 2)], who: Object.entries(who).sort((p, q) => q[1] - p[1]).slice(0, 3) };
   }
-  out[arch] = { score: sc / n, plaus, copy: copy.rate, far: copy.far, sweet: 1 - copy.rate - copy.far, pSweet: copy.pSweet, pCopy: copy.pCopy, pFar: copy.pFar, nSim: sim.length, nReal: real.length, rows };
-  lines.push(`\n==== ${arch}: realism ${(100 * sc / n).toFixed(0)}% | sweet spot ${(100 * (1 - copy.rate - copy.far)).toFixed(0)}% (real ${(100 * (1 - copy.base - copy.farBase)).toFixed(0)}%) | copies ${(100 * copy.rate).toFixed(0)}% (real ${(100 * copy.base).toFixed(0)}%) | unprecedented ${(100 * copy.far).toFixed(0)}% (real ${(100 * copy.farBase).toFixed(0)}%) | difference from real ${copy.pCopy < 0.05 || copy.pFar < 0.05 ? 'SIGNIFICANT' : 'not significant'} (too many clones p=${copy.pCopy.toFixed(2)}${copy.rate < copy.base ? ' [fewer clones than real]' : ''}, oddball side p=${copy.pFar.toFixed(2)}${copy.far < copy.farBase ? ' [fewer oddballs than real]' : copy.far > copy.farBase ? ' [more oddballs than real]' : ''}) | inside every real range ${(100 * plaus).toFixed(0)}% | ${sim.length} sim vs ${real.length} real careers`);
+  const ceil = ceilingFor(real.length, sim.length);
+  out[arch] = { score: sc / n, ceil, plaus, copy: copy.rate, far: copy.far, sweet: 1 - copy.rate - copy.far, pSweet: copy.pSweet, pCopy: copy.pCopy, pFar: copy.pFar, nSim: sim.length, nReal: real.length, rows };
+  lines.push(`\n==== ${arch}: realism ${(100 * sc / n).toFixed(0)}% (a perfect sim would score ~${(100 * ceil).toFixed(0)}% against ${real.length} real careers: this is ${(100 * sc / n / ceil).toFixed(0)}% of that) | sweet spot ${(100 * (1 - copy.rate - copy.far)).toFixed(0)}% (real ${(100 * (1 - copy.base - copy.farBase)).toFixed(0)}%) | copies ${(100 * copy.rate).toFixed(0)}% (real ${(100 * copy.base).toFixed(0)}%) | unprecedented ${(100 * copy.far).toFixed(0)}% (real ${(100 * copy.farBase).toFixed(0)}%) | difference from real ${copy.pCopy < 0.05 || copy.pFar < 0.05 ? 'SIGNIFICANT' : 'not significant'} (too many clones p=${copy.pCopy.toFixed(2)}${copy.rate < copy.base ? ' [fewer clones than real]' : ''}, oddball side p=${copy.pFar.toFixed(2)}${copy.far < copy.farBase ? ' [fewer oddballs than real]' : copy.far > copy.farBase ? ' [more oddballs than real]' : ''}) | inside every real range ${(100 * plaus).toFixed(0)}% | ${sim.length} sim vs ${real.length} real careers`);
   lines.push(`  copy check: nearest real career typically ${copy.medSim.toFixed(2)} away (real ${arch}s to their nearest other real career: ${copy.medReal.toFixed(2)}); copy line ${copy.thr.toFixed(2)}, unprecedented beyond ${CREF.hi.toFixed(2)}` + (copy.who.length ? '; closest copies of ' + copy.who.map(([p, c]) => p + ' x' + c).join(', ') : ''));
   lines.push('  ' + 'feature'.padEnd(26) + 'real'.padStart(9) + 'sim'.padStart(9) + 'match'.padStart(8));
   if (fails.length) lines.push('  outside the real range most often: ' + fails.slice(0, 4).map(([k, c]) => k + ' ' + Math.round(100 * c / sim.length) + '% (real ' + rng[k].map((v) => +v.toFixed(1)).join('-') + ')').join(', '));
@@ -153,6 +171,6 @@ SCORE.forEach((arch) => {
 console.log(lines.join('\n'));
 const all = Object.values(out), cps = all.filter((x) => x.copy != null);
 const realSweet = CREF.nn.filter((d) => d >= CREF.thr && d <= CREF.hi).length / CREF.nn.length;
-console.log('\nOVERALL realism', (100 * mean(all.map((x) => x.score))).toFixed(0) + '%', '| sweet spot', (100 * mean(all.map((x) => x.sweet))).toFixed(0) + '% (real ' + (100 * realSweet).toFixed(0) + '%)', '| copies', (100 * mean(cps.map((x) => x.copy))).toFixed(0) + '% (real 5%)', '| unprecedented', (100 * mean(all.map((x) => x.far))).toFixed(0) + '% (real 5%)', '| inside every real range', (100 * mean(all.map((x) => x.plaus))).toFixed(0) + '%');
+console.log('\nOVERALL realism', (100 * mean(all.map((x) => x.score))).toFixed(0) + '% (a perfect sim would score ~' + (100 * mean(all.map((x) => x.ceil))).toFixed(0) + '%: this is ' + (100 * mean(all.map((x) => x.score / x.ceil))).toFixed(0) + '% of that; the ceiling is an average over real cohorts, ours is one draw, so 100%+ means at the ceiling)', '| sweet spot', (100 * mean(all.map((x) => x.sweet))).toFixed(0) + '% (real ' + (100 * realSweet).toFixed(0) + '%)', '| copies', (100 * mean(cps.map((x) => x.copy))).toFixed(0) + '% (real 5%)', '| unprecedented', (100 * mean(all.map((x) => x.far))).toFixed(0) + '% (real 5%)', '| inside every real range', (100 * mean(all.map((x) => x.plaus))).toFixed(0) + '%');
 console.log('(* career totals use finished real careers: retired by 2024, or debuted by 2008)');
 if (process.env.JSON) require('fs').writeFileSync(process.env.JSON, JSON.stringify(out));

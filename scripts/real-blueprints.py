@@ -80,7 +80,7 @@ for pid, g in d.groupby('player_id'):
     q = g[g.gf >= 0.55].sort_values('age'); bst = q.loc[q.perf.idxmax()]
     pr = q[(q.age >= bst.age - 3) & (q.age <= bst.age + 3)].pts.diff().dropna().abs()
     pos0 = g.pos.astype(str).str.split('-').str[0].mode().iloc[0]
-    feat = dict(peakAge=int(bst.age), debutAge=int(g.age.min()), finalAge=int(g.age.max()), seasons=int((g.g >= 20).sum()), careerPts=float((g.pts * g.g).sum()),
+    feat = dict(peakAge=int(bst.age), debutAge=int(g.age.min()), finalAge=int(g.age.max()), seasons=int((g.g >= 20).sum()), careerPts=float((g.pts * g.g).sum()), firstPts=float((lambda f: f.pts.iloc[0] * f.g.iloc[0] if len(f) else 0)(g[g.g >= 20].sort_values('season'))),
                 best=float(q.pts.max()), n30=int((q.pts >= 30).sum()), nearWins=float(gg[gg.perf >= t5.perf.mean() - 6].wins.mean()), noise=float(pr.mean()) if len(pr) else None, gpRate=float(g[g.g >= 20].gfa.mean()), pos=pos0)
     rows.append(dict(feat, player_id=pid, player=g.player.iloc[0], td=float(TD.get(g.player.iloc[0], 0)), debut=int(g.debut.iloc[0]), last=int(g.last.iloc[0]), seasons=len(g[g.g >= 20]), pts=t5.pts.mean(), reb=t5.reb.mean(), ast=t5.ast.mean(), ts=100 * t5.ts_percent.mean(), mpg=t5.mpg.mean(), stl=t5.stl.mean(), blk=t5.blk.mean(), ftp=t5.ftp.mean(), ar3=t5.x3p_ar.mean(), usg=t5.usg_percent.mean(), perf=t5.perf.mean(), peakperf=t5.perf.max()))
 S = pd.DataFrame(rows).merge(vals, left_on='player_id', right_index=True, how='left').fillna(0)
@@ -166,7 +166,7 @@ for a, g in dd2.groupby('arch'):
 json.dump(clean(res), open(OUT, 'w'))
 
 # ---- per-player career rows for the realism test (scripts/realism-test.js)
-cols = ['player', 'debut', 'last', 'pts', 'reb', 'ast', 'stl', 'blk', 'ts', 'mpg', 'perf', 'usg', 'ar3', 'ftp', 'peakAge', 'debutAge', 'finalAge', 'seasons', 'careerPts', 'best', 'n30', 'noise', 'gpRate', 'pos', 'mvp', 'allnba1', 'allnba', 'allstar', 'alldef', 'dpoy', 'td', 'nearWins']
+cols = ['player', 'debut', 'last', 'pts', 'reb', 'ast', 'stl', 'blk', 'ts', 'mpg', 'perf', 'usg', 'ar3', 'ftp', 'peakAge', 'debutAge', 'finalAge', 'seasons', 'careerPts', 'best', 'n30', 'noise', 'gpRate', 'pos', 'mvp', 'allnba1', 'allnba', 'allstar', 'alldef', 'dpoy', 'td', 'nearWins', 'firstPts']
 careers = {a: clean(S[S.arch == a][cols].to_dict('records')) for a in sorted(S.arch.unique())}
 json.dump(careers, open(os.path.join(os.path.dirname(OUT), 'real-careers.json'), 'w'))
 print('career rows:', {a: len(v) for a, v in careers.items()})

@@ -59,7 +59,7 @@
       comps: 'Lillard · Ray Allen · Klay · Billups · Mitchell',
       boost: { inside: -2, mid: 20, three: 38, ft: 32, handling: 14, passing: -12, iq: 14, reb: 0, perD: 12, rimP: -14, ath: 2, dur: 4 },
       weights: { inside: .04, mid: .14, three: .26, ft: .1, handling: .1, passing: .06, iq: .12, reb: .01, perD: .02, rimP: 0, ath: .08, dur: .07 },
-      usg: -0.037, ts: -0.007, declineMult: 1.3, ceilingBonus: -1, mins: -1.8, injury: 0.75,
+      usg: -0.05, ts: -0.007, declineMult: 1.3, ceilingBonus: -1, mins: -1.8, injury: 0.75,
     },
     dominator: {
       name: 'Box-Score Dominator', icon: '📊',
