@@ -565,3 +565,6 @@ with the real spread (sd 1.4-2.2 inches) and weight rising ~2.5 lb an inch withi
   rebounds +0.34 / +0.39, blocks +0.088 / +0.106, steals -0.052 / -0.046, assists -0.17 / -0.11; per +1 sd of weight rebounds +0.25 / +0.28, blocks 0 / 0.
   Real taller players also score a bit more per 36 (+0.34 a sd) and heavier ones more (+0.46); the sim does not copy that (+0.07 / -0.06): it is
   confounded with role and efficiency, and the effect is meant to stay light.
+- Checks: realism 90% (v36 89%; run-to-run noise +-1), gen MVPs 1.85 per gen over 900 picks (1.86), 4+ MVPs 14% (14%); league report on 12 fresh seeds
+  with size on vs off: two 20-ppg teammates 30% vs 32% on one seed set and 32% vs 29% on another (the sign flips: noise, not an effect), top-5 repeat 2.25-2.43
+  either way. UI tests (desktop and phone): the sliders move the label and note, the chosen size reaches the player and the scouting report (7'2" / 267 lb).
