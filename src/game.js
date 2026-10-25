@@ -717,10 +717,9 @@
     for (;;) {
       const rec = playCollege(st);
       const slot = rec.mock.mid;
-      // the autopilot stays in school like real recruits of the same star rating did (2009-24 draft ages), but a prospect mocked high leaves early like
-      // real ones: a projected lottery pick after his first year, a projected first-rounder after his second (notables since 2006 mostly debuted at 19-21)
-      const want = st.autoYears || (st.autoYears = opt.collegeYears || NBA.recruitYears(st.stars)), T = NBA.tuning;
-      if (rec.mustDeclare || rec.year >= want || (!opt.collegeYears && ((slot <= T.autoExit1 && rec.year >= 1) || (slot <= T.autoExit2 && rec.year >= 2)))) break;
+      // the autopilot stays in school like real recruits of the same star rating did (2009-24 draft ages); a projected lottery pick may leave early
+      const want = st.autoYears || (st.autoYears = opt.collegeYears || NBA.recruitYears(st.stars));
+      if (rec.mustDeclare || rec.year >= want || (slot <= 5 && rec.year >= Math.min(want, 2))) break;
       stayInCollege(st);
       train(st, autoAlloc(st.player, trainingInfo(st).points));
     }
