@@ -566,7 +566,7 @@
     return h('div', { class: 'dash' },
       h('div', { class: 'dlg' },
         h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '☷'), h('h2', null, 'Standings'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, label)),
-          h('div', { class: 'grid2' }, h('div', null, h('h3', null, 'Eastern conference'), confTable(rows, 'E', mine)), h('div', null, h('h3', null, 'Western conference'), confTable(rows, 'W', mine))), h('p', { class: 'small muted' }, 'Top 6 clinch a playoff spot, 7-10 go to the play-in.')),
+          h('div', { class: 'grid2 conf' }, h('div', null, h('h3', null, 'Eastern conference'), confTable(rows, 'E', mine)), h('div', null, h('h3', null, 'Western conference'), confTable(rows, 'W', mine))), h('p', { class: 'small muted' }, 'Top 6 clinch a playoff spot, 7-10 go to the play-in.')),
         h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '★'), h('h2', null, live ? 'Award ladder' : 'Award race'), h('span', { class: 'spacer' }), h('div', { class: 'seg2 tight' }, raceKeys.map(([k, n]) => h('button', { class: leagueRace === k ? 'on' : '', onclick: () => { leagueRace = k; render(); } }, n)))), raceBody)),
       h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '▲'), h('h2', null, 'Stat leaders · top 5'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, snap ? snap.label : 'Last season')), h('div', { class: 'grid3' }, leadCards)));
   }

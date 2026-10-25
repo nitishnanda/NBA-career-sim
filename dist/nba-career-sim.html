@@ -135,6 +135,8 @@ table.st td, table.st th { padding: 7px 6px; } table.st tr.me td { background: r
 body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
 
 /* ---------------- tablet / phone ---------------- */
+/* the two conference tables sit side by side only when the panel is wide enough for both (a standings table needs ~340px); otherwise they stack instead of spilling under the next panel */
+.dlg > * { min-width: 0; } .grid2.conf { grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); }
 @media (max-width: 1100px) { .dtop, .dlg { grid-template-columns: 1fr; } .dmid { grid-template-columns: 1fr 1fr; } .dmid > :last-child { grid-column: 1 / -1; } }
 @media (max-width: 720px) {
   html, body { font-size: 16px; -webkit-text-size-adjust: 100%; }
@@ -2750,7 +2752,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     return h('div', { class: 'dash' },
       h('div', { class: 'dlg' },
         h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '☷'), h('h2', null, 'Standings'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, label)),
-          h('div', { class: 'grid2' }, h('div', null, h('h3', null, 'Eastern conference'), confTable(rows, 'E', mine)), h('div', null, h('h3', null, 'Western conference'), confTable(rows, 'W', mine))), h('p', { class: 'small muted' }, 'Top 6 clinch a playoff spot, 7-10 go to the play-in.')),
+          h('div', { class: 'grid2 conf' }, h('div', null, h('h3', null, 'Eastern conference'), confTable(rows, 'E', mine)), h('div', null, h('h3', null, 'Western conference'), confTable(rows, 'W', mine))), h('p', { class: 'small muted' }, 'Top 6 clinch a playoff spot, 7-10 go to the play-in.')),
         h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '★'), h('h2', null, live ? 'Award ladder' : 'Award race'), h('span', { class: 'spacer' }), h('div', { class: 'seg2 tight' }, raceKeys.map(([k, n]) => h('button', { class: leagueRace === k ? 'on' : '', onclick: () => { leagueRace = k; render(); } }, n)))), raceBody)),
       h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '▲'), h('h2', null, 'Stat leaders · top 5'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, snap ? snap.label : 'Last season')), h('div', { class: 'grid3' }, leadCards)));
   }
