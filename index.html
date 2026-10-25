@@ -263,6 +263,10 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 
 .card.off { opacity: .72; } .small.bad { color: #ff8b8b; margin-top: 4px; }
 
+/* height & weight on the create screen */
+.szcard { margin-top: 14px; } .szrow { display: grid; grid-template-columns: 62px 1fr 76px; gap: 12px; align-items: center; margin: 8px 0; } .szv { font: 700 17px var(--disp); letter-spacing: .04em; text-align: right; }
+.szcard input[type=range] { width: 100%; accent-color: #fff; background: transparent; padding: 0; border: 0; } .szcard .small { line-height: 1.45; margin-top: 4px; }
+
 </style>
 </head>
 <body>
@@ -404,7 +408,17 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   // brand-style colours for the generated team crests: [primary, secondary]
   const TEAM_COLORS = { Hawks: ['#e03a3e', '#c1d32f'], Celtics: ['#007a33', '#ba9653'], Nets: ['#111111', '#ffffff'], Hornets: ['#1d1160', '#00788c'], Bulls: ['#ce1141', '#111111'], Cavaliers: ['#860038', '#fdbb30'], Mavericks: ['#00538c', '#b8c4ca'], Nuggets: ['#0e2240', '#fec524'], Pistons: ['#c8102e', '#1d42ba'], Warriors: ['#1d428a', '#ffc72c'], Rockets: ['#ce1141', '#c4ced4'], Pacers: ['#002d62', '#fdbb30'], Clippers: ['#c8102e', '#1d428a'], Lakers: ['#552583', '#fdb927'], Grizzlies: ['#5d76a9', '#12173f'], Heat: ['#98002e', '#f9a01b'], Bucks: ['#00471b', '#eee1c6'], Timberwolves: ['#0c2340', '#78be20'], Pelicans: ['#0c2340', '#c8102e'], Knicks: ['#006bb6', '#f58426'], Thunder: ['#007ac1', '#ef3b24'], Magic: ['#0077c0', '#c4ced4'], '76ers': ['#006bb6', '#ed174c'], Suns: ['#1d1160', '#e56020'], 'Trail Blazers': ['#e03a3e', '#111111'], Kings: ['#5a2d81', '#63727a'], Spurs: ['#1a1a1a', '#c4ced4'], Raptors: ['#ce1141', '#111111'], Jazz: ['#002b5c', '#f9a01b'], Wizards: ['#002b5c', '#e31837'] };
   const ABBR = { Hawks: 'ATL', Celtics: 'BOS', Nets: 'BKN', Hornets: 'CHA', Bulls: 'CHI', Cavaliers: 'CLE', Mavericks: 'DAL', Nuggets: 'DEN', Pistons: 'DET', Warriors: 'GSW', Rockets: 'HOU', Pacers: 'IND', Clippers: 'LAC', Lakers: 'LAL', Grizzlies: 'MEM', Heat: 'MIA', Bucks: 'MIL', Timberwolves: 'MIN', Pelicans: 'NOP', Knicks: 'NYK', Thunder: 'OKC', Magic: 'ORL', '76ers': 'PHI', Suns: 'PHX', 'Trail Blazers': 'POR', Blazers: 'POR', Kings: 'SAC', Spurs: 'SAS', Raptors: 'TOR', Jazz: 'UTA', Wizards: 'WAS' };
-  NBA.data = { TEAM_COLORS, ABBR, ARENAS, ATTRS, ATTR_LABELS, POSITIONS, ARCHETYPES, TEAMS, REGIONS, STATE_ABBR, COLLEGES, FIRST, LAST };
+  // Heights and weights by position (scripts/real-sizes.py: NBA players since 2005, 40+ games at 18+ mpg, n 210-252 a position): mean height in inches,
+  // sd, 2nd-98th percentile; mean weight in lb and the sd of weight at a given height (it rises ~2.5 lb an inch within a position)
+  const SIZE = {
+    PG: { ht: 74.4, sd: 2.19, lo: 70, hi: 79, wt: 191, rsd: 11.5 },
+    SG: { ht: 76.9, sd: 1.51, lo: 73, hi: 80, wt: 204, rsd: 12.6 },
+    SF: { ht: 79.0, sd: 1.42, lo: 77, hi: 82, wt: 217, rsd: 13.3 },
+    PF: { ht: 80.8, sd: 1.62, lo: 78, hi: 84, wt: 234, rsd: 15.0 },
+    C: { ht: 82.8, sd: 1.69, lo: 79, hi: 86, wt: 249, rsd: 19.2 },
+  };
+
+  NBA.data = { SIZE, TEAM_COLORS, ABBR, ARENAS, ATTRS, ATTR_LABELS, POSITIONS, ARCHETYPES, TEAMS, REGIONS, STATE_ABBR, COLLEGES, FIRST, LAST };
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -463,7 +477,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     winsPerPt: 0.7162, ageUsgK: 0, formSd: 0.068277, winsCoreAvg: 48, ovrStretch: 1.3,
     growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.65, coTaxK: 0.0026594, blkKnee: 1.2308, blkK: 0.60045, usgMin: 0.10, starPull: 0.6575, starWinK: 0.6174, badTeamUsg: 0, awardMinGp: 65, badTeamMins: 0, coTaxDown: 0.74564, coTaxStack: 1.8279, coTaxMax: 0.017298, capPts: 167.19, qualifyOvr: 82, restStar: 7, restOld: 12, minorRate: 2.114, injMu: 2, injSd: 0.9556, injMax: 36, retireScale: 1.2,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
     astKnee: 7, astK: 0.49311, rebKnee: 8.6781, rebK: 0.87093,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
-    volSpread: 0.283, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.07, genSecGap: 11, gdReb: 1.0, gdAst: 1.06, gdTs: 0.01718, gdMins: 2.2, domStyleUsg: 0.08, domStyleAst: 0.12, genStyleUsg: 0.07, genStyleAst: 0.15, trMins: 1.2, gdDecline: 1.15, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 1.9, majorRate: 0.02886, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, tailShare: 0.25, tailMult: 3.2, starRetire: 1.15, userWinShrink: 0.2, userTaxCut: 0, trainCap: 3, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, effLowUsg: 0.4, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: -2, genCeilRange: 8, genCeilPow: 1.6, defRim: 30, defGlass: 18, gameSd: 1.3, gameSkew: 0.17, lateBloom: 0.08, benchRole: 0.4, winCapRank: 10, gravTs: 0.013412, gravMid: 86.422, gdLate: 0.25,
+    volSpread: 0.283, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.07, genSecGap: 11, gdReb: 1.0, gdAst: 1.06, gdTs: 0.01718, gdMins: 2.2, domStyleUsg: 0.08, domStyleAst: 0.12, genStyleUsg: 0.07, genStyleAst: 0.15, trMins: 1.2, gdDecline: 1.15, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 1.9, majorRate: 0.02886, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, tailShare: 0.25, tailMult: 3.2, starRetire: 1.15, userWinShrink: 0.2, userTaxCut: 0, trainCap: 3, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, effLowUsg: 0.4, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: -2, genCeilRange: 8, genCeilPow: 1.6, defRim: 30, defGlass: 18, gameSd: 1.3, gameSkew: 0.17, lateBloom: 0.08, benchRole: 0.4, winCapRank: 10, sizeFx: 1, gravTs: 0.013412, gravMid: 86.422, gdLate: 0.25,
     starTs: 0.05, starReb: 0, starAst: 0.45786,   // extra production for the very best (fitted to the real top of the league)
   };
   NBA.tuning = T;
@@ -511,6 +525,28 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   }
 
   const DEF_POS = { C: 1, PF: 0.85, SF: 0.45, SG: 0.25, PG: 0.2 };
+  // ---------------------------------------------------------------- height and weight
+  // Size follows the position (D.SIZE, real NBA players); the player's height and weight are his own, and how far they sit from the position's norm
+  // (in standard deviations: taller than most centers, heavier than a guard of his height) nudges his ratings a little. The nudge only reshapes
+  // them: fitOvr below rescales every player to his ceiling, so size never makes anyone better, only different. Size by position is a real,
+  // small effect (within a position, +1 sd of height goes with +0.14 sd of rebound rate and +0.16 sd of block rate, slightly fewer steals,
+  // assists and threes); the real-roster players keep their real ratings (sizeFx false) and just carry their real size.
+  const SZ_SLOPE = 2.5;   // lb per inch within a position
+  const SZ_H = { reb: 2, rimP: 7, inside: 1.5, ath: -2.5, handling: -2.5, passing: -1, three: -1.5, perD: -1 };   // rating points per sd of height above the position's mean
+  const SZ_W = { inside: 3, reb: 2, rimP: 1, ath: -0.5 };                                 // ... per sd of weight above what his height predicts
+  const wtAt = (pos, ht) => Math.round(D.SIZE[pos].wt + SZ_SLOPE * (ht - D.SIZE[pos].ht));
+  function rollSize(p, o) {
+    const s = D.SIZE[p.pos] || D.SIZE.SF;
+    p.ht = o.ht != null ? o.ht : clamp(Math.round(s.ht + s.sd * randn()), s.lo, s.hi);
+    p.wt = o.wt != null ? o.wt : Math.round(clamp(wtAt(p.pos, p.ht) + s.rsd * randn(), wtAt(p.pos, p.ht) - 2.2 * s.rsd, wtAt(p.pos, p.ht) + 2.2 * s.rsd));
+    if (o.sizeFx === false) p.sizeFx = false;
+  }
+  function sizeZ(p) {
+    const s = D.SIZE[p.pos] || D.SIZE.SF; if (p.ht == null) return { h: 0, w: 0 };
+    return { h: clamp((p.ht - s.ht) / s.sd, -2.5, 2.5), w: clamp((p.wt - wtAt(p.pos, p.ht)) / s.rsd, -2.5, 2.5) };
+  }
+  const fmtHt = (ht) => Math.floor(ht / 12) + "'" + (ht % 12) + '"';
+
   function buildTarget(p, ceiling) {
     const P = POSITIONS[p.pos], A = ARCHETYPES[p.arch], S = p.sec ? ARCHETYPES[p.sec] : null;
     const tilt = p.home ? D.REGIONS[regionOf(p.home)].tilt : {};
@@ -520,6 +556,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       const pb = p.arch === 'defender' && (a === 'reb' || a === 'rimP') ? DEF_POS[p.pos] : 1;
       t[a] = clamp(50 + P[a] + A.boost[a] * pb + (S ? 0.4 * S.boost[a] : 0) + (tilt[a] || 0) + randn() * 4.5, 12, 99);
     });
+    if (p.sizeFx !== false && T.sizeFx && p.ht != null) { const z = sizeZ(p); ATTRS.forEach((x) => { t[x] = clamp(t[x] + T.sizeFx * ((SZ_H[x] || 0) * z.h + (SZ_W[x] || 0) * z.w), 12, 99); }); }
     // defensive anchors come in two kinds: the shot-blocker (Mutombo, Eaton, Bol) and the glass cleaner (Rodman, Oakley): real blocks 1.3 +- 0.8, boards 8.4 +- 3.0
     if (p.arch === 'defender') { const s = (p.tr || NOTR).style || 0; t.rimP = clamp(t.rimP + T.defRim * s, 12, 99); t.reb = clamp(t.reb - T.defGlass * s, 12, 99); }
     fitOvr(t, p, ceiling);
@@ -556,6 +593,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     p.tr = o.tr || { pass: norm(), glass: norm(), eff: norm(), dev: trait(), aging: clamp(randn() * (rand() < T.tailShare ? 1.6 : 1), -1.8, 3), stay: trait(), style: norm(), mins: norm() };   // fat tails for career shape only: efficiency outliers made 70% TS scorers, aging outliers made 37-year-old MVPs
     if (rand() < T.tailShare) p.tr.stay = clamp(p.tr.stay * 1.6 + (rand() < 0.5 ? -1 : 1) * T.tailMult * 0.5, -3.5, 3.5);   // the short career and the 19-year journeyman
     if (o.prone == null) p.prone = clamp(1 + randn() * T.proneSd, 0.4, 2.5);
+    rollSize(p, o);
     p.target = buildTarget(p, p.ceiling);
     const gap = o.gap != null ? o.gap : 10 + rand() * 12;
     p.attrs = {};
@@ -810,7 +848,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   Object.assign(NBA, {
     rand, randn, clamp, rint, pick, r1, weighted, sum, setSeed, useRandom, rngGet, rngSet,
     ovr, ovrOf, makePlayer, buildTarget, rollCeiling, rollTdPlan, randomArch, randomPos, nameGen, regionOf,
-    progress, applyTraining, trainPoints, rookieFloor, expLine, shootingLine, genGame, summarize, gameRating,
+    rollSize, sizeZ, wtAt, fmtHt, progress, applyTraining, trainPoints, rookieFloor, expLine, shootingLine, genGame, summarize, gameRating,
   });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -923,7 +961,8 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const [name, pos, age, goal, arch, sec] = row;
     const growth = age <= 20 ? 9 : age <= 22 ? 6 : age <= 24 ? 3.5 : age <= 27 ? 1.5 : 0.5;
     const ceiling = clamp(ceilOverride != null ? ceilOverride : goal + growth, 55, 99);
-    const p = makePlayer({ id: L.nextId++, name, pos, arch, sec: sec && sec !== arch ? sec : null, ceiling, age, gap: Math.max(0, ceiling - goal) });
+    const rs = (NBA.REAL_SIZES || {})[name];   // real roster players carry their real size; their ratings already come from their real production, so size does not move them
+    const p = makePlayer({ id: L.nextId++, name, pos, arch, sec: sec && sec !== arch ? sec : null, ceiling, age, gap: Math.max(0, ceiling - goal), ht: rs && rs[0], wt: rs && rs[1], sizeFx: false });
     for (let i = 0; i < 4; i++) {
       const d = (goal - ovr(p)) / T.ovrStretch;
       ATTRS.forEach((a) => (p.attrs[a] = clamp(p.attrs[a] + d, 8, 99)));
@@ -1477,6 +1516,12 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 })(typeof window !== 'undefined' ? window : globalThis);
 
 (function (g) {
+  // GENERATED by scripts/real-sizes.py: [height in inches, weight in lb] of the real-roster players
+  const NBA = (g.NBA = g.NBA || {});
+  NBA.REAL_SIZES = {"Jalen Johnson":[80,219],"Nickeil Alexander-Walker":[77,205],"Dyson Daniels":[79,199],"CJ McCollum":[75,190],"Jayson Tatum":[80,210],"Derrick White":[76,190],"Paul George":[80,220],"Payton Pritchard":[73,195],"Michael Porter Jr.":[82,218],"Julius Randle":[81,250],"Egor Demin":[80,195],"Nolan Traore":[75,185],"Brandon Miller":[79,200],"Kon Knueppel":[78,215],"Coby White":[76,195],"Naz Reid":[81,264],"Josh Giddey":[79,216],"Norman Powell":[75,215],"Matas Buzelis":[80,209],"Nic Claxton":[83,215],"Donovan Mitchell":[74,215],"Evan Mobley":[83,215],"James Harden":[77,220],"Jarrett Allen":[81,243],"Cade Cunningham":[78,220],"Jalen Duren":[82,250],"Ausar Thompson":[79,205],"John Collins":[81,226],"Tyrese Haliburton":[77,185],"Pascal Siakam":[80,245],"Ivica Zubac":[84,240],"Andrew Nembhard":[76,191],"Giannis Antetokounmpo":[83,243],"Bam Adebayo":[81,255],"Bobby Portis":[81,250],"Klay Thompson":[77,220],"Tyler Herro":[77,195],"Myles Turner":[83,250],"Kyle Kuzma":[80,221],"Jaime Jaquez Jr.":[78,225],"Jalen Brunson":[74,190],"Karl-Anthony Towns":[84,248],"OG Anunoby":[79,240],"Mikal Bridges":[78,209],"Paolo Banchero":[82,250],"Franz Wagner":[82,220],"Desmond Bane":[78,215],"Jalen Suggs":[77,205],"Joel Embiid":[84,280],"Jaylen Brown":[78,223],"Tyrese Maxey":[74,200],"LeBron James":[81,250],"VJ Edgecombe":[76,180],"Kawhi Leonard":[78,225],"Scottie Barnes":[80,237],"Immanuel Quickley":[74,190],"RJ Barrett":[78,214],"Trae Young":[74,164],"Anthony Davis":[82,253],"Alex Sarr":[84,205],"Kyshawn George":[80,200],"Kyrie Irving":[74,195],"Cooper Flagg":[81,205],"P.J. Washington":[79,230],"Daniel Gafford":[82,265],"Nikola Jokic":[83,284],"Jamal Murray":[76,215],"Aaron Gordon":[80,235],"Cameron Johnson":[80,210],"Stephen Curry":[74,185],"Jimmy Butler":[78,230],"Kristaps Porzingis":[86,240],"Brandin Podziemski":[76,205],"Kevin Durant":[83,240],"Alperen Sengun":[83,243],"Amen Thompson":[79,200],"Jabari Smith Jr.":[83,220],"Brandon Ingram":[80,190],"Darius Garland":[73,192],"Brook Lopez":[85,282],"Rui Hachimura":[80,230],"Luka Doncic":[80,230],"Austin Reaves":[77,197],"Walker Kessler":[86,245],"Quentin Grimes":[76,210],"Jerami Grant":[79,213],"Ty Jerome":[77,195],"Zach Edey":[87,305],"Cedric Coward":[77,206],"Anthony Edwards":[76,225],"LaMelo Ball":[79,180],"Rudy Gobert":[85,258],"Jaden McDaniels":[81,185],"Zion Williamson":[78,284],"Trey Murphy III":[80,206],"Dejounte Murray":[76,180],"Derik Queen":[81,250],"Shai Gilgeous-Alexander":[78,195],"Jalen Williams":[77,211],"Chet Holmgren":[85,208],"Isaiah Hartenstein":[84,250],"Devin Booker":[77,206],"Jalen Green":[76,186],"Dillon Brooks":[79,225],"Miles Bridges":[79,225],"Ja Morant":[74,174],"Deni Avdija":[80,228],"Shaedon Sharpe":[77,210],"Donovan Clingan":[86,280],"Domantas Sabonis":[82,240],"Zach LaVine":[77,200],"Keegan Murray":[80,225],"Malik Monk":[75,200],"Victor Wembanyama":[88,235],"De'Aaron Fox":[75,185],"Stephon Castle":[78,215],"Dylan Harper":[77,215],"Lauri Markkanen":[85,240],"Jaren Jackson Jr.":[82,242],"Keyonte George":[76,185],"Ace Bailey":[81,200]};
+})(typeof window !== 'undefined' ? window : globalThis);
+
+(function (g) {
   'use strict';
   const NBA = g.NBA;
   if (typeof require !== 'undefined') { try { require('./real.js'); } catch (e) { /* browser build loads real.js separately */ } }
@@ -1528,7 +1573,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     if (!stars) stars = +weighted(STAR_ODDS);
     if (ceiling == null) ceiling = NBA.rollCeiling(stars, o.arch);
     const genBonus = genLevel && !lateBloomer ? (genLevel === 2 ? 8 : 4) : 0; // true generational talents are seen as such by scouts
-    const p = NBA.makePlayer({ id: 'user', name: o.name || 'Rookie', pos: o.pos, arch: o.arch, sec: o.sec && o.sec !== o.arch ? o.sec : null, home: o.home, ceiling, age: 18, stars, gap });
+    const p = NBA.makePlayer({ id: 'user', name: o.name || 'Rookie', pos: o.pos, arch: o.arch, sec: o.sec && o.sec !== o.arch ? o.sec : null, home: o.home, ht: o.ht, wt: o.wt, ceiling, age: 18, stars, gap });
     p.vis = clamp(0.15 + 0.19 * (stars - 1), 0.15, 0.92);
     const L = NBA.newLeague(2026, { real: true }); // the real league as of 20 Oct 2026
     const st = {
@@ -2326,10 +2371,10 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 25 Oct · BallerSim dashboard v36';
+  const BUILD = 'build 25 Oct · BallerSim dashboard v37';
   const app = document.getElementById('app');
   let S = null;           // game state
-  let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
+  let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', ht: null, wd: 0 };   // ht inches (null: the position's average), wd lb above what his height predicts
   let alloc = {};
   let report = null;
   let tab = 'overview';
@@ -2390,6 +2435,28 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   }
 
   // ------------------------------------------------------------ screens
+  const sizeTxt = (p) => (p && p.ht != null ? NBA.fmtHt(p.ht) + ', ' + p.wt + ' lb' : '');   // players from saves before v37 have no size
+  // ---- height and weight of the player being created: the slider spans the real 2nd-98th percentile of his position
+  const cdf = (z) => 0.5 * (1 + Math.tanh(0.7978845608 * (z + 0.044715 * z * z * z)));
+  const mySize = () => { const sz = D.SIZE[draft.pos], ht = draft.ht != null ? Math.min(sz.hi, Math.max(sz.lo, draft.ht)) : Math.round(sz.ht); return { ht, wt: NBA.wtAt(draft.pos, ht) + (draft.wd || 0) }; };
+  function sizeCard() {
+    const sz = D.SIZE[draft.pos], out = { ht: h('b', { class: 'szv' }), wt: h('b', { class: 'szv' }), note: h('div', { class: 'small muted' }), fx: h('div', { class: 'small' }) };
+    const show = () => {
+      const m = mySize(), z = NBA.sizeZ({ pos: draft.pos, ht: m.ht, wt: m.wt }), word = (q) => (q >= 0.5 ? 'taller' : 'shorter');
+      out.ht.textContent = NBA.fmtHt(m.ht); out.wt.textContent = m.wt + ' lb';
+      const pc = Math.round(100 * cdf(z.h));
+      out.note.textContent = pc >= 45 && pc <= 55 ? 'Right at the average for a ' + draft.pos + '.' : (pc > 50 ? 'Taller than ' + pc : 'Shorter than ' + (100 - pc)) + '% of NBA ' + draft.pos + 's' + (z.w > 0.8 ? ', and built heavy.' : z.w < -0.8 ? ', and lean.' : '.');
+      const up = [], dn = [];
+      if (z.h > 0.6) { up.push('rebounding', 'rim protection'); dn.push('ball handling'); } else if (z.h < -0.6) { up.push('ball handling', 'quickness'); dn.push('rebounding', 'rim protection'); }
+      if (z.w > 0.8) { up.push('strength inside'); dn.push('quickness'); } else if (z.w < -0.8) { up.push('quickness'); dn.push('strength inside'); }
+      out.fx.textContent = up.length || dn.length ? 'A little better at ' + [...new Set(up)].join(', ') + (dn.length ? '; a little worse at ' + [...new Set(dn)].join(', ') : '') + '. Size reshapes your ratings, it never raises them.' : 'No size edge either way: ratings come from your archetype and talent.';
+    };
+    const hIn = h('input', { type: 'range', min: sz.lo, max: sz.hi, step: 1, value: mySize().ht, 'aria-label': 'Height', oninput: (e) => { draft.ht = +e.target.value; show(); } });
+    const wIn = h('input', { type: 'range', min: Math.round(-2 * sz.rsd), max: Math.round(2 * sz.rsd), step: 1, value: draft.wd || 0, 'aria-label': 'Weight', oninput: (e) => { draft.wd = +e.target.value; show(); } });
+    show();
+    return h('div', { class: 'szcard' }, h('h3', null, 'Height & weight'),
+      h('div', { class: 'szrow' }, h('label', { class: 'small muted' }, 'Height'), hIn, out.ht), h('div', { class: 'szrow' }, h('label', { class: 'small muted' }, 'Weight'), wIn, out.wt), out.note, out.fx);
+  }
   function screenCreate() {
     const regions = D.REGIONS;
     const stateOptions = [];
@@ -2408,12 +2475,13 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     return h('div', null,
       h('h1', null, 'Build your NBA legend'),
       h('p', { class: 'muted' }, 'Pick a name, position, archetype and where you grew up. Scouts will rate you, you choose a college, then it is draft night. Stats are tuned to the real NBA: nobody averages 35 for a decade.'),
-      saved && saved.stage !== 'create' ? h('div', { class: 'callout row' }, h('span', null, 'Saved career found: ', h('b', null, saved.player.name), ' (' + saved.stage.replace(/_/g, ' ') + ')'), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => { S = saved; if (S.stage === 'season_play') loadSnap(); render(); } }, 'Continue')) : null,
+      saved && saved.stage !== 'create' ? h('div', { class: 'callout row' }, h('span', null, 'Saved career found: ', h('b', null, saved.player.name), ' (' + saved.stage.replace(/_/g, ' ') + ')'), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => { S = saved; if (S.player && S.player.ht == null) NBA.rollSize(S.player, { sizeFx: false }); if (S.stage === 'season_play') loadSnap(); render(); } }, 'Continue')) : null,
       h('div', { class: 'card' }, h('h2', null, '1. Who are you?'), h('div', { class: 'grid g2' }, h('div', null, h('label', { class: 'small muted' }, 'Name'), nameIn), h('div', null, h('label', { class: 'small muted' }, 'Where in the US are you from?'), h('select', { onchange: (e) => (draft.home = e.target.value) }, stateOptions))),
-        h('h3', null, 'Position'), h('div', { class: 'row' }, Object.keys(D.POSITIONS).map((p) => h('button', { class: draft.pos === p ? 'primary' : '', onclick: () => { draft.pos = p; render(); } }, p)))),
+        h('h3', null, 'Position'), h('div', { class: 'row' }, Object.keys(D.POSITIONS).map((p) => h('button', { class: draft.pos === p ? 'primary' : '', onclick: () => { draft.pos = p; draft.ht = null; draft.wd = 0; render(); } }, p))),
+        sizeCard()),
       h('div', { class: 'card' }, h('h2', null, '2. Archetype'), h('div', { class: 'grid g3' }, archCards),
         h('h3', null, 'Secondary tag (optional, small bonus)'), h('select', { onchange: (e) => (draft.sec = e.target.value) }, h('option', { value: '' }, 'None'), Object.keys(D.ARCHETYPES).filter((k) => k !== draft.arch).map((k) => h('option', { value: k, selected: draft.sec === k }, D.ARCHETYPES[k].name)))),
-      h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { S = G.newCareer({ name: (draft.name || '').trim() || 'Rookie', pos: draft.pos, arch: draft.arch, sec: draft.sec, home: draft.home }); S.stage = 'scouting'; S.revealed = false; go(); } }, 'Get scouted →')),
+      h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { S = G.newCareer({ name: (draft.name || '').trim() || 'Rookie', pos: draft.pos, arch: draft.arch, sec: draft.sec, home: draft.home, ht: mySize().ht, wt: mySize().wt }); S.stage = 'scouting'; S.revealed = false; go(); } }, 'Get scouted →')),
       h('p', { class: 'muted small', style: 'text-align:center;margin-top:18px' }, BUILD));
   }
 
@@ -2423,7 +2491,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const holder = h('div');
     const info = h('div', { class: 'hidden', style: 'display:none' });
     function fill(n) { holder.replaceChildren(stars(n, true)); }
-    box.append(h('h2', null, 'Scouting report'), h('p', { class: 'muted' }, S.player.name + ' · ' + S.player.pos + ' · ' + S.player.home), holder, info);
+    box.append(h('h2', null, 'Scouting report'), h('p', { class: 'muted' }, S.player.name + ' · ' + S.player.pos + (sizeTxt(S.player) ? ' · ' + sizeTxt(S.player) : '') + ' · ' + S.player.home), holder, info);
     const details = () => {
       info.style.display = ''; info.className = 'reveal';
       info.replaceChildren(h('h2', { style: 'color:var(--gold)' }, rep.label), h('div', { class: 'row' }, h('span', { class: 'pill' }, 'Current OVR ' + rep.ovr), h('span', { class: 'pill' }, 'Potential grade ' + rep.potential)),
@@ -2653,7 +2721,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const hero = h('section', { class: 'panel hero' },
       h('div', { class: 'row chips2', style: 'justify-content:center' }, h('span', { class: 'cp' }, h('i', { class: 'live' }), phase), h('span', { class: 'cp' }, (t.conf === 'W' ? 'Western' : 'Eastern') + ' Conference · ' + (reg.length ? ord2(seed) + ' seed' : 'preseason')),
         nextG && !done ? h('span', { class: 'cp plain' }, logo(nextG.o, 18), ' Next: ' + (nextG.h ? 'vs ' : '@ ') + nextG.oc + ' ' + nextG.o + (oppRow && !nextIsPo ? ' (' + oppRow.wins + '-' + oppRow.losses + ')' : '')) : null),
-      h('div', { class: 'hid' }, h('h1', { class: 'nm' }, p.name), h('div', { class: 'sub' }, t.name + ' · ' + p.pos + ' · ' + archLabel(p) + ({ score: ' · Scoring priority', playmake: ' · Pass & rebound', defend: ' · Defend more' }[S.style] || '')),
+      h('div', { class: 'hid' }, h('h1', { class: 'nm' }, p.name), h('div', { class: 'sub' }, t.name + ' · ' + p.pos + (sizeTxt(p) ? ' · ' + sizeTxt(p) : '') + ' · ' + archLabel(p) + ({ score: ' · Scoring priority', playmake: ' · Pass & rebound', defend: ' · Defend more' }[S.style] || '')),
         h('div', { class: 'jr' }, h('div', { class: 'jersey' }, '#' + jersey(p.name)), h('div', { class: 'recbox2 well' }, h('div', { class: 'lbl' }, 'Record'), h('div', { class: 'num' }, wins + '-' + losses), h('div', { class: 'sub2' }, (reg.length ? (wins / reg.length).toFixed(3).replace(/^0/, '') : '.000') + ' PCT')))),
       schedule, gamePlan, simBar);
 
@@ -2758,7 +2826,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   const rosterRole = (r) => (r.me ? 'You' : r.mins >= 24 ? 'Starter' : r.mins >= 14 ? 'Rotation' : 'Bench');
   function rosterTable(rows) {
     return h('div', { class: 'scroll' }, h('table', { class: 'st roster' }, h('thead', null, h('tr', null, ['Player', 'Role', 'OVR', 'GP', 'MPG', 'PPG', 'RPG', 'APG', 'STL', 'BLK', 'RTG'].map((x, i) => h('th', { class: i < 2 ? 'l' : '' }, x)))),
-      h('tbody', null, rows.map((r) => h('tr', { class: r.me ? 'me' : '' }, h('td', { class: 'l' }, h('b', null, r.name), h('div', { class: 'small muted' }, r.pos + ' · age ' + r.age)), h('td', { class: 'l muted' }, rosterRole(r)), h('td', null, r.ovr), h('td', null, r.gp), h('td', null, r.mins ? r.mins.toFixed(1) : '–'), h('td', null, r.line.pts.toFixed(1)), h('td', null, r.line.reb.toFixed(1)), h('td', null, r.line.ast.toFixed(1)), h('td', null, r.line.stl.toFixed(1)), h('td', null, r.line.blk.toFixed(1)), h('td', null, r.rating ? ratingBadge(r.rating, 1) : '–'))))));
+      h('tbody', null, rows.map((r) => h('tr', { class: r.me ? 'me' : '' }, h('td', { class: 'l' }, h('b', null, r.name), h('div', { class: 'small muted' }, r.pos + ' · age ' + r.age + (r.sz ? ' · ' + r.sz : ''))), h('td', { class: 'l muted' }, rosterRole(r)), h('td', null, r.ovr), h('td', null, r.gp), h('td', null, r.mins ? r.mins.toFixed(1) : '–'), h('td', null, r.line.pts.toFixed(1)), h('td', null, r.line.reb.toFixed(1)), h('td', null, r.line.ast.toFixed(1)), h('td', null, r.line.stl.toFixed(1)), h('td', null, r.line.blk.toFixed(1)), h('td', null, r.rating ? ratingBadge(r.rating, 1) : '–'))))));
   }
   // season-by-season results of a team (this year is hidden until the season has been played out)
   function histPanel(t, hideYear) {
@@ -2799,13 +2867,13 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const rows = Object.values(L.players).filter((q) => q.teamId === t.id).map((q) => {
       const id = q.id, l = L.lines[id]; if (!l) return null;
       const line = { pts: bridge(l.pts, id * 3 + 1), reb: bridge(l.reb, id * 3 + 2), ast: bridge(l.ast, id * 3 + 3), stl: l.stl, blk: l.blk, tov: l.tov, ts: l.ts };
-      return { name: q.name, pos: q.pos, age: q.age, ovr: Math.round(NBA.ovr(q)), mins: l.mins, gp: Math.round(l.gp * prog), line, rating: rate(line, l.mins) };
+      return { name: q.name, pos: q.pos, sz: sizeTxt(q), age: q.age, ovr: Math.round(NBA.ovr(q)), mins: l.mins, gp: Math.round(l.gp * prog), line, rating: rate(line, l.mins) };
     }).filter(Boolean);
     // you: games so far this season (or last season when the season is over)
     const shown = items.slice(0, idx), { t: T, av: A, g: gl } = seasonTotals(shown), last = S.proSeasons[S.proSeasons.length - 1];
-    if (t.id !== S.teamId) { /* another team: no user row */ } else if (inSeason && T.n) rows.push({ me: true, name: p.name, pos: p.pos, age: p.age, ovr: Math.round(NBA.ovr(p)), mins: A.m, gp: T.n, line: { pts: A.pt, reb: A.rb, ast: A.as, stl: A.st, blk: A.bk, tov: A.to }, rating: gl.reduce((a, g) => a + g.r, 0) / gl.length });
-    else if (!inSeason && last) rows.push({ me: true, name: p.name, pos: p.pos, age: p.age, ovr: Math.round(NBA.ovr(p)), mins: last.mins, gp: last.gp, line: { pts: last.pts, reb: last.reb, ast: last.ast, stl: last.stl, blk: last.blk, tov: last.tov }, rating: last.avgRating || rate(last, last.mins) });
-    else rows.push({ me: true, name: p.name, pos: p.pos, age: p.age, ovr: Math.round(NBA.ovr(p)), mins: 0, gp: 0, line: { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, tov: 0 }, rating: null });
+    if (t.id !== S.teamId) { /* another team: no user row */ } else if (inSeason && T.n) rows.push({ me: true, name: p.name, pos: p.pos, sz: sizeTxt(p), age: p.age, ovr: Math.round(NBA.ovr(p)), mins: A.m, gp: T.n, line: { pts: A.pt, reb: A.rb, ast: A.as, stl: A.st, blk: A.bk, tov: A.to }, rating: gl.reduce((a, g) => a + g.r, 0) / gl.length });
+    else if (!inSeason && last) rows.push({ me: true, name: p.name, pos: p.pos, sz: sizeTxt(p), age: p.age, ovr: Math.round(NBA.ovr(p)), mins: last.mins, gp: last.gp, line: { pts: last.pts, reb: last.reb, ast: last.ast, stl: last.stl, blk: last.blk, tov: last.tov }, rating: last.avgRating || rate(last, last.mins) });
+    else rows.push({ me: true, name: p.name, pos: p.pos, sz: sizeTxt(p), age: p.age, ovr: Math.round(NBA.ovr(p)), mins: 0, gp: 0, line: { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, tov: 0 }, rating: null });
     rows.sort((a, b) => b.mins - a.mins);
     return rows;
   }
@@ -2827,7 +2895,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
         h('div', { class: 'kpis', style: 'margin:0' }, tile('hot', 'Record', wins + '-' + losses, (t.conf === 'W' ? 'Western' : 'Eastern') + ' Conf.'), tile('', 'Teammate OVR', avgOvr ? avgOvr.toFixed(0) : '–', 'avg of the top 8'), h('div', { class: 'kpi ink' }, h('div', { class: 'k-lbl' }, 'Teammate rating'), avgRate ? ratingBadge(avgRate, 2) : h('div', { class: 'k-val' }, '–'), h('div', { class: 'k-sub' }, 'minutes-weighted')), tile('', 'Your scoring share', me && teamPts ? Math.round(100 * me.line.pts / teamPts) + '%' : '–', best ? 'Best teammate: ' + best.name.split(' ').slice(-1)[0] + ' (' + best.ovr + ')' : ' '))),
       h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '☰'), h('h2', null, 'Roster'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, rows.length + ' players')),
         h('div', { class: 'scroll' }, h('table', { class: 'st roster' }, h('thead', null, h('tr', null, ['Player', 'Role', 'OVR', 'GP', 'MPG', 'PPG', 'RPG', 'APG', 'STL', 'BLK', 'RTG'].map((x, i) => h('th', { class: i < 2 ? 'l' : '' }, x)))),
-          h('tbody', null, rows.map((r) => h('tr', { class: r.me ? 'me' : '' }, h('td', { class: 'l' }, h('b', null, r.name), h('div', { class: 'small muted' }, r.pos + ' · age ' + r.age)), h('td', { class: 'l muted' }, role(r)), h('td', null, r.ovr), h('td', null, r.gp), h('td', null, r.mins ? r.mins.toFixed(1) : '–'), h('td', null, r.line.pts.toFixed(1)), h('td', null, r.line.reb.toFixed(1)), h('td', null, r.line.ast.toFixed(1)), h('td', null, r.line.stl.toFixed(1)), h('td', null, r.line.blk.toFixed(1)), h('td', null, r.rating ? ratingBadge(r.rating, 1) : '–')))))),
+          h('tbody', null, rows.map((r) => h('tr', { class: r.me ? 'me' : '' }, h('td', { class: 'l' }, h('b', null, r.name), h('div', { class: 'small muted' }, r.pos + ' · age ' + r.age + (r.sz ? ' · ' + r.sz : ''))), h('td', { class: 'l muted' }, role(r)), h('td', null, r.ovr), h('td', null, r.gp), h('td', null, r.mins ? r.mins.toFixed(1) : '–'), h('td', null, r.line.pts.toFixed(1)), h('td', null, r.line.reb.toFixed(1)), h('td', null, r.line.ast.toFixed(1)), h('td', null, r.line.stl.toFixed(1)), h('td', null, r.line.blk.toFixed(1)), h('td', null, r.rating ? ratingBadge(r.rating, 1) : '–')))))),
         h('p', { class: 'small muted', style: 'margin-top:10px' }, 'Teammate ratings are the match rating of their average line. Yours is the real average of your games.')),
       h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '◷'), h('h2', null, 'Recent results'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, wins + '-' + losses)), recentResults(inSeason ? items.slice(0, idx) : items)),
       histPanel(t, inSeason ? L.year : null));
