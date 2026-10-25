@@ -463,3 +463,7 @@ Changes and results:
   at 30-36 (real 1.01 / 0.94 / 0.83 / 0.78 / 0.74 / 0.71 / 0.71); 20.7 / 20.0 / 18.0 ppg at 34-36 (was 16.4 / ~13 / ~10).
 - Shooters' usage -0.05 (peak ppg 21.2 -> 20.7, real 20.2). Gen ceiling `genCeilDrop` -2: 1.87 MVPs per gen (1.86), 4+ 15% (14%).
 - Star wins: #1 / 2-3 / 4-10 / 11-30 producers' teams 56.4 / 53.2 / 47.3 / 43.0 (55.1 / 51.5 / 49.2 / 43.8).
+- Realism (two runs of ~8,700 careers on different seeds): 87% and 88%, i.e. at the perfect-sim ceiling (~87-88% for these cohort sizes);
+  gens 83-84, scorers 92, dominators 82-83, shooters 89, two-way 89-91, defenders 88-90; every clone and oddball test not significant in
+  both runs. Run-to-run noise is about +-1 per archetype, so v33 (88% on this test) and v34 are equally realistic overall; v34 fixes the
+  league's team scoring and turnover, the availability targets and the gen aging curve without giving any of it back.
