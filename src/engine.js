@@ -258,7 +258,8 @@
     const SS = 0.34 * sh[0] + 0.14 * sh[1] + 0.12 * a.ft + 0.12 * a.handling + 0.1 * a.iq + 0.18 * a.ath;
     let usg = T.usgBase + T.usgPerSS * (SS - 55) + T.usgConvex * Math.pow(Math.max(0, SS - 70), 2) + A.usg + (S ? 0.4 * S.usg : 0) - (c.coTax || 0);
     { const tw = (c.wins == null ? 41 : c.wins) - 41; usg *= 1 + ks0(o) * (tw < 0 ? T.badTeamUsg * Math.min(22, -tw) : -0.0006 * Math.min(28, tw)); } // good players on good teams share the ball (the bad-team usage boost is fitted to ~0, see below)
-    usg *= 1 + (p.vol || 0) * (1 + T.volSpread);   // some players just shoot more (or less) than their skill suggests: the usage/efficiency spread of real rosters
+    const spr = A.spread || 1;   // how much players of this archetype differ in shot volume and efficiency (real defensive anchors: Bol's 3 ppg to Mutombo's 14, Chandler's 68% TS)
+    usg *= 1 + (p.vol || 0) * (1 + T.volSpread) * spr;   // some players just shoot more (or less) than their skill suggests: the usage/efficiency spread of real rosters
     if (p.arch === 'dominator' && p.sec === 'generational') usg *= 1 + T.genDomUsg;   // a generational box-score dominator carries the volume of the Westbrook / Luka / Jokic seasons
     usg *= 1 + T.frUsg * (c.fr || 0);   // franchise player: the offence runs through him
     // generational talents are not one template: some are volume scorers (Jordan, Kobe), some run the offence with fewer shots (Nash, Kidd, Magic)
@@ -290,7 +291,7 @@
     if (p.arch === 'dominator' && p.sec === 'generational') ts += T.gdTs;   // Jokic-type efficiency on top of the volume
     // some players are just more (or less) efficient than their ratings suggest; low-usage players differ most (real career TS spread across players:
     // 3.9 pts below 15% usage, 3.2 at 15-18%, 2.6 above: the lob finisher at 66% next to the stretch big at 54%)
-    ts += T.trEff * ((p.tr || NOTR).eff) * (1 + T.effLowUsg * clamp((0.2 - usg) / 0.05, 0, 1.5));
+    ts += T.trEff * ((p.tr || NOTR).eff) * (1 + T.effLowUsg * clamp((0.2 - usg) / 0.05, 0, 1.5)) * spr;
     ts = clamp(ts, 0.44, Math.min(0.7, 0.735 - 0.2 * usg));   // the more you shoot, the lower the ceiling on efficiency: no 30-ppg season has topped ~67% TS (Curry '16, Embiid '23)
 
     const pace = c.pace || T.pace;
