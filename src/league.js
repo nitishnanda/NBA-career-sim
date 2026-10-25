@@ -330,7 +330,7 @@
     const roy = entries.filter((e) => e.p.rookie && e.l.gp >= 50).map((e) => ({ e, s: e.l.perf + 0.1 * (e.l.wins - 41) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
     const mip = q65.filter((e) => !e.p.rookie && e.p.prevPerf != null && e.p.age <= 28).map((e) => ({ e, s: (e.l.perf - e.p.prevPerf) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
     const logisticNoise = () => { const u = Math.max(1e-9, Math.min(1 - 1e-9, rand())); return Math.log(u / (1 - u)); };
-    const allNBA = pool.slice(0, 35).map((e) => ({ e, s: -15.12 + 0.184 * e.l.perf + 0.111 * e.l.wins + 0.092 * e.l.pts + (e.p.prevAN ? 1.349 : 0) + logisticNoise() })).sort((a, b) => b.s - a.s).slice(0, 15);
+    const allNBA = pool.slice(0, 35).map((e) => ({ e, s: -15.12 + 0.184 * e.l.perf + 0.111 * e.l.wins + 0.092 * e.l.pts + (e.p.prevAN ? 1.349 : 0) + 0.7 * logisticNoise() })).sort((a, b) => b.s - a.s).slice(0, 15);   // the vote noise is tighter than the logistic: real 1st-team picks are almost all top-10 producers (11% outside), and 2nd/3rd teams 45% / 73% outside
     // All-Star and All-Defense: logistic selection models fitted to 2001-25 voting (scripts/real-allstar-model.py) plus logistic noise;
     // All-Stars are the top 12 per conference, All-Defense the top 10 in the league (positionless since 2024)
     const ASM = { b0: -15.572, perf: 0.2108, pts: 0.1557, wins: 0.0916, prevAS: 1.485 }, ADM = { b0: -14.619, stl: 2.4768, blk: 1.5368, reb: 0.0154, mins: 0.0591, wins: 0.1055, prevAD: 3.0275 };
@@ -341,6 +341,10 @@
     stars.forEach((x) => { x.e.p.prevAS = true; }); allDef.forEach((x) => { x.e.p.prevAD = true; }); allNBA.forEach((x) => { x.e.p.prevAN = true; });
     const qual = entries.filter((e) => e.l.gp >= 58);
     const lead = (k) => qual.slice().sort((a, b) => b.l[k] - a.l[k]);
+    // a 64+ win team needs a real producer: real 66+ win teams (9 since 2005) all had a top-10 producer, while the sim let rated-but-quiet stars
+    // carry 66 wins. Such teams without one are pulled back toward 62 (a quarter of any win beyond 64 is kept). Real 60+ teams: 68% had one
+    { const bestRk = {}; qual.slice().sort((a, b) => b.l.perf - a.l.perf).forEach((e, i) => { if (bestRk[e.t.id] == null) bestRk[e.t.id] = i + 1; });
+      L.teams.forEach((t) => { if (T.winCapRank && t.wins >= 64 && !(bestRk[t.id] <= T.winCapRank)) { t.wins = Math.round(62 + 0.25 * (t.wins - 64)); t.losses = 82 - t.wins; } }); }
     const scoring = lead('pts');
     const ref = (x) => (x ? { id: x.e.id, name: x.e.p.name, team: x.e.t.nick, isUser: !!x.e.isUser, pts: x.e.l.pts, reb: x.e.l.reb, ast: x.e.l.ast } : null);
     const awards = {

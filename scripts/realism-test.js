@@ -26,7 +26,7 @@ function features(st) {
   return {
     pts: m('pts'), reb: m('reb'), ast: m('ast'), ts: 100 * m('ts'), mpg: m('mins'), perf: m('perf'), usg: 100 * m('usg'), ar3: mean(t5.map((s) => (s.fga ? (s.tpa || 0) / s.fga : 0))), ftp: m('ftp'),
     stl: m('stl'), blk: m('blk'), peakAge: best.age, debutAge: ps[0].age, finalAge: ps[ps.length - 1].age, seasons: played.length,
-    careerPts: ps.reduce((t, s) => t + s.pts * s.gp, 0), best: Math.max(...q.map((s) => s.pts)), n30: q.filter((s) => s.pts >= 30).length,
+    careerPts: ps.reduce((t, s) => t + s.pts * s.gp, 0), first2: mean(played.slice(0, 2).map((s) => s.pts)), best: Math.max(...q.map((s) => s.pts)), n30: q.filter((s) => s.pts >= 30).length,
     noise: d.length ? mean(d) : null, gpRate: mean(played.map((s) => s.gp / 82)), td: ps.reduce((t, s) => t + (s.td || 0), 0),
     nearWins: mean(q.filter((s) => s.perf >= m('perf') - 6).map((s) => s.wins)),   // his team's wins in the seasons near his peak (production within 6 of his best five)
     mvp: aw.MVP || 0, allnba1: aw['All-NBA 1st Team'] || 0, allnba: aw['All-NBA'] || 0, allstar: aw['All-Star'] || 0, alldef: aw['All-Defense'] || 0, dpoy: aw.DPOY || 0,
@@ -67,7 +67,7 @@ function nullD(real, m) { let t = 0; for (let k = 0; k < 150; k++) { const s = [
 
 const FEATS = [['pts', 'peak-5 ppg'], ['reb', 'peak-5 rpg'], ['ast', 'peak-5 apg'], ['usg', 'peak usage %'], ['ts', 'peak TS %'], ['mpg', 'peak minutes'], ['best', 'best season ppg'], ['n30', '30-ppg seasons*'], ['peakAge', 'age of best season'], ['debutAge', 'debut age'],
   ['noise', 'year-to-year ppg swing'], ['gpRate', 'games played share'], ['allstar', 'All-Star seasons*'], ['allnba', 'All-NBA teams*'], ['mvp', 'MVPs*'], ['alldef', 'All-Defense teams*'],
-  ['seasons', 'career length*'], ['finalAge', 'final age*'], ['careerPts', 'career points*'], ['nearWins', 'team wins near peak']];
+  ['seasons', 'career length*'], ['finalAge', 'final age*'], ['careerPts', 'career points*'], ['first2', 'first two seasons ppg'], ['nearWins', 'team wins near peak']];
 const INFO = new Set(['usg', 'nearWins']);   // shown, not scored: era-adjusting old seasons raises their points but leaves usage share alone; team wins are a check on the archetypes' team impact
 const COMPLETE = new Set(['seasons', 'finalAge', 'careerPts', 'allstar', 'allnba', 'mvp', 'alldef', 'n30']);   // career totals: only finished real careers (last season 2021 or earlier)
 // a finished (or nearly finished) real career: retired by 2024, or a veteran who debuted by 2008 (LeBron, Durant, Curry, Harden...)

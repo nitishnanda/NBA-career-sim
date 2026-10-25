@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 25 Oct · BallerSim dashboard v34';
+  const BUILD = 'build 25 Oct · BallerSim dashboard v35';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };
@@ -73,7 +73,11 @@
     const archCards = Object.keys(D.ARCHETYPES).map((k) => {
       const a = D.ARCHETYPES[k];
       return h('div', { class: 'opt' + (draft.arch === k ? ' sel' : ''), onclick: () => { draft.arch = k; if (draft.sec === k) draft.sec = ''; render(); } },
-        h('b', null, a.icon + ' ' + a.name), h('div', { class: 'small' }, a.blurb), h('div', { class: 'comps' }, a.comps));
+        h('b', null, a.icon + ' ' + a.name), h('div', { class: 'small' }, a.blurb),
+        // what a pick of this archetype usually becomes in the sim, and the real players at its top (scripts/arch-cards.js)
+        a.typical ? h('div', { class: 'ctyp' }, h('span', { class: 'lab' }, 'Typical pick'), a.typical) : null,
+        h('div', { class: 'ctyp' }, h('span', { class: 'lab' }, 'Best of the type'), a.best || a.comps),
+        a.odds ? h('div', { class: 'codds' }, a.odds) : null);
     });
     const nameIn = h('input', { type: 'text', placeholder: 'Your name', value: draft.name, maxlength: 28, oninput: (e) => (draft.name = e.target.value) });
     const saved = load();

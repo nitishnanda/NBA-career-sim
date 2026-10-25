@@ -36,7 +36,7 @@
     // Generational talents are almost always blue-chip, top-3 picks who dominate college.
     // A rare "Jokic path" (~8%) keeps them under-scouted with a slow start but the same hidden ceiling.
     const genLevel = o.arch === 'generational' ? 2 : o.sec === 'generational' ? 1 : 0;
-    const lateBloomer = genLevel > 0 && rand() < 0.08;
+    const lateBloomer = genLevel > 0 && rand() < NBA.tuning.lateBloom;   // real gens who started slow (Giannis, Kobe, Harden, Howard) were slow starters on their path, not all the time
     let stars = o.stars, ceiling = o.ceiling, gap = 10 + rand() * 12;
     if (genLevel && !lateBloomer) {
       if (!stars) stars = +weighted(genLevel === 2 ? { 5: 70, 4: 25, 3: 5 } : { 5: 40, 4: 35, 3: 25 });
@@ -250,10 +250,12 @@
     const coRaw = p.coTaxPrev == null ? ctx.coTax : 0.7 * p.coTaxPrev + 0.3 * ctx.coTax; p.coTaxPrev = coRaw;
     const coT = coRaw * (1 - NBA.tuning.userTaxCut * clamp((ovr(p) - 80) / 16, 0, 1));
     const paceS = p.paceS == null ? ctx.pace : 0.6 * p.paceS + 0.4 * ctx.pace; p.paceS = paceS;
-    const e0 = expLine(p, { coTax: coT, fr: ctx.fr, tsAdj: ctx.tsAdj || 0, wins: ctx.wins, pace: paceS, rookie, minsMult: fx.minsMult, minsFloor: rookie ? NBA.rookieFloor(st.draft && st.draft.slot) : 0 });
+    const e0 = expLine(p, { coTax: coT, fr: ctx.fr, tsAdj: ctx.tsAdj || 0, wins: ctx.wins, pace: paceS, rookie, minsMult: fx.minsMult, minsMax: fx.minsCap || 0, minsFloor: rookie ? NBA.rookieFloor(st.draft && st.draft.slot) : 0 });
     // Year-to-year shocks sized from real careers (22 generational and ~100 star careers, Basketball-Reference): usage ±6%, TS ±3%, minutes ±4%, rebounds ±10%, assists ±14% between seasons.
     // Nothing else shapes a season: no caps, plans or quotas, so big years, slumps and the rare triple-double season come from the tails of these distributions.
-    const sn = ovr(p) >= 84 ? 1 : NBA.tuning.noiseNon;   // real non-stars swing more from year to year than the all-time greats (mean |change in ppg| 2.1-2.9)
+    // steadiness: scorers' year-to-year swings are smaller than the generic noise (real 24+ ppg scorers 3.0 ppg a year, the generic sim 3.4); a secondary tag counts 40%
+    const steadyF = (D.ARCHETYPES[p.arch].steady || 1) * (p.sec ? 1 + 0.4 * ((D.ARCHETYPES[p.sec].steady || 1) - 1) : 1);
+    const sn = (ovr(p) >= 84 ? 1 : NBA.tuning.noiseNon) * steadyF;   // real non-stars swing more from year to year than the all-time greats (mean |change in ppg| 2.1-2.9)
     const nm = 1 + 0.028 * sn * (ovr(p) >= 84 ? 1 : NBA.tuning.minsNoiseNon) * randn(), nu = 1 + 0.045 * sn * randn(), nt = 1 + 0.02 * randn(), evt = 1 + fx.form;
     const m = { mins: Math.min(NBA.tuning.minsHard - 0.6, e0.mins * nm), pts: e0.pts * nu * nt * nm * evt, reb: e0.reb * (1 + 0.07 * randn()) * nm * evt, ast: e0.ast * (1 + 0.10 * randn()) * nm * Math.sqrt(nu) * evt, stl: e0.stl * (1 + 0.10 * randn()) * nm, blk: e0.blk * (1 + 0.12 * randn()) * nm, tov: e0.tov * nm * nu };
     let gp = avail.gp; const gpCut = false;
@@ -286,7 +288,7 @@
     const mult = { mins: 1.085, pts: 1.0, reb: 1.055, ast: 0.95, stl: 0.98, blk: 1.15, tov: 1.09 };
     // a postseason's overall form varies far more than a single game's noise (real sd of the points ratio is 0.155)
     // Postseason scoring vs the regular season, measured on 110 real generational-star runs (2001-2024): ratio mean 1.02, sd 0.17 (p10 0.84, p90 1.24); other 20+ ppg scorers: 1.005 / 0.15.
-    const starP = clamp((base.ovr - 80) / 14, 0, 1), fp = clamp(1 + 0.008 * starP + (0.15 + 0.015 * starP) * randn(), 0.62, 1.5), fo = clamp(1 + 0.07 * randn(), 0.8, 1.22);
+    const starP = clamp((base.ovr - 80) / 14, 0, 1), fp = clamp(1 + 0.008 * starP + (0.12 - 0.035 * starP) * randn(), 0.62, 1.3), fo = clamp(1 + 0.07 * randn(), 0.8, 1.22);   // stars' postseason scoring holds closer to their regular season (real 27+ ppg: sd 0.14, never above 1.29x)
     mult.ast = clamp(0.95 - 0.015 * (base.ast - 5), 0.85, 0.95); // real 7+ apg players lose ~10% of their assists in the playoffs
     mult.pts *= fp; mult.reb *= fo; mult.ast *= fo; mult.stl *= fo; mult.blk *= fo;
     const m = { mins: Math.min(base.mins * mult.mins, 41.5), pts: base.pts * mult.pts, reb: base.reb * mult.reb, ast: base.ast * mult.ast, stl: base.stl * mult.stl, blk: base.blk * mult.blk, tov: base.tov * mult.tov };
@@ -295,7 +297,7 @@
     const poStyleM = (mm, slot) => { const f = STYLE_MULT[styleAt(seq, slot)], o = Object.assign({}, mm); STYLE_KEYS.forEach((k, ki) => { o[k] = mm[k] * f[ki] / (eff[ki] || 1); }); return o; };
     const all = []; let poCount = 0;
     const perSeries = seriesList.map((sr) => {
-      const gs = []; for (let i = 0; i < sr.games; i++) { gs.push(genGame(poStyleM(m, 82 + poCount))); poCount++; }
+      const gs = []; for (let i = 0; i < sr.games; i++) { gs.push(genGame(poStyleM(m, 82 + poCount), true)); poCount++; }
       all.push.apply(all, gs);
       const ss = summarize(gs);
       return { round: sr.round, opp: sr.opp, result: (sr.won ? 'W ' : 'L ') + sr.w + '-' + sr.l, pts: ss.pts, reb: ss.reb, ast: ss.ast, gp: sr.games, list: gs, w: sr.w, l: sr.l, won: sr.won };
@@ -424,6 +426,11 @@
     st.pre = { career: JSON.parse(JSON.stringify(st.career)), earnings: st.earnings, earnings26: st.earnings26 || 0, nPlayoff: st.playoffLines.length, rookie: p.yearsPro === 0 };
     const age = p.age;
     const fx = rollEvents(st, p);
+    // rookie role: coaches bring some young players along off the bench whatever their talent (Kobe 15 mpg at 18, Giannis 25, Jokic 22, Harden 23 behind Westbrook and Durant);
+    // real future stars' rookie minutes vary by 7-9 mpg, far more than rating alone gives. It is a cap on minutes (it only bites a rookie good enough to play more),
+    // drawn on its own stream so nothing else in the season changes; the second season's cap is 8 minutes higher
+    if (p.yearsPro === 0) { const sv = NBA.rngGet(); NBA.setSeed(st.seasonSeed ^ 0x3c6ef372); p.benchCap = rand() < NBA.tuning.benchRole * (age <= 19 ? 1.25 : age >= 22 ? 0.6 : 1) ? 15 + 12 * rand() : 0; NBA.rngSet(sv); }
+    if (p.yearsPro <= 1 && p.benchCap) { fx.minsCap = p.benchCap + 8 * p.yearsPro; fx.notes.push(p.yearsPro === 0 ? 'Coach is bringing you along slowly: a bench role behind the veterans for now.' : 'Still earning the coach\'s full trust: more minutes, but not a full starter\'s load yet.'); }
     const avail = rollAvail(p, { extraMiss: fx.extraMiss });
     if (avail.major) applyMajorInjury(p);
     p.rookie = p.yearsPro === 0;

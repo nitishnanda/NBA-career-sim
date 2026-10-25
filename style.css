@@ -241,5 +241,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 /* archetype picker spacing: room under the section heading, even padding and gaps inside every card */
 .card > h2 + .grid { margin-top: 16px; } .card > h2 + .grid.g3 { gap: 14px; }
 .opt { display: flex; flex-direction: column; gap: 7px; padding: 16px 18px; } .opt b { margin: 0; } .opt .small { line-height: 1.45; } .opt .comps { margin-top: 2px; line-height: 1.4; }
+.opt .ctyp { font-size: 12.5px; line-height: 1.4; } .opt .ctyp .lab { display: block; font: 600 10.5px var(--disp); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 1px; }
+.opt .codds { font-size: 12px; line-height: 1.4; color: var(--gold); margin-top: auto; padding-top: 2px; }
 
 .card.off { opacity: .72; } .small.bad { color: #ff8b8b; margin-top: 4px; }

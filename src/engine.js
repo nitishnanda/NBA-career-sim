@@ -48,7 +48,7 @@
     winsPerPt: 0.7162, ageUsgK: 0, formSd: 0.068277, winsCoreAvg: 48, ovrStretch: 1.3,
     growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.65, coTaxK: 0.0026594, blkKnee: 1.2308, blkK: 0.60045, usgMin: 0.10, starPull: 0.6575, starWinK: 0.6174, badTeamUsg: 0, awardMinGp: 65, badTeamMins: 0, coTaxDown: 0.74564, coTaxStack: 1.8279, coTaxMax: 0.017298, capPts: 167.19, qualifyOvr: 82, restStar: 7, restOld: 12, minorRate: 2.114, injMu: 2, injSd: 0.9556, injMax: 36, retireScale: 1.2,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
     astKnee: 7, astK: 0.49311, rebKnee: 8.6781, rebK: 0.87093,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
-    volSpread: 0.283, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.07, genSecGap: 11, gdReb: 1.0, gdAst: 1.06, gdTs: 0.01718, gdMins: 2.2, domStyleUsg: 0.08, domStyleAst: 0.12, genStyleUsg: 0.07, genStyleAst: 0.15, trMins: 1.2, gdDecline: 1.15, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 1.9, majorRate: 0.02886, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, tailShare: 0.25, tailMult: 3.2, starRetire: 1.15, userWinShrink: 0.2, userTaxCut: 0, trainCap: 3, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, effLowUsg: 0.4, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: -2, genCeilRange: 8, genCeilPow: 1.6, defRim: 30, defGlass: 18, gravTs: 0.013412, gravMid: 86.422, gdLate: 0.25,
+    volSpread: 0.283, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.07, genSecGap: 11, gdReb: 1.0, gdAst: 1.06, gdTs: 0.01718, gdMins: 2.2, domStyleUsg: 0.08, domStyleAst: 0.12, genStyleUsg: 0.07, genStyleAst: 0.15, trMins: 1.2, gdDecline: 1.15, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 1.9, majorRate: 0.02886, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, tailShare: 0.25, tailMult: 3.2, starRetire: 1.15, userWinShrink: 0.2, userTaxCut: 0, trainCap: 3, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, effLowUsg: 0.4, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: -2, genCeilRange: 8, genCeilPow: 1.6, defRim: 30, defGlass: 18, gameSd: 1.3, gameSkew: 0.17, lateBloom: 0.08, benchRole: 0.4, winCapRank: 10, gravTs: 0.013412, gravMid: 86.422, gdLate: 0.25,
     starTs: 0.05, starReb: 0, starAst: 0.45786,   // extra production for the very best (fitted to the real top of the league)
   };
   NBA.tuning = T;
@@ -347,11 +347,15 @@
   }
 
   // ---------------------------------------------------------------- per-game box scores
-  function genGame(m) {
+  function genGame(m, postseason) {
     const gs = randn();
-    const mm = clamp(1 + 0.085 * gs, 0.55, 1.28);
-    const hot = rand() < 0.06 ? 1.28 : 0.9825;
-    let pts = Math.max(0, Math.round(m.pts * mm * (1 + 0.29 * randn()) * hot));
+    const mm = clamp(1 + 0.085 * gs, 0.55, 1.22);
+    // game-to-game points: real per-game sd is roughly 1.5 x sqrt(average) (6 pts at 14 ppg, 9 at 32: game plans and minutes add to the 1.3 here), not a fixed share of the average, and skewed
+    // to the right (big nights go further above the average than bad nights go below): real 2002-25 seasons of 27-30 ppg have 6.2 games of 40+,
+    // 0.9 of 50+ and a 60-point game 13% of the time (fitted in the v35 notes); the skew term keeps the mean where it is
+    // postseason games are tighter (real playoff games of 50+ points: 9% of 24+ ppg runs; regular season 44% of seasons), so no skew there
+    const base = m.pts * mm, z = randn(), sdk = postseason ? 1.05 : 1, sk = postseason ? 0 : T.gameSkew;
+    let pts = Math.max(0, Math.round(base + sdk * T.gameSd * Math.sqrt(Math.max(0, base)) * (z + sk * (z * z - 1))));
     const eng = clamp(1 + 0.13 * randn(), 0.55, 1.4);
     const ctr = (mean, extra) => {
       const lam = mean * mm * eng;

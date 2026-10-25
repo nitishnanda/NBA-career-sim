@@ -480,3 +480,36 @@ cause was found; the chance of such a career if the game works as designed is ~1
 +15.9% assists for "playmake"). To make the next case diagnosable: each playoff run now records its postseason form multiplier (`playoff.form`), the
 playoff table shows FORM and VS RS (playoff ppg / regular-season ppg), the recap card prints them, and the career page has an Export save button
 (downloads the whole career plus the tip-off snapshot as JSON). Old saves have no FORM values (shown as a dash); VS RS works for them.
+
+## v35: fixes from a played career (gen starts, playoff and game scoring, team strength, steadiness, All-NBA) + honest archetype cards
+
+From a played generational + scorer career and the points it raised (every real figure from the Basketball-Reference CSVs):
+- Slow starts (gens): real gens averaged <=15 ppg over their first two seasons 25% of the time (era-adjusted; 31% raw: Kobe, Giannis, Jokic,
+  Harden, Howard); modern-era gens (7) had a median of 15.1. The sim had 14%. Rating alone made every gen rookie play ~34 minutes, while
+  real future stars' rookie minutes vary by 7-9 mpg. New rookie role (`benchRole` 0.4, odds x1.25 at 19, x0.6 at 22+): a minutes cap of
+  15-27 in the first season (+8 in the second), only binding for rookies good enough to play more; drawn on its own random stream, with
+  a season note. Gen picks <=15 over the first two seasons: 14% -> 26%, 10th percentile 14.1 -> 12.3 (real 11.9), mean 19.5 -> 18.0.
+- New realism feature, first-two-seasons ppg (`first2`, scripts/real-blueprints.py), real / sim before -> after: gens 19.7 / 20.0 -> 19.4,
+  scorers 15.6 / 16.3 -> 16.1, dominators 12.3 / 13.7 -> 12.9, shooters 12.5 / 14.2 -> 13.6, two-way 10.7 / 11.9 -> 12.3, defenders 8.6 / 8.0
+  -> 7.3 (modern-era real defenders 7.9). Debut age itself barely predicts it within an archetype (+0.11 ppg a year), so it has no era shift.
+- Playoff scoring: stars' postseason form is tighter (27+ ppg: ratio sd 0.122-0.135, real 0.139) and playoff games have no hot-night
+  boost; runs with a 50+ game 12% (real 9%).
+- Game-to-game scoring: per-game sd ~1.3 x sqrt(average) with a right skew (`gameSkew` 0.17, mean-preserving) instead of hot nights.
+  Per season, sim / real 2002-25: 40+ games 2.97 / 3.12, 6.32 / 6.24, 12.8 / 12.5 and 50+ games 0.37 / 0.33, 1.02 / 0.89, 2.48 / 2.79 at
+  24-27 / 27-30 / 30+ ppg; seasons with a 60-point game 1.4% / 3.3%, 14.5% / 12.9%, 34.2% / 36.4% (they had fallen to 0.9% / 1.8% / 20%).
+  The old hot-night factors were not mean-preserving (regular season -1%, playoffs -1.75%); fixed.
+- Team strength: real 66+ win teams (9 since 2005) all had a top-10 producer; the sim let a rated-but-quiet roster win 66. A 64+ win team
+  without one is pulled back toward 62 (`winCapRank` 10). Teams' best producer in the top 10: 60+ wins 72% (68%), 66+ 91% (100%).
+- Consistent scorers are steadier year to year (`steady` 0.8): ppg swing 3.44 -> 2.60 (real 2.4-3.0).
+- All-NBA vote noise x0.7: picks from outside the top-10 producers, 1st / 2nd / 3rd team 16% / 48% / 73% (real 11% / 45% / 73%).
+- Late-career minutes (checked, not changed): each former 22+ ppg scorer against his own age 26-28 ppg, the sim declines slower than real
+  at 30-33 (0.99 / 0.94 / 0.94 / 0.85 vs 0.90 / 0.81 / 0.78 / 0.78), and stars' minutes at 34-38 are within ~1-1.5 of real. There is no
+  minutes cliff to fix; earlier and steeper minute decay only lowered 36-39, which is already at or below real.
+- Archetype cards (scripts/arch-cards.js, data/real-comps.json from scripts/real-comps.py): 200 autopilot careers per archetype give the
+  typical pick (median peak line, honours, length) matched to the closest real careers of any level and style (953 finished careers since
+  1980), the archetype's best real careers, and how often a pick reaches All-Star / All-NBA / MVP. The median non-generational pick is a
+  rotation player (7-31% make an All-Star team), which the old blurbs (cohort averages of the notable careers) hid; about 4 in 10 gen
+  picks reach MVP level (38% win one).
+- Guardrails: realism 89% (ceiling ~89%; v34 88%), gen MVPs 1.87 per gen over 900 picks (1.86), 4+ 15% (14%); star wins on 6 seeds
+  54.9 / 51.7 / 48.1 / 43.6 (55.1 / 51.5 / 49.2 / 43.8); league on 12 fresh seeds: two 20-ppg teammates 32% (34%), three 20 4.2% (4.3%),
+  top-5 repeat 2.33 (2.42), scoring champion 32.6 (32.5); gen box-score curve unchanged.
