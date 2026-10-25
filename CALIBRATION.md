@@ -425,3 +425,7 @@ Readings now use 400 simulated seasons (4 seeds x 100) for the league and ~1000 
   Star wins refit: #1 / 2-3 / 4-10 / 11-30 producers' teams 54.2 / 52.1 / 47.0 / 43.0 (55.1 / 51.5 / 49.2 / 43.8).
 - Gen box-score dominators: the dominator usage cut is given back to the gen-tagged ones (`genDomUsg` 0.06); ages 30-34 at 25.8 / 25.1 /
   24.7 / 22.0 / 18.4 ppg over 200 careers (real 26.5 / 25.3 / 22.2 / 21.0 / 19.4).
+- Realism (~8,700 careers, N=1000): 88%; every archetype's clone and oddball tests not significant. Scorers 93, two-way 90, defenders 90,
+  shooters 88, gens 84, dominators 84. What holds gens and dominators back is mostly honours against 10-12 finished real careers
+  (dominators' All-NBA 3.2 vs 4.6, Hall-of-Famer heavy; gens' 10.9 vs 12.7) and gens' career length (18.6 seasons vs 17.2: real gens
+  lost whole seasons to retirements and injuries). More injuries or less passing for gens did not help (84 / 83 / 83).
