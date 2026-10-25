@@ -199,11 +199,12 @@
   function progress(p) {
     const next = p.age + 1;
     const wk = 0.88 + 0.24 * p.work;
+    const dv = p.sec === 'generational' ? 0 : ARCHETYPES[p.arch].dev || 0;   // archetype development speed: real box-score dominators peaked at ~26, a year before the others (a gen tag has its own path)
     const shock = randn() * T.shockScale * (next <= 22 ? 1.9 : next <= 26 ? 1.1 : 0.7) * (next > 23 && ovrOf(p) >= 84 ? T.starShock : 1); // stars' ratings move steadily; the prime is not a coin flip
     const before = ovrOf(p);
     ATTRS.forEach((a) => {
       let cur = p.attrs[a];
-      const rate = growthRate(next) * wk * (1 + T.trDev * (p.tr || NOTR).dev);   // early and late bloomers
+      const rate = growthRate(next) * wk * (1 + T.trDev * (p.tr || NOTR).dev + dv);   // early and late bloomers
       if (rate > 0) cur += (p.target[a] - cur) * rate + randn() * (next <= 21 ? 1.6 : 0.9) + shock;
       else cur += shock * 0.35;
       cur -= declineFor(a, next, p) * (0.85 + rand() * 0.3) * Math.exp(T.trAging * (p.tr || NOTR).aging - T.trAging * T.trAging / 2);   // some age at 30, some play at 40
