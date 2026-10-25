@@ -302,7 +302,7 @@
     });
     const s = summarize(all);
     const sl = shootingLine(p, s.pts, clamp(base.ts - 0.014, 0.44, 0.7), base.usg * 1.03);
-    return { line: Object.assign({}, s, { fgp: sl.fgp, tpp: sl.tpp, ftp: sl.ftp, ts: sl.ts }), perSeries, heater: false, legend: false };
+    return { line: Object.assign({}, s, { fgp: sl.fgp, tpp: sl.tpp, ftp: sl.ftp, ts: sl.ts }), perSeries, heater: false, legend: false, form: fp };   // form: this postseason's scoring multiplier vs the regular season, before game-to-game luck
   }
 
   // ---------------------------------------------------------------- match-by-match log (a reveal of the already-simulated season)
@@ -455,7 +455,7 @@
 
     // playoffs
     const po = res.playoffs;
-    let pline = null, perSeries = [], fmvp = false, heater = false, legend = false, resultText = 'Missed the playoffs';
+    let pline = null, perSeries = [], fmvp = false, heater = false, legend = false, pform = null, resultText = 'Missed the playoffs';
     if (po.userMade && avail.gp < 15) {
       resultText = (po.champion.id === st.teamId ? 'NBA Champions 🏆' : 'Team made the playoffs') + ' (you were injured)';
     } else if (po.userMade) {
@@ -466,7 +466,7 @@
       if (!series.length) resultText = 'Lost in the play-in';
       if (series.length) {
         const out = playoffLine(st, user.ctx, series, userLine, 'normal');
-        pline = out.line; perSeries = out.perSeries; heater = out.heater; legend = out.legend;
+        pline = out.line; perSeries = out.perSeries; heater = out.heater; legend = out.legend; pform = out.form;
       }
     } else if (po.userOut === null) resultText = 'Missed the playoffs';
     if (po.champion.id === st.teamId) {
@@ -482,7 +482,7 @@
       gp: l.gp, mins: l.mins, pts: l.pts, reb: l.reb, ast: l.ast, stl: l.stl, blk: l.blk, tov: l.tov,
       fgp: l.fgp, tpp: l.tpp, ftp: l.ftp, ts: l.ts, fga: l.fga, tpa: l.tpa, fta: l.fta, td: l.td, dd: l.dd, g40: l.g40, g50: l.g50, high: l.high, ovr: Math.round(l.ovr), usg: l.usg,
       avgTD: l.avgTD, totPts: l.totPts, totReb: l.totReb, totAst: l.totAst,
-      awards: awardsHere, playoffText: resultText, playoff: pline ? { gp: pline.gp, pts: pline.pts, reb: pline.reb, ast: pline.ast, stl: pline.stl, blk: pline.blk, mins: pline.mins, fgp: pline.fgp, tpp: pline.tpp, ts: pline.ts, td: pline.td, high: pline.high } : null,
+      awards: awardsHere, playoffText: resultText, playoff: pline ? { gp: pline.gp, pts: pline.pts, reb: pline.reb, ast: pline.ast, stl: pline.stl, blk: pline.blk, mins: pline.mins, fgp: pline.fgp, tpp: pline.tpp, ts: pline.ts, td: pline.td, high: pline.high, form: pform } : null,
       perSeries, heater, legend, ranks: res.ranks, events: fx.notes, injury: avail.major ? 'Suffered a ' + avail.major + ' and missed ' + avail.miss + ' games.' : avail.notable ? 'Missed ' + avail.miss + ' games with a ' + avail.notable + '.' : avail.miss >= 12 ? 'Missed ' + avail.miss + ' games with injuries.' : null,
       salary: st.contract.salary, mvp: A.mvp ? A.mvp.name + ' (' + r1(A.mvp.pts) + '/' + r1(A.mvp.reb) + '/' + r1(A.mvp.ast) + ')' : '', champion: po.champion.name, league: res.league,
       rookie: p.rookie, leaders: res.leaders, perfRank: 1 + res.entries.filter((e) => !e.isUser && e.l.gp >= 58 && e.l.perf > userLine.perf).length,

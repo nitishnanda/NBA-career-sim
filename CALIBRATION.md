@@ -471,3 +471,12 @@ Changes and results:
   co-star tax 2.13 -> 1.83 (convexity alone was a weak lever: x0.4 only gave 32.8 and cost second options). On 12 fresh seeds: champion
   32.9 (32.5), 30+ ppg 2.3 (2.0), 27+ 5.9 (5.4), two 20-ppg teammates 33% (34%), two 25 3.9% (4.0%), three 20 4.3% (4.3%), top-5 repeat 2.47
   (2.42), swing 3.12 (3.06); gen MVPs 1.86 per gen over 900 gens (1.86), star wins and the gen curve unchanged. Realism 87%, flags all not significant.
+
+### Playoff-scoring report from play (v34 follow-up)
+A played career (generational + consistent scorer, 18 seasons) had playoff ppg at 0.86x its regular-season ppg on average (7 of 13 runs under 0.9x,
+one 17-game run at 0.58x); the design target is 1.00x (110 real star runs: mean 1.02, sd 0.17). Over 3,000+ simulated playoff runs (gen+scorer, gen,
+scorer, dominator) the mean ratio is 0.996-1.004 (sd 0.19, ~30% of runs under 0.9x), also with mid-season game-plan replays (481 runs, 0.99), so no
+cause was found; the chance of such a career if the game works as designed is ~1 in 200. The game plan itself costs only -6.0% points (+7.7% rebounds,
++15.9% assists for "playmake"). To make the next case diagnosable: each playoff run now records its postseason form multiplier (`playoff.form`), the
+playoff table shows FORM and VS RS (playoff ppg / regular-season ppg), the recap card prints them, and the career page has an Export save button
+(downloads the whole career plus the tip-off snapshot as JSON). Old saves have no FORM values (shown as a dash); VS RS works for them.
