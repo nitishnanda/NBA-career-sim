@@ -104,9 +104,11 @@ SCORE.forEach((arch) => {
   if (sim.length < 8) { lines.push(`\n${arch}: only ${sim.length} sim careers classified as ${arch}; not enough to score`); return; }
   const rows = []; let sc = 0, n = 0;
   FEATS.forEach(([k, label]) => {
-    const base = COMPLETE.has(k) ? real.filter(done) : real;
-    // debut age is era-adjusted like the stats: notable players debuted at 22.1 in the 1980s and 20.6 since the 2006 age-19 rule the sim drafts under
-    const r = base.map((x) => (k === 'debutAge' ? x[k] + DEBUT_SHIFT(x.debut) : x[k])).filter((v) => v != null && Number.isFinite(v));
+    let base = COMPLETE.has(k) ? real.filter(done) : real, shift = () => 0;
+    // debut age depends on the draft rules the sim uses (age 19, since 2006): compare with careers that started under them when there are 8+,
+    // otherwise era-adjust (notable players debuted at 22.1 in the 1980s, 20.6 since 2006)
+    if (k === 'debutAge') { const mod = real.filter((x) => x.debut >= 2006); if (mod.length >= 8) base = mod; else shift = (x) => DEBUT_SHIFT(x.debut); }
+    const r = base.map((x) => x[k] + (k === 'debutAge' ? shift(x) : 0)).filter((v) => v != null && Number.isFinite(v));
     const s = sim.map((x) => x[k]).filter((v) => v != null && Number.isFinite(v));
     if (r.length < 8 || s.length < 8) return;
     const d = ks(s, r), d0 = nullD(r, s.length), score = Math.max(0, Math.min(1, (1 - d) / (1 - d0)));
