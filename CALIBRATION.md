@@ -398,3 +398,30 @@ Readings now use 400 simulated seasons (4 seeds x 100) for the league and ~1000 
 - Gen box-score dominators at 30-34: 26.1 / 24.5 / 22.6 / 21.0 / 16.1 ppg (real 26.5 / 25.3 / 22.2 / 21.0 / 19.4).
 - Gens: ~2.1 MVPs per gen (real 1.86; box-score gens 2.18); the 6+ tail is 3-8% depending on seeds (~100 gens per check).
 - Realism (~7,700 careers): 87%; sweet spot 90% (real 90%), copies 1%. Two-way 92, scorers 89, shooters 89, defenders 87, gens 83, dominators 81.
+
+## v33: archetype redesign, team impact, league refit 12
+
+- Archetype blurbs and comps rewritten from the real cohorts the tests compare against (data/real-careers.json): gens are the box-score
+  superstars (LeBron, Jordan, Jokic, Shaq, Giannis), scorers Dirk / Wade / Iverson / Pierce / Embiid, two-way Jrue / Iguodala / Marc Gasol,
+  defenders Mutombo / Ben Wallace / Camby / Noah, shooters Lillard / Ray Allen / Klay / Billups, dominators Westbrook / Garnett / Pippen / Hill / Kidd.
+  The old comps named players who land in other cohorts (Kobe, Durant, Malone, Jordan, Curry, Magic, Luka, Jokic) and promised numbers
+  the cohort does not reach ("25-28 a night, All-NBA every year, 30k points" for scorers: the real cohort is ~23 ppg, 2 All-NBA, 17k).
+- Team wins near the peak (new realism row, `nearWins` in real-blueprints.py): real teams win in line with their stars' production
+  whatever the archetype (scorers' teams 43, dominators' 47, gens' 54; defenders' 44.7 on ~12 ppg). The sim matched scorers and gens but
+  dominators' teams won 42: at the same production a dominator was rated ~6 lower than a scorer (scripts/ovr-equalize.js), and team
+  strength is built from ratings. Archetypes now carry a team `impact` term (dominator 10, defender 7). Real voters show no taste for
+  all-round seasons beyond production, wins and scoring (All-NBA model predicts 132 picks of 5-ast/6-reb seasons, real 133), so the
+  voting models are unchanged.
+- Dominator: rim protection up (blocks 0.4 -> 0.6, real 0.63; All-Defense 1.0 -> 1.7), less glass (8.6 -> 8.3 rpg) and usage,
+  faster development (`dev` 0.6: best season at 26.8, was 27.3; real 25.9).
+- Defender: a style trait splits shot-blockers (Mutombo, Eaton, Bol) from glass cleaners (Rodman, Oakley) (`defRim` / `defGlass`),
+  rebounding boost 24 -> 4 and its rating weight 0.16 -> 0.11 (10.2 -> 8.5 rpg, real 8.4), wider usage/efficiency spread
+  (`spread` 1.5: TS sd 3.1 -> 4.1, real 4.2), more TS and usage, slower decline. The fewer-oddballs flag is gone (p 0.03 -> 0.39).
+- Stars still producing (84+) rarely walk away before 35: 18% of gens retired at 32-34 at 88-94 ovr on the stay trait alone; no real gen did.
+- Looser gen ceiling (`genCeilDrop` -1, range 8, pow 1.6) after the user-only star pull was removed: ~1.75-1.8 MVPs per gen (real 1.86),
+  4+ MVPs 13-15% (14%).
+- League refit 12 on 6 seeds (4 overfit: a few superstar careers per seed dominate the bands), checked on 12 fresh seeds: scoring champion
+  32.4 (32.5), top-5 repeat 2.49 (2.42), next-year ppg sd 3.08 (3.06), two 20-ppg teammates 31% (34%), three 3.8% (4.3%), 2+ bpg 3.9 (4.3).
+  Star wins refit: #1 / 2-3 / 4-10 / 11-30 producers' teams 54.2 / 52.1 / 47.0 / 43.0 (55.1 / 51.5 / 49.2 / 43.8).
+- Gen box-score dominators: the dominator usage cut is given back to the gen-tagged ones (`genDomUsg` 0.06); ages 30-34 at 25.8 / 25.1 /
+  24.7 / 22.0 / 18.4 ppg over 200 careers (real 26.5 / 25.3 / 22.2 / 21.0 / 19.4).
