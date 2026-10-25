@@ -242,7 +242,9 @@
       const roster = teamRoster(L, t, user);
       const vals = roster.map((p) => {
         const gp = p === (user && user.p) ? user.avail.gp : avail[p.id].gp;
-        const x = ovr(p) - 60;
+        // team impact the rating misses: near their peaks, real box-score dominators' teams won 47 (scorers' 43, gens' 54) while the ratings under-credit
+        // all-round production (scripts/ovr-equalize.js), so archetypes carry a fitted impact term (realism test: 'team wins near peak')
+        const x = ovr(p) - 60 + (D.ARCHETYPES[p.arch].impact || 0);
         // young players have a smaller impact on winning than their rating suggests
         const expF = 0.85 + 0.05 * Math.min(3, p.yearsPro || 0);
         return (x <= 20 ? x : 20 + (x - 20) * T.starWinK) * (gp / 82) * expF;
