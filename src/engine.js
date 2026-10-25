@@ -46,7 +46,7 @@
     declineScale: 1.5,
     ceilA: 55, ceilLambda: 11.5, ceilK: 1.3,
     winsPerPt: 0.738, ageUsgK: 0, formSd: 0.067107, winsCoreAvg: 48, ovrStretch: 1.3,
-    growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.65, coTaxK: 0.0022757, starWinK: 1.275, badTeamUsg: 0, awardMinGp: 65, badTeamMins: 0, coTaxDown: 0.70498, coTaxStack: 0.2, coTaxMax: 0.030443, capPts: 163.54, qualifyOvr: 82, restStar: 7, restOld: 14, minorRate: 1.8, injMu: 2, injSd: 0.9556, injMax: 52, retireScale: 1.2,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
+    growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.65, coTaxK: 0.0022757, blkKnee: 1.25, blkK: 0.5, usgMin: 0.10, starPull: 1, starWinK: 1.275, badTeamUsg: 0, awardMinGp: 65, badTeamMins: 0, coTaxDown: 0.70498, coTaxStack: 0.2, coTaxMax: 0.030443, capPts: 163.54, qualifyOvr: 82, restStar: 7, restOld: 14, minorRate: 1.8, injMu: 2, injSd: 0.9556, injMax: 52, retireScale: 1.2,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
     astKnee: 7.4821, astK: 0.59444, rebKnee: 7.4057, rebK: 0.84565,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
     volSpread: 0.0, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0, genSecGap: 11, gdReb: 1.0, gdAst: 1.06, gdTs: 0.01674, gdMins: 1.959, domStyleUsg: 0.08, domStyleAst: 0.12, genStyleUsg: 0.07, genStyleAst: 0.15, trMins: 1.2, gdDecline: 1.085, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 1.9, majorRate: 0.025, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, tailShare: 0.25, tailMult: 3.2, starRetire: 1.15, userWinShrink: 0.2, userTaxCut: 0, trainCap: 3, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, effLowUsg: 0.4, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: -0.5, genCeilRange: 6, genCeilPow: 1.3,
     starTs: 0.042633, starReb: 0.0, starAst: 0.17773,   // extra production for the very best (fitted to the real top of the league)
@@ -261,7 +261,7 @@
     // generational talents are not one template: some are volume scorers (Jordan, Kobe), some run the offence with fewer shots (Nash, Kidd, Magic)
     if (p.arch === 'generational') usg *= 1 + T.genStyleUsg * ((p.tr || NOTR).style || 0);
     if (p.arch === 'dominator') usg *= 1 + T.domStyleUsg * ((p.tr || NOTR).style || 0);   // box-score dominators too: Westbrook / McGrady score, Rondo / Draymond run the floor
-    usg = clamp(usg * (c.usgMult || 1) * (1 - T.ageUsgK * (1 - (AGE_USG[Math.min(Math.max(p.age, 28), 38)] || 1))), 0.12, 0.354 + 0.016 * ks0(o));
+    usg = clamp(usg * (c.usgMult || 1) * (1 - T.ageUsgK * (1 - (AGE_USG[Math.min(Math.max(p.age, 28), 38)] || 1))), T.usgMin, 0.354 + 0.016 * ks0(o));
     let mins = clamp(T.minsBase + T.minsPerOvr * (o - 58), 8, T.minsCap);
     mins += (A.mins || 0) + (S ? 0.4 * (S.mins || 0) : 0);
     mins += T.trMins * ((p.tr || NOTR).mins || 0);   // coaches trust some players with more minutes than their rating suggests (real stars' peak minutes vary +-1.3 mpg)   // archetype minutes: rim protectors sit more (fouls, matchups), the real defensive cohort plays ~30 mpg at its peak
@@ -299,7 +299,7 @@
     const ast36 = soft(Math.max(1.0, 0.125 * (pm - 30) + 10 * (usg - 0.2)), T.astKnee, T.astK);
     const defx = 0.65 * a.perD + 0.35 * a.ath;
     const stl36 = Math.max(0.62, 0.031 * (defx - 33) + 0.08);
-    const blk36 = soft(Math.max(0.15, 0.043 * (a.rimP - 28)), 1.25, 0.5);
+    const blk36 = soft(Math.max(0.15, 0.043 * (a.rimP - 28)), T.blkKnee, T.blkK);   // the very best shot blockers (Eaton, Bol, Mutombo, Wembanyama) reach 3+ a game
     const tov36 = 0.55 + 8.2 * usg;
     const k = mins / 36;
     // a 30+ ppg usage load costs you the ball-handling and glass work: real 33+ ppg seasons come with ~6 ast / ~6 reb

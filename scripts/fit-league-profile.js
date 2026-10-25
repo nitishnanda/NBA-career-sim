@@ -2,19 +2,19 @@
 //  - production by league rank and the per-season tails (data/real-rank-profile.json, 2016-25, 58+ games)
 //  - team hierarchy: each team's 1st-4th scorer / rebounder / passer, how often two teammates both score 20 (real-rank-profile.json _team)
 //  - top-scorer turnover: top-5 scorers who repeat, how much a top-10 scorer's ppg moves the next year (data/real-scoring-turnover.json, 1985-2025)
-// Usage: node scripts/fit-league-profile.js [iterations]   SEASONS=50 per seed (2 seeds); START='{"usgBase":0.17,...}' to resume; RSEED=7 restart seed; REPORT=1 prints the fit only
+// Usage: node scripts/fit-league-profile.js [iterations]   SEASONS=30 per seed (4 seeds; two seeds overfit team makeup); START='{"usgBase":0.17,...}' to resume; RSEED=7 restart seed; REPORT=1 prints the fit only
 require('../src/data.js'); require('../src/engine.js'); require('../src/league.js'); require('../src/game.js');
-const real = require('../data/real-rank-profile.json'), turn = require('../data/real-scoring-turnover.json'); const T = NBA.tuning; const ITER = +process.argv[2] || 60; const SEASONS = +process.env.SEASONS || 50;
+const real = require('../data/real-rank-profile.json'), turn = require('../data/real-scoring-turnover.json'); const T = NBA.tuning; const ITER = +process.argv[2] || 60; const SEASONS = +process.env.SEASONS || 30;
 if (process.env.START) Object.assign(T, JSON.parse(process.env.START));
 const KNOBS = { usgBase: [0.15, 0.23], usgPerSS: [0.003, 0.008], usgConvex: [0.00002, 0.0004], tsBase: [0.33, 0.44], tsPerSkill: [0.0015, 0.0045], usgTax: [0.1, 0.4], minsBase: [8, 16], minsPerOvr: [0.6, 1.3], minsCap: [34, 38.5], starTs: [0, 0.05], starReb: [0, 0.3], starAst: [0, 0.6], volSpread: [0, 2], astKnee: [7, 11], astK: [0.4, 0.95], rebKnee: [7, 11], rebK: [0.4, 0.95],
-  coTaxK: [0, 0.004], coTaxDown: [0, 1], coTaxMax: [0.01, 0.06], coTaxStack: [0, 2], capPts: [118, 170], formSd: [0.025, 0.08] };
+  coTaxK: [0, 0.004], coTaxDown: [0, 1], coTaxMax: [0.01, 0.06], coTaxStack: [0, 2], capPts: [118, 170], formSd: [0.025, 0.08], blkKnee: [1, 2.6], blkK: [0.3, 1] };
 const W = { mpg: 1 / 1.0, usg: 1 / 4,   // usage barely counts: the sim's points-per-used-possession constant differs from Basketball-Reference's usage formula, and usage is never shown
   ts: 1 / 0.8, pts: 1 / 1.0, reb: 1 / 0.6, ast: 1 / 0.5, perf: 1 / 1.5 };
 const TAILS = { pts30: ['pts', 30], pts27: ['pts', 27], pts25: ['pts', 25], pts20: ['pts', 20], pts15: ['pts', 15], ast10: ['ast', 10], ast8: ['ast', 8], ast6: ['ast', 6], reb12: ['reb', 12], reb10: ['reb', 10], reb8: ['reb', 8], stl2: ['stl', 2], blk2: ['blk', 2] };
 const bands = Object.keys(real).filter((k) => k[0] !== '_'), TEAM = real._team;
 function evaluate() {
   const acc = {}, tl = {}, tm = { pts: [0, 0, 0, 0], reb: [0, 0, 0, 0], ast: [0, 0, 0, 0], two20: 0, two25: 0, three20: 0, n: 0 }, rep = [], dd = []; let top = 0, ns = 0;
-  [4242, 4243].forEach((sd) => {
+  (process.env.SEEDS ? JSON.parse(process.env.SEEDS) : [4242, 4243, 4244, 4245]).forEach((sd) => {
     NBA.setSeed(sd); const L = NBA.newLeague(2027, { real: true }); let prev = null;
     for (let y = 0; y < SEASONS; y++) {
       const r = NBA.simSeason(L, null); const q = r.entries.filter((x) => x.l.gp >= 58); const e = q.slice().sort((a, b) => b.l.perf - a.l.perf); ns++;

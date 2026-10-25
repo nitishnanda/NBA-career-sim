@@ -16,7 +16,6 @@
   // the plan is a list of [slot, style] switches; slot = games into the schedule (0-81 regular season, 82+ playoffs)
   const styleAt = (seq, slot) => { let cur = 'balanced'; for (const [at, sty] of seq) { if (at <= slot) cur = sty; } return cur; };
   const styleShare = (seq, total) => { const out = {}; for (let i = 0; i < seq.length; i++) { const from = seq[i][0], to = i + 1 < seq.length ? Math.min(total, seq[i + 1][0]) : total; if (to > from) out[seq[i][1]] = (out[seq[i][1]] || 0) + (to - from) / total; } return out; };
-  let STAR_PULL = (typeof process !== "undefined" && process.env && process.env.STAR_PULL) ? +process.env.STAR_PULL : 1.0;
   // Salary cap by season start year, $M: real history and the official projection through 2034-35
   // (gabriel1200/site_data cap.csv); after that we keep growing 5% a year, the projected pace.
   const CAP_M = { 2005: 49.5, 2010: 58.0, 2015: 70.0, 2016: 94.1, 2017: 99.1, 2018: 101.9, 2019: 109.1, 2020: 109.1, 2021: 112.4, 2022: 123.7, 2023: 136.0, 2024: 140.6, 2025: 154.6, 2026: 165.0, 2027: 174.0, 2028: 182.7, 2029: 191.8, 2030: 201.4, 2031: 211.5, 2032: 222.1, 2033: 233.2, 2034: 244.8 };
@@ -429,7 +428,6 @@
     if (avail.major) applyMajorInjury(p);
     p.rookie = p.yearsPro === 0;
     L.teams[st.teamId].depth += fx.depth;
-    L.teams[st.teamId].depth += clamp((ovr(p) - 84) * STAR_PULL, 0, 6); // superstars pull talent: front offices build around them (depth fades 40%/yr, so ~2.5x in steady state)
     let userLine = null;
     const user = {
       p, teamId: st.teamId, avail,

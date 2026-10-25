@@ -5,7 +5,7 @@
 require('../src/data.js'); require('../src/engine.js'); require('../src/league.js');
 const T = NBA.tuning; if (process.env.START) Object.assign(T, JSON.parse(process.env.START));
 const REAL = [55.1, 51.5, 49.2, 43.8], B = [[1, 1], [2, 3], [4, 10], [11, 30]];
-const KNOBS = { starWinK: [0.6, 2.5], winsPerPt: [0.5, 1.1], badTeamUsg: [0, 0.006], badTeamMins: [0, 0.3] };
+const KNOBS = { starWinK: [0.6, 2.5], winsPerPt: [0.5, 1.1], starPull: [0, 2] };
 function evaluate() {
   const acc = B.map(() => []), W = [];
   [81, 82].forEach((sd) => { NBA.setSeed(sd); const L = NBA.newLeague(2027, { real: true }); for (let y = 0; y < 45; y++) { const r = NBA.simSeason(L, null); if (y >= 5) { L.teams.forEach((t) => W.push(t.wins)); const q = r.entries.filter((e) => e.l.gp >= 58).sort((a, b) => b.l.perf - a.l.perf); B.forEach(([lo, hi], i) => q.slice(lo - 1, hi).forEach((e) => acc[i].push(e.l.wins))); } NBA.offseason(L, { draft: true }); } });

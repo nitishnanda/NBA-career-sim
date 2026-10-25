@@ -252,7 +252,9 @@
     });
     const meanS = sum(L.teams.map((t) => t.S)) / L.teams.length;
     L.teams.forEach((t) => {
-      t.depth = 0.6 * t.depth + randn() * 3.0;
+      // superstars pull talent (front offices build around them) on every team, not only the user's: depth fades 40% a year
+      const best = Math.max(0, ...teamRoster(L, t, user).filter(Boolean).map(ovr));
+      t.depth = 0.6 * t.depth + randn() * 3.0 + clamp((best - 84) * T.starPull, 0, 6);
       t.wins = 41 + T.winsPerPt * (t.S - meanS) + t.depth + randn() * 4.6;
     });
     // roster continuity: a team does not flip from the lottery to the top seed in one summer
