@@ -40,16 +40,16 @@
   // ---------------------------------------------------------------- tuning knobs
   const T = {
     pace: 99,            // possessions per game, 2025-ish
-    usgBase: 0.16396, usgPerSS: 0.0059122, usgConvex: 0.00006921,
-    tsBase: 0.34142, tsPerSkill: 0.0027026, tsEra: 0.012, usgTax: 0.11735,
-    minsBase: 15.006, minsPerOvr: 1.063, minsCap: 34.262,
+    usgBase: 0.16327, usgPerSS: 0.0059122, usgConvex: 0.00006921,
+    tsBase: 0.34142, tsPerSkill: 0.0027026, tsEra: 0.012, usgTax: 0.11854,
+    minsBase: 16, minsPerOvr: 1.1678, minsCap: 34.28,
     declineScale: 1.5,
     ceilA: 55, ceilLambda: 11.5, ceilK: 1.3,
-    winsPerPt: 0.7162, ageUsgK: 0, formSd: 0.065305, winsCoreAvg: 48, ovrStretch: 1.3,
-    growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.65, coTaxK: 0.0026359, blkKnee: 1.0966, blkK: 0.62469, usgMin: 0.10, starPull: 0.6575, starWinK: 0.6174, badTeamUsg: 0, awardMinGp: 65, badTeamMins: 0, coTaxDown: 0.33192, coTaxStack: 1.1606, coTaxMax: 0.022052, capPts: 167.44, qualifyOvr: 82, restStar: 8, restOld: 16, minorRate: 2.12, injMu: 2.258, injSd: 0.9732, injMax: 41, retireScale: 1.2,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
-    astKnee: 7, astK: 0.50098, rebKnee: 8.2378, rebK: 0.82259,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
-    volSpread: 0, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.07, genSecGap: 11, gdReb: 1.0, gdAst: 1.06, gdTs: 0.01718, gdMins: 2.2, domStyleUsg: 0.08, domStyleAst: 0.12, genStyleUsg: 0.07, genStyleAst: 0.15, trMins: 1.2, gdDecline: 1.15, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 1.9, majorRate: 0.02919, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, tailShare: 0.25, tailMult: 3.2, starRetire: 1.15, userWinShrink: 0.2, userTaxCut: 0, trainCap: 3, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, effLowUsg: 0.4, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: -1, genCeilRange: 8, genCeilPow: 1.6, defRim: 30, defGlass: 18, gravTs: 0.018, gravMid: 86, gdLate: 0.25,
-    starTs: 0.04189, starReb: 0, starAst: 0.40088,   // extra production for the very best (fitted to the real top of the league)
+    winsPerPt: 0.7162, ageUsgK: 0, formSd: 0.06207, winsCoreAvg: 48, ovrStretch: 1.3,
+    growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.65, coTaxK: 0.0025902, blkKnee: 1.2308, blkK: 0.60204, usgMin: 0.10, starPull: 0.6575, starWinK: 0.6174, badTeamUsg: 0, awardMinGp: 65, badTeamMins: 0, coTaxDown: 0.71814, coTaxStack: 1.6, coTaxMax: 0.017298, capPts: 167.21, qualifyOvr: 82, restStar: 8, restOld: 16, minorRate: 2.12, injMu: 2.258, injSd: 0.9732, injMax: 41, retireScale: 1.2,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
+    astKnee: 7, astK: 0.44791, rebKnee: 8.54, rebK: 0.87093,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
+    volSpread: 0.283, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.07, genSecGap: 11, gdReb: 1.0, gdAst: 1.06, gdTs: 0.01718, gdMins: 2.2, domStyleUsg: 0.08, domStyleAst: 0.12, genStyleUsg: 0.07, genStyleAst: 0.15, trMins: 1.2, gdDecline: 1.15, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 1.9, majorRate: 0.02919, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, tailShare: 0.25, tailMult: 3.2, starRetire: 1.15, userWinShrink: 0.2, userTaxCut: 0, trainCap: 3, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, effLowUsg: 0.4, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: -1, genCeilRange: 8, genCeilPow: 1.6, defRim: 30, defGlass: 18, gravTs: 0.0096778, gravMid: 86.51, gdLate: 0.25,
+    starTs: 0.05, starReb: 0, starAst: 0.40475,   // extra production for the very best (fitted to the real top of the league)
   };
   NBA.tuning = T;
   const NOTR = { pass: 0, glass: 0, eff: 0, dev: 0, aging: 0, stay: 0, style: 0, mins: 0 };   // players from saves made before the traits existed
