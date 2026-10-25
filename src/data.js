@@ -132,6 +132,16 @@
   // brand-style colours for the generated team crests: [primary, secondary]
   const TEAM_COLORS = { Hawks: ['#e03a3e', '#c1d32f'], Celtics: ['#007a33', '#ba9653'], Nets: ['#111111', '#ffffff'], Hornets: ['#1d1160', '#00788c'], Bulls: ['#ce1141', '#111111'], Cavaliers: ['#860038', '#fdbb30'], Mavericks: ['#00538c', '#b8c4ca'], Nuggets: ['#0e2240', '#fec524'], Pistons: ['#c8102e', '#1d42ba'], Warriors: ['#1d428a', '#ffc72c'], Rockets: ['#ce1141', '#c4ced4'], Pacers: ['#002d62', '#fdbb30'], Clippers: ['#c8102e', '#1d428a'], Lakers: ['#552583', '#fdb927'], Grizzlies: ['#5d76a9', '#12173f'], Heat: ['#98002e', '#f9a01b'], Bucks: ['#00471b', '#eee1c6'], Timberwolves: ['#0c2340', '#78be20'], Pelicans: ['#0c2340', '#c8102e'], Knicks: ['#006bb6', '#f58426'], Thunder: ['#007ac1', '#ef3b24'], Magic: ['#0077c0', '#c4ced4'], '76ers': ['#006bb6', '#ed174c'], Suns: ['#1d1160', '#e56020'], 'Trail Blazers': ['#e03a3e', '#111111'], Kings: ['#5a2d81', '#63727a'], Spurs: ['#1a1a1a', '#c4ced4'], Raptors: ['#ce1141', '#111111'], Jazz: ['#002b5c', '#f9a01b'], Wizards: ['#002b5c', '#e31837'] };
   const ABBR = { Hawks: 'ATL', Celtics: 'BOS', Nets: 'BKN', Hornets: 'CHA', Bulls: 'CHI', Cavaliers: 'CLE', Mavericks: 'DAL', Nuggets: 'DEN', Pistons: 'DET', Warriors: 'GSW', Rockets: 'HOU', Pacers: 'IND', Clippers: 'LAC', Lakers: 'LAL', Grizzlies: 'MEM', Heat: 'MIA', Bucks: 'MIL', Timberwolves: 'MIN', Pelicans: 'NOP', Knicks: 'NYK', Thunder: 'OKC', Magic: 'ORL', '76ers': 'PHI', Suns: 'PHX', 'Trail Blazers': 'POR', Blazers: 'POR', Kings: 'SAC', Spurs: 'SAS', Raptors: 'TOR', Jazz: 'UTA', Wizards: 'WAS' };
-  NBA.data = { TEAM_COLORS, ABBR, ARENAS, ATTRS, ATTR_LABELS, POSITIONS, ARCHETYPES, TEAMS, REGIONS, STATE_ABBR, COLLEGES, FIRST, LAST };
+  // Heights and weights by position (scripts/real-sizes.py: NBA players since 2005, 40+ games at 18+ mpg, n 210-252 a position): mean height in inches,
+  // sd, 2nd-98th percentile; mean weight in lb and the sd of weight at a given height (it rises ~2.5 lb an inch within a position)
+  const SIZE = {
+    PG: { ht: 74.4, sd: 2.19, lo: 70, hi: 79, wt: 191, rsd: 11.5 },
+    SG: { ht: 76.9, sd: 1.51, lo: 73, hi: 80, wt: 204, rsd: 12.6 },
+    SF: { ht: 79.0, sd: 1.42, lo: 77, hi: 82, wt: 217, rsd: 13.3 },
+    PF: { ht: 80.8, sd: 1.62, lo: 78, hi: 84, wt: 234, rsd: 15.0 },
+    C: { ht: 82.8, sd: 1.69, lo: 79, hi: 86, wt: 249, rsd: 19.2 },
+  };
+
+  NBA.data = { SIZE, TEAM_COLORS, ABBR, ARENAS, ATTRS, ATTR_LABELS, POSITIONS, ARCHETYPES, TEAMS, REGIONS, STATE_ABBR, COLLEGES, FIRST, LAST };
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

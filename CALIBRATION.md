@@ -547,3 +547,21 @@ nothing else in the season moves and a mid-season game-plan replay draws the sam
   marks drawn, desktop and phone.
 - Phone layout: once the playoffs added a sixth tab, the tab row's width stretched the whole dashboard past the screen and the page clipped
   the right edge (stat chips, buttons, the court). The dashboard column is now `minmax(0, 1fr)`, so the tab row scrolls inside it.
+
+## v37: height and weight
+
+Every player has a height and weight (`p.ht` inches, `p.wt` lb, in saves and the roster tables). They follow the position (`D.SIZE`, measured on NBA players
+since 2005 with 40+ games at 18+ mpg, n 210-252 a position, scripts/real-sizes.py): PG 6'2" / 191 lb, SG 6'5" / 204, SF 6'7" / 217, PF 6'9" / 234, C 6'11" / 249,
+with the real spread (sd 1.4-2.2 inches) and weight rising ~2.5 lb an inch within a position. The real-roster players carry their real size
+(120 of 121 from the Basketball-Reference file, `src/sizes.js`; Egor Demin by hand); the draft classes and the player you build roll theirs from the position.
+- Creating a player: sliders for height (the position's 2nd-98th percentile: PG 5'10"-6'7", C 6'7"-7'2") and weight (+-2 sd for his height), with how
+  tall/short he is for his position and what it does to his ratings in words. Old saves get a size when continued (display only, ratings untouched).
+- Light effect on the sim: how far height sits from the position's mean (in sds) and how heavy he is for his height shift the ratings his archetype
+  target starts from: per +1 sd of height rebounding +2, rim protection +7, inside +1.5, quickness -2.5, handling -2.5, passing -1, threes -1.5,
+  perimeter defence -1; per +1 sd of weight inside +3, rebounding +2, rim protection +1, quickness -0.5. `fitOvr` then rescales the player to his
+  ceiling, so size reshapes ratings and never raises them (overall rating +0.26 per sd of height, -0.05 per sd of weight). The real-roster players
+  keep their real ratings (`sizeFx` false): their ratings already come from their real production. `sizeFx` (1) scales it, 0 turns it off.
+- Calibrated against real within-position slopes (sim / real, per +1 sd of height, per-36 stats of generated players vs 2005+ real regulars):
+  rebounds +0.34 / +0.39, blocks +0.088 / +0.106, steals -0.052 / -0.046, assists -0.17 / -0.11; per +1 sd of weight rebounds +0.25 / +0.28, blocks 0 / 0.
+  Real taller players also score a bit more per 36 (+0.34 a sd) and heavier ones more (+0.46); the sim does not copy that (+0.07 / -0.06): it is
+  confounded with role and efficiency, and the effect is meant to stay light.

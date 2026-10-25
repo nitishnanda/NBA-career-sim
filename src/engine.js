@@ -48,7 +48,7 @@
     winsPerPt: 0.7162, ageUsgK: 0, formSd: 0.068277, winsCoreAvg: 48, ovrStretch: 1.3,
     growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.65, coTaxK: 0.0026594, blkKnee: 1.2308, blkK: 0.60045, usgMin: 0.10, starPull: 0.6575, starWinK: 0.6174, badTeamUsg: 0, awardMinGp: 65, badTeamMins: 0, coTaxDown: 0.74564, coTaxStack: 1.8279, coTaxMax: 0.017298, capPts: 167.19, qualifyOvr: 82, restStar: 7, restOld: 12, minorRate: 2.114, injMu: 2, injSd: 0.9556, injMax: 36, retireScale: 1.2,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
     astKnee: 7, astK: 0.49311, rebKnee: 8.6781, rebK: 0.87093,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
-    volSpread: 0.283, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.07, genSecGap: 11, gdReb: 1.0, gdAst: 1.06, gdTs: 0.01718, gdMins: 2.2, domStyleUsg: 0.08, domStyleAst: 0.12, genStyleUsg: 0.07, genStyleAst: 0.15, trMins: 1.2, gdDecline: 1.15, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 1.9, majorRate: 0.02886, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, tailShare: 0.25, tailMult: 3.2, starRetire: 1.15, userWinShrink: 0.2, userTaxCut: 0, trainCap: 3, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, effLowUsg: 0.4, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: -2, genCeilRange: 8, genCeilPow: 1.6, defRim: 30, defGlass: 18, gameSd: 1.3, gameSkew: 0.17, lateBloom: 0.08, benchRole: 0.4, winCapRank: 10, gravTs: 0.013412, gravMid: 86.422, gdLate: 0.25,
+    volSpread: 0.283, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.07, genSecGap: 11, gdReb: 1.0, gdAst: 1.06, gdTs: 0.01718, gdMins: 2.2, domStyleUsg: 0.08, domStyleAst: 0.12, genStyleUsg: 0.07, genStyleAst: 0.15, trMins: 1.2, gdDecline: 1.15, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 1.9, majorRate: 0.02886, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, tailShare: 0.25, tailMult: 3.2, starRetire: 1.15, userWinShrink: 0.2, userTaxCut: 0, trainCap: 3, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, effLowUsg: 0.4, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: -2, genCeilRange: 8, genCeilPow: 1.6, defRim: 30, defGlass: 18, gameSd: 1.3, gameSkew: 0.17, lateBloom: 0.08, benchRole: 0.4, winCapRank: 10, sizeFx: 1, gravTs: 0.013412, gravMid: 86.422, gdLate: 0.25,
     starTs: 0.05, starReb: 0, starAst: 0.45786,   // extra production for the very best (fitted to the real top of the league)
   };
   NBA.tuning = T;
@@ -96,6 +96,28 @@
   }
 
   const DEF_POS = { C: 1, PF: 0.85, SF: 0.45, SG: 0.25, PG: 0.2 };
+  // ---------------------------------------------------------------- height and weight
+  // Size follows the position (D.SIZE, real NBA players); the player's height and weight are his own, and how far they sit from the position's norm
+  // (in standard deviations: taller than most centers, heavier than a guard of his height) nudges his ratings a little. The nudge only reshapes
+  // them: fitOvr below rescales every player to his ceiling, so size never makes anyone better, only different. Size by position is a real,
+  // small effect (within a position, +1 sd of height goes with +0.14 sd of rebound rate and +0.16 sd of block rate, slightly fewer steals,
+  // assists and threes); the real-roster players keep their real ratings (sizeFx false) and just carry their real size.
+  const SZ_SLOPE = 2.5;   // lb per inch within a position
+  const SZ_H = { reb: 2, rimP: 7, inside: 1.5, ath: -2.5, handling: -2.5, passing: -1, three: -1.5, perD: -1 };   // rating points per sd of height above the position's mean
+  const SZ_W = { inside: 3, reb: 2, rimP: 1, ath: -0.5 };                                 // ... per sd of weight above what his height predicts
+  const wtAt = (pos, ht) => Math.round(D.SIZE[pos].wt + SZ_SLOPE * (ht - D.SIZE[pos].ht));
+  function rollSize(p, o) {
+    const s = D.SIZE[p.pos] || D.SIZE.SF;
+    p.ht = o.ht != null ? o.ht : clamp(Math.round(s.ht + s.sd * randn()), s.lo, s.hi);
+    p.wt = o.wt != null ? o.wt : Math.round(clamp(wtAt(p.pos, p.ht) + s.rsd * randn(), wtAt(p.pos, p.ht) - 2.2 * s.rsd, wtAt(p.pos, p.ht) + 2.2 * s.rsd));
+    if (o.sizeFx === false) p.sizeFx = false;
+  }
+  function sizeZ(p) {
+    const s = D.SIZE[p.pos] || D.SIZE.SF; if (p.ht == null) return { h: 0, w: 0 };
+    return { h: clamp((p.ht - s.ht) / s.sd, -2.5, 2.5), w: clamp((p.wt - wtAt(p.pos, p.ht)) / s.rsd, -2.5, 2.5) };
+  }
+  const fmtHt = (ht) => Math.floor(ht / 12) + "'" + (ht % 12) + '"';
+
   function buildTarget(p, ceiling) {
     const P = POSITIONS[p.pos], A = ARCHETYPES[p.arch], S = p.sec ? ARCHETYPES[p.sec] : null;
     const tilt = p.home ? D.REGIONS[regionOf(p.home)].tilt : {};
@@ -105,6 +127,7 @@
       const pb = p.arch === 'defender' && (a === 'reb' || a === 'rimP') ? DEF_POS[p.pos] : 1;
       t[a] = clamp(50 + P[a] + A.boost[a] * pb + (S ? 0.4 * S.boost[a] : 0) + (tilt[a] || 0) + randn() * 4.5, 12, 99);
     });
+    if (p.sizeFx !== false && T.sizeFx && p.ht != null) { const z = sizeZ(p); ATTRS.forEach((x) => { t[x] = clamp(t[x] + T.sizeFx * ((SZ_H[x] || 0) * z.h + (SZ_W[x] || 0) * z.w), 12, 99); }); }
     // defensive anchors come in two kinds: the shot-blocker (Mutombo, Eaton, Bol) and the glass cleaner (Rodman, Oakley): real blocks 1.3 +- 0.8, boards 8.4 +- 3.0
     if (p.arch === 'defender') { const s = (p.tr || NOTR).style || 0; t.rimP = clamp(t.rimP + T.defRim * s, 12, 99); t.reb = clamp(t.reb - T.defGlass * s, 12, 99); }
     fitOvr(t, p, ceiling);
@@ -141,6 +164,7 @@
     p.tr = o.tr || { pass: norm(), glass: norm(), eff: norm(), dev: trait(), aging: clamp(randn() * (rand() < T.tailShare ? 1.6 : 1), -1.8, 3), stay: trait(), style: norm(), mins: norm() };   // fat tails for career shape only: efficiency outliers made 70% TS scorers, aging outliers made 37-year-old MVPs
     if (rand() < T.tailShare) p.tr.stay = clamp(p.tr.stay * 1.6 + (rand() < 0.5 ? -1 : 1) * T.tailMult * 0.5, -3.5, 3.5);   // the short career and the 19-year journeyman
     if (o.prone == null) p.prone = clamp(1 + randn() * T.proneSd, 0.4, 2.5);
+    rollSize(p, o);
     p.target = buildTarget(p, p.ceiling);
     const gap = o.gap != null ? o.gap : 10 + rand() * 12;
     p.attrs = {};
@@ -395,7 +419,7 @@
   Object.assign(NBA, {
     rand, randn, clamp, rint, pick, r1, weighted, sum, setSeed, useRandom, rngGet, rngSet,
     ovr, ovrOf, makePlayer, buildTarget, rollCeiling, rollTdPlan, randomArch, randomPos, nameGen, regionOf,
-    progress, applyTraining, trainPoints, rookieFloor, expLine, shootingLine, genGame, summarize, gameRating,
+    rollSize, sizeZ, wtAt, fmtHt, progress, applyTraining, trainPoints, rookieFloor, expLine, shootingLine, genGame, summarize, gameRating,
   });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

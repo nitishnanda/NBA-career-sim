@@ -106,7 +106,8 @@
     const [name, pos, age, goal, arch, sec] = row;
     const growth = age <= 20 ? 9 : age <= 22 ? 6 : age <= 24 ? 3.5 : age <= 27 ? 1.5 : 0.5;
     const ceiling = clamp(ceilOverride != null ? ceilOverride : goal + growth, 55, 99);
-    const p = makePlayer({ id: L.nextId++, name, pos, arch, sec: sec && sec !== arch ? sec : null, ceiling, age, gap: Math.max(0, ceiling - goal) });
+    const rs = (NBA.REAL_SIZES || {})[name];   // real roster players carry their real size; their ratings already come from their real production, so size does not move them
+    const p = makePlayer({ id: L.nextId++, name, pos, arch, sec: sec && sec !== arch ? sec : null, ceiling, age, gap: Math.max(0, ceiling - goal), ht: rs && rs[0], wt: rs && rs[1], sizeFx: false });
     for (let i = 0; i < 4; i++) {
       const d = (goal - ovr(p)) / T.ovrStretch;
       ATTRS.forEach((a) => (p.attrs[a] = clamp(p.attrs[a] + d, 8, 99)));

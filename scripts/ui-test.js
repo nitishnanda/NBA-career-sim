@@ -14,9 +14,18 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   await page.fill('input[type=text]', 'Nitish Nanda');
   await page.click('text=Box-Score Dominator');
   await page.click('button:has-text("C")');
+  // height & weight: the sliders start at the position's average, move the label, and the choice reaches the player and the scouting report
+  const sz0 = await page.evaluate(() => Array.from(document.querySelectorAll('.szv')).map((e) => e.textContent).join(' / '));
+  await page.$eval('input[aria-label=Height]', (el) => { el.value = el.max; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  await page.$eval('input[aria-label=Weight]', (el) => { el.value = 10; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  const sz1 = await page.evaluate(() => ({ v: Array.from(document.querySelectorAll('.szv')).map((e) => e.textContent).join(' / '), note: document.querySelector('.szcard').innerText.replace(/\s+/g, ' ').slice(0, 260) }));
+  console.log('SIZE create', JSON.stringify({ start: sz0, tallest: sz1.v, note: sz1.note }));
   await shot('01-create');
   await page.click('text=Get scouted');
   await page.waitForSelector('text=Choose my college', { timeout: 15000 });
+  const szS = await page.evaluate(() => ({ ht: window.__NBA_UI.state.player.ht, wt: window.__NBA_UI.state.player.wt, line: document.body.innerText.match(/C · [^\n]*lb[^\n]*/) && document.body.innerText.match(/C · [^\n]*lb[^\n]*/)[0] }));
+  const okSz = szS.ht === 86 && szS.wt === Math.round(249 + 2.5 * (86 - 82.8)) + 10 && /7'2"/.test(szS.line || '');
+  console.log('SIZE scouting', okSz ? 'OK' : 'MISMATCH', JSON.stringify(szS)); if (!okSz) errors.push('SIZE scouting ' + JSON.stringify(szS));
   await shot('02-scouting');
   await page.click('text=Choose my college');
   await shot('03-college-pick');
