@@ -83,7 +83,9 @@ S = pd.DataFrame(rows).merge(vals, left_on='player_id', right_index=True, how='l
 S = S[(S.debut >= 1980) & (S.debut <= 2018)]
 
 def arch(r):
-    if r.mvp >= 2 or r.allnba1 >= 5: return 'generational'
+    # the game's generational talent is the box-score superstar (LeBron, Jordan, Jokic, Shaq): MVP-level honours AND top production;
+    # Nash and Kidd (42 peak production vs 47-60 for every other) were great in ways the box score does not show
+    if (r.mvp >= 2 or r.allnba1 >= 5) and r.perf >= 45: return 'generational'
     if r.allstar < 1 and r.allnba < 1 and r.alldef < 1 and r.perf < 27: return None   # any All-Star / All-NBA / All-Defense nod, or a solid-starter level of production
     if (r.ast >= 5.0 and r.reb >= 6.0) or r.td >= 30: return 'dominator'   # box-score profile, or 30+ triple-doubles in the game logs
     if r.ar3 >= 0.38 and r.ftp >= 0.80 and r.pts >= 15 and r.reb < 6: return 'shooter'
@@ -91,6 +93,7 @@ def arch(r):
     if (r.stl >= 1.4 or r.blk >= 1.2) and r.pts >= 15 and r.alldef >= 1: return 'twoway'
     if r.pts < 15 and (r.blk >= 1.3 or r.reb >= 8.5 or r.alldef >= 2): return 'defender'
     return None
+if os.environ.get('DUMP_ALL'): S.to_csv(os.environ['DUMP_ALL'], index=False)   # every candidate career before classification (for checking cohort rules)
 S['arch'] = S.apply(arch, axis=1)
 S = S[S.arch.notna()]
 print(S.groupby('arch').size().to_dict())

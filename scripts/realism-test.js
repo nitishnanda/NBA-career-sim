@@ -33,7 +33,7 @@ function features(st) {
 }
 // the real cohort rules (scripts/real-blueprints.py: arch())
 function classify(f) {
-  if (f.mvp >= 2 || f.allnba1 >= 5) return 'generational';
+  if ((f.mvp >= 2 || f.allnba1 >= 5) && f.perf >= 45) return 'generational';   // box-score superstars (Nash / Kidd-type MVP careers fall through)
   if (f.allstar < 1 && f.allnba < 1 && f.alldef < 1 && f.perf < 27) return null;
   if ((f.ast >= 5.0 && f.reb >= 6.0) || f.td >= 30) return 'dominator';
   if (f.ar3 >= 0.38 && f.ftp >= 0.80 && f.pts >= 15 && f.reb < 6) return 'shooter';
