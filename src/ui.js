@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 25 Oct · BallerSim dashboard v33';
+  const BUILD = 'build 25 Oct · BallerSim dashboard v34';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };

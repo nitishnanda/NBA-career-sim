@@ -326,7 +326,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       comps: 'Lillard · Ray Allen · Klay · Billups · Mitchell',
       boost: { inside: -2, mid: 20, three: 38, ft: 32, handling: 14, passing: -12, iq: 14, reb: 0, perD: 12, rimP: -14, ath: 2, dur: 4 },
       weights: { inside: .04, mid: .14, three: .26, ft: .1, handling: .1, passing: .06, iq: .12, reb: .01, perD: .02, rimP: 0, ath: .08, dur: .07 },
-      usg: -0.037, ts: -0.007, declineMult: 1.3, ceilingBonus: -1, mins: -1.8, injury: 0.75,
+      usg: -0.05, ts: -0.007, declineMult: 1.3, ceilingBonus: -1, mins: -1.8, injury: 0.75,
     },
     dominator: {
       name: 'Box-Score Dominator', icon: '📊',
@@ -432,16 +432,16 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   // ---------------------------------------------------------------- tuning knobs
   const T = {
     pace: 99,            // possessions per game, 2025-ish
-    usgBase: 0.16396, usgPerSS: 0.0059122, usgConvex: 0.00006921,
-    tsBase: 0.34142, tsPerSkill: 0.0027026, tsEra: 0.012, usgTax: 0.11735,
-    minsBase: 15.006, minsPerOvr: 1.063, minsCap: 34.262,
+    usgBase: 0.16327, usgPerSS: 0.0059122, usgConvex: 0.0000524167,
+    tsBase: 0.34142, tsPerSkill: 0.0026969, tsEra: 0.012, usgTax: 0.11854,
+    minsBase: 16, minsPerOvr: 1.1977, minsCap: 34.346,
     declineScale: 1.5,
     ceilA: 55, ceilLambda: 11.5, ceilK: 1.3,
-    winsPerPt: 0.7162, ageUsgK: 0, formSd: 0.065305, winsCoreAvg: 48, ovrStretch: 1.3,
-    growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.65, coTaxK: 0.0026359, blkKnee: 1.0966, blkK: 0.62469, usgMin: 0.10, starPull: 0.6575, starWinK: 0.6174, badTeamUsg: 0, awardMinGp: 65, badTeamMins: 0, coTaxDown: 0.33192, coTaxStack: 1.1606, coTaxMax: 0.022052, capPts: 167.44, qualifyOvr: 82, restStar: 7, restOld: 14, minorRate: 1.8, injMu: 2, injSd: 0.9556, injMax: 52, retireScale: 1.2,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
-    astKnee: 7, astK: 0.50098, rebKnee: 8.2378, rebK: 0.82259,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
-    volSpread: 0, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.07, genSecGap: 11, gdReb: 1.0, gdAst: 1.06, gdTs: 0.01718, gdMins: 2.2, domStyleUsg: 0.08, domStyleAst: 0.12, genStyleUsg: 0.07, genStyleAst: 0.15, trMins: 1.2, gdDecline: 1.15, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 1.9, majorRate: 0.025, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, tailShare: 0.25, tailMult: 3.2, starRetire: 1.15, userWinShrink: 0.2, userTaxCut: 0, trainCap: 3, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, effLowUsg: 0.4, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: -1, genCeilRange: 8, genCeilPow: 1.6, defRim: 30, defGlass: 18,
-    starTs: 0.04189, starReb: 0, starAst: 0.40088,   // extra production for the very best (fitted to the real top of the league)
+    winsPerPt: 0.7162, ageUsgK: 0, formSd: 0.068277, winsCoreAvg: 48, ovrStretch: 1.3,
+    growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.65, coTaxK: 0.0026594, blkKnee: 1.2308, blkK: 0.60045, usgMin: 0.10, starPull: 0.6575, starWinK: 0.6174, badTeamUsg: 0, awardMinGp: 65, badTeamMins: 0, coTaxDown: 0.74564, coTaxStack: 2.1279, coTaxMax: 0.017298, capPts: 167.19, qualifyOvr: 82, restStar: 7, restOld: 12, minorRate: 2.114, injMu: 2, injSd: 0.9556, injMax: 36, retireScale: 1.2,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
+    astKnee: 7, astK: 0.49311, rebKnee: 8.6781, rebK: 0.87093,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
+    volSpread: 0.283, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.07, genSecGap: 11, gdReb: 1.0, gdAst: 1.06, gdTs: 0.01718, gdMins: 2.2, domStyleUsg: 0.08, domStyleAst: 0.12, genStyleUsg: 0.07, genStyleAst: 0.15, trMins: 1.2, gdDecline: 1.15, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 1.9, majorRate: 0.02886, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, tailShare: 0.25, tailMult: 3.2, starRetire: 1.15, userWinShrink: 0.2, userTaxCut: 0, trainCap: 3, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, effLowUsg: 0.4, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: -2, genCeilRange: 8, genCeilPow: 1.6, defRim: 30, defGlass: 18, gravTs: 0.013412, gravMid: 86.422, gdLate: 0.25,
+    starTs: 0.05, starReb: 0, starAst: 0.45786,   // extra production for the very best (fitted to the real top of the league)
   };
   NBA.tuning = T;
   const NOTR = { pass: 0, glass: 0, eff: 0, dev: 0, aging: 0, stay: 0, style: 0, mins: 0 };   // players from saves made before the traits existed
@@ -577,7 +577,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const A = ARCHETYPES[p.arch];
     let m = A.declineMult * (p.sec ? 0.9 * A.declineMult + 0.1 * ARCHETYPES[p.sec].declineMult : 1) / (p.sec ? A.declineMult : 1);
     if (!p.sec) m = A.declineMult;
-    if (p.arch === 'dominator' && p.sec === 'generational') m *= T.gdDecline;   // the gen box-score stars (Magic, LeBron, Jokic, Harden, Westbrook...) hold their numbers into their early 30s (scripts/real-gen-dominators.py)
+    if (p.arch === 'dominator' && p.sec === 'generational') m *= T.gdDecline * (age >= 34 ? T.gdLate : 1);   // the gen box-score stars (Magic, LeBron, Jokic, Harden, Westbrook...) hold their numbers into their early 30s, and the ones still playing at 34-36 keep ~70% of their prime (scripts/real-gen-dominators.py)
     const athRel = clamp((p.target.ath - 50) / 45, 0, 1.25);
     let base = 0;
     if (a === 'ath') base = decAt(ATH_DEC, age) * (0.7 + 0.5 * athRel);
@@ -939,6 +939,12 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     // the cap grows with every good player ahead of you: a third option behind two stars gives up more shots than a second option behind one
     return clamp(tax, -0.03, T.coTaxMax * (1 + T.coTaxStack * Math.max(0, above - 1)));
   }
+  // star gravity: a great #1 draws the defence, so his teammates get easier looks (real 2016-25: the #2-#4 scorers shoot +2 to +3 TS% next to a
+  // 26+ ppg #1 than next to a sub-22 one); weak rosters' supporting cast shoots worse. The best player on the roster gets nothing from it.
+  function gravityFor(self, roster) {
+    const best = Math.max(...roster.filter(Boolean).map(ovr));
+    return ovr(self) >= best ? 0 : T.gravTs * clamp((best - T.gravMid) / 6, -1.5, 1.5);
+  }
   // the clear #1 on his roster is the franchise player: the offence runs through him and he plays heavy minutes
   function franchiseFor(self, roster) {
     const o = ovr(self); let best = 0; roster.forEach((q) => { if (q !== self) best = Math.max(best, ovr(q)); });
@@ -1061,7 +1067,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     if (user) {
       const t = L.teams[user.teamId];
       const roster = teamRoster(L, t, user);
-      user.ctx = { coTax: coTaxFor(user.p, roster), fr: franchiseFor(user.p, roster), pace: t.pace, wins: t.wins };
+      user.ctx = { coTax: coTaxFor(user.p, roster), fr: franchiseFor(user.p, roster), tsAdj: gravityFor(user.p, roster), pace: t.pace, wins: t.wins };
       user.line = user.getLine(user.ctx);
     }
     // everyone else
@@ -1069,7 +1075,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     allPlayers.forEach((p) => {
       const t = L.teams[p.teamId];
       const roster = teamRoster(L, t, user);
-      const e = expLine(p, { coTax: coTaxFor(p, roster), fr: franchiseFor(p, roster), wins: t.wins, pace: t.pace, rookie: p.rookie, minsFloor: p.rookie ? NBA.rookieFloor(p.draftSlot) : 0 });
+      const e = expLine(p, { coTax: coTaxFor(p, roster), fr: franchiseFor(p, roster), tsAdj: gravityFor(p, roster), wins: t.wins, pace: t.pace, rookie: p.rookie, minsFloor: p.rookie ? NBA.rookieFloor(p.draftSlot) : 0 });
       const l = lineFromExp(p, e, avail[p.id].gp);
       l.id = p.id; l.teamId = p.teamId; l.wins = t.wins;
       lines[p.id] = l;
@@ -1102,7 +1108,8 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     // awards
     const q65 = entries.filter((e) => e.l.gp >= T.awardMinGp);
     // Voting models fitted to real data (scripts/real-mvp-model.py, 1981-2025): MVP = conditional logit over the league's 14 best producers on production, team wins and scoring;
-    // All-NBA = logistic on the same three. Voters' randomness is the Gumbel / logistic noise of those models, nothing else is bolted on.
+    // All-NBA = logistic on the same three plus last season's All-NBA (voters lean on reputation, as for All-Star and All-Defense).
+    // Voters' randomness is the Gumbel / logistic noise of those models, nothing else is bolted on.
     const gumbel = () => -Math.log(-Math.log(Math.max(1e-9, rand())));
     const pool = q65.slice().sort((a, b) => b.l.perf - a.l.perf);
     // voter fatigue fitted on 1981-2025 voting (scripts/real-mvp-model.py): winning last year changes nothing, but a two-time reigning MVP is a big underdog
@@ -1113,15 +1120,15 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const roy = entries.filter((e) => e.p.rookie && e.l.gp >= 50).map((e) => ({ e, s: e.l.perf + 0.1 * (e.l.wins - 41) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
     const mip = q65.filter((e) => !e.p.rookie && e.p.prevPerf != null && e.p.age <= 28).map((e) => ({ e, s: (e.l.perf - e.p.prevPerf) + randn() * 1.5 })).sort((a, b) => b.s - a.s);
     const logisticNoise = () => { const u = Math.max(1e-9, Math.min(1 - 1e-9, rand())); return Math.log(u / (1 - u)); };
-    const allNBA = pool.slice(0, 35).map((e) => ({ e, s: -16.75 + 0.218 * e.l.perf + 0.124 * e.l.wins + 0.097 * e.l.pts + logisticNoise() })).sort((a, b) => b.s - a.s).slice(0, 15);
+    const allNBA = pool.slice(0, 35).map((e) => ({ e, s: -15.12 + 0.184 * e.l.perf + 0.111 * e.l.wins + 0.092 * e.l.pts + (e.p.prevAN ? 1.349 : 0) + logisticNoise() })).sort((a, b) => b.s - a.s).slice(0, 15);
     // All-Star and All-Defense: logistic selection models fitted to 2001-25 voting (scripts/real-allstar-model.py) plus logistic noise;
     // All-Stars are the top 12 per conference, All-Defense the top 10 in the league (positionless since 2024)
     const ASM = { b0: -15.572, perf: 0.2108, pts: 0.1557, wins: 0.0916, prevAS: 1.485 }, ADM = { b0: -14.619, stl: 2.4768, blk: 1.5368, reb: 0.0154, mins: 0.0591, wins: 0.1055, prevAD: 3.0275 };
     const allDef = q65.map((e) => ({ e, s: ADM.b0 + ADM.stl * e.l.stl + ADM.blk * e.l.blk + ADM.reb * e.l.reb + ADM.mins * e.l.mins + ADM.wins * e.l.wins + (e.p.prevAD ? ADM.prevAD : 0) + logisticNoise() })).sort((a, b) => b.s - a.s).slice(0, 10);
     const asCand = entries.filter((e) => e.l.gp >= 40).map((e) => ({ e, s: ASM.b0 + ASM.perf * e.l.perf + ASM.pts * e.l.pts + ASM.wins * e.l.wins + (e.p.prevAS ? ASM.prevAS : 0) + logisticNoise() })).sort((a, b) => b.s - a.s);
     const stars = ['E', 'W'].reduce((acc, c) => acc.concat(asCand.filter((x) => x.e.t.conf === c).slice(0, 12)), []);
-    entries.forEach((e) => { e.p.prevAS = false; e.p.prevAD = false; e.p.mvpStreak = mvpAll[0] && mvpAll[0].e === e ? (e.p.mvpStreak || 0) + 1 : 0; });
-    stars.forEach((x) => { x.e.p.prevAS = true; }); allDef.forEach((x) => { x.e.p.prevAD = true; });
+    entries.forEach((e) => { e.p.prevAS = false; e.p.prevAD = false; e.p.prevAN = false; e.p.mvpStreak = mvpAll[0] && mvpAll[0].e === e ? (e.p.mvpStreak || 0) + 1 : 0; });
+    stars.forEach((x) => { x.e.p.prevAS = true; }); allDef.forEach((x) => { x.e.p.prevAD = true; }); allNBA.forEach((x) => { x.e.p.prevAN = true; });
     const qual = entries.filter((e) => e.l.gp >= 58);
     const lead = (k) => qual.slice().sort((a, b) => b.l[k] - a.l[k]);
     const scoring = lead('pts');
@@ -1690,7 +1697,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const coRaw = p.coTaxPrev == null ? ctx.coTax : 0.7 * p.coTaxPrev + 0.3 * ctx.coTax; p.coTaxPrev = coRaw;
     const coT = coRaw * (1 - NBA.tuning.userTaxCut * clamp((ovr(p) - 80) / 16, 0, 1));
     const paceS = p.paceS == null ? ctx.pace : 0.6 * p.paceS + 0.4 * ctx.pace; p.paceS = paceS;
-    const e0 = expLine(p, { coTax: coT, fr: ctx.fr, wins: ctx.wins, pace: paceS, rookie, minsMult: fx.minsMult, minsFloor: rookie ? NBA.rookieFloor(st.draft && st.draft.slot) : 0 });
+    const e0 = expLine(p, { coTax: coT, fr: ctx.fr, tsAdj: ctx.tsAdj || 0, wins: ctx.wins, pace: paceS, rookie, minsMult: fx.minsMult, minsFloor: rookie ? NBA.rookieFloor(st.draft && st.draft.slot) : 0 });
     // Year-to-year shocks sized from real careers (22 generational and ~100 star careers, Basketball-Reference): usage ±6%, TS ±3%, minutes ±4%, rebounds ±10%, assists ±14% between seasons.
     // Nothing else shapes a season: no caps, plans or quotas, so big years, slumps and the rare triple-double season come from the tails of these distributions.
     const sn = ovr(p) >= 84 ? 1 : NBA.tuning.noiseNon;   // real non-stars swing more from year to year than the all-time greats (mean |change in ppg| 2.1-2.9)
@@ -2192,7 +2199,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 25 Oct · BallerSim dashboard v33';
+  const BUILD = 'build 25 Oct · BallerSim dashboard v34';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois' };

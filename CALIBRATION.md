@@ -430,3 +430,36 @@ Readings now use 400 simulated seasons (4 seeds x 100) for the league and ~1000 
   shooters 88, gens 84, dominators 84. What holds gens and dominators back is mostly honours against 10-12 finished real careers
   (dominators' All-NBA 3.2 vs 4.6, Hall-of-Famer heavy; gens' 10.9 vs 12.7) and gens' career length (18.6 seasons vs 17.2: real gens
   lost whole seasons to retirements and injuries). More injuries or less passing for gens did not help (84 / 83 / 83).
+
+## v34: analysis first, then fixes (team scoring, turnover, gen aging, honours, the test's own ceiling)
+
+Findings that set the plan (scripts and numbers in the session notes; every real figure from the Basketball-Reference CSVs):
+- A perfect simulator does not score 100% on the realism test. Scoring real careers against other real careers: ~83-86% for a 16-career
+  cohort, ~87-90% for 25, ~91-94% for 50, ~96% for 120, so ~88-90% overall. The test now prints each archetype's ceiling (`ceilingFor`) and
+  the score as a share of it.
+- Two 20-ppg teammates is a moving target: 13% of teams in 2016, 20-27% in 2017-19, 52% in 2023-25; the 2016-25 average (34%) is +-4.7.
+  Top-5 scorers repeating: 2.42 for 2014-25, 2.27 for 2015-25 (+-0.2-0.25). The league stays on the 2016-25 average.
+- The availability fitter's real targets counted team stints (a traded player looked like he missed games): real next-season games of
+  last season's top-150 scorers are 30/41/53/60/65/68/72/75/78/80 at the 5th..90th percentiles, not 18/26/43/... Fixed; plus the share
+  of games in 20+ game seasons (0.798, what careers' games-played share measures) is now a target. Top-10 scorers playing 58+ again: 0.78 (0.76).
+- Real teammates of a big #1 shoot better (#2-#4 TS 55.8 / 57.3 / 58.3 next to a sub-22 / 22-26 / 26+ ppg #1); the sim had +0.7 instead
+  of +2.5. New star-gravity term (`gravityFor`, `gravTs`/`gravMid`, user and NPCs alike) and a fitter target (`_team.supTs`).
+- Real All-NBA voters lean on last season's All-NBA (+1.35 log-odds, likelihood-ratio chi2 69); the model now has it (`prevAN`), as
+  All-Star and All-Defense already did. Gens' All-NBA gap (11.0 vs 12.7) is the 65-game award rule: real honours come from 1980-2023,
+  without it; with the rule off the sim gives 12.6. The rule stays (it is today's NBA).
+- The real gen box-score curve past 30 is the median of 3-5 players, and the pool changes with age (Giannis, Jokic and Magic leave it,
+  Kidd's 13 ppg stays). Each player against his own 27-29 average (`genRel` in real-gen-dominators.json) is the fair comparison:
+  real 1.01 / 0.94 / 0.83 / 0.78 / 0.74 / 0.71 / 0.71 at 30-36.
+- Career length and points looked ~1.3 seasons long in every archetype only because finished real careers are mostly 1980s-2000s
+  players who debuted at ~22; the test now era-shifts them the way it already shifted debut age (extra seasons valued like the first one).
+- Tried and dropped: autopilot leaving college once mocked in the first round (debut ages came out too young: 50-71% at 19 vs 21%).
+
+Changes and results:
+- Availability refit (corrected targets): percentiles 27/39/52/60/65/69/73/75/77/80, games share 0.798 (0.798).
+- League refit 14 (6 seeds) then hand-set on 12 fresh seeds (stacked co-star tax +0.5, star usage convexity x0.7, form noise x1.1):
+  two 20-ppg teammates 33% (34%), two 25 4.1% (4.0%), three 20 4.0% (4.3%), top-5 repeat 2.45 (2.42), next-year ppg sd 3.15 (3.06),
+  scoring champion 33.1 (32.5), supporting-cast TS 56.4 / 57.5 / 59.0 (55.8 / 57.3 / 58.3).
+- Gen-tagged dominators keep ~70% of their prime at 34-36 (`gdLate` 0.25): vs own 27-29 ppg 0.95 / 0.92 / 0.87 / 0.79 / 0.75 / 0.74 / 0.69
+  at 30-36 (real 1.01 / 0.94 / 0.83 / 0.78 / 0.74 / 0.71 / 0.71); 20.7 / 20.0 / 18.0 ppg at 34-36 (was 16.4 / ~13 / ~10).
+- Shooters' usage -0.05 (peak ppg 21.2 -> 20.7, real 20.2). Gen ceiling `genCeilDrop` -2: 1.87 MVPs per gen (1.86), 4+ 15% (14%).
+- Star wins: #1 / 2-3 / 4-10 / 11-30 producers' teams 56.4 / 53.2 / 47.3 / 43.0 (55.1 / 51.5 / 49.2 / 43.8).
