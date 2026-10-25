@@ -402,7 +402,8 @@
     // fading players can be out of the league at 29-31 (no offers, injuries, overseas); stars still producing do not walk away that early
     if (p.age >= 29 && p.age < 32) h += T.earlyExit * (p.age - 28) * clamp((80 - o) / 10, 0, 1.5);
     if (p.age >= 30 && o < 64) h += 0.18;
-    h *= Math.exp(-T.trStay * st * (o >= 80 ? 0.4 : 1));   // some walk away early, some hang on as role players into their late 30s; stars' choices vary less
+    const sm = Math.exp(-T.trStay * st * (o >= 80 ? 0.4 : 1));   // some walk away early, some hang on as role players into their late 30s; stars' choices vary less
+    h *= o >= 84 && p.age < 35 ? 0.15 * Math.min(1, sm) : sm;   // ...but a star still producing rarely walks away before 35 (no real gen did: Bird 35, Barkley 36)
     if (o >= 84 && p.age >= 33) h *= T.starRetire;   // superstars in their mid-30s leave on their own terms: the real gens' careers end at 35-40, not in the 40s
     return rand() < h * T.retireScale;
   }
