@@ -397,3 +397,4 @@ Readings now use 400 simulated seasons (4 seeds x 100) for the league and ~1000 
   stacked usage cap was set by hand across 8 seeds: `coTaxStack` 0.2 -> two 20-ppg teammates ~28% (real 34%), three ~4.7% (4.3%).
 - Gen box-score dominators at 30-34: 26.1 / 24.5 / 22.6 / 21.0 / 16.1 ppg (real 26.5 / 25.3 / 22.2 / 21.0 / 19.4).
 - Gens: ~2.1 MVPs per gen (real 1.86; box-score gens 2.18); the 6+ tail is 3-8% depending on seeds (~100 gens per check).
+- Realism (~7,700 careers): 87%; sweet spot 90% (real 90%), copies 1%. Two-way 92, scorers 89, shooters 89, defenders 87, gens 83, dominators 81.
