@@ -275,3 +275,5 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 .mrow.me { border-color: #ffd166; background: rgba(255,209,102,.1); } .mockmoves { margin-top: 12px; }
 .bigpick .clkname { font-size: 32px; } .bigpick .clk { margin-top: 10px; } .gold { color: var(--gold); }
 .mockmoves .kv .pill { flex: 0 0 auto; margin: 0 0 0 auto; } .mockmoves .kv { align-items: center; }
+.prow.pending { opacity: .62; background: rgba(255,255,255,.025); } .prow.pending .pmain b { font-weight: 600; }
+.lotgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; } .lotrow { display: grid; grid-template-columns: 26px 26px minmax(0, 1fr); gap: 8px; align-items: center; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; }

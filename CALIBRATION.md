@@ -631,3 +631,6 @@ Feedback from play: draft night went by too fast to take in your own pick, and s
   the rest of the board runs (0.4-0.65 s a pick). Controls: Pause / Play, Next pick, Skip to my pick, Reveal everything. A redraw mid-draft resumes where it was.
 - UI test: nothing about a projection on the draft page ("about #", "projected", "final mock"), the first pick takes 2.5 s or more, the player's pick is held (big card, no wrap-up
   yet), the board still ends with 60 rows and the player's row at his slot. Fixed along the way: a stray "null" between control buttons, and no steal/reach tag on your own row.
+- Who holds each pick is shown up front: the combine page lists the lottery order (first 14 picks, team and record), and draft night starts with all 60 slots showing the team
+  logo and last-season record, dimmed, with the player filled in as each pick is announced. Every slot looks the same, so nothing gives away which one is yours.
+- Checks: realism 89% (v39 88%; noise +-1), gen MVPs 1.86 per gen over 900 picks (real 1.86); desktop and phone UI tests pass (pacing, no-spoiler, held pick, 60-row board).

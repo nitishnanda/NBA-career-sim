@@ -53,11 +53,11 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   // draft night is paced: nothing about where he is projected is on the page, the first picks take seconds, and the player's own pick is held until Continue
   await page.waitForSelector('button:has-text("Reveal everything")'); await page.waitForTimeout(500);
   const spoil = await page.evaluate(() => /about #|projected|final mock/i.test(document.querySelector('.dgrid').innerText));
-  const t0 = Date.now(); await page.waitForSelector('.prow', { timeout: 15000 }); const firstPickMs = Date.now() - t0;
+  const t0 = Date.now(); await page.waitForSelector('.prow:not(.pending)', { timeout: 15000 }); const firstPickMs = Date.now() - t0;
   const okP = !spoil && firstPickMs >= 2500; console.log('DRAFT pacing', okP ? 'OK' : 'MISMATCH', JSON.stringify({ spoil, firstPickMs }));
   if (!okP) errors.push('DRAFT pacing ' + JSON.stringify({ spoil, firstPickMs }));
   await page.click('button:has-text("Skip to my pick")');
-  const hold = await page.waitForSelector('button:has-text("Continue →")', { timeout: 30000 }).then(() => page.evaluate(() => ({ rows: document.querySelectorAll('.prow').length, big: !!document.querySelector('.bigpick'), wrapShown: /landing spot/i.test(document.body.innerText) })));
+  const hold = await page.waitForSelector('button:has-text("Continue →")', { timeout: 30000 }).then(() => page.evaluate(() => ({ rows: document.querySelectorAll('.prow:not(.pending)').length, big: !!document.querySelector('.bigpick'), wrapShown: /landing spot/i.test(document.body.innerText) })));
   const pickN = await page.evaluate(() => window.__NBA_UI.state.draft.slot);
   const okH = hold.big && !hold.wrapShown && (pickN ? hold.rows === pickN : true); console.log('DRAFT held pick', okH ? 'OK' : 'MISMATCH', JSON.stringify(hold));
   if (!okH) errors.push('DRAFT held pick ' + JSON.stringify(hold));

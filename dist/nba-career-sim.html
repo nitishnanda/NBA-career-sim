@@ -280,6 +280,8 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 .mrow.me { border-color: #ffd166; background: rgba(255,209,102,.1); } .mockmoves { margin-top: 12px; }
 .bigpick .clkname { font-size: 32px; } .bigpick .clk { margin-top: 10px; } .gold { color: var(--gold); }
 .mockmoves .kv .pill { flex: 0 0 auto; margin: 0 0 0 auto; } .mockmoves .kv { align-items: center; }
+.prow.pending { opacity: .62; background: rgba(255,255,255,.025); } .prow.pending .pmain b { font-weight: 600; }
+.lotgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; } .lotrow { display: grid; grid-template-columns: 26px 26px minmax(0, 1fr); gap: 8px; align-items: center; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; }
 
 </style>
 <header id="top"><div class="brand"><span class="logo">🏀</span><div><b>NBA CAREER SIM</b><small>PRO CIRCUIT</small></div></div><nav id="nav"></nav><div id="who"></div></header>
@@ -2499,7 +2501,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v39';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v40';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -2708,6 +2710,9 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
           h('p', { class: 'small muted', style: 'margin-top:10px' }, 'Percentiles against the real combine classes, 2000 to 2026, for ' + pos + 's.')));
       } else cards.push(h('div', { class: 'card' }, h('h2', null, 'Athletic testing'), h('p', null, 'You skipped it. Scouts have your measurements and your tape, and the question marks are on you.')));
       // mock drafts: three outlets and their consensus, all of the class you will face on draft night; the combine moved them, and you only see how
+      const L0 = S.league, ord0 = (S.draftOrder || []).map((id) => L0.teams[id]).filter(Boolean);
+      if (ord0.length) cards.push(h('div', { class: 'card' }, h('h2', null, 'Draft order'), h('p', { class: 'small muted' }, 'The lottery has been held. The rest of the first round follows by record, then round 2 in the same order.'),
+        h('div', { class: 'lotgrid' }, ord0.slice(0, 14).map((t, i) => h('div', { class: 'lotrow' }, h('span', { class: 'pn' }, i + 1), logo(t.nick, 26), h('div', { class: 'pmain' }, h('b', null, t.nick), h('div', { class: 'small muted' }, t.wins + '-' + t.losses)))))));
       const mk = c.mocks, R = mk.ranks, cons = R.after[3] - R.before[3], mv = -cons, altD = R.after[3] - R.alt[3];
       const idxTab = Math.min(S.mockTab == null ? 3 : S.mockTab, mk.outlets.length - 1), ob = mk.outlets[idxTab];
       const arrow = (i) => { const d = R.before[i] - R.after[i]; return d >= 2 ? h('span', { class: 'pill good' }, '▲ up') : d <= -2 ? h('span', { class: 'pill bad' }, '▼ down') : h('span', { class: 'pill' }, '▬ steady'); };
@@ -2738,6 +2743,9 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const prow = (r) => { const t = r.isUser ? null : tag(r); return h('div', { class: 'prow reveal' + (r.isUser ? ' me' : '') + (r.slot <= 5 ? ' top' : '') }, h('span', { class: 'pn' }, r.slot), logo(r.nick, 30),
       h('div', { class: 'pmain' }, h('b', null, r.isUser ? '⭐ ' + r.name : r.name), h('div', { class: 'small muted' }, r.pos + ' · ' + r.age + ' · ' + (r.from || '—'))), h('div', { class: 'pside' }, h('span', { class: 'small' }, r.nick), h('span', { class: 'small muted' }, chipOf(r))), t ? h('span', { class: 'pill ' + t[1] }, t[0]) : null); };
     const r1 = h('div', { class: 'pround' }, h('div', { class: 'rhead' }, 'Round 1')), r2 = h('div', { class: 'pround' }, h('div', { class: 'rhead' }, 'Round 2'));
+    // the lottery has been held: every slot already shows who holds the pick (the same for every slot, so nothing gives away where you will go); the player fills in when it is announced
+    const pending = (r) => h('div', { class: 'prow pending' }, h('span', { class: 'pn' }, r.slot), logo(r.nick, 30), h('div', { class: 'pmain' }, h('b', { class: 'muted' }, r.team), h('div', { class: 'small muted' }, 'Last season ' + (r.teamRec || '–'))), h('div', { class: 'pside' }, h('span', { class: 'small muted' }, 'on the board')));
+    const rowEls = board.map((r) => pending(r)); rowEls.forEach((el, i) => (i < 30 ? r1 : r2).append(el));
     const clock = h('div', { class: 'onclock well' }), controls = h('div', { class: 'row dctl' }), wrap = h('div'), prog = h('div', { class: 'bar2' }, h('i', { style: 'width:0%' }));
     const pickLine = (r, big) => h('div', { class: big ? 'bigpick' : '' }, h('div', { class: 'cap2' }, 'Pick ' + r.slot + ' · ' + (r.slot <= 30 ? 'Round 1' : 'Round 2')), h('div', { class: 'clk' }, logo(r.nick, big ? 72 : 56), h('div', null, h('div', { class: 'small muted' }, 'With the ' + ord(r.slot) + ' pick, the ' + r.team + ' select'), h('div', { class: 'clkname' }, r.isUser ? '⭐ ' + r.name : r.name), h('div', { class: 'small muted' }, r.pos + ' · ' + r.age + ' · ' + (r.from || '—') + ' · ' + chipOf(r)))));
     // --- your road to the draft: nothing about where you are projected until your name is called; then how the mocks had you
@@ -2776,7 +2784,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     // how long a pick stays on screen before the next one: the top of the lottery gets the longest, your neighbours get a beat of tension, the rest of the board moves once you are in
     const delayAfter = (r) => { if (mine >= 0 && idx > mine) return r.slot <= 30 ? 650 : 380; const next = idx; return (r.slot <= 3 ? 4200 : r.slot <= 5 ? 3400 : r.slot <= 14 ? 2500 : r.slot <= 30 ? 1700 : 1000) + (mine >= 0 && mine - next >= 0 && mine - next <= 2 ? 1600 : 0); };
     const awayNote = (r) => { const n = mine - idx; return mine >= 0 && n >= 1 && n <= 5 ? h('div', { class: 'small gold', style: 'margin-top:6px' }, n === 1 ? 'You are next.' : 'You are ' + n + ' picks away.') : null; };
-    const append = (r) => (r.slot <= 30 ? r1 : r2).append(prow(r));
+    const append = (r) => { const el = prow(r); rowEls[r.slot - 1].replaceWith(el); rowEls[r.slot - 1] = el; };
     const reveal = (r) => { append(r); idx++; S.draftProg = idx; setProg(); clock.replaceChildren(pickLine(r)); const a = awayNote(r); if (a) clock.firstChild.append(a); };
     const finish = () => { auto = false; if (!S.draftSeen) { S.draftSeen = true; save(); } showWrap(); clock.replaceChildren(h('div', null, h('div', { class: 'cap2' }, 'Draft complete'), h('div', { class: 'small muted' }, N + ' picks in two rounds · ' + d.classSize + ' prospects'))); controls.replaceChildren(); };
     const setControls = () => {
