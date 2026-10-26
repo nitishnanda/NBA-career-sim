@@ -125,6 +125,16 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
     console.log('SHOT CHECK', label, ok ? 'OK' : 'MISMATCH', JSON.stringify(r));
     if (!ok) errors.push('SHOT CHECK ' + label + ' ' + JSON.stringify(r));
   };
+  // the trade deadline stops the games: answer it (stay put, or sign when waived) and carry on; the first one is checked
+  let dlN = 0;
+  const dlFix = async () => {
+    if (!(await page.$('h1:has-text("Trade deadline")'))) return false;
+    dlN++; const info = await page.evaluate(() => ({ cards: document.querySelectorAll('.card').length, text: document.querySelector('.card p') ? document.querySelector('.card p').textContent.slice(0, 60) : '' }));
+    if (dlN === 1) console.log('DEADLINE seen', JSON.stringify(info));
+    const stay = await page.$('button:not(.primary):text-matches("^(Stay|Continue the season)")');
+    if (stay) await stay.click(); else await page.click('button.primary:has-text("Sign")');
+    return true;
+  };
   const scopeTo = (lbl) => page.evaluate((t) => { const b = Array.from(document.querySelectorAll('.seg2 button')).find((x) => x.textContent === t); if (b) b.click(); }, lbl);
   for (let i = 0; i < 40; i++) {
     console.log('season', i); await page.click('text=/Tip off the .* season/');
@@ -143,6 +153,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
       await page.click('nav button:has-text("Career")'); await shot('06g-career');
       await page.click('nav button:has-text("Season")');
       await page.click('button:has-text("Sim to playoffs")');
+      if (await dlFix()) await page.click('button:has-text("Sim to playoffs")');
       await shot('06h-reg-season-done'); await shotCheck('regular season done');
       const po = await page.$('button:has-text("Sim next playoff game")');
       if (po) { await po.click(); await shot('06e-playoffs'); await shotCheck('playoff game 1');
@@ -163,7 +174,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
       });
       console.log('LEAK CHECK', JSON.stringify(chk));
       await page.click('nav button:has-text("Season")');
-      await page.click('button:has-text("Instant")'); await page.click('button:has-text("Sim to All-Star")'); await page.click('button:has-text("Sim to playoffs")'); while (await page.$('button:has-text("Sim next playoff game")')) await page.click('button:has-text("Sim next playoff game")'); await page.click('button:has-text("Season recap")'); }
+      await page.click('button:has-text("Instant")'); await page.click('button:has-text("Sim to All-Star")'); await page.click('button:has-text("Sim to playoffs")'); if (await dlFix()) await page.click('button:has-text("Sim to playoffs")'); while (await page.$('button:has-text("Sim next playoff game")')) await page.click('button:has-text("Sim next playoff game")'); await page.click('button:has-text("Season recap")'); }
     else { const sk = await page.$('button:has-text("Skip to recap")'); if (sk) await sk.click(); else await page.click('button:has-text("Season recap")'); }
     await page.waitForSelector('text=Offseason decisions');
     if (i === 0) await shot('07-recap');

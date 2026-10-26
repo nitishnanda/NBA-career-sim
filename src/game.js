@@ -514,6 +514,7 @@
       if (b) it.pm = Math.round((it.f - it.a) * (b.m / 48) * 1.1 + randn() * 4);
       items.push(it);
       if (i === 51) items.push({ k: 'hdr', text: 'All-Star Weekend' + (rec.awards.includes('All-Star') ? ' · you were selected ★' : '') });
+      if (i === 54) items.push({ k: 'hdr', dl: 1, text: 'Trade deadline' });
     }
     items.push({ k: 'hdr', text: 'Regular season complete · ' + t.wins + '-' + t.losses });
     // playoffs
@@ -553,6 +554,7 @@
       st.seasonSeed = Math.floor(rand() * 2147483647);
       st.styleSeq = [[0, st.style || 'balanced']];
       st.shotScope = null;   // a new season's shot chart follows the playoffs once they start
+      st.dlDone = false; st.dlChecked = false; st.seasonMoves = [];   // the trade deadline comes once a season
       SNAP = JSON.stringify(st);
     }
     NBA.setSeed(st.seasonSeed);
@@ -662,11 +664,12 @@
     for (let i = 0; i < idx; i++) { const it = items[i]; if (it.k === 'g') { if (it.po) po++; else reg++; } }
     return po > 0 ? 82 + po : reg;
   }
-  function spliceLog(st, oldLog, newLog, idx) {
+  function spliceLog(st, oldLog, newLog, idx, force) {
     if (!idx) return newLog;
     const a = oldLog[idx - 1], b = newLog[idx - 1];
-    if (!a || !b || a.k !== b.k || a.o !== b.o || a.n !== b.n || !!a.po !== !!b.po) return newLog;
+    if (!force && (!a || !b || a.k !== b.k || a.o !== b.o || a.n !== b.n || !!a.po !== !!b.po)) return newLog;
     const out = oldLog.slice(0, idx).concat(newLog.slice(idx));
+    if (force) return out;   // a mid-season move: the games you saw stay as they were (another team's schedule), the rest come from the new team
     const rec = st.proSeasons[st.proSeasons.length - 1];
     const regIdx = []; out.forEach((x, i) => { if (x.k === 'g' && !x.po) regIdx.push(i); });
     const diff = rec.wins - regIdx.filter((i) => out[i].w).length;
@@ -726,16 +729,48 @@
     const slot = slotNow(st), prev = (st.styleSeq || [[0, st.style || 'balanced']]);
     if (styleAt(prev, slot) === style) return { ok: true, same: true };
     const seq = prev.filter((x) => x[0] < slot); seq.push([slot, style]);
-    const keep = { idx: st.matchIdx || 0, shotTab: st.shotTab, shotScope: st.shotScope, log: st.matchLog, view: st.view };
-    const snapObj = JSON.parse(SNAP);
-    Object.keys(st).forEach((k) => delete st[k]); Object.assign(st, snapObj);
-    st.style = style; st.styleSeq = seq;
-    playSeason(st, { rerun: true });
-    st.matchLog = spliceLog(st, keep.log, st.matchLog, keep.idx); st.matchIdx = keep.idx; st.shotTab = keep.shotTab; st.shotScope = keep.shotScope;
-    recomputeFromLog(st);
+    replay(st, st.seasonMoves || [], { style, seq });
     return { ok: true };
   }
-
+  // Replay the season from its tip-off snapshot with the player's changes applied (a new game plan, a mid-season move): the league's results come from the same seeds,
+  // the games already shown stay exactly as they were, and everything after comes from the new situation.
+  function replay(st, moves, opt) {
+    const keep = { idx: st.matchIdx || 0, shotTab: st.shotTab, shotScope: st.shotScope, log: st.matchLog, view: st.view, dec: st.dec, dlDone: st.dlDone, dlChecked: st.dlChecked, style: st.style, styleSeq: st.styleSeq };
+    const snapObj = JSON.parse(SNAP), startTeam = snapObj.teamId;
+    Object.keys(st).forEach((k) => delete st[k]); Object.assign(st, snapObj);
+    NBA.Decisions.carry(st, keep.dec);
+    st.style = opt.style || keep.style; st.styleSeq = opt.seq || keep.styleSeq; st.dlDone = keep.dlDone; st.dlChecked = keep.dlChecked; st.seasonMoves = moves;
+    moves.forEach((m) => applyMoveState(st, m));
+    playSeason(st, { rerun: true });
+    st.matchLog = spliceLog(st, keep.log, st.matchLog, keep.idx, moves.length > 0); st.matchIdx = keep.idx; st.shotTab = keep.shotTab; st.shotScope = keep.shotScope;
+    recomputeFromLog(st);
+    const rec = st.proSeasons[st.proSeasons.length - 1];
+    if (moves.length) {
+      const reg = st.matchLog.filter((x) => x.k === 'g' && !x.po);
+      rec.wins = reg.filter((x) => x.w).length; rec.losses = reg.length - rec.wins;
+      rec.prevTeam = st.league.teams[startTeam].name;
+      moves.forEach((m) => { if (m.paid) { st.earnings += m.paid; st.earnings26 = (st.earnings26 || 0) + m.paid / capFor(st.league.year) * capFor(2026); } });
+      const dl = st.matchLog.find((x) => x.k === 'hdr' && x.dl); if (dl) dl.text = 'Trade deadline · ' + moves[moves.length - 1].text;
+    }
+  }
+  // the state changes of one mid-season move, applied to the pre-season state before the season is played again
+  function applyMoveState(st, mv) {
+    const L = st.league, p = st.player, old = L.teams[st.teamId], t = L.teams[mv.teamId];
+    if (mv.kind === 'trade') {
+      const partner = L.players[mv.partnerId];
+      if (partner) { t.core = t.core.filter((id) => id !== partner.id); t.bench = (t.bench || []).filter((id) => id !== partner.id); old.bench = (old.bench || []).concat([partner.id]); partner.teamId = old.id; partner.since = L.year + 0.5; partner.moved = L.year; }
+      (st.trades = st.trades || []).push({ year: L.year, label: NBA.seasonLabel(L.year), from: old.name, to: t.name, ovr: Math.round(ovr(p)), age: p.age, partner: mv.partnerText, requested: !!mv.requested, midSeason: true });
+    } else if (mv.kind === 'sign') {
+      st.contract = { salary: mv.salary, years: 1, left: 1, type: 'veteran' };
+      (st.trades = st.trades || []).push({ year: L.year, label: NBA.seasonLabel(L.year), from: old.name, to: t.name, ovr: Math.round(ovr(p)), age: p.age, partner: 'waived, then signed', waived: true, midSeason: true });
+    }
+    st.teamId = t.id; p.teamId = t.id; p.since = L.year + 0.5;
+  }
+  function midSeasonMove(st, mv) {
+    if (!SNAP) return { ok: false, why: 'This save was made before mid-season moves existed. It will work from the next season.' };
+    replay(st, (st.seasonMoves || []).concat([mv]), {});
+    return { ok: true };
+  }
 
   // ---------------------------------------------------------------- contracts and decisions
   function marketPct(st) {
@@ -774,6 +809,20 @@
     if (rand() > accept) return Object.assign(base, { ok: false, reason: why || 'The ' + mine.nick + ' turned the deal down.' });
     return Object.assign(base, { ok: true });
   }
+  // How a club answers a free agent: his value against their fourth-best player (is there a starting spot), cap room, need at his position, and what they think of him.
+  // The answers are rolled once from the career's own seeded stream, so reloading the page never changes a rejection.
+  const sig = (x) => 1 / (1 + Math.exp(-x));
+  const minSalary = (L) => r1(2.3 * capFor(L.year) / 154.6);
+  function teamInterest(st, t, v) {
+    const L = st.league, p = st.player, rnd = NBA.Decisions.rng(st, 'fa|' + t.id + '|' + L.year);
+    const r = NBA.rosterOf(L, t), fourth = r[3] ? ovr(r[3]) : 60;
+    const space = clamp(0.75 - 0.011 * (t.wins - 41) + (rnd() - 0.5) * 0.9, 0, 1), need = NBA.teamNeeds(L, t)[p.pos] || 0.3;
+    const gap = v - fourth;
+    const s = 0.22 * (gap + 3) + 2.2 * (space - 0.4) + 1.2 * (need - 0.3) + 0.5 * NBA.Decisions.relOf(st, 'team' + t.id) + 0.8 * (rnd() - 0.5);
+    const reason = space < 0.25 ? 'They have no cap room.' : gap < -4 ? 'They do not see you as a rotation player.' : need < 0.15 && gap < 3 ? 'They are set at your position.' : 'They went in another direction.';
+    return { p: sig(s), yes: rnd() < sig(s), reason, space, gap };
+  }
+  const teamKey = (t) => (t.name.endsWith('Trail Blazers') ? 'Trail Blazers' : t.nick);
   function decisionOptions(st) {
     const L = st.league, p = st.player, c = st.contract;
     const cap = capNow(L);
@@ -784,23 +833,55 @@
     const st0 = (p.tr && p.tr.stay) || 0, sty = p.age >= 31 ? NBA.tuning.stayMarket * (st0 > 0 ? st0 : 0.5 * st0) : 0, v = mk.v + sty;   // only veterans: young players get offers on talent
     const forceRetire = p.age >= 42 || (p.age >= 35 && v < 57) || (p.age >= 25 && v < 55) || (p.age >= 31 && v < 60) || (c.left <= 0 && p.age >= 26 && v < (p.age <= 27 ? 62 : 62 + (p.age - 27) * NBA.tuning.marketSlope));
     out.mustRetire = forceRetire;
+    const human = !st.autoPlay, Dc = NBA.Decisions;
+    // a club can cut a player who is doing badly (his contract is voided; the salary he was owed is still paid): he goes to the market like any other free agent
+    if (human && !out.expiring && !forceRetire && c.left > 0 && p.yearsPro >= 3 && p.age >= 24 && v < 63 && Dc.rng(st, 'cut|' + L.year)() < (v < 58 ? 0.55 : 0.3)) {
+      out.expiring = true; out.waived = 'The ' + L.teams[st.teamId].nick + ' waived you: they decided your spot and your salary were better spent elsewhere.';
+    }
     if (out.expiring) {
       const own = L.teams[st.teamId];
       const maxYrsOwn = p.age >= 36 ? 1 : p.age >= 33 ? 2 : 5;
       out.resign = { teamId: own.id, name: own.name, salary: r1(Math.max(2.3 * capFor(L.year) / 154.6, baseSal)), maxYears: maxYrsOwn, role: role(st, own), label: teamLabel(own, own.wins) };
-      let offers = [];
-      const n = mk.v >= 76 ? 6 : mk.v >= 68 ? 4 : mk.v >= 60 ? 3 : 1;
-      const teams = L.teams.filter((t) => t.id !== st.teamId).sort(() => rand() - 0.5).slice(0, n);
-      teams.forEach((t) => {
-        const sal = Math.max(2.3 * capFor(L.year) / 154.6, baseSal * (0.88 + rand() * 0.17) * (t.wins < 33 ? 1.04 : 1));
-        offers.push({ teamId: t.id, name: t.name, salary: r1(sal), maxYears: p.age >= 36 ? 1 : p.age >= 33 ? 2 : 4, role: role(st, t), label: teamLabel(t, t.wins), wins: t.wins });
-      });
-      out.offers = offers.sort((a, b) => b.salary - a.salary);
+      if (human) {
+        // your own club may not want you back, or only for less
+        const rs = Dc.rng(st, 'resign|' + L.year)(), keepP = out.waived ? 0 : clamp(0.5 + 0.035 * (v - 62) + 0.12 * Math.min(2, Dc.relOf(st, 'team' + own.id)), 0.1, 0.97);
+        if (rs > keepP) out.resign = null;
+        else if (rs > keepP - 0.18 && v < 70) { out.resign.salary = r1(out.resign.salary * 0.8); out.resign.cut = true; }
+        out.resignText = out.resign ? (out.resign.cut ? 'The ' + own.nick + ' want you back, but at a discount.' : 'The ' + own.nick + ' want you back.') : 'The ' + own.nick + ' are letting you walk.';
+        const n = v >= 76 ? 10 : v >= 68 ? 8 : v >= 60 ? 7 : 6, rnd = Dc.rng(st, 'market|' + L.year);
+        const teams = L.teams.filter((t) => t.id !== st.teamId).map((t) => [rnd(), t]).sort((x, y) => x[0] - y[0]).slice(0, n).map((x) => x[1]);
+        out.market = teams.map((t) => {
+          const ti = teamInterest(st, t, v), sal = Math.max(2.3 * capFor(L.year) / 154.6, baseSal * (0.88 + rnd() * 0.17) * (t.wins < 33 ? 1.04 : 1));
+          return { teamId: t.id, name: t.name, nick: teamKey(t), wins: t.wins, label: teamLabel(t, t.wins), role: role(st, t), vibe: Dc.vibe(ti.p), yes: ti.yes, reason: ti.reason, salary: r1(sal), maxYears: p.age >= 36 ? 1 : p.age >= 33 ? 2 : 4, pitched: null };
+        }).sort((a, b) => b.wins - a.wins);
+        out.offers = [];
+      } else {
+        const offers = [];
+        const n = mk.v >= 76 ? 6 : mk.v >= 68 ? 4 : mk.v >= 60 ? 3 : 1;
+        const teams = L.teams.filter((t) => t.id !== st.teamId).sort(() => rand() - 0.5).slice(0, n);
+        teams.forEach((t) => {
+          const sal = Math.max(2.3 * capFor(L.year) / 154.6, baseSal * (0.88 + rand() * 0.17) * (t.wins < 33 ? 1.04 : 1));
+          offers.push({ teamId: t.id, name: t.name, salary: r1(sal), maxYears: p.age >= 36 ? 1 : p.age >= 33 ? 2 : 4, role: role(st, t), label: teamLabel(t, t.wins), wins: t.wins });
+        });
+        out.offers = offers.sort((a, b) => b.salary - a.salary);
+      }
     } else {
-      const dest = L.teams.filter((t) => t.id !== st.teamId).sort(() => rand() - 0.5).slice(0, 4);
-      out.tradeOptions = dest.map((t) => tradeDeal(st, t));
+      out.tradeOptions = tradeOffers(st, 4);
+      out.requested = !!(Dc.state(st).flags.tradeReq);
     }
     return out;
+  }
+  function tradeOffers(st, n) {
+    const L = st.league;
+    return L.teams.filter((t) => t.id !== st.teamId).sort(() => rand() - 0.5).slice(0, n).map((t) => tradeDeal(st, t));
+  }
+  // pitch yourself to a club on the free-agent market: they either make an offer or turn you down (the answer was rolled when the market opened)
+  function pitch(st, teamId) {
+    const d = st.decision, m = d && d.market && d.market.find((x) => x.teamId === teamId);
+    if (!m || m.pitched) throw new Error('already pitched');
+    m.pitched = m.yes ? 'offer' : 'no';
+    if (!d.market.some((x) => !x.pitched || x.pitched === 'offer') && !d.resign) d.noOffers = true;
+    return m;
   }
   function decide(st, action, arg) {
     const L = st.league, p = st.player, c = st.contract;
@@ -811,6 +892,14 @@
       st.stage = 'training'; st.afterTraining = 'pro';
       return { text: 'Staying put with the ' + L.teams[st.teamId].nick + '.' };
     }
+    if (action === 'request') {
+      // you let the front office know you want out: they shop you through the season, and a request that goes nowhere leaves a mark
+      NBA.Decisions.state(st).flags.tradeReq = L.year;
+      NBA.Decisions.apply(st, [{ k: 'season', v: { depth: -1.5 } }]);
+      NBA.Decisions.log(st, { kind: 'trade', title: 'Trade request', tone: 'bad', text: 'Asked the ' + L.teams[st.teamId].nick + ' for a trade. The locker room felt it, and they will shop you before the deadline.' });
+      st.stage = 'training'; st.afterTraining = 'pro';
+      return { text: 'Request filed. The ' + L.teams[st.teamId].nick + ' will try to find a deal by the deadline.' };
+    }
     if (action === 'trade') {
       const t = L.teams[arg.teamId], opt = (st.decision && st.decision.tradeOptions || []).find((x) => x.teamId === t.id);
       if (!opt || !opt.ok) throw new Error('trade not available');
@@ -819,6 +908,8 @@
       st.teamId = t.id; p.teamId = t.id;
       (st.trades = st.trades || []).push({ year: L.year, label: NBA.seasonLabel(L.year), from: old.name, to: t.name, ovr: Math.round(ovr(p)), age: p.age, partner: opt.partner.name + ' (' + opt.partner.ovr + ' ovr)', requested: true });
       note('Traded to ' + t.name + ' for ' + opt.partner.name);
+      NBA.Decisions.state(st).flags.tradeReq = null;
+      NBA.Decisions.log(st, { kind: 'trade', title: 'Traded', tone: 'neutral', text: 'Traded from the ' + old.nick + ' to the ' + t.nick + ' for ' + opt.partner.name + '.' });
       st.stage = 'training'; st.afterTraining = 'pro';
       return { text: 'Trade done. You are now a ' + t.nick + '; the ' + old.nick + ' got ' + opt.partner.name + '.' };
     }
@@ -828,6 +919,7 @@
       st.teamId = t.id; p.teamId = t.id;
       st.contract = { salary: arg.salary, years, left: years, type: 'veteran' };
       note((action === 'switch' ? 'Signed with ' : 'Re-signed with ') + t.name + ' (' + years + 'y, $' + arg.salary + 'M)');
+      if (!st.autoPlay) NBA.Decisions.log(st, { kind: 'contract', title: 'Free agency', tone: 'neutral', text: (action === 'switch' ? 'Signed with the ' + t.nick : 'Re-signed with the ' + t.nick) + ' for ' + years + ' year' + (years > 1 ? 's' : '') + ', $' + arg.salary + 'M a year.' });
       st.stage = 'training'; st.afterTraining = 'pro';
       return { text: (action === 'switch' ? 'Signed with the ' : 'Re-signed with the ') + t.nick + ' for ' + years + ' years, $' + arg.salary + 'M/yr.' };
     }
@@ -896,6 +988,6 @@
     return st;
   }
 
-  Object.assign(NBA, { Game: { shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { Game: { pitch, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

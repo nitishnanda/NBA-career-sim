@@ -655,3 +655,18 @@ Feedback from play: draft night went by too fast to take in your own pick, and s
   Each no costs 0.6 of the 1.2-point solo fallback; two nos = no summer.
 - Bulk/autopilot careers skip decisions unless `auto(st,{decisions:true})`, so realism baselines are unchanged.
   With autopilot asking only ≥25% mentors: peak OVR +0.28, avg PPG +0.3 over 60 careers (a thoughtful player gets a bit more by design).
+
+## v43 — contracts, plausible trades, deadline, free-agency rejections
+- League: every player has `since` (tenure) and `cEnd` (contract end), handed out from his id (no random draws until a deal is made).
+  `marketTrades`: offseason ~5 swaps + the odd star request; deadline 3-4 sellers→contenders deals (buyer gets the better, older player;
+  seller gets lesser/younger; picks named in the text). Move weight by tenure: ≥2.5y 1.0, 2y 0.8, 1y 0.12, <1y 0.02; rookie-deal players ×0.35.
+  Deadline buyers' playoff power rises ~0.12/OVR gained (cap 0.7). `freeAgency`: expiring deals re-sign with p ≈ 0.58+0.014·(OVR−66) (+0.1 tenure≥3, +0.15 stars,
+  −0.2 age 33+); the rest sign where roster spots are open (good players favour winners) or fall out of the league. Log in `L.moves` ("Transactions" panel).
+  Checks after the change: realism 90% (perfect-sim ceiling ~89%), gen #1-producer seasons per gen 1.86/1.19/1.56 (real 1.79; seed spread ±0.3).
+- You (human careers only; autopilot keeps the old offers so calibration is untouched):
+  free agency is a pitch: ~6-10 clubs, each rolled once from the career's seeded stream: yes/no from value vs their 4th-best player, cap room, need, relationship;
+  your own club may let you walk or offer a 20% pay cut. Every club saying no with no re-sign = the career ends (no team wants you).
+  Clubs waive players (value <63, 3+ years, 24+) with p 0.3-0.55 after a season, and at the deadline when they are playing badly (perf rank >250, p 0.45); a waived player signs a minimum deal with a contender.
+  Trade request: file in the offseason; locker-room strain −1.5 team depth that season; at the deadline the club finds suitors (50-70%) or the request goes nowhere (−1 depth).
+  Contenders can also call (bad team, value ≥70, age 27+, p 0.3).
+- Mid-season moves replay the season from its tip-off snapshot with the move applied: the games you saw stay as they were, the rest (record, playoffs, awards) come from the new team.

@@ -47,6 +47,8 @@
       else if (e.k === 'bonusPts') st.bonusPoints = (st.bonusPoints || 0) + e.d;
     });
   }
+  // after a season is replayed from its snapshot, the decisions made since tip-off (journal, relationships, flags, an open question) carry over
+  function carry(st, live) { const d = state(st); if (live) { d.journal = live.journal; d.rel = live.rel; d.flags = live.flags; d.pending = live.pending; d.seq = live.seq; } }
   const relOf = (st, id) => { const r = state(st).rel[id]; return r ? r.v : 0; };
   // the next season consumes whatever the player's decisions queued (playSeason merges it into the season's event modifiers)
   function takeSeason(st) { const d = state(st), s = d.season; d.season = {}; return s; }
@@ -80,7 +82,7 @@
     pd.step++; if (res.text) pd.log.push({ text: res.text, tone: res.tone || 'neutral' });
     if (res.effects) apply(st, res.effects);
     if (res.journal) { if (typeof res.journal.text === 'function') res.journal.text = res.journal.text(); log(st, Object.assign({ kind: pd.id, title: def.title }, res.journal)); }
-    if (res.done) d.pending = null;
+    if (res.done) state(st).pending = null;   // a replayed season swaps st.dec: always write to the live one
     return res;
   }
   // the autopilot answers every question with a sensible default (so bulk careers, tests and realism checks do not need a person)
@@ -201,6 +203,64 @@
     },
   });
 
-  Object.assign(NBA, { Decisions: { register, state, rng, vibe, apply, offer, view, choose, autoResolve, takeSeason, log, relOf, TIERS, SKILL_WORDS, campMentors, standing } });
+
+  // ================================================================ decision 2: the trade deadline
+  // Fires once a season when the games reach the deadline. One situation at most: a club cuts you (you are doing badly), your trade request comes due, or a contender calls.
+  const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
+  register({
+    id: 'deadline', title: 'Trade deadline', trigger: 'deadline',
+    open(st) {
+      const G = NBA.Game, L = st.league, p = st.player, t = L.teams[st.teamId], d = state(st), rnd = rng(st, 'dl|' + L.year);
+      const v = G.marketV(st), rec = st.proSeasons[st.proSeasons.length - 1], c = st.contract;
+      const shown = (st.matchLog || []).slice(0, st.matchIdx || 0).filter((x) => x.k === 'g' && !x.po && !x.dnp);
+      // 1. waived: a vet who is playing badly on a deal that still has years on it
+      if (!st.autoPlay && c.left >= 1 && p.yearsPro >= 3 && p.age >= 24 && v < 64 && v >= 52 && rec && rec.perfRank > 250 && rnd() < 0.45) {
+        const sal = G.minSalary(L), paid = Math.round(c.salary * 54 / 82 * 10) / 10;
+        const teams = L.teams.filter((x) => x.id !== st.teamId && x.wins >= 36).map((x) => [rnd(), x]).sort((a, b) => a[0] - b[0]).slice(0, 3).map((x) => x[1]);
+        return { kind: 'waive', text: 'The ' + t.nick + ' are waiving you. The rest of your contract is guaranteed, but you are out of their plans.', options: teams.map((x) => ({ teamId: x.id, name: x.name, nick: G.teamKey(x), label: x.wins + ' wins', salary: sal, paid })) };
+      }
+      const offers = () => G.tradeOffers(st, 6).filter((o) => o.ok).slice(0, 3);
+      // 2. your request comes due
+      if (d.flags.tradeReq) {
+        const found = rnd() < (t.wins < 38 ? 0.7 : 0.5), opts = found ? offers() : [];
+        if (opts.length) return { kind: 'request', text: 'The ' + t.nick + ' found suitors for your trade request. Pick a destination, or stay put.', options: opts };
+        return { kind: 'norequest', text: 'The ' + t.nick + ' could not find a deal for you before the deadline. You are staying, and the front office remembers the request.', options: [] };
+      }
+      // 3. a contender calls (a good player on a team going nowhere)
+      if (t.wins <= 36 && v >= 70 && p.age >= 27 && rnd() < 0.3) {
+        const opts = offers().slice(0, 2);
+        if (opts.length) return { kind: 'call', text: 'Contenders are calling the ' + t.nick + ' about you. If you want out, now is the time.', options: opts };
+      }
+      return null;
+    },
+    view(st, ctx) {
+      return { kind: ctx.kind, text: ctx.text, options: ctx.options.map((o) => Object.assign({}, o, o.partner ? { partnerName: o.partner.name + ' (' + o.partner.pos + ', ' + o.partner.age + ', ' + o.partner.ovr + ' OVR)' } : {})), canDecline: ctx.kind !== 'waive' };
+    },
+    choose(st, ctx, key, arg) {
+      const G = NBA.Game, L = st.league, d = state(st), old = L.teams[st.teamId];
+      if (key === 'decline') {
+        if (ctx.kind === 'norequest') { d.flags.tradeReq = null; return { done: true, tone: 'bad', text: 'You stay put.', effects: [{ k: 'season', v: { depth: -1 } }], journal: { tone: 'bad', text: 'Your trade request went nowhere: the ' + old.nick + ' kept you, and the room was tense for the rest of the year.' } }; }
+        if (ctx.kind === 'request') { d.flags.tradeReq = null; return { done: true, tone: 'neutral', text: 'You turned the offers down.', journal: { tone: 'neutral', text: 'Wanted out of the ' + old.nick + ', but none of the deals felt right. Stayed.' } }; }
+        return { done: true, tone: 'neutral', text: 'You told them you are staying.', journal: { tone: 'neutral', text: 'Contenders called at the deadline. Stayed with the ' + old.nick + '.' } };
+      }
+      if (key === 'trade') {
+        const o = ctx.options.find((x) => x.teamId === arg); if (!o) throw new Error('bad trade');
+        const t = L.teams[o.teamId], text = 'traded to the ' + t.nick;
+        G.midSeasonMove(st, { kind: 'trade', teamId: o.teamId, partnerId: o.partner.id, partnerText: o.partner.name + ' (' + o.partner.ovr + ' ovr)', requested: ctx.kind === 'request', text });
+        state(st).flags.tradeReq = null;
+        return { done: true, tone: 'good', text: 'Traded to the ' + t.nick + ' for ' + o.partner.name + '. New team, new situation.', journal: { tone: 'good', text: (ctx.kind === 'request' ? 'Got the trade you asked for: ' : 'Traded at the deadline: ') + old.nick + ' to ' + t.nick + ', for ' + o.partner.name + '.' } };
+      }
+      if (key === 'sign') {
+        const o = ctx.options.find((x) => x.teamId === arg); if (!o) throw new Error('bad suitor');
+        const t = L.teams[o.teamId];
+        G.midSeasonMove(st, { kind: 'sign', teamId: o.teamId, salary: o.salary, paid: o.paid, text: 'waived by the ' + old.nick + ', signed with the ' + t.nick });
+        return { done: true, tone: 'bad', text: 'Signed with the ' + t.nick + ' on a minimum deal.', journal: { tone: 'bad', text: 'Waived by the ' + old.nick + ' at the deadline after a bad stretch. Picked up by the ' + t.nick + ' on a minimum deal.' } };
+      }
+      throw new Error('bad deadline choice');
+    },
+    auto(st, ctx) { return ctx.options.length && ctx.kind !== 'waive' ? { key: 'trade', arg: ctx.options[0].teamId } : ctx.options.length ? { key: 'sign', arg: ctx.options[0].teamId } : { key: 'decline' }; },
+  });
+
+  Object.assign(NBA, { Decisions: { carry, register, state, rng, vibe, apply, offer, view, choose, autoResolve, takeSeason, log, relOf, TIERS, SKILL_WORDS, campMentors, standing } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
