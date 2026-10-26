@@ -49,6 +49,13 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   const cm1 = await page.evaluate(() => { const S = window.__NBA_UI.state, cb = S.player.cmb, c = S.combine; return { tested: cb.tested, rows: document.querySelectorAll('.trow').length, bonus: +cb.bonus.toFixed(2), post: !!(c.mocks && c.mocks.outlets.length === 4 && c.mocks.ranks.before.length === 4 && c.mocks.ranks.after.length === 4 && c.mocks.ranks.alt.length === 4), bars: document.querySelectorAll('.ctile .pbar, .trow .pbar').length }; });
   const okT = cm1.tested && cm1.rows === 6 && cm1.post && cm1.bars === 3 + 6 + 1;
   console.log('COMBINE tested', okT ? 'OK' : 'MISMATCH', JSON.stringify(cm1)); if (!okT) errors.push('COMBINE tested ' + JSON.stringify(cm1));
+  // workouts: invited teams with their pick and need, three visits used, each gives a read, the rest can be skipped
+  await page.click('button:has-text("On to the workouts")'); await page.waitForSelector('text=Pre-draft workouts'); await shot('04d-workouts');
+  const w0 = await page.evaluate(() => ({ cards: document.querySelectorAll('.wkcard').length, stage: window.__NBA_UI.state.stage, left: document.querySelector('.card h2').innerText }));
+  for (let k = 0; k < 3; k++) await page.click('button:has-text("Work out for them") >> nth=0');
+  const w1 = await page.evaluate(() => { const S = window.__NBA_UI.state; return { reads: document.querySelectorAll('.wkres').length, done: Object.keys(S.workouts.done).length, left: document.querySelector('.card h2').innerText, btn: document.querySelector('.card button.primary').innerText }; });
+  const okW = w0.cards >= 6 && w0.stage === 'workouts' && /4 of 4/i.test(w0.left) && w1.reads === 3 && w1.done === 3 && /1 of 4/i.test(w1.left) && /skip 1/i.test(w1.btn);
+  console.log('WORKOUTS', okW ? 'OK' : 'MISMATCH', JSON.stringify({ w0, w1 })); if (!okW) errors.push('WORKOUTS ' + JSON.stringify({ w0, w1 }));
   await page.click('button:has-text("Head to the draft")');
   // draft night is paced: nothing about where he is projected is on the page, the first picks take seconds, and the player's own pick is held until Continue
   await page.waitForSelector('button:has-text("Reveal everything")'); await page.waitForTimeout(500);
@@ -56,17 +63,26 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   const t0 = Date.now(); await page.waitForSelector('.prow:not(.pending)', { timeout: 15000 }); const firstPickMs = Date.now() - t0;
   const okP = !spoil && firstPickMs >= 2500; console.log('DRAFT pacing', okP ? 'OK' : 'MISMATCH', JSON.stringify({ spoil, firstPickMs }));
   if (!okP) errors.push('DRAFT pacing ' + JSON.stringify({ spoil, firstPickMs }));
-  await page.click('button:has-text("Skip to my pick")');
+  // a trade alert can hold the controls for a few seconds, and an early pick has nothing to skip to
+  await page.waitForSelector('button:has-text("Skip to my pick"), button:has-text("Continue →")', { timeout: 30000 });
+  if (await page.$('button:has-text("Skip to my pick")')) await page.click('button:has-text("Skip to my pick")');
   const hold = await page.waitForSelector('button:has-text("Continue →")', { timeout: 30000 }).then(() => page.evaluate(() => ({ rows: document.querySelectorAll('.prow:not(.pending)').length, big: !!document.querySelector('.bigpick'), wrapShown: /landing spot/i.test(document.body.innerText) })));
   const pickN = await page.evaluate(() => window.__NBA_UI.state.draft.slot);
   const okH = hold.big && !hold.wrapShown && (pickN ? hold.rows === pickN : true); console.log('DRAFT held pick', okH ? 'OK' : 'MISMATCH', JSON.stringify(hold));
   if (!okH) errors.push('DRAFT held pick ' + JSON.stringify(hold));
-  await page.click('button:has-text("Continue →")'); await page.waitForSelector('text=Your landing spot'); await page.click('button:has-text("Reveal everything")');
+  // after the pick: if his rights are traded there is a second held scene (breaking news), then the wrap-up
+  await page.click('button:has-text("Continue →")'); let sawTrade = false;
+  for (let k = 0; k < 10; k++) { if (await page.evaluate(() => /your landing spot/i.test(document.body.innerText))) break; if (await page.evaluate(() => /draft-night trade/i.test(document.querySelector('.onclock').innerText))) { sawTrade = true; await shot('05b-user-trade'); await page.click('button:has-text("Continue →")'); } else await page.waitForTimeout(1000); }
+  await page.waitForSelector('text=Your landing spot'); await page.click('button:has-text("Reveal everything")');
   await page.waitForSelector('text=Start my NBA career', { timeout: 30000 });
   const dr = await page.evaluate(() => { const S = window.__NBA_UI.state, d = S.draft, rows = Array.from(document.querySelectorAll('.prow')), me = rows.filter((r) => r.classList.contains('me')), pos = rows.indexOf(me[0]);
     return { rows: rows.length, board: d.board.length, me: me.length, slot: d.slot, rowSlot: pos + 1, rounds: document.querySelectorAll('.rhead').length, userRowOnBoard: d.board.filter((r) => r.isUser).length, tested: d.tested }; });
   const okD = dr.rows === 60 && dr.board === 60 && dr.rounds === 2 && (dr.slot ? dr.me === 1 && dr.rowSlot === dr.slot : dr.me === 0);
   console.log('DRAFT board', okD ? 'OK' : 'MISMATCH', JSON.stringify(dr)); if (!okD) errors.push('DRAFT board ' + JSON.stringify(dr));
+  const tr = await page.evaluate(() => { const S = window.__NBA_UI.state, d = S.draft, ev = d.trades || [], bad = ev.filter((e) => { const a = d.board[e.slot - 1], b = d.board[e.other - 1]; return !(a.via && b.via && a.nick === e.upNick && b.nick === e.downNick); }).length;
+    const ut = d.userTrade, row = d.board.find((r) => r.isUser); return { events: ev.length, badEvents: bad, userTraded: !!ut, landing: d.teamId, expectLanding: ut ? ut.toId : d.draftedById, stTeam: S.teamId, rowNick: row ? row.nick : null, drafter: ut ? ut.fromNick : null, tradedPill: !!document.querySelector('.prow.me .pill.gold') }; });
+  const okTr = tr.events >= 3 && tr.events <= 6 && tr.badEvents === 0 && tr.landing === tr.expectLanding && tr.stTeam === tr.landing && (!tr.userTraded || (tr.rowNick === tr.drafter && tr.tradedPill));
+  console.log('DRAFT trades', okTr ? 'OK' : 'MISMATCH', JSON.stringify(tr)); if (!okTr) errors.push('DRAFT trades ' + JSON.stringify(tr));
   await shot('05-draft-night');
   await page.click('text=Start my NBA career');
   const trainLoop = async () => {

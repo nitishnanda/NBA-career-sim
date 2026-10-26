@@ -277,3 +277,8 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 .mockmoves .kv .pill { flex: 0 0 auto; margin: 0 0 0 auto; } .mockmoves .kv { align-items: center; }
 .prow.pending { opacity: .62; background: rgba(255,255,255,.025); } .prow.pending .pmain b { font-weight: 600; }
 .lotgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; } .lotrow { display: grid; grid-template-columns: 26px 26px minmax(0, 1fr); gap: 8px; align-items: center; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; }
+
+/* workouts and trades */
+.wkgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 14px; } .wkcard { background: var(--well); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; }
+.wkres { font-weight: 600; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.06); } .wkcard.t3 { border-color: rgba(95,213,143,.6); } .wkcard.t3 .wkres { color: #5fd58f; } .wkcard.t2 { border-color: rgba(95,213,143,.35); } .wkcard.t2 .wkres { color: #8fe3b0; } .wkcard.t0 .wkres { color: #ff8b6b; }
+.tradearrow { font-size: 26px; color: var(--gold); }

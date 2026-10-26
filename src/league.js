@@ -456,7 +456,7 @@
   const phi = (z) => 0.5 * (1 + Math.tanh(0.7978845608 * (z + 0.044715 * z * z * z)));
   function combineFor(p, o) {
     o = o || {}; const C = NBA.COMBINE; if (!C || p.ht == null) return null;
-    const rnd = mulberry(hashOf(p.id + '|' + p.name + '|' + (o.year || 0)) ^ 0x2c1b3c6d), gauss = () => { let u = 0, v = 0; while (u === 0) u = rnd(); v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };   // its own random stream: the league's never moves
+    const rnd = mulberry(hashOf(p.id + '|' + p.name + '|' + (o.year || 0) + '|' + (p.cseed || 0)) ^ 0x2c1b3c6d), gauss = () => { let u = 0, v = 0; while (u === 0) u = rnd(); v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };   // its own random stream: the league's never moves
     const T0 = C.tab[p.pos] || C.tab.SF, ap = ATH_POS[p.pos] || [58.5, 12.7], sz = NBA.sizeZ(p), ws0 = p.ws != null ? p.ws : p.ht + (D.SIZE[p.pos] || D.SIZE.SF).arm;
     const q4 = (x) => Math.round(x * 4) / 4;
     const hb = q4(p.ht - 0.87 + 0.2 * gauss()), wt = Math.round(p.wt + (T0.wgt.m - (D.SIZE[p.pos] || D.SIZE.SF).wt) + 3 * gauss()), ws = q4(ws0 + 0.2 * gauss());
@@ -545,22 +545,68 @@
     addRookies(L, cls.slice(0, 60).map((p, i) => ({ p, slot: i + 1 })), order);
     return { order };
   }
-  // user draft: user ranked among a class
-  // o.cls / o.order (team ids) / o.stock: the class, the draft order and the player's stock settled when he declared (so the mock drafts he saw describe this very draft)
+  // ------------------------------------------------------------ team needs, draft-night trades and the draft itself
+  // A team's need at a position: its rotation (the top 8) counted by position, 0 when it has two or more there, up to 1 when it has none.
+  function teamNeeds(L, t) {
+    const cnt = { PG: 0, SG: 0, SF: 0, PF: 0, C: 0 }; rosterOf(L, t).slice(0, 8).forEach((q) => { cnt[q.pos] = (cnt[q.pos] || 0) + 1; });
+    const out = {}; Object.keys(cnt).forEach((k) => { out[k] = clamp((2 - cnt[k]) / 2, 0, 1); }); return out;
+  }
+  const NEED_WORDS = { PG: 'a point guard', SG: 'a shooting guard', SF: 'a wing', PF: 'a forward', C: 'a big man' };
+  function needText(L, t) { const n = teamNeeds(L, t), k = Object.keys(n).sort((a, b) => n[b] - n[a])[0]; return n[k] >= 0.5 ? 'Needs ' + NEED_WORDS[k] : 'Deep roster, best player available'; }
+  // Picks change hands on draft night: 3 to 6 deals, each a team moving up from a later slot to an earlier one (sending the later pick plus a sweetener), announced just before the earlier pick.
+  function planTrades(L, orderIds, seed) {
+    const rnd = mulberry(hashOf('trades|' + seed)), order = orderIds.slice(), events = [], used = new Set(), n = 3 + Math.floor(rnd() * 4);
+    for (let k = 0; k < n * 6 && events.length < n; k++) {
+      const sb = 1 + Math.floor(rnd() * 34), gap = 2 + Math.floor(rnd() * 14), sa = sb + gap;
+      if (sa > 55 || used.has(sb) || used.has(sa) || order[sb - 1] === order[sa - 1]) continue;
+      used.add(sb); used.add(sa);
+      const A = L.teams[order[sa - 1]], B = L.teams[order[sb - 1]];   // A moves up from sa to sb
+      order[sb - 1] = A.id; order[sa - 1] = B.id;
+      const sweet = sb <= 14 && gap >= 8 ? 'a 2028 first-round pick' : rnd() < 0.5 ? 'a 2029 second-round pick' : rnd() < 0.5 ? 'cash considerations' : 'a 2028 second-round pick';
+      events.push({ slot: sb, other: sa, upId: A.id, downId: B.id, text: A.nick + ' trade up to #' + sb + ', sending #' + sa + ' and ' + sweet + ' to ' + B.nick });
+    }
+    events.sort((a, b) => a.slot - b.slot);
+    return { order, events };
+  }
+  // user draft. o.cls / o.order (team ids) / o.stock: the class, the draft order and the player's stock settled when he declared (so the mock drafts he saw describe this very draft).
+  // o.bias: how much each team (by id) liked him after the workouts, in stock points. The draft is run pick by pick: each team takes the best of the T.draftWindow highest-rated players still
+  // there by stock plus its own taste (need at the position, a little noise; for the player, his workouts), so a team that loves you can take you ahead of where the board says,
+  // and a team that does not can pass. Picks are traded on the night, and he may be traded right after he is picked.
   function userDraft(L, user, bonus, o) {
     o = o || {};
-    const order = o.order ? o.order.map((id) => L.teams[id]) : lotteryOrder(L);
+    const baseIds = o.order ? o.order.slice() : lotteryOrder(L).map((t) => t.id);
     const cls = o.cls || draftClass(L, 72);
     user.stock = o.stock != null ? o.stock : stockOf(user, bonus);
-    const all = cls.concat([user]).sort((a, b) => b.stock - a.stock);
-    const slot = all.indexOf(user) + 1;
-    const picks = [];
-    all.forEach((p, i) => { if (p !== user && i < 60) picks.push({ p, slot: i + 1 }); });
-    addRookies(L, picks, order);
+    const seed = L.year + '|' + user.name + '|' + (o.seed || 0), tp = planTrades(L, baseIds, seed), order = tp.order.map((id) => L.teams[id]);
+    const needs = {}, need = (t) => needs[t.id] || (needs[t.id] = teamNeeds(L, t)), gz = (p, t) => { const r = mulberry(hashOf(p.id + '|' + p.name + '|' + t.id + '|want')); let u = 0; while (u === 0) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r()); };
+    const avail = cls.concat([user]).sort((a, b) => b.stock - a.stock), picks = [];
+    for (let k = 0; k < 60 && avail.length; k++) {
+      const t = order[k]; let best = null, bs = -Infinity;
+      avail.slice(0, T.draftWindow).forEach((p, i) => { const taste = p === user ? T.workoutK * ((o.bias && o.bias[t.id]) || 0) + 0.9 * need(t)[p.pos] : 0.9 * need(t)[p.pos] + 0.7 * gz(p, t), sc = p.stock + taste - 0.001 * i; if (sc > bs) { bs = sc; best = p; } });
+      avail.splice(avail.indexOf(best), 1); picks.push(best);
+    }
+    const all = picks.concat(avail), uslot = picks.indexOf(user) + 1;
+    // traded right after he is picked: more likely when a team that loved him in workouts does not hold his pick
+    let userTrade = null;
+    if (uslot) {
+      const owner = order[uslot - 1], rnd = mulberry(hashOf('usertrade|' + seed)), bias = o.bias || {}, fans = Object.keys(bias).filter((id) => +id !== owner.id && bias[id] >= 2.4).length;
+      if (rnd() < clamp(T.userTradeP + 0.05 * fans, 0, 0.4)) {
+        const cands = L.teams.filter((t) => t.id !== owner.id), w = cands.map((t) => 1 + 2.5 * Math.max(0, bias[t.id] || 0) + 1.2 * need(t)[user.pos]), tot = sum(w);
+        let u = rnd() * tot, dest = cands[cands.length - 1]; for (let q = 0; q < cands.length; q++) { u -= w[q]; if (u <= 0) { dest = cands[q]; break; } }
+        const later = order.findIndex((t, q) => q + 1 > uslot && t.id === dest.id) + 1;   // a pick the destination holds later in this draft, which comes back to the drafting team
+        const future = uslot <= 20 ? 'a 2029 first-round pick' : 'a 2029 second-round pick';
+        if (later > 0) order[later - 1] = owner;
+        userTrade = { fromId: owner.id, toId: dest.id, from: owner.name, to: dest.name, fromNick: owner.nick, toNick: dest.nick, slotBack: later || null, text: owner.nick + ' trade your draft rights to ' + dest.nick + ' for ' + (later ? '#' + later + ' and ' + future : future) };
+      }
+    }
+    const rookies = []; all.forEach((p, i) => { if (p !== user && i < 60) rookies.push({ p, slot: i + 1 }); });
+    addRookies(L, rookies, order);
     // the board: all 60 picks with who, where from, how big, how he tested, and where the pre-draft ranking (by talent and age alone, before the scouts' noise and the combine) had him
     const proj = all.slice().sort((x, y) => (projectStock(y) + (y === user ? bonus || 0 : 0)) - (projectStock(x) + (x === user ? bonus || 0 : 0))), mockRank = new Map(proj.map((q, i) => [q, i + 1]));
-    const board = all.slice(0, 60).map((p, i) => ({ slot: i + 1, name: p.name, pos: p.pos, age: p.age, team: order[i] ? order[i].name : '', nick: order[i] ? order[i].nick : '', teamRec: order[i] ? order[i].wins + '-' + order[i].losses : '', isUser: p === user, ovr: Math.round(ovr(p)), from: p.from || '', ht: p.ht, wt: p.wt, ws: p.ws, mockRank: mockRank.get(p), cz: p.cmb && p.cmb.cz != null ? Math.round(100 * p.cmb.cz) / 100 : null, bonus: p.cmb ? Math.round(10 * p.cmb.bonus) / 10 : 0 }));
-    return { slot: slot > 60 ? null : slot, team: slot > 60 ? null : order[slot - 1], board, order, classSize: all.length, mockRank: mockRank.get(user) };
+    const evAt = {}; tp.events.forEach((e) => { evAt[e.slot] = e; evAt[e.other] = e; });
+    const board = all.slice(0, 60).map((p, i) => { const t = order[i], o0 = L.teams[baseIds[i]], via = t.id !== o0.id ? o0 : null; return { slot: i + 1, name: p.name, pos: p.pos, age: p.age, team: t.name, nick: t.nick, teamRec: t.wins + '-' + t.losses, via: via ? via.nick : null, viaName: via ? via.name : null, viaRec: via ? via.wins + '-' + via.losses : null, trade: evAt[i + 1] ? evAt[i + 1].text : (userTrade && userTrade.slotBack === i + 1 ? userTrade.text : null), isUser: p === user, ovr: Math.round(ovr(p)), from: p.from || '', ht: p.ht, wt: p.wt, ws: p.ws, mockRank: mockRank.get(p), cz: p.cmb && p.cmb.cz != null ? Math.round(100 * p.cmb.cz) / 100 : null, bonus: p.cmb ? Math.round(10 * p.cmb.bonus) / 10 : 0 }; });
+    const drafted = uslot ? order[uslot - 1] : null, landing = userTrade ? L.teams[userTrade.toId] : drafted;
+    return { slot: uslot || null, team: landing, draftedBy: drafted, userTrade, trades: tp.events.map((e) => ({ slot: e.slot, other: e.other, text: e.text, upNick: L.teams[e.upId].nick, downNick: L.teams[e.downId].nick })), board, order, classSize: all.length, mockRank: mockRank.get(user) };
   }
   function mockRange(L, user, bonus, n) {
     // rough projection: run a few class simulations
@@ -668,6 +714,6 @@
     return { n90: o.filter((x) => x >= 90).length, n85: o.filter((x) => x >= 85).length, n80: o.filter((x) => x >= 80).length, mean: sum(o) / o.length, top: o.slice(0, 6).map((x) => Math.round(x)) };
   }
 
-  Object.assign(NBA, { recruitYears, rosterOf, swapPlayers, seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, makeReal, userDraft, npcDraft, draftClass, mockSeeded, stockBase, mockBoards, ATH_POS, combineFor, combineComp, CB_K, makeProspect, retireP, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
+  Object.assign(NBA, { recruitYears, rosterOf, swapPlayers, seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, makeReal, userDraft, teamNeeds, needText, npcDraft, draftClass, mockSeeded, stockBase, mockBoards, ATH_POS, combineFor, combineComp, CB_K, makeProspect, retireP, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v40';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v41';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -228,9 +228,21 @@
         h('div', { style: 'margin:6px 0' }, chips.length ? chips : h('span', { class: 'muted small' }, 'Nothing about your numbers stood out.')),
         Math.abs(altD) >= 2 ? h('p', { class: 'small muted' }, (c.test ? 'Skipping the tests' : 'Taking the tests') + ' would have moved the consensus about ' + Math.abs(altD) + (altD > 0 ? ' spots in your favour.' : ' spots against you.')) : null,
         c.comp ? h('p', { class: 'small' }, h('b', null, 'Measurables comp: '), c.comp.name + ' (' + c.comp.year + ' combine: ' + ftIn(c.comp.hgt) + ', ' + c.comp.wgt + ' lb, ' + ftIn(c.comp.ws) + ' wingspan)') : null,
-        h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { G.enterDraft(S); go(); } }, 'Head to the draft →'))));
+        h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { G.startWorkouts(S); go(); } }, 'On to the workouts →'))));
     }
     return h('div', null, cards);
+  }
+
+  // pre-draft workouts: teams around where the mocks have you invite you in; you can visit four. How it went is a read, not a number, and a team that loves you may reach for you
+  function screenWorkouts() {
+    const w = S.workouts; if (!w) { G.startWorkouts(S); save(); return screenWorkouts(); }
+    const used = Object.keys(w.done).length, left = w.max - used;
+    const card = (v) => { const r = w.done[v.id];
+      return h('div', { class: 'wkcard' + (r ? ' done t' + r.tier : '') }, h('div', { class: 'row' }, logo(v.nick, 44), h('div', null, h('b', null, v.name), h('div', { class: 'small muted' }, 'Last season ' + v.rec + ' · holds the ' + ord(v.slot) + ' pick'))),
+        h('div', { class: 'small', style: 'margin:8px 0' }, v.need), r ? h('div', { class: 'wkres' }, r.msg) : h('button', { disabled: left <= 0, onclick: () => { G.doWorkout(S, v.id); save(); render(); } }, left > 0 ? 'Work out for them' : 'No visits left')); };
+    return h('div', null, h('h1', null, 'Pre-draft workouts'), h('p', { class: 'muted' }, 'Teams around where the mock drafts have you invited you in. You can visit ' + w.max + '. Each visit is a read on how it went: a team that loves you may reach for you on the night, and one that cools on you may pass. Skip the rest and they only have your tape and the combine.'),
+      h('div', { class: 'card' }, h('div', { class: 'row' }, h('h2', { style: 'margin:0' }, left + ' of ' + w.max + ' visits left'), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => { G.enterDraft(S); go(); } }, left > 0 && used ? 'Head to the draft (skip ' + left + ') →' : used ? 'Head to the draft →' : 'Skip the workouts →')),
+        h('div', { class: 'wkgrid' }, w.invites.map(card))));
   }
 
   // draft night is paced like the real one: the top of the lottery gets time, the second round moves, and your own pick is built up and then held until you are ready
@@ -242,11 +254,14 @@
     const tag = (r) => { const dl = r.slot - r.mockRank; return dl >= 12 ? ['▲ Steal', 'good'] : dl <= -12 ? ['▼ Reach', 'bad'] : r.slot <= 3 ? ['Franchise pick', 'gold'] : null; };   // taken 12+ spots later / earlier than his talent-only rank
     const chipOf = (r) => ftIn(r.ht) + (r.ws ? ' · ' + ftIn(r.ws) + ' WS' : '');
     const prow = (r) => { const t = r.isUser ? null : tag(r); return h('div', { class: 'prow reveal' + (r.isUser ? ' me' : '') + (r.slot <= 5 ? ' top' : '') }, h('span', { class: 'pn' }, r.slot), logo(r.nick, 30),
-      h('div', { class: 'pmain' }, h('b', null, r.isUser ? '⭐ ' + r.name : r.name), h('div', { class: 'small muted' }, r.pos + ' · ' + r.age + ' · ' + (r.from || '—'))), h('div', { class: 'pside' }, h('span', { class: 'small' }, r.nick), h('span', { class: 'small muted' }, chipOf(r))), t ? h('span', { class: 'pill ' + t[1] }, t[0]) : null); };
+      h('div', { class: 'pmain' }, h('b', null, r.isUser ? '⭐ ' + r.name : r.name), h('div', { class: 'small muted' }, r.pos + ' · ' + r.age + ' · ' + (r.from || '—'))), h('div', { class: 'pside' }, h('span', { class: 'small' }, r.nick), r.via ? h('span', { class: 'small muted' }, 'via ' + r.via) : null, h('span', { class: 'small muted' }, chipOf(r))), r.tradedTo ? h('span', { class: 'pill gold' }, '⇄ Traded to ' + r.tradedTo) : t ? h('span', { class: 'pill ' + t[1] }, t[0]) : null); };
     const r1 = h('div', { class: 'pround' }, h('div', { class: 'rhead' }, 'Round 1')), r2 = h('div', { class: 'pround' }, h('div', { class: 'rhead' }, 'Round 2'));
     // the lottery has been held: every slot already shows who holds the pick (the same for every slot, so nothing gives away where you will go); the player fills in when it is announced
-    const pending = (r) => h('div', { class: 'prow pending' }, h('span', { class: 'pn' }, r.slot), logo(r.nick, 30), h('div', { class: 'pmain' }, h('b', { class: 'muted' }, r.team), h('div', { class: 'small muted' }, 'Last season ' + (r.teamRec || '–'))), h('div', { class: 'pside' }, h('span', { class: 'small muted' }, 'on the board')));
-    const rowEls = board.map((r) => pending(r)); rowEls.forEach((el, i) => (i < 30 ? r1 : r2).append(el));
+    // (a pick that changes hands on the night shows its original owner until the trade is announced)
+    const pending = (r, orig) => { const o = orig && r.via; return h('div', { class: 'prow pending' }, h('span', { class: 'pn' }, r.slot), logo(o ? r.via : r.nick, 30), h('div', { class: 'pmain' }, h('b', { class: 'muted' }, o ? r.viaName : r.team), h('div', { class: 'small muted' }, 'Last season ' + ((o ? r.viaRec : r.teamRec) || '–'))), h('div', { class: 'pside' }, h('span', { class: 'small muted' }, 'on the board'))); };
+    const rowEls = board.map((r) => pending(r, true)); rowEls.forEach((el, i) => (i < 30 ? r1 : r2).append(el));
+    const swapPending = (slot) => { const el = rowEls[slot - 1]; if (el && el.classList.contains('pending')) { const n = pending(board[slot - 1], false); el.replaceWith(n); rowEls[slot - 1] = n; } };
+    const tradeAt = {}, tradeDone = {}; (d.trades || []).forEach((e) => { tradeAt[e.slot] = e; });
     const clock = h('div', { class: 'onclock well' }), controls = h('div', { class: 'row dctl' }), wrap = h('div'), prog = h('div', { class: 'bar2' }, h('i', { style: 'width:0%' }));
     const pickLine = (r, big) => h('div', { class: big ? 'bigpick' : '' }, h('div', { class: 'cap2' }, 'Pick ' + r.slot + ' · ' + (r.slot <= 30 ? 'Round 1' : 'Round 2')), h('div', { class: 'clk' }, logo(r.nick, big ? 72 : 56), h('div', null, h('div', { class: 'small muted' }, 'With the ' + ord(r.slot) + ' pick, the ' + r.team + ' select'), h('div', { class: 'clkname' }, r.isUser ? '⭐ ' + r.name : r.name), h('div', { class: 'small muted' }, r.pos + ' · ' + r.age + ' · ' + (r.from || '—') + ' · ' + chipOf(r)))));
     // --- your road to the draft: nothing about where you are projected until your name is called; then how the mocks had you
@@ -273,9 +288,9 @@
       const verdict = !d.slot ? 'Your name was never called.' : dl >= 6 ? 'You went about ' + dl + ' spots higher than the mock drafts had you.' : dl <= -6 ? 'You slid about ' + -dl + ' spots below the mock drafts.' : 'Right about where the mock drafts had you.';
       const tops = board.slice(0, 5), others = board.filter((r) => !r.isUser), steal = others.slice().sort((a, b) => (b.slot - b.mockRank) - (a.slot - a.mockRank))[0], reach = others.slice().sort((a, b) => (a.slot - a.mockRank) - (b.slot - b.mockRank))[0];
       wrap.replaceChildren(
-        h('section', { class: 'card callout reveal' }, d.slot ? h('div', null, h('div', { class: 'big' }, '#' + d.slot + ' pick'), h('p', null, 'With the ' + ord(d.slot) + ' pick in the ' + d.year + ' NBA Draft, the ' + d.team + ' select ', h('b', null, S.player.name), ' of ' + d.college + '.'), h('p', { class: 'muted small' }, verdict)) : h('div', null, h('div', { class: 'big' }, 'Undrafted'), h('p', null, 'Your name was never called. You signed a minimum deal with the ' + d.team + ' right after the draft. Prove them wrong.'), h('p', { class: 'muted small' }, verdict)),
+        h('section', { class: 'card callout reveal' }, d.slot ? h('div', null, h('div', { class: 'big' }, '#' + d.slot + ' pick' + (d.userTrade ? ' · traded' : '')), h('p', null, 'With the ' + ord(d.slot) + ' pick in the ' + d.year + ' NBA Draft, the ' + (d.draftedBy || d.team) + ' select ', h('b', null, S.player.name), ' of ' + d.college + '.'), d.userTrade ? h('p', null, h('b', null, 'Then: '), d.userTrade.text + '. You are a ' + d.userTrade.toNick.replace(/s$/, '') + ' now.') : null, h('p', { class: 'muted small' }, verdict)) : h('div', null, h('div', { class: 'big' }, 'Undrafted'), h('p', null, 'Your name was never called. You signed a minimum deal with the ' + d.team + ' right after the draft. Prove them wrong.'), h('p', { class: 'muted small' }, verdict)),
           h('p', null, 'Rookie contract: ' + money(S.contract.salary) + ' × ' + S.contract.years + ' years'), h('button', { class: 'primary', onclick: () => { G.startPro(S); alloc = {}; go(); } }, 'Start my NBA career →')),
-        h('section', { class: 'card' }, h('h2', null, 'Your landing spot'), h('div', { class: 'row' }, logo(t.nick, 44), h('div', null, h('b', null, t.name), h('div', { class: 'small muted' }, 'Last season ' + (d.teamRec || (t.wins + '-' + t.losses)) + ' · ' + (t.conf === 'W' ? 'West' : 'East')))),
+        h('section', { class: 'card' }, h('h2', null, 'Your landing spot'), h('div', { class: 'row' }, logo(t.nick, 44), h('div', null, h('b', null, t.name), d.userTrade ? h('div', { class: 'small gold' }, 'Drafted by the ' + d.draftedBy + ', traded to the ' + t.nick) : null, h('div', { class: 'small muted' }, 'Last season ' + (t.wins + '-' + t.losses) + ' · ' + (t.conf === 'W' ? 'West' : 'East')))),
           h('div', { class: 'small', style: 'margin-top:8px' }, h('b', null, 'Core: '), ros.map((q) => q.name + ' (' + Math.round(NBA.ovr(q)) + ')').join(' · ')), h('div', { class: 'small muted' }, 'You arrive as a ' + myOvr + ' OVR, which would rank ' + ord(rank) + ' on the roster today.')),
         h('section', { class: 'card' }, h('h2', null, 'Class notes'), h('div', { class: 'small' }, h('b', null, 'Top of the board: '), tops.map((r) => r.slot + '. ' + r.name + ' (' + r.nick + ')').join(' · ')),
           steal && steal.slot - steal.mockRank >= 5 ? h('div', { class: 'small', style: 'margin-top:6px' }, h('b', null, 'Biggest steal: '), steal.name + ', ' + ord(steal.slot) + ' pick (ranked ' + ord(steal.mockRank) + ' by talent).') : null,
@@ -300,19 +315,36 @@
       if (phase === 0) { phase = 1; clock.replaceChildren(h('div', { class: 'suspense' }, h('div', { class: 'cap2' }, 'Pick ' + r.slot), logo(r.nick, 64), h('div', { class: 'clkname' }, 'The ' + r.team + ' are on the clock'), h('div', { class: 'small muted' }, '📱 Your phone is ringing…'))); draftTimer = setTimeout(yourPick, 3000); return; }
       if (phase === 1) { phase = 2; clock.replaceChildren(h('div', { class: 'suspense' }, h('div', { class: 'cap2' }, 'Pick ' + r.slot), logo(r.nick, 64), h('div', { class: 'clkname' }, 'The ' + r.team + ' have turned in their card'), h('div', { class: 'small muted' }, 'The commissioner is walking to the podium…'))); draftTimer = setTimeout(yourPick, 2800); return; }
       append(r); idx++; S.draftProg = idx; setProg(); clock.replaceChildren(pickLine(r, true), h('p', { class: 'small', style: 'margin-top:10px' }, 'Welcome to the ' + r.team + '. Take a second.'));
-      controls.replaceChildren(h('button', { class: 'primary', onclick: () => { held = false; showWrap(); auto = true; setControls(); schedule(1400); } }, 'Continue →'));
+      controls.replaceChildren(h('button', { class: 'primary', onclick: () => { if (d.userTrade) return userTradeScene(); held = false; showWrap(); auto = true; setControls(); schedule(1400); } }, 'Continue →'));
+    };
+    // right after you are picked: breaking news, your rights are moved
+    const userTradeScene = () => {
+      const ut = d.userTrade, r = board[mine]; held = true; controls.replaceChildren();
+      clock.replaceChildren(h('div', { class: 'suspense' }, h('div', { class: 'cap2' }, 'Breaking'), h('div', { class: 'clkname' }, 'Wait. There is news on your pick…'), h('div', { class: 'small muted' }, '📱 Your phone is buzzing again…')));
+      draftTimer = setTimeout(() => {
+        r.tradedTo = ut.toNick; append(r); if (ut.slotBack) swapPending(ut.slotBack);
+        clock.replaceChildren(h('div', { class: 'bigpick' }, h('div', { class: 'cap2' }, 'Draft-night trade'), h('div', { class: 'clk' }, logo(ut.fromNick, 56), h('span', { class: 'tradearrow' }, '➜'), logo(ut.toNick, 72), h('div', null, h('div', { class: 'clkname' }, 'Traded to the ' + ut.to), h('div', { class: 'small muted' }, ut.text))), h('p', { class: 'small', style: 'margin-top:10px' }, 'Same rookie contract, new team, new situation. Take a second.')));
+        controls.replaceChildren(h('button', { class: 'primary', onclick: () => { held = false; showWrap(); auto = true; setControls(); schedule(1400); } }, 'Continue →'));
+      }, 2800);
+    };
+    // another team trades up: announced just before the earlier pick, both slots change hands
+    const tradeScene = (e) => {
+      tradeDone[e.slot] = true; swapPending(e.slot); swapPending(e.other);
+      clock.replaceChildren(h('div', { class: 'suspense' }, h('div', { class: 'cap2' }, '🔁 Trade alert · pick ' + e.slot), h('div', { class: 'clk' }, logo(e.downNick, 44), h('span', { class: 'tradearrow' }, '⇄'), logo(e.upNick, 44), h('div', { class: 'clkname' }, e.upNick + ' move up')), h('div', { class: 'small muted' }, e.text)));
     };
     const step = (manual) => {
       draftTimer = null; if (idx >= N) return finish();
+      if (tradeAt[idx + 1] && !tradeDone[idx + 1] && !S.draftSeen) { tradeScene(tradeAt[idx + 1]); if (auto && !manual) schedule(3200); setControls(); return; }
       if (idx === mine && !wrapped && !S.draftSeen) return yourPick();
       const r = board[idx]; reveal(r); if (idx >= N) return finish();
       if (auto && !manual) schedule(delayAfter(r)); setControls();
     };
-    function toMine() { if (draftTimer) clearTimeout(draftTimer); draftTimer = null; while (idx < mine) { append(board[idx]); idx++; } setProg(); auto = true; step(false); }
-    function all() { if (draftTimer) { clearTimeout(draftTimer); draftTimer = null; } held = false; while (idx < N) { append(board[idx]); idx++; } setProg(); clock.replaceChildren(pickLine(board[N - 1])); finish(); }
-    if (S.draftSeen) { board.forEach((r) => append(Object.assign({}, r))); idx = N; setProg(); clock.replaceChildren(h('div', { class: 'small muted' }, 'Draft complete')); showWrap(); }
+    function toMine() { if (draftTimer) clearTimeout(draftTimer); draftTimer = null; (d.trades || []).forEach((e) => { if (e.slot <= mine) { tradeDone[e.slot] = true; swapPending(e.slot); swapPending(e.other); } }); while (idx < mine) { append(board[idx]); idx++; } setProg(); auto = true; step(false); }
+    function all() { if (draftTimer) { clearTimeout(draftTimer); draftTimer = null; } held = false; if (d.userTrade && mine >= 0) board[mine].tradedTo = d.userTrade.toNick; while (idx < N) { append(board[idx]); idx++; } setProg(); clock.replaceChildren(pickLine(board[N - 1])); finish(); }
+    if (S.draftSeen) { if (d.userTrade && mine >= 0) board[mine].tradedTo = d.userTrade.toNick; board.forEach((r) => append(Object.assign({}, r))); idx = N; setProg(); clock.replaceChildren(h('div', { class: 'small muted' }, 'Draft complete')); showWrap(); }
     else if (S.draftProg > 0 && S.draftProg < N) {   // the screen was redrawn mid-draft: pick up where it was
-      while (idx < S.draftProg) { append(board[idx]); idx++; } setProg(); if (mine >= 0 && idx > mine) { phase = 2; showWrap(); }
+      (d.trades || []).forEach((e) => { if (e.slot <= S.draftProg + 1) { tradeDone[e.slot] = true; swapPending(e.slot); swapPending(e.other); } });
+      while (idx < S.draftProg) { append(board[idx]); idx++; } setProg(); if (mine >= 0 && idx > mine) { phase = 2; if (d.userTrade) board[mine].tradedTo = d.userTrade.toNick; append(board[mine]); showWrap(); }
       clock.replaceChildren(h('div', { class: 'small muted' }, 'Back on the clock…')); setControls(); draftTimer = setTimeout(() => step(false), 1500);
     } else { clock.replaceChildren(h('div', null, h('div', { class: 'cap2' }, 'Green room'), h('div', { class: 'clkname' }, 'The commissioner approaches the podium…'), h('div', { class: 'small muted' }, N + ' picks, two rounds. Nobody knows where you will go.'))); setControls(); draftTimer = setTimeout(() => step(false), 3500); }
     return h('div', null, host);
@@ -885,7 +917,7 @@
     if (view === 'team' && st !== 'create') { app.append(screenTeam()); return; }
     if (view === 'league' && st !== 'create') { app.append(screenLeague()); return; }
     if (view === 'career' && st !== 'create') { app.append(screenCareer()); return; }
-    const m = { scouting: screenScouting, college_pick: screenCollegePick, college_ready: screenCollegeReady, college_decision: screenCollegeDecision, combine: screenCombine, draft_night: screenDraft, training: screenTraining, pro_ready: screenProReady, season_play: screenSeasonPlay, season_recap: screenRecap, decision: screenDecision, retired: screenRetired };
+    const m = { scouting: screenScouting, college_pick: screenCollegePick, college_ready: screenCollegeReady, college_decision: screenCollegeDecision, combine: screenCombine, workouts: screenWorkouts, draft_night: screenDraft, training: screenTraining, pro_ready: screenProReady, season_play: screenSeasonPlay, season_recap: screenRecap, decision: screenDecision, retired: screenRetired };
     if (S.flash && st !== 'decision') { app.append(h('div', { class: 'callout' }, S.flash)); S.flash = null; }
     app.append((m[st] || screenCreate)());
   }

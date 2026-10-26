@@ -634,3 +634,13 @@ Feedback from play: draft night went by too fast to take in your own pick, and s
 - Who holds each pick is shown up front: the combine page lists the lottery order (first 14 picks, team and record), and draft night starts with all 60 slots showing the team
   logo and last-season record, dimmed, with the player filled in as each pick is announced. Every slot looks the same, so nothing gives away which one is yours.
 - Checks: realism 89% (v39 88%; noise +-1), gen MVPs 1.86 per gen over 900 picks (real 1.86); desktop and phone UI tests pass (pacing, no-spoiler, held pick, 60-row board).
+
+## v41 — pre-draft workouts + draft-night pick trades
+- Workouts: up to 9 teams near the consensus mock rank invite you; 4 visits. Each visit gives a read, not a number
+  (perf = 0.35·zOvr + 0.25·athz + 0.9·noise; delta = 1.8·perf + 1.0·fit, clamped −3..4.5). Delta feeds the draft sim
+  as `T.workoutK (1.6) × delta` in the team's pick score. Measured: landing with a team that liked you ~53% vs ~25% without.
+- Draft sim is sequential; each team chooses from the top `T.draftWindow` (8) available by stock + positional need.
+- NPC trades: 3–6 "move up" swaps per draft (`planTrades`), shown as "via" labels and trade alerts.
+- Your own pick is traded on draft night with p = clamp(`T.userTradeP` 0.14 + 0.05·fans, 0, 0.4) (~15%);
+  destination favoured by workout interest. Story: "Drafted by X, traded to Y". Same rookie contract.
+- All randomness uses local seeded RNG (`st.draftSeed`), so the league's main stream is untouched.

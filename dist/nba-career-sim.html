@@ -283,6 +283,11 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 .prow.pending { opacity: .62; background: rgba(255,255,255,.025); } .prow.pending .pmain b { font-weight: 600; }
 .lotgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; } .lotrow { display: grid; grid-template-columns: 26px 26px minmax(0, 1fr); gap: 8px; align-items: center; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; }
 
+/* workouts and trades */
+.wkgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 14px; } .wkcard { background: var(--well); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; }
+.wkres { font-weight: 600; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.06); } .wkcard.t3 { border-color: rgba(95,213,143,.6); } .wkcard.t3 .wkres { color: #5fd58f; } .wkcard.t2 { border-color: rgba(95,213,143,.35); } .wkcard.t2 .wkres { color: #8fe3b0; } .wkcard.t0 .wkres { color: #ff8b6b; }
+.tradearrow { font-size: 26px; color: var(--gold); }
+
 </style>
 <header id="top"><div class="brand"><span class="logo">🏀</span><div><b>NBA CAREER SIM</b><small>PRO CIRCUIT</small></div></div><nav id="nav"></nav><div id="who"></div></header>
 <main id="app"></main>
@@ -493,7 +498,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     winsPerPt: 0.7162, ageUsgK: 0, formSd: 0.068277, winsCoreAvg: 48, ovrStretch: 1.3,
     growthScale: 0.85, declineLate: 1.2, genGapA: 8, genGapB: 7, injScale: 0.65, coTaxK: 0.0026594, blkKnee: 1.2308, blkK: 0.60045, usgMin: 0.10, starPull: 0.6575, starWinK: 0.6174, badTeamUsg: 0, awardMinGp: 65, badTeamMins: 0, coTaxDown: 0.74564, coTaxStack: 1.8279, coTaxMax: 0.017298, capPts: 167.19, qualifyOvr: 82, restStar: 7, restOld: 12, minorRate: 2.114, injMu: 2, injSd: 0.9556, injMax: 36, retireScale: 1.2,   // career-shape knobs fitted to the real cohorts (scripts/fit-careers.js)
     astKnee: 7, astK: 0.49311, rebKnee: 8.6781, rebK: 0.87093,   // how fast per-36 assists / rebounds flatten for the very best passers and rebounders
-    volSpread: 0.283, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.07, genSecGap: 11, gdReb: 1.0, gdAst: 1.06, gdTs: 0.01718, gdMins: 2.2, domStyleUsg: 0.08, domStyleAst: 0.12, genStyleUsg: 0.07, genStyleAst: 0.15, trMins: 1.2, gdDecline: 1.15, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 1.9, majorRate: 0.02886, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, tailShare: 0.25, tailMult: 3.2, starRetire: 1.15, userWinShrink: 0.2, userTaxCut: 0, trainCap: 3, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, effLowUsg: 0.4, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: -2, genCeilRange: 8, genCeilPow: 1.6, defRim: 30, defGlass: 18, gameSd: 1.3, gameSkew: 0.17, lateBloom: 0.08, benchRole: 0.4, winCapRank: 10, sizeFx: 1, gravTs: 0.013412, gravMid: 86.422, gdLate: 0.25,
+    volSpread: 0.283, frUsg: 0.025, frMins: 0.9, genTrade: 1, minsHard: 39, genDomUsg: 0.07, genSecGap: 11, gdReb: 1.0, gdAst: 1.06, gdTs: 0.01718, gdMins: 2.2, domStyleUsg: 0.08, domStyleAst: 0.12, genStyleUsg: 0.07, genStyleAst: 0.15, trMins: 1.2, gdDecline: 1.15, minsAgeDecay: 0.6, shockScale: 1, growthFront: 1, declineShift: 1, noiseNon: 1.9, majorRate: 0.02886, seasonEnding: 0.5, retireKnee: 82, retireSpan: 12, retireFloor: 0.6, minsNoiseNon: 1.6, tailShare: 0.25, tailMult: 3.2, starRetire: 1.15, userWinShrink: 0.2, userTaxCut: 0, trainCap: 3, starShock: 0.3, proneSd: 0.45, trPass: 0.22, trGlass: 0.15, trEff: 0.025, effLowUsg: 0.4, trDev: 0.3, trAging: 0.4, trStay: 1.3, stayMarket: 10, earlyExit: 0.02, marketSlope: 0.4, starAgeKeep: 0.6, genCeilDrop: -2, genCeilRange: 8, genCeilPow: 1.6, defRim: 30, defGlass: 18, gameSd: 1.3, gameSkew: 0.17, lateBloom: 0.08, benchRole: 0.4, winCapRank: 10, userTradeP: 0.14, draftWindow: 8, workoutK: 1.6, sizeFx: 1, gravTs: 0.013412, gravMid: 86.422, gdLate: 0.25,
     starTs: 0.05, starReb: 0, starAst: 0.45786,   // extra production for the very best (fitted to the real top of the league)
   };
   NBA.tuning = T;
@@ -1331,7 +1336,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   const phi = (z) => 0.5 * (1 + Math.tanh(0.7978845608 * (z + 0.044715 * z * z * z)));
   function combineFor(p, o) {
     o = o || {}; const C = NBA.COMBINE; if (!C || p.ht == null) return null;
-    const rnd = mulberry(hashOf(p.id + '|' + p.name + '|' + (o.year || 0)) ^ 0x2c1b3c6d), gauss = () => { let u = 0, v = 0; while (u === 0) u = rnd(); v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };   // its own random stream: the league's never moves
+    const rnd = mulberry(hashOf(p.id + '|' + p.name + '|' + (o.year || 0) + '|' + (p.cseed || 0)) ^ 0x2c1b3c6d), gauss = () => { let u = 0, v = 0; while (u === 0) u = rnd(); v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };   // its own random stream: the league's never moves
     const T0 = C.tab[p.pos] || C.tab.SF, ap = ATH_POS[p.pos] || [58.5, 12.7], sz = NBA.sizeZ(p), ws0 = p.ws != null ? p.ws : p.ht + (D.SIZE[p.pos] || D.SIZE.SF).arm;
     const q4 = (x) => Math.round(x * 4) / 4;
     const hb = q4(p.ht - 0.87 + 0.2 * gauss()), wt = Math.round(p.wt + (T0.wgt.m - (D.SIZE[p.pos] || D.SIZE.SF).wt) + 3 * gauss()), ws = q4(ws0 + 0.2 * gauss());
@@ -1420,22 +1425,68 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     addRookies(L, cls.slice(0, 60).map((p, i) => ({ p, slot: i + 1 })), order);
     return { order };
   }
-  // user draft: user ranked among a class
-  // o.cls / o.order (team ids) / o.stock: the class, the draft order and the player's stock settled when he declared (so the mock drafts he saw describe this very draft)
+  // ------------------------------------------------------------ team needs, draft-night trades and the draft itself
+  // A team's need at a position: its rotation (the top 8) counted by position, 0 when it has two or more there, up to 1 when it has none.
+  function teamNeeds(L, t) {
+    const cnt = { PG: 0, SG: 0, SF: 0, PF: 0, C: 0 }; rosterOf(L, t).slice(0, 8).forEach((q) => { cnt[q.pos] = (cnt[q.pos] || 0) + 1; });
+    const out = {}; Object.keys(cnt).forEach((k) => { out[k] = clamp((2 - cnt[k]) / 2, 0, 1); }); return out;
+  }
+  const NEED_WORDS = { PG: 'a point guard', SG: 'a shooting guard', SF: 'a wing', PF: 'a forward', C: 'a big man' };
+  function needText(L, t) { const n = teamNeeds(L, t), k = Object.keys(n).sort((a, b) => n[b] - n[a])[0]; return n[k] >= 0.5 ? 'Needs ' + NEED_WORDS[k] : 'Deep roster, best player available'; }
+  // Picks change hands on draft night: 3 to 6 deals, each a team moving up from a later slot to an earlier one (sending the later pick plus a sweetener), announced just before the earlier pick.
+  function planTrades(L, orderIds, seed) {
+    const rnd = mulberry(hashOf('trades|' + seed)), order = orderIds.slice(), events = [], used = new Set(), n = 3 + Math.floor(rnd() * 4);
+    for (let k = 0; k < n * 6 && events.length < n; k++) {
+      const sb = 1 + Math.floor(rnd() * 34), gap = 2 + Math.floor(rnd() * 14), sa = sb + gap;
+      if (sa > 55 || used.has(sb) || used.has(sa) || order[sb - 1] === order[sa - 1]) continue;
+      used.add(sb); used.add(sa);
+      const A = L.teams[order[sa - 1]], B = L.teams[order[sb - 1]];   // A moves up from sa to sb
+      order[sb - 1] = A.id; order[sa - 1] = B.id;
+      const sweet = sb <= 14 && gap >= 8 ? 'a 2028 first-round pick' : rnd() < 0.5 ? 'a 2029 second-round pick' : rnd() < 0.5 ? 'cash considerations' : 'a 2028 second-round pick';
+      events.push({ slot: sb, other: sa, upId: A.id, downId: B.id, text: A.nick + ' trade up to #' + sb + ', sending #' + sa + ' and ' + sweet + ' to ' + B.nick });
+    }
+    events.sort((a, b) => a.slot - b.slot);
+    return { order, events };
+  }
+  // user draft. o.cls / o.order (team ids) / o.stock: the class, the draft order and the player's stock settled when he declared (so the mock drafts he saw describe this very draft).
+  // o.bias: how much each team (by id) liked him after the workouts, in stock points. The draft is run pick by pick: each team takes the best of the T.draftWindow highest-rated players still
+  // there by stock plus its own taste (need at the position, a little noise; for the player, his workouts), so a team that loves you can take you ahead of where the board says,
+  // and a team that does not can pass. Picks are traded on the night, and he may be traded right after he is picked.
   function userDraft(L, user, bonus, o) {
     o = o || {};
-    const order = o.order ? o.order.map((id) => L.teams[id]) : lotteryOrder(L);
+    const baseIds = o.order ? o.order.slice() : lotteryOrder(L).map((t) => t.id);
     const cls = o.cls || draftClass(L, 72);
     user.stock = o.stock != null ? o.stock : stockOf(user, bonus);
-    const all = cls.concat([user]).sort((a, b) => b.stock - a.stock);
-    const slot = all.indexOf(user) + 1;
-    const picks = [];
-    all.forEach((p, i) => { if (p !== user && i < 60) picks.push({ p, slot: i + 1 }); });
-    addRookies(L, picks, order);
+    const seed = L.year + '|' + user.name + '|' + (o.seed || 0), tp = planTrades(L, baseIds, seed), order = tp.order.map((id) => L.teams[id]);
+    const needs = {}, need = (t) => needs[t.id] || (needs[t.id] = teamNeeds(L, t)), gz = (p, t) => { const r = mulberry(hashOf(p.id + '|' + p.name + '|' + t.id + '|want')); let u = 0; while (u === 0) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r()); };
+    const avail = cls.concat([user]).sort((a, b) => b.stock - a.stock), picks = [];
+    for (let k = 0; k < 60 && avail.length; k++) {
+      const t = order[k]; let best = null, bs = -Infinity;
+      avail.slice(0, T.draftWindow).forEach((p, i) => { const taste = p === user ? T.workoutK * ((o.bias && o.bias[t.id]) || 0) + 0.9 * need(t)[p.pos] : 0.9 * need(t)[p.pos] + 0.7 * gz(p, t), sc = p.stock + taste - 0.001 * i; if (sc > bs) { bs = sc; best = p; } });
+      avail.splice(avail.indexOf(best), 1); picks.push(best);
+    }
+    const all = picks.concat(avail), uslot = picks.indexOf(user) + 1;
+    // traded right after he is picked: more likely when a team that loved him in workouts does not hold his pick
+    let userTrade = null;
+    if (uslot) {
+      const owner = order[uslot - 1], rnd = mulberry(hashOf('usertrade|' + seed)), bias = o.bias || {}, fans = Object.keys(bias).filter((id) => +id !== owner.id && bias[id] >= 2.4).length;
+      if (rnd() < clamp(T.userTradeP + 0.05 * fans, 0, 0.4)) {
+        const cands = L.teams.filter((t) => t.id !== owner.id), w = cands.map((t) => 1 + 2.5 * Math.max(0, bias[t.id] || 0) + 1.2 * need(t)[user.pos]), tot = sum(w);
+        let u = rnd() * tot, dest = cands[cands.length - 1]; for (let q = 0; q < cands.length; q++) { u -= w[q]; if (u <= 0) { dest = cands[q]; break; } }
+        const later = order.findIndex((t, q) => q + 1 > uslot && t.id === dest.id) + 1;   // a pick the destination holds later in this draft, which comes back to the drafting team
+        const future = uslot <= 20 ? 'a 2029 first-round pick' : 'a 2029 second-round pick';
+        if (later > 0) order[later - 1] = owner;
+        userTrade = { fromId: owner.id, toId: dest.id, from: owner.name, to: dest.name, fromNick: owner.nick, toNick: dest.nick, slotBack: later || null, text: owner.nick + ' trade your draft rights to ' + dest.nick + ' for ' + (later ? '#' + later + ' and ' + future : future) };
+      }
+    }
+    const rookies = []; all.forEach((p, i) => { if (p !== user && i < 60) rookies.push({ p, slot: i + 1 }); });
+    addRookies(L, rookies, order);
     // the board: all 60 picks with who, where from, how big, how he tested, and where the pre-draft ranking (by talent and age alone, before the scouts' noise and the combine) had him
     const proj = all.slice().sort((x, y) => (projectStock(y) + (y === user ? bonus || 0 : 0)) - (projectStock(x) + (x === user ? bonus || 0 : 0))), mockRank = new Map(proj.map((q, i) => [q, i + 1]));
-    const board = all.slice(0, 60).map((p, i) => ({ slot: i + 1, name: p.name, pos: p.pos, age: p.age, team: order[i] ? order[i].name : '', nick: order[i] ? order[i].nick : '', teamRec: order[i] ? order[i].wins + '-' + order[i].losses : '', isUser: p === user, ovr: Math.round(ovr(p)), from: p.from || '', ht: p.ht, wt: p.wt, ws: p.ws, mockRank: mockRank.get(p), cz: p.cmb && p.cmb.cz != null ? Math.round(100 * p.cmb.cz) / 100 : null, bonus: p.cmb ? Math.round(10 * p.cmb.bonus) / 10 : 0 }));
-    return { slot: slot > 60 ? null : slot, team: slot > 60 ? null : order[slot - 1], board, order, classSize: all.length, mockRank: mockRank.get(user) };
+    const evAt = {}; tp.events.forEach((e) => { evAt[e.slot] = e; evAt[e.other] = e; });
+    const board = all.slice(0, 60).map((p, i) => { const t = order[i], o0 = L.teams[baseIds[i]], via = t.id !== o0.id ? o0 : null; return { slot: i + 1, name: p.name, pos: p.pos, age: p.age, team: t.name, nick: t.nick, teamRec: t.wins + '-' + t.losses, via: via ? via.nick : null, viaName: via ? via.name : null, viaRec: via ? via.wins + '-' + via.losses : null, trade: evAt[i + 1] ? evAt[i + 1].text : (userTrade && userTrade.slotBack === i + 1 ? userTrade.text : null), isUser: p === user, ovr: Math.round(ovr(p)), from: p.from || '', ht: p.ht, wt: p.wt, ws: p.ws, mockRank: mockRank.get(p), cz: p.cmb && p.cmb.cz != null ? Math.round(100 * p.cmb.cz) / 100 : null, bonus: p.cmb ? Math.round(10 * p.cmb.bonus) / 10 : 0 }; });
+    const drafted = uslot ? order[uslot - 1] : null, landing = userTrade ? L.teams[userTrade.toId] : drafted;
+    return { slot: uslot || null, team: landing, draftedBy: drafted, userTrade, trades: tp.events.map((e) => ({ slot: e.slot, other: e.other, text: e.text, upNick: L.teams[e.upId].nick, downNick: L.teams[e.downId].nick })), board, order, classSize: all.length, mockRank: mockRank.get(user) };
   }
   function mockRange(L, user, bonus, n) {
     // rough projection: run a few class simulations
@@ -1543,7 +1594,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     return { n90: o.filter((x) => x >= 90).length, n85: o.filter((x) => x >= 85).length, n80: o.filter((x) => x >= 80).length, mean: sum(o) / o.length, top: o.slice(0, 6).map((x) => Math.round(x)) };
   }
 
-  Object.assign(NBA, { recruitYears, rosterOf, swapPlayers, seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, makeReal, userDraft, npcDraft, draftClass, mockSeeded, stockBase, mockBoards, ATH_POS, combineFor, combineComp, CB_K, makeProspect, retireP, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
+  Object.assign(NBA, { recruitYears, rosterOf, swapPlayers, seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, makeReal, userDraft, teamNeeds, needText, npcDraft, draftClass, mockSeeded, stockBase, mockBoards, ATH_POS, combineFor, combineComp, CB_K, makeProspect, retireP, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -1780,6 +1831,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   // and the mock drafts move; then it is draft night. The class and the draft order are settled when you declare, so the mocks describe the draft you will face.
   function declare(st) {
     const p = st.player;
+    st.draftSeed = Math.floor(rand() * 2147483647); p.cseed = Math.floor(rand() * 2147483647);   // this career's own draw for the combine, workouts and draft-night trades (two players with one name still get different drafts)
     p.cmb = NBA.combineFor(p, { test: false, year: st.league.year });   // measured at the combine; the tests are the choice
     st.class = NBA.draftClass(st.league, 72); st.draftOrder = NBA.lotteryOrder(st.league).map((t) => t.id);
     st.combine = { year: st.league.year, done: false, test: null, mocks: null, comp: null };
@@ -1787,7 +1839,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     return st.combine;
   }
   function runCombine(st, test) {
-    const p = st.player, c = st.combine, yr = st.league.year, bonus = stockBonus(st), seed = (p.name.length * 7919 + yr * 104729 + 12345) | 0;
+    const p = st.player, c = st.combine, yr = st.league.year, bonus = stockBonus(st), seed = (p.name.length * 7919 + yr * 104729 + 12345 + (st.draftSeed || 0)) | 0;
     const mine = NBA.combineFor(p, { test: !!test, year: yr }), other = NBA.combineFor(p, { test: !test, year: yr });
     p.cmb = mine; c.test = !!test; c.comp = NBA.combineComp(p, mine); c.done = true;
     // the player's stock is settled here (one fixed scouting-noise draw; the combine's bonus is added on top), and the mock drafts before the combine, after it and after the other choice are made from it
@@ -1795,12 +1847,37 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     c.mocks = NBA.mockBoards(st.league, st.class, p, bonus, st.draftOrder, { before: st.stockBase, after: st.stockBase + mine.bonus, alt: st.stockBase + (other ? other.bonus : 0) });
     return c;
   }
+  // pre-draft workouts: the teams whose picks sit around where the mocks have you invite you; you can visit four. Each workout is a read, never a number: how it went moves how much
+  // that team likes you (stock points added only for that team, so it can pull you up to them or let you slide past a team that cooled on you).
+  function startWorkouts(st) {
+    const p = st.player, L = st.league, mk = st.combine && st.combine.mocks, target = Math.min(mk ? mk.ranks.after[3] : 20, 58), rnd = mulberry(st.league.year * 31 + p.name.length * 7 + 5 + (st.draftSeed || 0));
+    const seen = new Set(), invites = [];
+    st.draftOrder.map((id, i) => ({ id, slot: i + 1, d: Math.abs(i + 1 - target) + 4 * rnd() })).sort((a, b) => a.d - b.d).forEach((x) => {
+      if (invites.length >= 9 || seen.has(x.id) || Math.abs(x.slot - target) > 14 && invites.length >= 6) return;
+      seen.add(x.id); const t = L.teams[x.id], needs = NBA.teamNeeds(L, t);
+      invites.push({ id: t.id, slot: x.slot, nick: t.nick, name: t.name, rec: t.wins + '-' + t.losses, need: NBA.needText(L, t), fit: needs[p.pos] || 0 });
+    });
+    invites.sort((a, b) => a.slot - b.slot);
+    st.workouts = { invites, max: 4, done: {} }; st.stage = 'workouts';
+    return st.workouts;
+  }
+  function doWorkout(st, teamId) {
+    const w = st.workouts, p = st.player, inv = w.invites.find((x) => x.id === teamId);
+    if (!inv || w.done[teamId] || Object.keys(w.done).length >= w.max) return null;
+    const cls = st.class || [], os = cls.map((q) => NBA.ovr(q)), mu = os.reduce((a, b) => a + b, 0) / Math.max(1, os.length), sd = Math.sqrt(os.reduce((a, b) => a + (b - mu) ** 2, 0) / Math.max(1, os.length)) || 8;
+    const ap = NBA.ATH_POS[p.pos] || [58.5, 12.7], athz = (p.attrs.ath - ap[0]) / ap[1], rnd = mulberry(hashStr(p.name + '|' + teamId + '|' + st.league.year + '|' + (st.draftSeed || 0))), g = () => { let u = 0; while (u === 0) u = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rnd()); };
+    const perf = clamp(0.35 * (NBA.ovr(p) - mu) / sd + 0.25 * athz + 0.9 * g(), -2, 2), delta = clamp(1.8 * perf + 1.0 * inv.fit, -3, 4.5);
+    const msg = delta >= 3 ? 'Left the gym raving about you' : delta >= 1.5 ? 'Impressed: you are on their board' : delta >= -0.3 ? 'A solid workout, no surprises' : delta >= -1.5 ? 'Lukewarm: they wanted more' : 'It went badly: they cooled on you';
+    w.done[teamId] = { delta, msg, tier: delta >= 3 ? 3 : delta >= 1.5 ? 2 : delta >= -0.3 ? 1 : 0 };
+    return w.done[teamId];
+  }
   function enterDraft(st) {
     const p = st.player;
     if (!st.class || !st.draftOrder) { st.class = NBA.draftClass(st.league, 72); st.draftOrder = NBA.lotteryOrder(st.league).map((t) => t.id); }   // a combine started before v39.1
     if (!st.combine || !st.combine.done) { if (!st.combine) { p.cmb = NBA.combineFor(p, { test: false, year: st.league.year }); st.combine = { year: st.league.year, done: false }; } runCombine(st, true); }
     p.from = st.college.name;
-    const res = NBA.userDraft(st.league, p, stockBonus(st), { cls: st.class, order: st.draftOrder, stock: st.stockBase + (p.cmb ? p.cmb.bonus : 0) });
+    const bias = {}; if (st.workouts) Object.keys(st.workouts.done).forEach((id) => { bias[id] = st.workouts.done[id].delta; });
+    const res = NBA.userDraft(st.league, p, stockBonus(st), { cls: st.class, order: st.draftOrder, stock: st.stockBase + (p.cmb ? p.cmb.bonus : 0), bias, seed: st.draftSeed });
     st.class = null;
     p.rookie = false; p.isPro = true;
     let slot = res.slot, team = res.team;
@@ -1810,7 +1887,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       team = pick(st.league.teams);
     }
     const mk = st.combine.mocks;
-    st.draft = { slot, team: team.name, teamId: team.id, year: st.league.year, board: res.board, college: st.college.name, mockRank: res.mockRank, mocks: mk ? { ranks: mk.ranks, outlets: mk.outlets.map((o) => o.name) } : null, combineBonus: p.cmb ? p.cmb.bonus : 0, tested: st.combine.test, classSize: res.classSize, teamRec: team.wins + '-' + team.losses };
+    st.draft = { slot, team: team.name, teamId: team.id, draftedBy: res.draftedBy ? res.draftedBy.name : team.name, draftedById: res.draftedBy ? res.draftedBy.id : team.id, userTrade: res.userTrade, trades: res.trades, workouts: st.workouts ? { done: st.workouts.done, invites: st.workouts.invites.map((x) => ({ id: x.id, nick: x.nick })) } : null, year: st.league.year, board: res.board, college: st.college.name, mockRank: res.mockRank, mocks: mk ? { ranks: mk.ranks, outlets: mk.outlets.map((o) => o.name) } : null, combineBonus: p.cmb ? p.cmb.bonus : 0, tested: st.combine.test, classSize: res.classSize, teamRec: team.wins + '-' + team.losses };
     st.teamId = team.id; p.teamId = team.id;
     const cap = capNow(st.league);
     let sal, yrs;
@@ -2019,6 +2096,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     pickMade(zs.map((z, i) => i).filter((i) => zs[i] < 3), twoM); pickMade(zs.map((z, i) => i).filter((i) => zs[i] >= 3), tpm);
     return zs.map((z, i) => { const [x, y] = shotSpot(z, rnd); return clamp(Math.round(x), 0, 499) | (clamp(Math.round(y), 0, 469) << 9) | ((made.has(i) ? 1 : 0) << 18) | (z << 19); });
   }
+  const hashStr = (v) => { const t = String(v); let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return h | 0; };
   const shotSeed = (st, key) => ((st.seasonSeed || 0) ^ 0x51ed27) + 7919 * key;   // schedule slot (playoff games 1000+): a replayed season draws the same spots for the same box
   // Box scores drawn game by game drift from the season's shooting line (FG% ~1 point low for regulars, 10-20 points for low-volume players, and a
   // different split of points between threes, twos and free throws). Two steps put the season's boxes back on its line, each game keeping its points:
@@ -2493,7 +2571,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     return st;
   }
 
-  Object.assign(NBA, { Game: { shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { Game: { shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -2501,7 +2579,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v40';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v41';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -2727,9 +2805,21 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
         h('div', { style: 'margin:6px 0' }, chips.length ? chips : h('span', { class: 'muted small' }, 'Nothing about your numbers stood out.')),
         Math.abs(altD) >= 2 ? h('p', { class: 'small muted' }, (c.test ? 'Skipping the tests' : 'Taking the tests') + ' would have moved the consensus about ' + Math.abs(altD) + (altD > 0 ? ' spots in your favour.' : ' spots against you.')) : null,
         c.comp ? h('p', { class: 'small' }, h('b', null, 'Measurables comp: '), c.comp.name + ' (' + c.comp.year + ' combine: ' + ftIn(c.comp.hgt) + ', ' + c.comp.wgt + ' lb, ' + ftIn(c.comp.ws) + ' wingspan)') : null,
-        h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { G.enterDraft(S); go(); } }, 'Head to the draft →'))));
+        h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { G.startWorkouts(S); go(); } }, 'On to the workouts →'))));
     }
     return h('div', null, cards);
+  }
+
+  // pre-draft workouts: teams around where the mocks have you invite you in; you can visit four. How it went is a read, not a number, and a team that loves you may reach for you
+  function screenWorkouts() {
+    const w = S.workouts; if (!w) { G.startWorkouts(S); save(); return screenWorkouts(); }
+    const used = Object.keys(w.done).length, left = w.max - used;
+    const card = (v) => { const r = w.done[v.id];
+      return h('div', { class: 'wkcard' + (r ? ' done t' + r.tier : '') }, h('div', { class: 'row' }, logo(v.nick, 44), h('div', null, h('b', null, v.name), h('div', { class: 'small muted' }, 'Last season ' + v.rec + ' · holds the ' + ord(v.slot) + ' pick'))),
+        h('div', { class: 'small', style: 'margin:8px 0' }, v.need), r ? h('div', { class: 'wkres' }, r.msg) : h('button', { disabled: left <= 0, onclick: () => { G.doWorkout(S, v.id); save(); render(); } }, left > 0 ? 'Work out for them' : 'No visits left')); };
+    return h('div', null, h('h1', null, 'Pre-draft workouts'), h('p', { class: 'muted' }, 'Teams around where the mock drafts have you invited you in. You can visit ' + w.max + '. Each visit is a read on how it went: a team that loves you may reach for you on the night, and one that cools on you may pass. Skip the rest and they only have your tape and the combine.'),
+      h('div', { class: 'card' }, h('div', { class: 'row' }, h('h2', { style: 'margin:0' }, left + ' of ' + w.max + ' visits left'), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => { G.enterDraft(S); go(); } }, left > 0 && used ? 'Head to the draft (skip ' + left + ') →' : used ? 'Head to the draft →' : 'Skip the workouts →')),
+        h('div', { class: 'wkgrid' }, w.invites.map(card))));
   }
 
   // draft night is paced like the real one: the top of the lottery gets time, the second round moves, and your own pick is built up and then held until you are ready
@@ -2741,11 +2831,14 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const tag = (r) => { const dl = r.slot - r.mockRank; return dl >= 12 ? ['▲ Steal', 'good'] : dl <= -12 ? ['▼ Reach', 'bad'] : r.slot <= 3 ? ['Franchise pick', 'gold'] : null; };   // taken 12+ spots later / earlier than his talent-only rank
     const chipOf = (r) => ftIn(r.ht) + (r.ws ? ' · ' + ftIn(r.ws) + ' WS' : '');
     const prow = (r) => { const t = r.isUser ? null : tag(r); return h('div', { class: 'prow reveal' + (r.isUser ? ' me' : '') + (r.slot <= 5 ? ' top' : '') }, h('span', { class: 'pn' }, r.slot), logo(r.nick, 30),
-      h('div', { class: 'pmain' }, h('b', null, r.isUser ? '⭐ ' + r.name : r.name), h('div', { class: 'small muted' }, r.pos + ' · ' + r.age + ' · ' + (r.from || '—'))), h('div', { class: 'pside' }, h('span', { class: 'small' }, r.nick), h('span', { class: 'small muted' }, chipOf(r))), t ? h('span', { class: 'pill ' + t[1] }, t[0]) : null); };
+      h('div', { class: 'pmain' }, h('b', null, r.isUser ? '⭐ ' + r.name : r.name), h('div', { class: 'small muted' }, r.pos + ' · ' + r.age + ' · ' + (r.from || '—'))), h('div', { class: 'pside' }, h('span', { class: 'small' }, r.nick), r.via ? h('span', { class: 'small muted' }, 'via ' + r.via) : null, h('span', { class: 'small muted' }, chipOf(r))), r.tradedTo ? h('span', { class: 'pill gold' }, '⇄ Traded to ' + r.tradedTo) : t ? h('span', { class: 'pill ' + t[1] }, t[0]) : null); };
     const r1 = h('div', { class: 'pround' }, h('div', { class: 'rhead' }, 'Round 1')), r2 = h('div', { class: 'pround' }, h('div', { class: 'rhead' }, 'Round 2'));
     // the lottery has been held: every slot already shows who holds the pick (the same for every slot, so nothing gives away where you will go); the player fills in when it is announced
-    const pending = (r) => h('div', { class: 'prow pending' }, h('span', { class: 'pn' }, r.slot), logo(r.nick, 30), h('div', { class: 'pmain' }, h('b', { class: 'muted' }, r.team), h('div', { class: 'small muted' }, 'Last season ' + (r.teamRec || '–'))), h('div', { class: 'pside' }, h('span', { class: 'small muted' }, 'on the board')));
-    const rowEls = board.map((r) => pending(r)); rowEls.forEach((el, i) => (i < 30 ? r1 : r2).append(el));
+    // (a pick that changes hands on the night shows its original owner until the trade is announced)
+    const pending = (r, orig) => { const o = orig && r.via; return h('div', { class: 'prow pending' }, h('span', { class: 'pn' }, r.slot), logo(o ? r.via : r.nick, 30), h('div', { class: 'pmain' }, h('b', { class: 'muted' }, o ? r.viaName : r.team), h('div', { class: 'small muted' }, 'Last season ' + ((o ? r.viaRec : r.teamRec) || '–'))), h('div', { class: 'pside' }, h('span', { class: 'small muted' }, 'on the board'))); };
+    const rowEls = board.map((r) => pending(r, true)); rowEls.forEach((el, i) => (i < 30 ? r1 : r2).append(el));
+    const swapPending = (slot) => { const el = rowEls[slot - 1]; if (el && el.classList.contains('pending')) { const n = pending(board[slot - 1], false); el.replaceWith(n); rowEls[slot - 1] = n; } };
+    const tradeAt = {}, tradeDone = {}; (d.trades || []).forEach((e) => { tradeAt[e.slot] = e; });
     const clock = h('div', { class: 'onclock well' }), controls = h('div', { class: 'row dctl' }), wrap = h('div'), prog = h('div', { class: 'bar2' }, h('i', { style: 'width:0%' }));
     const pickLine = (r, big) => h('div', { class: big ? 'bigpick' : '' }, h('div', { class: 'cap2' }, 'Pick ' + r.slot + ' · ' + (r.slot <= 30 ? 'Round 1' : 'Round 2')), h('div', { class: 'clk' }, logo(r.nick, big ? 72 : 56), h('div', null, h('div', { class: 'small muted' }, 'With the ' + ord(r.slot) + ' pick, the ' + r.team + ' select'), h('div', { class: 'clkname' }, r.isUser ? '⭐ ' + r.name : r.name), h('div', { class: 'small muted' }, r.pos + ' · ' + r.age + ' · ' + (r.from || '—') + ' · ' + chipOf(r)))));
     // --- your road to the draft: nothing about where you are projected until your name is called; then how the mocks had you
@@ -2772,9 +2865,9 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       const verdict = !d.slot ? 'Your name was never called.' : dl >= 6 ? 'You went about ' + dl + ' spots higher than the mock drafts had you.' : dl <= -6 ? 'You slid about ' + -dl + ' spots below the mock drafts.' : 'Right about where the mock drafts had you.';
       const tops = board.slice(0, 5), others = board.filter((r) => !r.isUser), steal = others.slice().sort((a, b) => (b.slot - b.mockRank) - (a.slot - a.mockRank))[0], reach = others.slice().sort((a, b) => (a.slot - a.mockRank) - (b.slot - b.mockRank))[0];
       wrap.replaceChildren(
-        h('section', { class: 'card callout reveal' }, d.slot ? h('div', null, h('div', { class: 'big' }, '#' + d.slot + ' pick'), h('p', null, 'With the ' + ord(d.slot) + ' pick in the ' + d.year + ' NBA Draft, the ' + d.team + ' select ', h('b', null, S.player.name), ' of ' + d.college + '.'), h('p', { class: 'muted small' }, verdict)) : h('div', null, h('div', { class: 'big' }, 'Undrafted'), h('p', null, 'Your name was never called. You signed a minimum deal with the ' + d.team + ' right after the draft. Prove them wrong.'), h('p', { class: 'muted small' }, verdict)),
+        h('section', { class: 'card callout reveal' }, d.slot ? h('div', null, h('div', { class: 'big' }, '#' + d.slot + ' pick' + (d.userTrade ? ' · traded' : '')), h('p', null, 'With the ' + ord(d.slot) + ' pick in the ' + d.year + ' NBA Draft, the ' + (d.draftedBy || d.team) + ' select ', h('b', null, S.player.name), ' of ' + d.college + '.'), d.userTrade ? h('p', null, h('b', null, 'Then: '), d.userTrade.text + '. You are a ' + d.userTrade.toNick.replace(/s$/, '') + ' now.') : null, h('p', { class: 'muted small' }, verdict)) : h('div', null, h('div', { class: 'big' }, 'Undrafted'), h('p', null, 'Your name was never called. You signed a minimum deal with the ' + d.team + ' right after the draft. Prove them wrong.'), h('p', { class: 'muted small' }, verdict)),
           h('p', null, 'Rookie contract: ' + money(S.contract.salary) + ' × ' + S.contract.years + ' years'), h('button', { class: 'primary', onclick: () => { G.startPro(S); alloc = {}; go(); } }, 'Start my NBA career →')),
-        h('section', { class: 'card' }, h('h2', null, 'Your landing spot'), h('div', { class: 'row' }, logo(t.nick, 44), h('div', null, h('b', null, t.name), h('div', { class: 'small muted' }, 'Last season ' + (d.teamRec || (t.wins + '-' + t.losses)) + ' · ' + (t.conf === 'W' ? 'West' : 'East')))),
+        h('section', { class: 'card' }, h('h2', null, 'Your landing spot'), h('div', { class: 'row' }, logo(t.nick, 44), h('div', null, h('b', null, t.name), d.userTrade ? h('div', { class: 'small gold' }, 'Drafted by the ' + d.draftedBy + ', traded to the ' + t.nick) : null, h('div', { class: 'small muted' }, 'Last season ' + (t.wins + '-' + t.losses) + ' · ' + (t.conf === 'W' ? 'West' : 'East')))),
           h('div', { class: 'small', style: 'margin-top:8px' }, h('b', null, 'Core: '), ros.map((q) => q.name + ' (' + Math.round(NBA.ovr(q)) + ')').join(' · ')), h('div', { class: 'small muted' }, 'You arrive as a ' + myOvr + ' OVR, which would rank ' + ord(rank) + ' on the roster today.')),
         h('section', { class: 'card' }, h('h2', null, 'Class notes'), h('div', { class: 'small' }, h('b', null, 'Top of the board: '), tops.map((r) => r.slot + '. ' + r.name + ' (' + r.nick + ')').join(' · ')),
           steal && steal.slot - steal.mockRank >= 5 ? h('div', { class: 'small', style: 'margin-top:6px' }, h('b', null, 'Biggest steal: '), steal.name + ', ' + ord(steal.slot) + ' pick (ranked ' + ord(steal.mockRank) + ' by talent).') : null,
@@ -2799,19 +2892,36 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       if (phase === 0) { phase = 1; clock.replaceChildren(h('div', { class: 'suspense' }, h('div', { class: 'cap2' }, 'Pick ' + r.slot), logo(r.nick, 64), h('div', { class: 'clkname' }, 'The ' + r.team + ' are on the clock'), h('div', { class: 'small muted' }, '📱 Your phone is ringing…'))); draftTimer = setTimeout(yourPick, 3000); return; }
       if (phase === 1) { phase = 2; clock.replaceChildren(h('div', { class: 'suspense' }, h('div', { class: 'cap2' }, 'Pick ' + r.slot), logo(r.nick, 64), h('div', { class: 'clkname' }, 'The ' + r.team + ' have turned in their card'), h('div', { class: 'small muted' }, 'The commissioner is walking to the podium…'))); draftTimer = setTimeout(yourPick, 2800); return; }
       append(r); idx++; S.draftProg = idx; setProg(); clock.replaceChildren(pickLine(r, true), h('p', { class: 'small', style: 'margin-top:10px' }, 'Welcome to the ' + r.team + '. Take a second.'));
-      controls.replaceChildren(h('button', { class: 'primary', onclick: () => { held = false; showWrap(); auto = true; setControls(); schedule(1400); } }, 'Continue →'));
+      controls.replaceChildren(h('button', { class: 'primary', onclick: () => { if (d.userTrade) return userTradeScene(); held = false; showWrap(); auto = true; setControls(); schedule(1400); } }, 'Continue →'));
+    };
+    // right after you are picked: breaking news, your rights are moved
+    const userTradeScene = () => {
+      const ut = d.userTrade, r = board[mine]; held = true; controls.replaceChildren();
+      clock.replaceChildren(h('div', { class: 'suspense' }, h('div', { class: 'cap2' }, 'Breaking'), h('div', { class: 'clkname' }, 'Wait. There is news on your pick…'), h('div', { class: 'small muted' }, '📱 Your phone is buzzing again…')));
+      draftTimer = setTimeout(() => {
+        r.tradedTo = ut.toNick; append(r); if (ut.slotBack) swapPending(ut.slotBack);
+        clock.replaceChildren(h('div', { class: 'bigpick' }, h('div', { class: 'cap2' }, 'Draft-night trade'), h('div', { class: 'clk' }, logo(ut.fromNick, 56), h('span', { class: 'tradearrow' }, '➜'), logo(ut.toNick, 72), h('div', null, h('div', { class: 'clkname' }, 'Traded to the ' + ut.to), h('div', { class: 'small muted' }, ut.text))), h('p', { class: 'small', style: 'margin-top:10px' }, 'Same rookie contract, new team, new situation. Take a second.')));
+        controls.replaceChildren(h('button', { class: 'primary', onclick: () => { held = false; showWrap(); auto = true; setControls(); schedule(1400); } }, 'Continue →'));
+      }, 2800);
+    };
+    // another team trades up: announced just before the earlier pick, both slots change hands
+    const tradeScene = (e) => {
+      tradeDone[e.slot] = true; swapPending(e.slot); swapPending(e.other);
+      clock.replaceChildren(h('div', { class: 'suspense' }, h('div', { class: 'cap2' }, '🔁 Trade alert · pick ' + e.slot), h('div', { class: 'clk' }, logo(e.downNick, 44), h('span', { class: 'tradearrow' }, '⇄'), logo(e.upNick, 44), h('div', { class: 'clkname' }, e.upNick + ' move up')), h('div', { class: 'small muted' }, e.text)));
     };
     const step = (manual) => {
       draftTimer = null; if (idx >= N) return finish();
+      if (tradeAt[idx + 1] && !tradeDone[idx + 1] && !S.draftSeen) { tradeScene(tradeAt[idx + 1]); if (auto && !manual) schedule(3200); setControls(); return; }
       if (idx === mine && !wrapped && !S.draftSeen) return yourPick();
       const r = board[idx]; reveal(r); if (idx >= N) return finish();
       if (auto && !manual) schedule(delayAfter(r)); setControls();
     };
-    function toMine() { if (draftTimer) clearTimeout(draftTimer); draftTimer = null; while (idx < mine) { append(board[idx]); idx++; } setProg(); auto = true; step(false); }
-    function all() { if (draftTimer) { clearTimeout(draftTimer); draftTimer = null; } held = false; while (idx < N) { append(board[idx]); idx++; } setProg(); clock.replaceChildren(pickLine(board[N - 1])); finish(); }
-    if (S.draftSeen) { board.forEach((r) => append(Object.assign({}, r))); idx = N; setProg(); clock.replaceChildren(h('div', { class: 'small muted' }, 'Draft complete')); showWrap(); }
+    function toMine() { if (draftTimer) clearTimeout(draftTimer); draftTimer = null; (d.trades || []).forEach((e) => { if (e.slot <= mine) { tradeDone[e.slot] = true; swapPending(e.slot); swapPending(e.other); } }); while (idx < mine) { append(board[idx]); idx++; } setProg(); auto = true; step(false); }
+    function all() { if (draftTimer) { clearTimeout(draftTimer); draftTimer = null; } held = false; if (d.userTrade && mine >= 0) board[mine].tradedTo = d.userTrade.toNick; while (idx < N) { append(board[idx]); idx++; } setProg(); clock.replaceChildren(pickLine(board[N - 1])); finish(); }
+    if (S.draftSeen) { if (d.userTrade && mine >= 0) board[mine].tradedTo = d.userTrade.toNick; board.forEach((r) => append(Object.assign({}, r))); idx = N; setProg(); clock.replaceChildren(h('div', { class: 'small muted' }, 'Draft complete')); showWrap(); }
     else if (S.draftProg > 0 && S.draftProg < N) {   // the screen was redrawn mid-draft: pick up where it was
-      while (idx < S.draftProg) { append(board[idx]); idx++; } setProg(); if (mine >= 0 && idx > mine) { phase = 2; showWrap(); }
+      (d.trades || []).forEach((e) => { if (e.slot <= S.draftProg + 1) { tradeDone[e.slot] = true; swapPending(e.slot); swapPending(e.other); } });
+      while (idx < S.draftProg) { append(board[idx]); idx++; } setProg(); if (mine >= 0 && idx > mine) { phase = 2; if (d.userTrade) board[mine].tradedTo = d.userTrade.toNick; append(board[mine]); showWrap(); }
       clock.replaceChildren(h('div', { class: 'small muted' }, 'Back on the clock…')); setControls(); draftTimer = setTimeout(() => step(false), 1500);
     } else { clock.replaceChildren(h('div', null, h('div', { class: 'cap2' }, 'Green room'), h('div', { class: 'clkname' }, 'The commissioner approaches the podium…'), h('div', { class: 'small muted' }, N + ' picks, two rounds. Nobody knows where you will go.'))); setControls(); draftTimer = setTimeout(() => step(false), 3500); }
     return h('div', null, host);
@@ -3384,7 +3494,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     if (view === 'team' && st !== 'create') { app.append(screenTeam()); return; }
     if (view === 'league' && st !== 'create') { app.append(screenLeague()); return; }
     if (view === 'career' && st !== 'create') { app.append(screenCareer()); return; }
-    const m = { scouting: screenScouting, college_pick: screenCollegePick, college_ready: screenCollegeReady, college_decision: screenCollegeDecision, combine: screenCombine, draft_night: screenDraft, training: screenTraining, pro_ready: screenProReady, season_play: screenSeasonPlay, season_recap: screenRecap, decision: screenDecision, retired: screenRetired };
+    const m = { scouting: screenScouting, college_pick: screenCollegePick, college_ready: screenCollegeReady, college_decision: screenCollegeDecision, combine: screenCombine, workouts: screenWorkouts, draft_night: screenDraft, training: screenTraining, pro_ready: screenProReady, season_play: screenSeasonPlay, season_recap: screenRecap, decision: screenDecision, retired: screenRetired };
     if (S.flash && st !== 'decision') { app.append(h('div', { class: 'callout' }, S.flash)); S.flash = null; }
     app.append((m[st] || screenCreate)());
   }

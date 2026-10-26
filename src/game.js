@@ -151,6 +151,7 @@
   // and the mock drafts move; then it is draft night. The class and the draft order are settled when you declare, so the mocks describe the draft you will face.
   function declare(st) {
     const p = st.player;
+    st.draftSeed = Math.floor(rand() * 2147483647); p.cseed = Math.floor(rand() * 2147483647);   // this career's own draw for the combine, workouts and draft-night trades (two players with one name still get different drafts)
     p.cmb = NBA.combineFor(p, { test: false, year: st.league.year });   // measured at the combine; the tests are the choice
     st.class = NBA.draftClass(st.league, 72); st.draftOrder = NBA.lotteryOrder(st.league).map((t) => t.id);
     st.combine = { year: st.league.year, done: false, test: null, mocks: null, comp: null };
@@ -158,7 +159,7 @@
     return st.combine;
   }
   function runCombine(st, test) {
-    const p = st.player, c = st.combine, yr = st.league.year, bonus = stockBonus(st), seed = (p.name.length * 7919 + yr * 104729 + 12345) | 0;
+    const p = st.player, c = st.combine, yr = st.league.year, bonus = stockBonus(st), seed = (p.name.length * 7919 + yr * 104729 + 12345 + (st.draftSeed || 0)) | 0;
     const mine = NBA.combineFor(p, { test: !!test, year: yr }), other = NBA.combineFor(p, { test: !test, year: yr });
     p.cmb = mine; c.test = !!test; c.comp = NBA.combineComp(p, mine); c.done = true;
     // the player's stock is settled here (one fixed scouting-noise draw; the combine's bonus is added on top), and the mock drafts before the combine, after it and after the other choice are made from it
@@ -166,12 +167,37 @@
     c.mocks = NBA.mockBoards(st.league, st.class, p, bonus, st.draftOrder, { before: st.stockBase, after: st.stockBase + mine.bonus, alt: st.stockBase + (other ? other.bonus : 0) });
     return c;
   }
+  // pre-draft workouts: the teams whose picks sit around where the mocks have you invite you; you can visit four. Each workout is a read, never a number: how it went moves how much
+  // that team likes you (stock points added only for that team, so it can pull you up to them or let you slide past a team that cooled on you).
+  function startWorkouts(st) {
+    const p = st.player, L = st.league, mk = st.combine && st.combine.mocks, target = Math.min(mk ? mk.ranks.after[3] : 20, 58), rnd = mulberry(st.league.year * 31 + p.name.length * 7 + 5 + (st.draftSeed || 0));
+    const seen = new Set(), invites = [];
+    st.draftOrder.map((id, i) => ({ id, slot: i + 1, d: Math.abs(i + 1 - target) + 4 * rnd() })).sort((a, b) => a.d - b.d).forEach((x) => {
+      if (invites.length >= 9 || seen.has(x.id) || Math.abs(x.slot - target) > 14 && invites.length >= 6) return;
+      seen.add(x.id); const t = L.teams[x.id], needs = NBA.teamNeeds(L, t);
+      invites.push({ id: t.id, slot: x.slot, nick: t.nick, name: t.name, rec: t.wins + '-' + t.losses, need: NBA.needText(L, t), fit: needs[p.pos] || 0 });
+    });
+    invites.sort((a, b) => a.slot - b.slot);
+    st.workouts = { invites, max: 4, done: {} }; st.stage = 'workouts';
+    return st.workouts;
+  }
+  function doWorkout(st, teamId) {
+    const w = st.workouts, p = st.player, inv = w.invites.find((x) => x.id === teamId);
+    if (!inv || w.done[teamId] || Object.keys(w.done).length >= w.max) return null;
+    const cls = st.class || [], os = cls.map((q) => NBA.ovr(q)), mu = os.reduce((a, b) => a + b, 0) / Math.max(1, os.length), sd = Math.sqrt(os.reduce((a, b) => a + (b - mu) ** 2, 0) / Math.max(1, os.length)) || 8;
+    const ap = NBA.ATH_POS[p.pos] || [58.5, 12.7], athz = (p.attrs.ath - ap[0]) / ap[1], rnd = mulberry(hashStr(p.name + '|' + teamId + '|' + st.league.year + '|' + (st.draftSeed || 0))), g = () => { let u = 0; while (u === 0) u = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rnd()); };
+    const perf = clamp(0.35 * (NBA.ovr(p) - mu) / sd + 0.25 * athz + 0.9 * g(), -2, 2), delta = clamp(1.8 * perf + 1.0 * inv.fit, -3, 4.5);
+    const msg = delta >= 3 ? 'Left the gym raving about you' : delta >= 1.5 ? 'Impressed: you are on their board' : delta >= -0.3 ? 'A solid workout, no surprises' : delta >= -1.5 ? 'Lukewarm: they wanted more' : 'It went badly: they cooled on you';
+    w.done[teamId] = { delta, msg, tier: delta >= 3 ? 3 : delta >= 1.5 ? 2 : delta >= -0.3 ? 1 : 0 };
+    return w.done[teamId];
+  }
   function enterDraft(st) {
     const p = st.player;
     if (!st.class || !st.draftOrder) { st.class = NBA.draftClass(st.league, 72); st.draftOrder = NBA.lotteryOrder(st.league).map((t) => t.id); }   // a combine started before v39.1
     if (!st.combine || !st.combine.done) { if (!st.combine) { p.cmb = NBA.combineFor(p, { test: false, year: st.league.year }); st.combine = { year: st.league.year, done: false }; } runCombine(st, true); }
     p.from = st.college.name;
-    const res = NBA.userDraft(st.league, p, stockBonus(st), { cls: st.class, order: st.draftOrder, stock: st.stockBase + (p.cmb ? p.cmb.bonus : 0) });
+    const bias = {}; if (st.workouts) Object.keys(st.workouts.done).forEach((id) => { bias[id] = st.workouts.done[id].delta; });
+    const res = NBA.userDraft(st.league, p, stockBonus(st), { cls: st.class, order: st.draftOrder, stock: st.stockBase + (p.cmb ? p.cmb.bonus : 0), bias, seed: st.draftSeed });
     st.class = null;
     p.rookie = false; p.isPro = true;
     let slot = res.slot, team = res.team;
@@ -181,7 +207,7 @@
       team = pick(st.league.teams);
     }
     const mk = st.combine.mocks;
-    st.draft = { slot, team: team.name, teamId: team.id, year: st.league.year, board: res.board, college: st.college.name, mockRank: res.mockRank, mocks: mk ? { ranks: mk.ranks, outlets: mk.outlets.map((o) => o.name) } : null, combineBonus: p.cmb ? p.cmb.bonus : 0, tested: st.combine.test, classSize: res.classSize, teamRec: team.wins + '-' + team.losses };
+    st.draft = { slot, team: team.name, teamId: team.id, draftedBy: res.draftedBy ? res.draftedBy.name : team.name, draftedById: res.draftedBy ? res.draftedBy.id : team.id, userTrade: res.userTrade, trades: res.trades, workouts: st.workouts ? { done: st.workouts.done, invites: st.workouts.invites.map((x) => ({ id: x.id, nick: x.nick })) } : null, year: st.league.year, board: res.board, college: st.college.name, mockRank: res.mockRank, mocks: mk ? { ranks: mk.ranks, outlets: mk.outlets.map((o) => o.name) } : null, combineBonus: p.cmb ? p.cmb.bonus : 0, tested: st.combine.test, classSize: res.classSize, teamRec: team.wins + '-' + team.losses };
     st.teamId = team.id; p.teamId = team.id;
     const cap = capNow(st.league);
     let sal, yrs;
@@ -390,6 +416,7 @@
     pickMade(zs.map((z, i) => i).filter((i) => zs[i] < 3), twoM); pickMade(zs.map((z, i) => i).filter((i) => zs[i] >= 3), tpm);
     return zs.map((z, i) => { const [x, y] = shotSpot(z, rnd); return clamp(Math.round(x), 0, 499) | (clamp(Math.round(y), 0, 469) << 9) | ((made.has(i) ? 1 : 0) << 18) | (z << 19); });
   }
+  const hashStr = (v) => { const t = String(v); let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return h | 0; };
   const shotSeed = (st, key) => ((st.seasonSeed || 0) ^ 0x51ed27) + 7919 * key;   // schedule slot (playoff games 1000+): a replayed season draws the same spots for the same box
   // Box scores drawn game by game drift from the season's shooting line (FG% ~1 point low for regulars, 10-20 points for low-volume players, and a
   // different split of points between threes, twos and free throws). Two steps put the season's boxes back on its line, each game keeping its points:
@@ -864,6 +891,6 @@
     return st;
   }
 
-  Object.assign(NBA, { Game: { shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { Game: { shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
