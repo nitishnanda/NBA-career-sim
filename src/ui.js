@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v43';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v44';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -827,27 +827,30 @@
 
   function screenDecision() {
     const d = S.decision || (S.decision = G.decisionOptions(S));
-    const done = (res) => { S.decision = null; alloc = {}; S.flash = res && res.text; go(); };
+    const done = (res) => { if (S.dec && S.dec.pending && S.dec.pending.id === 'late') DEC().autoResolve(S); S.decision = null; alloc = {}; S.flash = res && res.text; go(); };
     const out = [h('h1', null, 'Offseason: what now?'), h('p', { class: 'muted' }, 'Age ' + d.age + ' · OVR ' + d.ovr + ' · ' + d.team + ' · market value ~' + money(d.marketSalary) + ' (cap ' + money(d.cap) + ')')];
     { const dd = S.dec, rv = dd && dd.rival, rq = rv && S.league.players[rv.id];
       if (rv && rq) { const tm = S.league.teams[rq.teamId], g = (S.matchLog || []).filter((x) => x.k === 'g' && !x.po && !x.dnp && tm && x.o === tm.nick), w = g.filter((x) => x.w).length;
         out.push(h('div', { class: 'card' }, h('div', { class: 'row' }, tm ? logo(tm.nick, 36) : null, h('div', null, h('b', null, '🔥 Your rival: ' + rv.name), h('div', { class: 'small muted' }, (tm ? tm.name + ' · ' : '') + Math.round(NBA.ovr(rq)) + ' OVR · rivals since ' + rv.since + (g.length ? ' · you went ' + w + '-' + (g.length - w) + ' against his team this year' : '')))))); } }
-    if (d.mustRetire) out.push(h('div', { class: 'callout' }, 'No team has an offer for you and your body says it is time. This is the end of the road.'));
+    if (S.dec && S.dec.pending && S.dec.pending.id === 'late' && !d.mustRetire) { const v = DEC().view(S);
+      out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, v.title), h('p', { class: 'small muted' }, v.text), S.dec.pending.log.length ? h('div', { class: 'jlog' }, S.dec.pending.log.map((x) => h('div', { class: 'jmsg ' + x.tone }, x.text))) : null,
+        h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { onclick: () => { try { DEC().choose(S, o.key); save(); render(); } catch (e) { console.error(e); } } }, 'Choose'))))))); }
+    if (d.mustRetire) out.push(h('div', { class: 'callout' }, d.farewell ? 'Your farewell season is over. The league gives you a standing ovation, and it is time to hang them up.' : 'No team has an offer for you and your body says it is time. This is the end of the road.'));
     if (d.expiring && !d.mustRetire) {
       const mkOffer = (o, kind) => {
         let yrs = Math.min(3, o.maxYears);
         const lab = h('b', null);
         const sel = h('select', { onchange: (e) => (yrs = +e.target.value) }, Array.from({ length: o.maxYears }, (_, i) => h('option', { value: i + 1, selected: i + 1 === yrs }, (i + 1) + ' year' + (i ? 's' : ''))));
-        return h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('b', null, o.name), h('div', { class: 'small muted' }, o.label + ' · you would be a ' + o.role)), h('span', { class: 'spacer' }), h('b', null, money(o.salary) + ' / yr'), sel, h('button', { class: 'primary', onclick: () => done(G.decide(S, kind, { teamId: o.teamId, salary: o.salary, years: yrs })) }, kind === 'resign' ? 'Re-sign' : 'Sign')));
+        return h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('b', null, o.name), h('div', { class: 'small muted' }, o.label + ' · you would be a ' + o.role)), h('span', { class: 'spacer' }), h('b', null, money(o.salary) + ' / yr'), sel, h('button', { class: 'primary', onclick: () => done(G.decide(S, kind, { teamId: o.teamId, salary: o.salary, years: yrs, tag: o.tag })) }, kind === 'resign' ? 'Re-sign' : 'Sign')));
       };
       if (d.waived) out.push(h('div', { class: 'callout' }, d.waived));
       if (d.market) {
         // free agency is a pitch, not a menu: clubs can say no
-        const pitchCard = (m) => m.pitched === 'offer' ? mkOffer(Object.assign({}, m, { name: m.name, label: m.label + ' · they made you an offer' + (m.vouch ? ' · someone you trained with spoke up for you' : '') }), 'switch')
+        const pitchCard = (m) => m.pitched === 'offer' ? mkOffer(Object.assign({}, m, { name: m.name, tag: m.ring ? 'ring' : null, label: m.label + ' · they made you an offer' + (m.ring ? ' · ring chase (a discount to play for a title)' : '') + (m.vouch ? ' · someone you trained with spoke up for you' : '') }), 'switch')
           : h('div', { class: 'card' + (m.pitched === 'no' ? ' off' : '') }, h('div', { class: 'row' }, logo(m.nick, 36), h('div', null, h('b', null, m.name), h('div', { class: 'small muted' }, m.label + ' · you would be a ' + m.role),
             m.pitched === 'no' ? h('div', { class: 'small bad' }, '✖ Turned you down. ' + m.reason) : h('div', { class: 'small vibe' }, m.vibe)), h('span', { class: 'spacer' }),
             m.pitched ? h('span', { class: 'badge' }, 'Rejected') : h('button', { onclick: () => { try { G.pitch(S, m.teamId); save(); render(); } catch (e) { console.error(e); } } }, 'Pitch yourself')));
-        out.push(h('h3', null, 'Your club'), d.resign ? [h('p', { class: 'small muted' }, d.resignText), mkOffer(d.resign, 'resign')] : h('div', { class: 'card off' }, d.resignText), h('h3', null, 'Free agency · pitch to other clubs'),
+        out.push(h('h3', null, 'Your club'), d.resign ? [h('p', { class: 'small muted' }, d.resignText), mkOffer(d.resign, 'resign'), d.resign.loyal ? mkOffer(Object.assign({}, d.resign, { salary: d.resign.loyal.salary, maxYears: d.resign.loyal.years, label: 'Loyalty deal: you take less so the team can build around you', tag: 'loyal' }), 'resign') : null] : h('div', { class: 'card off' }, d.resignText), h('h3', null, 'Free agency · pitch to other clubs'),
           h('p', { class: 'small muted' }, 'You can pitch to as many teams as you like. A club says yes or no based on your value, their cap room, who they already have at your position and how they see you. Nobody tells you the odds.'), d.market.map(pitchCard));
         if (!d.resign && d.market.every((m) => m.pitched === 'no')) out.push(h('div', { class: 'callout' }, 'Every club turned you down and nobody is calling. This is where the road ends: no team wants you.'), h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { G.retire(S); S.decision = null; go(); } }, 'Retire from basketball')));
       } else {

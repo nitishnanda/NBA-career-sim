@@ -338,6 +338,49 @@
     auto() { return { key: 'fit' }; },
   });
 
+
+  // ================================================================ decision 7: the offseason questions of a long career
+  // (1) coming back from a major injury, (2) how you play the late years: stats, winning, mentoring or a farewell tour
+  register({
+    id: 'late', title: 'Late-career choices', trigger: 'late',
+    when(st) { return !st.autoPlay; },
+    open(st) {
+      const p = st.player, rec = st.proSeasons[st.proSeasons.length - 1], steps = [];
+      const hurt = rec && rec.injury && /Suffered a/.test(rec.injury) && !/season-ending injury/.test(rec.injury) ? rec.injury : (rec && /season-ending/.test(rec.injury || '') ? rec.injury : null);
+      if (hurt) steps.push('injury');
+      if (p.age >= 33) steps.push('stance');
+      return steps.length ? { steps, hurt, done: {} } : null;
+    },
+    view(st, ctx, pd) {
+      const step = ctx.steps[pd.step] || ctx.steps[ctx.steps.length - 1], p = st.player, o = ovr(p);
+      if (step === 'injury') return { step, title: 'Coming back from injury', text: ctx.hurt + ' How do you handle the comeback?', options: [
+        { key: 'rush', label: 'Rush back for opening night', blurb: 'You play right away. Your body may not be ready.', vibe: 'Risky' },
+        { key: 'rehab', label: 'Do the full rehab', blurb: 'You miss the first stretch of games but come back right.', vibe: 'Patient' },
+      ] };
+      const tour = p.age >= 36 || (p.age >= 34 && o >= 80);
+      return { step, title: 'How do you want to play the late years?', text: 'You are ' + p.age + '. The body is not what it was. What matters now?', options: [
+        { key: 'normal', label: 'Just play', blurb: 'No changes.', vibe: 'Neutral' },
+        { key: 'stats', label: 'Chase numbers', blurb: 'More shots and minutes for you, and the team pays for it.', vibe: 'Stats up, team down' },
+        { key: 'wins', label: 'Chase wins', blurb: 'Take a smaller role and make the team better.', vibe: 'Team up, numbers down' },
+        { key: 'mentor', label: 'Become the mentor', blurb: 'Fewer minutes, a locker room that follows you, and a legacy as a leader.', vibe: 'Legacy over stats' },
+      ].concat(tour ? [{ key: 'tour', label: 'Announce a farewell season', blurb: 'This is your last year. The league gives you a send-off and you play it on your terms.', vibe: 'The last ride' }] : []) };
+    },
+    choose(st, ctx, key, arg, pd) {
+      const step = ctx.steps[pd.step], more = pd.step + 1 < ctx.steps.length, p = st.player;
+      if (step === 'injury') {
+        const hit = rng(st, 'comeback|' + st.league.year)() < 0.38;
+        const eff = key === 'rush' ? (hit ? [{ k: 'season', v: { extraMiss: 18 } }, { k: 'raw', a: 'ath', d: -1.2 }] : [{ k: 'season', v: { form: -0.01 } }]) : [{ k: 'season', v: { extraMiss: 9 } }, { k: 'raw', a: 'dur', d: 2 }];
+        const text = key === 'rush' ? (hit ? 'You came back too soon and the injury flared up again. It cost you more time and some of your athleticism.' : 'You pushed through and got away with it.') : 'You did the full rehab. You will miss the opening stretch, but your body thanks you.';
+        return { done: !more, tone: key === 'rush' && hit ? 'bad' : 'good', text, effects: eff, journal: { tone: key === 'rush' && hit ? 'bad' : 'neutral', text: key === 'rush' ? (hit ? 'Rushed back from injury and re-aggravated it.' : 'Rushed back from injury and was fine.') : 'Did the full rehab after the injury and came back durable.' } };
+      }
+      const eff = { normal: [], stats: [{ k: 'season', v: { form: 0.025, depth: -1.2, minsMult: 1.03 } }], wins: [{ k: 'season', v: { form: -0.01, depth: 1.6, minsMult: 0.95 } }], mentor: [{ k: 'season', v: { form: -0.02, depth: 1, minsMult: 0.88 } }, { k: 'flag', f: 'legacy', v: ((state(st).flags.legacy || 0) + 2) }], tour: [{ k: 'season', v: { depth: 1, minsMult: 0.92 } }, { k: 'set', f: 'finalYear', v: true }] }[key] || [];
+      if (key === 'mentor' || key === 'tour') st.legacy = (st.legacy || 0) + (key === 'tour' ? 3 : 2);
+      const text = { normal: 'You just play.', stats: 'You hunt your numbers this season.', wins: 'You take a smaller role to win.', mentor: 'You become the leader in the locker room.', tour: 'You announce that this is your final season.' }[key];
+      return { done: true, tone: 'neutral', text, effects: eff, journal: key === 'normal' ? null : { tone: 'neutral', text: { stats: 'Chased numbers in the late years.', wins: 'Took a smaller role to help the team win.', mentor: 'Became the mentor in the locker room.', tour: 'Announced a farewell season.' }[key] } };
+    },
+    auto(st, ctx, pd) { const step = ctx.steps[pd.step]; return step === 'injury' ? { key: 'rehab' } : { key: 'normal' }; },
+  });
+
   Object.assign(NBA, { Decisions: { carry, register, state, rng, vibe, apply, offer, view, choose, autoResolve, takeSeason, log, relOf, TIERS, SKILL_WORDS, campMentors, standing } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

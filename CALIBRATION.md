@@ -670,3 +670,16 @@ Feedback from play: draft night went by too fast to take in your own pick, and s
   Trade request: file in the offseason; locker-room strain −1.5 team depth that season; at the deadline the club finds suitors (50-70%) or the request goes nowhere (−1 depth).
   Contenders can also call (bad team, value ≥70, age 27+, p 0.3).
 - Mid-season moves replay the season from its tip-off snapshot with the move applied: the games you saw stay as they were, the rest (record, playoffs, awards) come from the new team.
+
+## v44 — protection, playoff plans, clutch moments, rivals, high school / college, late career
+- Autopilot/bulk careers are bit-for-bit the v43 baseline (peak OVR 76.68, 13.02 ppg over 60 careers); every new decision is human-only.
+- Waivers: protected = rookie deal or <4 years pro, top-5 on his team, 14+ mpg glue player (0.4 IQ + 0.4 best defense + 0.2 passing ≥ 66), 24+ mpg, or 14+ mpg on a 46+ win team.
+- Playoff plan per series (balanced / all-in / team / lock / call-out vs a rival): power change per round (all-in 0.2+0.04·(OVR−74) clamp −0.1..0.8, minus 0.45 next round;
+  team 0.1+0.04·(support−68); lock 0.12+0.015·(best D−62); call-out 0.3+0.01·(OVR−78)), plus stat multipliers. The season replays from tip-off with the plan applied.
+- Clutch moments: ≤3 close regular-season games (margin ≤5, ≥14 games apart) and every Game 7. Option chance = base(team wins) + 0.9·(q−0.36), q from ratings
+  (shot / pass / drive / reset, a superstar draws a double team). A Game 7 that flips forces the series result (4-3 either way) and replays the playoffs; a regular-season flip moves the record ±1 and the box score.
+- Rivals: score from playoff opponents' best player (lost 2 / won 1, +1 at Game 7) and MVP rivals (+1.5), ×0.75 a year; rival at ≥3. Mentors on a club vouch in free agency (+0.8·min(2, rel)).
+- High school: prep (+1.2 IQ, vis +0.10), home (+1.4 top skill, work +0.05, vis −0.05), circuit (+1 handling, −2 durability, 34%/20% for a 3-/4-star to jump a star). College role: takeover (usg ×1.1, +2 mpg, −2.5 wins, +0.8 stock),
+  fit (usg ×0.97, +3 wins, +0.9 IQ), quiet (usg ×0.93, −3 mpg, +1.5 top skill, −0.4 stock). Transfer portal once if no honors or mock slot > 20.
+- Late career: injury comeback (rush: 38% re-injury = +18 games missed, −1.2 athleticism; rehab: +9 games, +2 durability); stance at 33+ (stats / wins / mentor / farewell);
+  loyalty discount (−25%, +1 relationship, +1 team depth) and ring chase (−30% pay at 48+ win clubs, easier to sign). Farewell season ends the career after it; mentor +2 and farewell +3 legacy points in the Hall of Fame score.
