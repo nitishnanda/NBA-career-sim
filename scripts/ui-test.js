@@ -138,6 +138,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   const scopeTo = (lbl) => page.evaluate((t) => { const b = Array.from(document.querySelectorAll('.seg2 button')).find((x) => x.textContent === t); if (b) b.click(); }, lbl);
   for (let i = 0; i < 40; i++) {
     console.log('season', i); await page.click('text=/Tip off the .* season/');
+    await page.evaluate(() => { window.__NBA_UI.state.autoDec = true; });   // the coach makes the in-game calls here; the decision screens are tested in ui-market.js
     await page.waitForSelector('text=Sim next game');
     if (i === 0) {
       await shot('06b-opening-night');
@@ -183,7 +184,12 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
     const retire = await page.$('text=No team has an offer');
     if (retire || i >= 5) { await page.click('text=Retire from basketball'); await page.click('text=Tap again to confirm'); break; }
     const tr = i === 2 ? await page.$('button:has-text("Request trade")') : null; if (i === 2) await shot('08b-trade-options');
-    const btn = tr || (await page.$('button:has-text("Stay")')) || (await page.$('button:has-text("Re-sign")'));
+    let btn = tr || (await page.$('button:has-text("Stay")')) || (await page.$('button:has-text("Re-sign")'));
+    if (!btn) {   // your club let you walk: pitch around the league and take the first offer (or retire when nobody wants you)
+      for (let k = 0; k < 12; k++) { const pb = await page.$('button:has-text("Pitch yourself")'); if (!pb) break; await pb.click(); await page.waitForTimeout(30); }
+      btn = await page.$('button:text-is("Sign")');
+      if (!btn) { await page.click('text=Retire from basketball'); await page.waitForSelector('text=retires'); break; }
+    }
     await btn.click();
     await trainLoop();
   }

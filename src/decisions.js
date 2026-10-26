@@ -214,7 +214,7 @@
       const v = G.marketV(st), rec = st.proSeasons[st.proSeasons.length - 1], c = st.contract;
       const shown = (st.matchLog || []).slice(0, st.matchIdx || 0).filter((x) => x.k === 'g' && !x.po && !x.dnp);
       // 1. waived: a vet who is playing badly on a deal that still has years on it
-      if (!st.autoPlay && c.left >= 1 && p.yearsPro >= 3 && p.age >= 24 && v < 64 && v >= 52 && rec && rec.perfRank > 250 && rnd() < 0.45) {
+      if (!st.autoPlay && c.left >= 1 && p.age >= 24 && v < 64 && v >= 52 && rec && rec.perfRank > 250 && !G.protection(st) && rnd() < 0.45) {
         const sal = G.minSalary(L), paid = Math.round(c.salary * 54 / 82 * 10) / 10;
         const teams = L.teams.filter((x) => x.id !== st.teamId && x.wins >= 36).map((x) => [rnd(), x]).sort((a, b) => a[0] - b[0]).slice(0, 3).map((x) => x[1]);
         return { kind: 'waive', text: 'The ' + t.nick + ' are waiving you. The rest of your contract is guaranteed, but you are out of their plans.', options: teams.map((x) => ({ teamId: x.id, name: x.name, nick: G.teamKey(x), label: x.wins + ' wins', salary: sal, paid })) };
@@ -258,7 +258,35 @@
       }
       throw new Error('bad deadline choice');
     },
-    auto(st, ctx) { return ctx.options.length && ctx.kind !== 'waive' ? { key: 'trade', arg: ctx.options[0].teamId } : ctx.options.length ? { key: 'sign', arg: ctx.options[0].teamId } : { key: 'decline' }; },
+    auto(st, ctx) { return ctx.kind === 'waive' && ctx.options.length ? { key: 'sign', arg: ctx.options[0].teamId } : { key: 'decline' }; },
+  });
+
+
+  // ================================================================ decision 3: the playoff approach (one per series)
+  const fitWord = (f) => (f < 0.12 ? 'Not made for your roster' : f < 0.32 ? 'Fits okay' : 'Fits you well');
+  register({
+    id: 'series', title: 'Playoff approach', trigger: 'series',
+    open(st) {
+      const it = (st.matchLog || [])[st.matchIdx || 0];
+      if (!it || it.k !== 'hdr' || it.ps == null || (st.poPlans && st.poPlans[it.ps] !== undefined)) return null;
+      const G = NBA.Game, info = G.SERIES_INFO(st, it);
+      return Object.assign(info, { si: it.ps, g7: !!it.g7, options: G.planOptions(st).map((o) => ({ key: o.key, label: o.label, blurb: o.blurb, fit: o.key === 'balanced' ? null : fitWord(o.fit) })) });
+    },
+    view(st, ctx) { return ctx; },
+    choose(st, ctx, key) {
+      const G = NBA.Game, r = G.setPlan(st, ctx.si, key), label = G.PLANS[key].label;
+      return { done: true, tone: 'neutral', text: label + ' against the ' + ctx.opp.split(' ').slice(-1)[0] + '.', journal: key === 'balanced' ? null : { tone: 'neutral', text: ctx.round + ' vs the ' + ctx.opp + ': ' + label.toLowerCase() + '.' } };
+    },
+    auto() { return { key: 'balanced' }; },
+  });
+
+  // ================================================================ decision 4: the clutch moment
+  register({
+    id: 'clutch', title: 'Clutch moment', trigger: 'clutch',
+    open(st) { const info = NBA.Game.clutchInfo(st); return info; },
+    view(st, ctx) { return ctx; },
+    choose(st, ctx, key) { const r = NBA.Game.resolveClutch(st, key); return { done: true, tone: r.wins ? 'good' : 'bad', text: r.text, effects: [], journal: r.journal, result: r }; },
+    auto(st, ctx) { const w = ctx._win; return { key: Object.keys(w).sort((a, b) => w[b] - w[a])[0] }; },
   });
 
   Object.assign(NBA, { Decisions: { carry, register, state, rng, vibe, apply, offer, view, choose, autoResolve, takeSeason, log, relOf, TIERS, SKILL_WORDS, campMentors, standing } });

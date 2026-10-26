@@ -454,10 +454,26 @@
   // the trade deadline stops the games: the front office has something to say (or nothing, and the season carries on)
   // (when the front office has nothing to say the games simply carry on)
   const holdAt = () => {
-    const it = S.matchLog && S.matchLog[S.matchIdx || 0]; if (!(it && it.k === 'hdr' && it.dl && !S.dlDone)) return false;
-    if (!S.dlChecked) { S.dlChecked = true; NBA.Decisions.offer(S, 'deadline'); save(); }
-    if (S.dec && S.dec.pending && S.dec.pending.id === 'deadline') return true;
-    S.dlDone = true; S.matchIdx++; save(); return false;
+    const it = S.matchLog && S.matchLog[S.matchIdx || 0]; if (!it) return false;
+    const Dc = NBA.Decisions, pend = (id) => S.dec && S.dec.pending && S.dec.pending.id === id;
+    if (it.k === 'hdr' && it.dl && !S.dlDone) {
+      if (!S.dlChecked) { S.dlChecked = true; Dc.offer(S, 'deadline'); save(); }
+      if (pend('deadline')) { if (S.autoDec) { Dc.autoResolve(S); S.dlDone = true; S.matchIdx++; save(); return false; } return true; }
+      S.dlDone = true; S.matchIdx++; save(); return false;
+    }
+    if (it.k === 'hdr' && it.ps != null && !(S.poPlans && S.poPlans[it.ps] !== undefined)) {
+      if (!pend('series')) Dc.offer(S, 'series');
+      if (!pend('series')) { S.poPlans = Object.assign({}, S.poPlans, { [it.ps]: 'balanced' }); return false; }
+      if (S.autoDec) { Dc.autoResolve(S); S.matchIdx++; save(); return false; }
+      return true;
+    }
+    if (it.k === 'g' && it.cl && !it.cd) {
+      if (!pend('clutch')) Dc.offer(S, 'clutch');
+      if (!pend('clutch')) { it.cd = 1; return false; }
+      if (S.autoDec) { Dc.autoResolve(S); save(); return false; }
+      return true;
+    }
+    return false;
   };
   function advanceOne() {
     const items = S.matchLog; let got = false;
@@ -465,7 +481,7 @@
     while (S.matchIdx < items.length) {
       const it = items[S.matchIdx]; S.matchIdx++;
       if (it.k === 'g') got = true;
-      if (got) { while (items[S.matchIdx] && items[S.matchIdx].k === 'hdr' && !(items[S.matchIdx].dl && !S.dlDone)) S.matchIdx++; break; }
+      if (got) { while (items[S.matchIdx] && items[S.matchIdx].k === 'hdr' && !(items[S.matchIdx].dl && !S.dlDone) && !(items[S.matchIdx].ps != null && !(S.poPlans && S.poPlans[items[S.matchIdx].ps] !== undefined))) S.matchIdx++; break; }
     }
   }
   function autoplay(until) {
@@ -479,7 +495,7 @@
   // ------------------------------------------------------------ season dashboard
   function screenSeasonPlay() {
     if (!S.leagueSnap || !S.matchLog) { S.stage = 'season_recap'; save(); return screenRecap(); } // save from an older build
-    if (holdAt()) return screenDeadline();
+    if (holdAt()) { const pid = S.dec.pending.id; return pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : screenDeadline(); }
     const items = S.matchLog || [], idx = S.matchIdx || 0, L = S.league, p = S.player, t = L.teams[S.teamId];
     const shown = items.slice(0, idx), done = idx >= items.length;
     const reg = shown.filter((x) => x.k === 'g' && !x.po), poG = shown.filter((x) => x.k === 'g' && x.po);
@@ -948,6 +964,26 @@
       h('div', { class: 'card' + (v.kind === 'waive' ? ' off' : '') }, h('h3', { style: 'margin-top:0' }, v.kind === 'waive' ? 'You have been waived' : v.kind === 'norequest' ? 'No deal for your request' : v.kind === 'request' ? 'Your trade request' : 'Contenders are calling'), h('p', null, v.text)),
       v.options.map(optCard), v.canDecline ? h('div', { class: 'row' }, h('button', { onclick: () => finish('decline') }, declineLabel)) : null,
       deals.length ? h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Around the league'), deals.map((m) => h('div', { class: 'small', style: 'margin:4px 0' }, '• ' + m.text))) : null);
+  }
+
+  // ------------------------------------------------------------ playoff approach and clutch moments (decision engine)
+  const autoDecBar = () => h('label', { class: 'small muted autodec' }, h('input', { type: 'checkbox', checked: !!S.autoDec, onchange: (e) => { S.autoDec = e.target.checked; save(); } }), ' Let the coach make these calls for the rest of the season');
+  function screenSeries() {
+    const Dc = DEC(), v = Dc.view(S), t = S.league.teams[S.teamId];
+    const pick = (key) => { try { Dc.choose(S, key); S.matchIdx++; save(); saveSnap(); go(); } catch (e) { console.error(e); } };
+    return h('div', null, h('h1', null, v.round), h('p', { class: 'muted' }, t.name + ' vs the ' + v.opp + (v.oppWins != null ? ' (' + v.oppWins + ' wins)' : '') + (v.g7 ? '' : '')),
+      h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'How do you want to approach this series?'),
+        h('p', { class: 'small muted' }, (v.oppStar ? 'Their best player: ' + v.oppStar + '. ' : '') + 'Your supporting cast averages ' + v.support + ' OVR; you are ' + v.mine + '. Every approach has a price: nothing here is free.'),
+        h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), o.fit ? h('div', { class: 'small vibe' }, o.fit) : null, h('div', { style: 'margin-top:8px' }, h('button', { class: o.key === 'balanced' ? '' : 'primary', onclick: () => pick(o.key) }, o.key === 'balanced' ? 'Stay balanced' : 'Choose')))))),
+      autoDecBar());
+  }
+  function screenClutch() {
+    const Dc = DEC(), v = Dc.view(S), t = S.league.teams[S.teamId], rec = S.proSeasons[S.proSeasons.length - 1];
+    const pick = (key) => { try { const r = Dc.choose(S, key); S.flash = r.text; save(); go(); } catch (e) { console.error(e); } };
+    return h('div', null, h('h1', null, v.g7 ? 'Game 7' : 'Clutch time'), h('p', { class: 'muted' }, t.name + (v.home ? ' vs ' : ' at ') + 'the ' + v.opp + (v.ser ? ' · ' + v.round : '')),
+      h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, v.g7 ? 'Winner moves on' : 'Everything on one possession'), h('h2', { style: 'margin:6px 0' }, v.text), h('p', { class: 'small muted' }, 'The coach looks at you. What do you do?')),
+      h('div', { class: 'wkgrid' }, v.opts.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: 'primary', onclick: () => pick(o.key) }, 'Do it'))))),
+      autoDecBar());
   }
 
   // ------------------------------------------------------------ preseason camp (decision engine)

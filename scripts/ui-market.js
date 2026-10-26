@@ -21,14 +21,31 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   // ---- 1. the deadline: a trade request comes due with suitors
   await page.click('text=/Tip off the .* season/');
   await page.waitForSelector('text=Sim next game');
-  const set = await page.evaluate(() => {
-    const S = window.__NBA_UI.state, G = window.NBA.Game; window.__NBA_UI.saveSnap();
+  const arm = () => page.evaluate(() => {
+    const S = window.__NBA_UI.state, G = window.NBA.Game; if (!S.matchLog || S.dlDone) return null; window.__NBA_UI.saveSnap();
+    if (S.dec.pending && S.dec.pending.id === 'deadline') return null;
     const opts = G.tradeOffers(S, 29).filter((o) => o.ok).slice(0, 3);
     S.dlChecked = true; S.dec.flags.tradeReq = S.league.year;
     S.dec.pending = { id: 'deadline', ctx: { kind: 'request', text: 'The team found suitors for your trade request.', options: opts }, step: 0, log: [] };
     return { n: opts.length, team: S.league.teams[S.teamId].name };
   });
-  await page.click('button:has-text("Instant")'); await page.click('button:has-text("Sim to All-Star")'); await page.click('button:has-text("Sim to playoffs")');
+  const set = await arm();
+  // clutch moments stop the games on the way: the first one is checked (four options with a read, not a number), then answered
+  let clutchN = 0;
+  const simOn = async () => { const b = await page.$('button:has-text("Sim to playoffs")') || await page.$('button:has-text("Sim to All-Star")'); if (b) await b.click(); };
+  const handleHold = async () => {
+    const h1 = await page.textContent('h1');
+    if (/Clutch time|Game 7/.test(h1)) {
+      if (!clutchN++) {
+        const c = await page.evaluate(() => ({ opts: document.querySelectorAll('.wkcard').length, vibes: document.querySelectorAll('.wkcard .vibe').length, numbers: /%/.test(document.querySelector('#app').innerText) }));
+        const ok = c.opts === 4 && c.vibes === 4 && !c.numbers; console.log('CLUTCH options', ok ? 'OK' : 'MISMATCH', JSON.stringify(c)); if (!ok) errors.push('CLUTCH ' + JSON.stringify(c)); await shot('24-clutch');
+      }
+      await page.click('.wkcard button >> nth=0'); await page.waitForTimeout(100); await arm(); return 'clutch';
+    }
+    return /Trade deadline/.test(h1) ? 'deadline' : /^(First Round|Conference|NBA Finals)/i.test(h1) ? 'series' : null;
+  };
+  await page.click('button:has-text("Instant")'); await simOn();
+  for (let k = 0; k < 14; k++) { const r = await handleHold(); if (r === 'deadline') break; await simOn(); }
   await page.waitForSelector('h1:has-text("Trade deadline")');
   const dl = await page.evaluate(() => ({ idx: window.__NBA_UI.state.matchIdx, opts: Array.from(document.querySelectorAll('button')).filter((b) => /Accept trade/.test(b.textContent)).length, games: (document.body.innerText.match(/through (\d+) games/) || [])[1] }));
   console.log('DEADLINE stops at game 55', dl.games === '55' && dl.opts === set.n ? 'OK' : 'MISMATCH', JSON.stringify({ set, dl })); if (!(dl.games === '55' && dl.opts === set.n)) errors.push('DEADLINE ' + JSON.stringify({ set, dl }));
@@ -43,8 +60,25 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   await page.evaluate(() => { window.NBA.Game.setStyle(window.__NBA_UI.state, 'score'); window.__NBA_UI.render(); }); await page.waitForTimeout(300);
   const keep = await page.evaluate(() => { const S = window.__NBA_UI.state; return { team: S.league.teams[S.teamId].name, moves: S.seasonMoves.length, prev: S.proSeasons[S.proSeasons.length - 1].prevTeam, hdr: S.matchLog.find((x) => x.k === 'hdr' && x.dl).text }; });
   const okK = keep.team === after.team && keep.moves === 1 && keep.prev === before.team && /traded to/.test(keep.hdr); console.log('DEADLINE survives plan change', okK ? 'OK' : 'MISMATCH', JSON.stringify(keep)); if (!okK) errors.push('DEADLINE keep ' + JSON.stringify(keep));
-  await page.click('button:has-text("Instant")'); await page.click('button:has-text("Sim to playoffs")');
-  for (let k = 0; k < 40 && (await page.$('button:has-text("Sim next playoff game")')); k++) await page.click('button:has-text("Sim next playoff game")');
+  await page.click('button:has-text("Instant")');
+  let planDone = false;
+  for (let k = 0; k < 60; k++) {
+    const r = await handleHold();
+    if (r === 'series') {
+      const so = await page.evaluate(() => ({ opts: document.querySelectorAll('.wkcard').length, h1: document.querySelector('h1').textContent, si: Object.keys(window.__NBA_UI.state.poPlans || {}).length }));
+      if (!planDone) {
+        const ok = so.opts === 4; console.log('SERIES plan screen', ok ? 'OK' : 'MISMATCH', JSON.stringify(so)); if (!ok) errors.push('SERIES ' + JSON.stringify(so)); await shot('25-series-plan');
+        await page.click('.wkcard:has-text("Go all-in") button');
+        await page.waitForTimeout(200);
+        const st1 = await page.evaluate(() => { const S = window.__NBA_UI.state; return { plan: S.poPlans[0], team: S.league.teams[S.teamId].name, moves: S.seasonMoves.length, idx: S.matchIdx, hdr: S.matchLog[S.matchIdx - 1] && S.matchLog[S.matchIdx - 1].ps }; });
+        const okP = st1.plan === 'allin' && st1.team === after.team && st1.moves === 1; console.log('SERIES plan applied, trade kept', okP ? 'OK' : 'MISMATCH', JSON.stringify(st1)); if (!okP) errors.push('SERIES applied ' + JSON.stringify(st1)); planDone = true;
+      } else await page.click('.wkcard:has-text("Stay balanced") button, button:has-text("Stay balanced")');
+      continue;
+    }
+    const nx = await page.$('button:has-text("Sim next playoff game")'); if (nx) { await nx.click(); continue; }
+    if (await page.$('button:has-text("Season recap")')) break;
+    await simOn();
+  }
   await page.click('button:has-text("Season recap")').catch(async () => { await page.click('button:has-text("Skip to recap")'); });
   await page.click('text=Offseason decisions');
   // ---- 2. free agency: an expired contract becomes a market of pitches, clubs can say no

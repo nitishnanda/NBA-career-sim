@@ -175,17 +175,22 @@
 
   // ------------------------------------------------------------ playoffs
   function playGame(pa, pb, hcaA) { return rand() < 1 / (1 + Math.exp(-0.145 * (pa - pb + (hcaA ? 2.5 : -2.5)))); }
-  function series(L, a, b) {
-    // a is the higher seed (home court)
-    const ra = a.power, rb = b.power;
+  function series(L, a, b, fx) {
+    // a is the higher seed (home court). fx: the user's own plan for this series (a power adjustment, and a forced result for a Game 7 he decided)
+    const ra = a.power + (fx && fx.uid === a.id ? fx.d : 0), rb = b.power + (fx && fx.uid === b.id ? fx.d : 0);
     let wa = 0, wb = 0, g = 0;
     const hc = [1, 1, 0, 0, 1, 0, 1];
     while (wa < 4 && wb < 4) {
       if (playGame(ra, rb, hc[g++])) wa++; else wb++;
     }
+    if (fx && fx.force && wa + wb === 7) {   // a Game 7 the player decided: the series ends 4-3 for whoever he made it
+      const aUser = fx.uid === a.id, want = fx.force === 'win' ? (aUser ? 'a' : 'b') : (aUser ? 'b' : 'a');
+      if ((wa > wb ? 'a' : 'b') !== want) { const t = wa; wa = wb; wb = t; }
+    }
     return { a, b, wa, wb, winner: wa > wb ? a : b, loser: wa > wb ? b : a, games: wa + wb };
   }
-  function simPlayoffs(L, userTeamId) {
+  function simPlayoffs(L, userTeamId, mods) {
+    const um = mods || {}, fxFor = (r, m) => (userTeamId != null && (m[0].id === userTeamId || m[1].id === userTeamId) ? { uid: userTeamId, d: (um.rounds || [])[r] || 0, force: um.force && um.force[r] } : null);
     const out = { rounds: [], playin: [], champion: null, userSeries: [], userMade: false, userOut: null };
     const confs = { E: [], W: [] };
     L.teams.forEach((t) => confs[t.conf].push(t));
@@ -206,7 +211,7 @@
         const winners = [];
         const rr = rd.map((m) => {
           const hi = m[0].wins >= m[1].wins ? m[0] : m[1], lo = hi === m[0] ? m[1] : m[0];
-          const s = series(L, hi, lo); winners.push(s.winner); return s;
+          const s = series(L, hi, lo, fxFor(r, m)); winners.push(s.winner); return s;
         });
         results.push(rr);
         rd = []; for (let i = 0; i < winners.length; i += 2) rd.push([winners[i], winners[i + 1]]);
@@ -220,7 +225,7 @@
       all.push({ name: roundNames[r], series: east.results[r].concat(west.results[r]) });
     }
     const hi = east.champ.wins >= west.champ.wins ? east.champ : west.champ, lo = hi === east.champ ? west.champ : east.champ;
-    const fin = series(L, hi, lo);
+    const fin = series(L, hi, lo, fxFor(3, [hi, lo]));
     all.push({ name: 'NBA Finals', series: [fin] });
     out.rounds = all; out.champion = fin.winner;
     all.forEach((rd) => rd.series.forEach((s) => {
@@ -371,7 +376,7 @@
       n30: qual.filter((e) => e.l.pts >= 30).length, n25: qual.filter((e) => e.l.pts >= 25).length,
       topScorers: scoring.slice(0, 5).map((e) => ({ name: e.p.name, ppg: e.l.pts })),
     };
-    const playoffs = simPlayoffs(L, user ? user.teamId : null);
+    const playoffs = simPlayoffs(L, user ? user.teamId : null, user ? user.poMods : null);
     // remember perf for MIP, and voter fatigue for repeat MVPs
     entries.forEach((e) => { e.p.prevPerf = e.l.perf; e.p.mvpRecent = 0; });
     const stand = L.teams.map((t) => ({ id: t.id, name: t.name, nick: t.nick, conf: t.conf, wins: t.wins, losses: t.losses }));

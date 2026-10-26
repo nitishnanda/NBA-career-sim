@@ -347,9 +347,9 @@
     const seq = st.styleSeq && st.styleSeq.length ? st.styleSeq : [[0, st.style || 'balanced']];
     const share = styleShare(seq, 82), eff = STYLE_KEYS.map((k, i) => Object.keys(share).reduce((a, sty) => a + share[sty] * STYLE_MULT[sty][i], 0));
     const poStyleM = (mm, slot) => { const f = STYLE_MULT[styleAt(seq, slot)], o = Object.assign({}, mm); STYLE_KEYS.forEach((k, ki) => { o[k] = mm[k] * f[ki] / (eff[ki] || 1); }); return o; };
-    const all = []; let poCount = 0;
+    const all = []; let poCount = 0, perSeriesIdx = 0;
     const perSeries = seriesList.map((sr) => {
-      const gs = []; for (let i = 0; i < sr.games; i++) { gs.push(genGame(poStyleM(m, 82 + poCount), true)); poCount++; }
+      const pm = planMult(st, perSeriesIdx++), gs = []; for (let i = 0; i < sr.games; i++) { const gm = poStyleM(m, 82 + poCount); gm.mins = Math.min(gm.mins + pm.mins, 42); gm.pts *= pm.pts; gm.ast *= pm.ast; gm.tov *= pm.tov; gm.stl *= pm.stl; gm.blk *= pm.blk; gs.push(genGame(gm, true)); poCount++; }
       all.push.apply(all, gs);
       const ss = summarize(gs);
       return { round: sr.round, opp: sr.opp, result: (sr.won ? 'W ' : 'L ') + sr.w + '-' + sr.l, pts: ss.pts, reb: ss.reb, ast: ss.ast, gp: sr.games, list: gs, w: sr.w, l: sr.l, won: sr.won };
@@ -357,6 +357,59 @@
     const s = summarize(all);
     const sl = shootingLine(p, s.pts, clamp(base.ts - 0.014, 0.44, 0.7), base.usg * 1.03);
     return { line: Object.assign({}, s, { fgp: sl.fgp, tpp: sl.tpp, ftp: sl.ftp, ts: sl.ts, fga: sl.fga, tpa: sl.tpa, fta: sl.fta, tpm: sl.tpm, ftm: sl.ftm }), perSeries, heater: false, legend: false, form: fp };   // form: this postseason's scoring multiplier vs the regular season, before game-to-game luck
+  }
+
+
+  // ---------------------------------------------------------------- playoff approach and clutch moments (decision engine)
+  // A plan for each playoff series: it moves the team's chances a little (and costs something later), and it moves your own line. 'balanced' changes nothing.
+  const PLANS = {
+    balanced: { label: 'Stay balanced', blurb: 'Play your normal game.', mult: {} },
+    allin: { label: 'Go all-in', blurb: 'More minutes, more shots, everything on your shoulders. It wears you down for the next round.', mult: { mins: 3.5, pts: 1.07, ast: 0.95, tov: 1.07 } },
+    team: { label: 'Play through the team', blurb: 'Share the ball and trust the supporting cast. Better with a strong cast.', mult: { pts: 0.93, ast: 1.16, tov: 0.94 } },
+    lock: { label: 'Lock in on defense', blurb: 'Take the best scorer on the other side. Fewer shots for you, more stops.', mult: { pts: 0.95, stl: 1.14, blk: 1.14 } },
+  };
+  function planPower(st, key) {
+    const p = st.player, L = st.league, t = L.teams[st.teamId], o = ovr(p);
+    const others = NBA.rosterOf(L, t).slice(0, 4).map((q) => ovr(q)), sup = others.length ? others.reduce((a, b) => a + b, 0) / others.length : 65;
+    if (key === 'allin') return clamp(0.2 + (o - 74) * 0.04, -0.1, 0.8);
+    if (key === 'team') return clamp(0.1 + (sup - 68) * 0.04, -0.1, 0.7);
+    if (key === 'lock') return clamp(0.12 + (Math.max(p.attrs.perD, p.attrs.rimP) - 62) * 0.015, 0, 0.6);
+    return 0;
+  }
+  // the power change per user series: this series' plan, minus the fatigue of an all-in last round
+  function poMods(st) {
+    const plans = st.poPlans || {}, rounds = [0, 0, 0, 0];
+    for (let r = 0; r < 4; r++) rounds[r] = planPower(st, plans[r]) - (plans[r - 1] === 'allin' ? 0.45 : 0);
+    return { rounds, force: st.poForce || null };
+  }
+  const planMult = (st, si) => { const pl = (st.poPlans || {})[si], m = (PLANS[pl] || PLANS.balanced).mult, prev = (st.poPlans || {})[si - 1] === 'allin'; return { mins: m.mins || 0, pts: (m.pts || 1) * (prev ? 0.96 : 1), ast: m.ast || 1, tov: m.tov || 1, stl: m.stl || 1, blk: m.blk || 1 }; };
+
+  // a Game 7, or a close game late in the season, comes down to your choice. Each option's chance comes from your ratings; the roll is the career's own seeded stream.
+  const CL_OPTS = {
+    shot: { label: 'Take the shot yourself', blurb: 'Create your own look.' },
+    pass: { label: 'Find the open man', blurb: 'Draw the double team and kick it out.' },
+    drive: { label: 'Attack the rim and draw the foul', blurb: 'Put the pressure on the defense.' },
+    reset: { label: 'Call timeout and run the play', blurb: 'Set up the best look the coach can draw.' },
+  };
+  function clutchSituation(it) {
+    const need3 = (it.n * 7 + it.a) % 5 === 0, tied = (it.n + it.f) % 3 === 0;
+    return need3 ? { text: 'Down 3 with ' + (4 + (it.n % 9)) + ' seconds left. The ball is coming to you.', need: 3 } : tied ? { text: 'Tied, ' + (5 + (it.n % 8)) + ' seconds left, the last possession is yours.', need: 2 } : { text: 'Down 2 with ' + (4 + (it.n % 9)) + ' seconds left. Inbound to you at the wing.', need: 2 };
+  }
+  function clutchOdds(st, it, need) {
+    const p = st.player, a = p.attrs, t = st.league.teams[st.teamId], o = ovr(p);
+    const others = NBA.rosterOf(st.league, t).slice(0, 4).map((q) => ovr(q)), sup = others.reduce((x, y) => x + y, 0) / Math.max(1, others.length);
+    const dbl = o >= 85 ? 0.05 : 0;   // a superstar draws the double team: the open man is better, the contested shot worse
+    const shotSk = need === 3 ? a.three : Math.max(a.mid, a.inside);
+    const q = {
+      shot: (need === 3 ? 0.2 : 0.34) + 0.0045 * (shotSk - 62) + 0.0015 * (a.iq - 62) - dbl,
+      pass: 0.31 + 0.0035 * (a.passing - 60) + 0.012 * (sup - 70) + dbl + (need === 3 ? -0.02 : 0),
+      drive: need === 3 ? 0.16 + 0.002 * (a.handling + a.ath - 120) : 0.3 + 0.0025 * (a.handling + a.ath - 120) + 0.002 * (a.ft - 70),
+      reset: 0.3 + 0.0035 * (a.iq - 62) + 0.004 * (sup - 70),
+    };
+    Object.keys(q).forEach((k) => { q[k] = clamp(q[k], 0.1, 0.62); });
+    const base = clamp(0.5 + 0.004 * (t.wins - 41), 0.35, 0.65);
+    const win = {}; Object.keys(q).forEach((k) => { win[k] = clamp(base + 0.9 * (q[k] - 0.36), 0.08, 0.9); });
+    return { q, win };
   }
 
   // ---------------------------------------------------------------- match-by-match log (a reveal of the already-simulated season)
@@ -521,7 +574,7 @@
     const poGames = [];
     (series || []).forEach((sr, si) => {
       NBA.setSeed((st.seasonSeed ^ 0x1234567) + 977 * (si + 1));
-      items.push({ k: 'hdr', text: sr.round + ' · vs ' + sr.opp });
+      items.push({ k: 'hdr', text: sr.round + ' · vs ' + sr.opp, ps: si, opp: sr.opp, rnd: sr.round, g7: sr.games === 7 ? 1 : 0 });
       const n = sr.list.length, winsNeeded = sr.won ? sr.w : sr.w; // user wins = sr.w
       const wl = []; for (let i = 0; i < sr.w - (sr.won ? 1 : 0); i++) wl.push(1); for (let i = 0; i < sr.l - (sr.won ? 0 : 1); i++) wl.push(0);
       for (let i = wl.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [wl[i], wl[j]] = [wl[j], wl[i]]; }
@@ -532,7 +585,7 @@
         const w = wl[i] != null ? wl[i] : sr.won ? 1 : 0; const sc = score(!!w, b.pt + 38);
         let w1 = 0, l1 = 0; for (let q = 0; q <= i; q++) { if (wl[q]) w1++; else l1++; }
         const oNick = sr.opp.split(' ').slice(-1)[0], home = [1, 1, 0, 0, 1, 0, 1][i] ? 1 : 0;
-        items.push(Object.assign({ k: 'g', po: 1, n: i + 1, d: dateStr(L.year + 1, 3, 19 + Math.round(poGames.length * 2.2)), o: oNick, oc: sr.opp.split(' ').slice(0, -1).join(' '), h: home, w, ot: sc.ot, f: sc.f, a: sc.a, ar: NBA.data.ARENAS[home ? t.nick : (sr.opp.endsWith('Trail Blazers') ? 'Trail Blazers' : oNick)] || '', pm: Math.round((sc.f - sc.a) * (b.m / 48) * 1.1 + randn() * 4), rnd: sr.round, ser: (w1 === l1 ? 'Series tied ' : w1 > l1 ? 'Up ' : 'Down ') + Math.max(w1, l1) + '-' + Math.min(w1, l1) }, b));
+        items.push(Object.assign({ k: 'g', po: 1, n: i + 1, d: dateStr(L.year + 1, 3, 19 + Math.round(poGames.length * 2.2)), o: oNick, oc: sr.opp.split(' ').slice(0, -1).join(' '), h: home, w, ot: sc.ot, f: sc.f, a: sc.a, ar: NBA.data.ARENAS[home ? t.nick : (sr.opp.endsWith('Trail Blazers') ? 'Trail Blazers' : oNick)] || '', pm: Math.round((sc.f - sc.a) * (b.m / 48) * 1.1 + randn() * 4), rnd: sr.round, si, ser: (w1 === l1 ? 'Series tied ' : w1 > l1 ? 'Up ' : 'Down ') + Math.max(w1, l1) + '-' + Math.min(w1, l1) }, b));
         poGames.push([items[items.length - 1], g]);
       });
     });
@@ -543,6 +596,10 @@
     const rg = items.filter((x) => x.k === 'g' && !x.po && !x.dnp), ratings = rg.map((x) => x.r);
     const pr = items.filter((x) => x.k === 'g' && x.po && !x.dnp).map((x) => x.r); rec.poRating = pr.length ? Math.round(pr.reduce((a, b) => a + b, 0) / pr.length * 100) / 100 : null;
     rec.avgRating = ratings.length ? Math.round(ratings.reduce((a, b) => a + b, 0) / ratings.length * 100) / 100 : null;
+    // the moments that come down to the player's choice: up to three close games, spread over the season, and every Game 7 (own random stream: nothing else moves)
+    { const rnd = mulberry(shotSeed(st, 9100)), cand = items.filter((x) => x.k === 'g' && !x.po && !x.dnp && x.n >= 10 && Math.abs(x.f - x.a) <= 5).map((x) => [rnd(), x]).sort((a, b) => a[0] - b[0]).map((x) => x[1]), chosen = [];
+      cand.forEach((x) => { if (chosen.length < 3 && chosen.every((y) => Math.abs(y.n - x.n) >= 14)) chosen.push(x); }); chosen.forEach((x) => { x.cl = 1; });
+      items.forEach((x) => { if (x.k === 'g' && x.po && x.n === 7 && !x.dnp) { x.cl = 1; x.g7 = 1; } }); }
     return items;
   }
 
@@ -555,6 +612,7 @@
       st.styleSeq = [[0, st.style || 'balanced']];
       st.shotScope = null;   // a new season's shot chart follows the playoffs once they start
       st.dlDone = false; st.dlChecked = false; st.seasonMoves = [];   // the trade deadline comes once a season
+      st.poPlans = {}; st.poForce = null; st.clutchDelta = 0;          // playoff plans, forced Game 7s and the wins your clutch calls added or took away
       SNAP = JSON.stringify(st);
     }
     NBA.setSeed(st.seasonSeed);
@@ -576,7 +634,7 @@
     L.teams[st.teamId].depth += fx.depth;
     let userLine = null;
     const user = {
-      p, teamId: st.teamId, avail,
+      p, teamId: st.teamId, avail, poMods: poMods(st),
       getLine: (ctx) => { const sv = NBA.rngGet(); NBA.setSeed(st.seasonSeed ^ 0x5bd1e995); userLine = userSeasonLine(st, ctx, avail, fx); NBA.rngSet(sv); return userLine; },
     };
     const res = NBA.simSeason(L, user);
@@ -658,6 +716,61 @@
     return rec;
   }
 
+
+  // ---- decisions made while the games play: a playoff plan per series, and the clutch moments
+  const SERIES_INFO = (st, hdr) => {
+    const L = st.league, t = L.teams[st.teamId], opp = L.teams.find((x) => x.name === hdr.opp), p = st.player;
+    const topOpp = opp ? NBA.rosterOf(L, opp)[0] : null, others = NBA.rosterOf(L, t).slice(0, 4), sup = others.reduce((a, q) => a + ovr(q), 0) / Math.max(1, others.length);
+    return { round: hdr.rnd, opp: hdr.opp, oppWins: opp ? opp.wins : null, oppStar: topOpp ? topOpp.name + ' (' + Math.round(ovr(topOpp)) + ' OVR)' : null, oppStarId: topOpp ? topOpp.id : null, wins: t.wins, support: Math.round(sup), mine: Math.round(ovr(p)) };
+  };
+  function planOptions(st) {
+    return Object.keys(PLANS).map((k) => ({ key: k, label: PLANS[k].label, blurb: PLANS[k].blurb, fit: planPower(st, k) }));
+  }
+  function setPlan(st, si, key) {
+    if (!PLANS[key]) throw new Error('bad plan');
+    st.poPlans = Object.assign({}, st.poPlans, { [si]: key });
+    if (key !== 'balanced') { if (!SNAP) return { ok: false }; replay(st, st.seasonMoves || [], {}); }
+    return { ok: true };
+  }
+  const clVibe = (p) => (p < 0.36 ? 'Long shot' : p < 0.46 ? 'Risky' : p < 0.56 ? 'Decent shot' : p < 0.66 ? 'Good look' : 'Great look');
+  function clutchInfo(st) {
+    const it = st.matchLog[st.matchIdx || 0]; if (!it || !it.cl) return null;
+    const sit = clutchSituation(it), od = clutchOdds(st, it, sit.need), rnd = NBA.Decisions.rng(st, 'clvibe|' + st.league.year + '|' + it.n + '|' + (it.po ? 1 : 0));
+    const l = st.league, opp = it.o;
+    return { idx: st.matchIdx, n: it.n, g7: !!it.g7, po: !!it.po, opp, oppCity: it.oc, home: !!it.h, round: it.rnd, ser: it.ser, text: sit.text, need: sit.need,
+      opts: Object.keys(CL_OPTS).map((k) => ({ key: k, label: CL_OPTS[k].label, blurb: CL_OPTS[k].blurb, vibe: clVibe(od.win[k] + (rnd() - 0.5) * 0.08) })), _win: od.win };
+  }
+  function resolveClutch(st, key) {
+    const idx = st.matchIdx || 0, it0 = st.matchLog[idx]; if (!it0 || !it0.cl || !CL_OPTS[key]) throw new Error('no clutch moment');
+    const L = st.league, p = st.player, sit = clutchSituation(it0), od = clutchOdds(st, it0, sit.need), Dc = NBA.Decisions;
+    const r = Dc.rng(st, 'clutch|' + L.year + '|' + it0.n + '|' + (it0.po ? 1 : 0)), roll = r(), wins = roll < od.win[key], was = !!it0.w, g7 = !!it0.g7, rnd2 = r(), si = it0.si, n = it0.n;
+    st.career.clutch = st.career.clutch || { moments: 0, wins: 0, shots: 0, shotWins: 0 };
+    const cs = st.career.clutch; cs.moments++; if (wins) cs.wins++; if (key === 'shot') { cs.shots++; if (wins) cs.shotWins++; }
+    if (g7 && wins !== was) { st.poForce = Object.assign({}, st.poForce, { [si]: wins ? 'win' : 'loss' }); replay(st, st.seasonMoves || [], { force: true }); }
+    const it = st.matchLog[idx];
+    // the game itself: score, record and the box score agree with the call
+    if (!g7 && wins !== was) {
+      const rec = st.proSeasons[st.proSeasons.length - 1], d = wins ? 1 : -1, t = L.teams[st.teamId];
+      st.clutchDelta = (st.clutchDelta || 0) + d; rec.wins += d; rec.losses -= d; t.wins += d; t.losses -= d;
+      const row = st.leagueSnap && st.leagueSnap.standings && st.leagueSnap.standings.find((x) => x.id === st.teamId); if (row) { row.wins += d; row.losses -= d; }
+      it.w = wins ? 1 : 0; let f = it.f, a = it.a; if (wins && f <= a) { f = a; a = it.f; if (f === a) f++; } else if (!wins && f >= a) { a = f; f = it.a; if (f === a) a++; }
+      it.f = f; it.a = a; it.pm = Math.round((f - a) * (it.m / 48) * 1.1);
+    }
+    it.cd = 1; it.tg = (it.tg || []).slice();
+    const pts = sit.need === 3 ? 3 : 2;
+    if (key === 'shot') { it.fga++; if (sit.need === 3) it.tpa++; if (wins) { it.fgm++; it.pt += pts; if (sit.need === 3) it.tpm++; it.tg.unshift('Game-winner'); } else it.tg.unshift('Missed the last shot'); }
+    else if (key === 'pass') { if (wins) { it.as++; it.tg.unshift('Game-winning assist'); } else { if (rnd2 < 0.4) it.to++; it.tg.unshift('Last pass did not work'); } }
+    else if (key === 'drive') { it.fta += 2; if (wins) { it.ftm += 2; it.pt += 2; it.tg.unshift('Won it at the line'); } else { const m = rnd2 < 0.5 ? 1 : 0; it.ftm += m; it.pt += m; it.tg.unshift('Could not finish at the line'); } }
+    else it.tg.unshift(wins ? 'Executed the final play' : 'The final play broke down');
+    it.sh = shotsFor(it, p, shotSeed(st, 7000 + n));
+    it.r = NBA.gameRating({ pts: it.pt, reb: it.rb, ast: it.as, stl: it.st, blk: it.bk, tov: it.to, min: it.m }, it);
+    recomputeFromLog(st);
+    const rec = st.proSeasons[st.proSeasons.length - 1];
+    if (it.po && g7) { const sr = (rec.perSeries || []).find((x) => x.round === it.rnd); }
+    const opp = it.o, text = (wins ? 'You won it' : 'You lost it') + (g7 ? ' in Game 7 against the ' + opp : ' against the ' + opp) + ': ' + (wins ? ({ shot: 'the shot dropped', pass: 'the pass found the open man', drive: 'you won it at the line', reset: 'the play worked' }[key]) : ({ shot: 'the shot rimmed out', pass: 'the pass was not enough', drive: 'it did not go your way', reset: 'the play broke down' }[key])) + '.';
+    return { wins, text, g7, key, journal: g7 || (key === 'shot' && wins) ? { tone: wins ? 'good' : 'bad', text: text } : null };
+  }
+
   // ---------------------------------------------------------------- changing the game plan mid-season
   function slotNow(st) {
     let reg = 0, po = 0; const items = st.matchLog || [], idx = st.matchIdx || 0;
@@ -672,7 +785,7 @@
     if (force) return out;   // a mid-season move: the games you saw stay as they were (another team's schedule), the rest come from the new team
     const rec = st.proSeasons[st.proSeasons.length - 1];
     const regIdx = []; out.forEach((x, i) => { if (x.k === 'g' && !x.po) regIdx.push(i); });
-    const diff = rec.wins - regIdx.filter((i) => out[i].w).length;
+    const diff = rec.wins + (st.clutchDelta || 0) - regIdx.filter((i) => out[i].w).length;   // clutch calls you made already moved the record
     if (diff) {
       const fut = regIdx.filter((i) => i >= idx && !!out[i].w === (diff < 0));
       fut.sort((x, y) => (diff > 0 ? (out[y].r || 0) - (out[x].r || 0) : (out[x].r || 9) - (out[y].r || 9)));
@@ -735,22 +848,24 @@
   // Replay the season from its tip-off snapshot with the player's changes applied (a new game plan, a mid-season move): the league's results come from the same seeds,
   // the games already shown stay exactly as they were, and everything after comes from the new situation.
   function replay(st, moves, opt) {
-    const keep = { idx: st.matchIdx || 0, shotTab: st.shotTab, shotScope: st.shotScope, log: st.matchLog, view: st.view, dec: st.dec, dlDone: st.dlDone, dlChecked: st.dlChecked, style: st.style, styleSeq: st.styleSeq };
+    const keep = { idx: st.matchIdx || 0, shotTab: st.shotTab, shotScope: st.shotScope, log: st.matchLog, view: st.view, dec: st.dec, dlDone: st.dlDone, dlChecked: st.dlChecked, style: st.style, styleSeq: st.styleSeq, poPlans: st.poPlans, poForce: st.poForce, clutchDelta: st.clutchDelta || 0, clutchStats: st.career && st.career.clutch, autoDec: st.autoDec };
     const snapObj = JSON.parse(SNAP), startTeam = snapObj.teamId;
     Object.keys(st).forEach((k) => delete st[k]); Object.assign(st, snapObj);
     NBA.Decisions.carry(st, keep.dec);
-    st.style = opt.style || keep.style; st.styleSeq = opt.seq || keep.styleSeq; st.dlDone = keep.dlDone; st.dlChecked = keep.dlChecked; st.seasonMoves = moves;
+    st.style = opt.style || keep.style; st.styleSeq = opt.seq || keep.styleSeq; st.dlDone = keep.dlDone; st.dlChecked = keep.dlChecked; st.seasonMoves = moves; st.poPlans = keep.poPlans || {}; st.poForce = keep.poForce || null; st.clutchDelta = keep.clutchDelta; if (keep.clutchStats) st.career.clutch = keep.clutchStats; if (keep.autoDec) st.autoDec = true;
     moves.forEach((m) => applyMoveState(st, m));
     playSeason(st, { rerun: true });
-    st.matchLog = spliceLog(st, keep.log, st.matchLog, keep.idx, moves.length > 0); st.matchIdx = keep.idx; st.shotTab = keep.shotTab; st.shotScope = keep.shotScope;
+    const force = moves.length > 0 || !!st.poForce || !!opt.force;
+    st.matchLog = spliceLog(st, keep.log, st.matchLog, keep.idx, force); st.matchIdx = keep.idx; st.shotTab = keep.shotTab; st.shotScope = keep.shotScope;
     recomputeFromLog(st);
     const rec = st.proSeasons[st.proSeasons.length - 1];
-    if (moves.length) {
+    if (!force && st.clutchDelta) { rec.wins += st.clutchDelta; rec.losses -= st.clutchDelta; }
+    if (moves.length || force) {
       const reg = st.matchLog.filter((x) => x.k === 'g' && !x.po);
       rec.wins = reg.filter((x) => x.w).length; rec.losses = reg.length - rec.wins;
-      rec.prevTeam = st.league.teams[startTeam].name;
+      if (moves.length) rec.prevTeam = st.league.teams[startTeam].name;
       moves.forEach((m) => { if (m.paid) { st.earnings += m.paid; st.earnings26 = (st.earnings26 || 0) + m.paid / capFor(st.league.year) * capFor(2026); } });
-      const dl = st.matchLog.find((x) => x.k === 'hdr' && x.dl); if (dl) dl.text = 'Trade deadline · ' + moves[moves.length - 1].text;
+      const dl = moves.length && st.matchLog.find((x) => x.k === 'hdr' && x.dl); if (dl) dl.text = 'Trade deadline · ' + moves[moves.length - 1].text;
     }
   }
   // the state changes of one mid-season move, applied to the pre-season state before the season is played again
@@ -822,6 +937,19 @@
     const reason = space < 0.25 ? 'They have no cap room.' : gap < -4 ? 'They do not see you as a rotation player.' : need < 0.15 && gap < 3 ? 'They are set at your position.' : 'They went in another direction.';
     return { p: sig(s), yes: rnd() < sig(s), reason, space, gap };
   }
+  // Players a club will not cut however the box score looks: anyone still on a rookie deal, the core of the rotation, anyone playing real minutes for a winner,
+  // and glue players (defense, reading the game, passing) whose value the numbers hide. Returns why he is safe, or null.
+  function protection(st) {
+    const L = st.league, p = st.player, c = st.contract, t = L.teams[st.teamId], rec = st.proSeasons[st.proSeasons.length - 1];
+    if (c.type === 'rookie' || p.yearsPro < 4) return 'still on a rookie deal: the team is investing in his development';
+    const mates = NBA.rosterOf(L, t), rank = mates.filter((q) => ovr(q) > ovr(p)).length;
+    if (rank <= 4) return 'a core rotation player';
+    const mins = rec ? rec.mins : 0, a = p.attrs, glue = 0.4 * a.iq + 0.4 * Math.max(a.perD, a.rimP) + 0.2 * a.passing;
+    if (glue >= 66 && mins >= 14) return 'a glue player: the coaches value what the box score does not show';
+    if (mins >= 24) return 'a regular in the rotation';
+    if (t.wins >= 46 && mins >= 14) return 'part of a winning rotation';
+    return null;
+  }
   const teamKey = (t) => (t.name.endsWith('Trail Blazers') ? 'Trail Blazers' : t.nick);
   function decisionOptions(st) {
     const L = st.league, p = st.player, c = st.contract;
@@ -835,7 +963,7 @@
     out.mustRetire = forceRetire;
     const human = !st.autoPlay, Dc = NBA.Decisions;
     // a club can cut a player who is doing badly (his contract is voided; the salary he was owed is still paid): he goes to the market like any other free agent
-    if (human && !out.expiring && !forceRetire && c.left > 0 && p.yearsPro >= 3 && p.age >= 24 && v < 63 && Dc.rng(st, 'cut|' + L.year)() < (v < 58 ? 0.55 : 0.3)) {
+    if (human && !out.expiring && !forceRetire && c.left > 0 && p.age >= 24 && v < 63 && !protection(st) && Dc.rng(st, 'cut|' + L.year)() < (v < 58 ? 0.55 : 0.3)) {
       out.expiring = true; out.waived = 'The ' + L.teams[st.teamId].nick + ' waived you: they decided your spot and your salary were better spent elsewhere.';
     }
     if (out.expiring) {
@@ -988,6 +1116,6 @@
     return st;
   }
 
-  Object.assign(NBA, { Game: { pitch, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { Game: { SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
