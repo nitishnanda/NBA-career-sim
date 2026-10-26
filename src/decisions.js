@@ -45,6 +45,10 @@
         d.rel[e.id] = r1(((d.rel[e.id] && d.rel[e.id].v) || 0) + e.d); d.rel[e.id] = { v: d.rel[e.id], name: e.name || (d.rel[e.id] && d.rel[e.id].name) };
       } else if (e.k === 'flag') d.flags[e.f] = e.v == null ? true : e.v;
       else if (e.k === 'bonusPts') st.bonusPoints = (st.bonusPoints || 0) + e.d;
+      else if (e.k === 'raw') { const a = e.a, before = p.attrs[a]; p.attrs[a] = clamp(p.attrs[a] + e.d, 8, 99); e.got = r1(p.attrs[a] - before); }   // a direct change (wear and tear), not training
+      else if (e.k === 'player') p[e.f] = clamp((p[e.f] || 0) + e.d, 0, 1);
+      else if (e.k === 'stars') st.stars = clamp(st.stars + e.d, 1, 5);
+      else if (e.k === 'set') st[e.f] = e.v;
     });
   }
   // after a season is replayed from its snapshot, the decisions made since tip-off (journal, relationships, flags, an open question) carry over
@@ -269,12 +273,15 @@
     open(st) {
       const it = (st.matchLog || [])[st.matchIdx || 0];
       if (!it || it.k !== 'hdr' || it.ps == null || (st.poPlans && st.poPlans[it.ps] !== undefined)) return null;
-      const G = NBA.Game, info = G.SERIES_INFO(st, it);
-      return Object.assign(info, { si: it.ps, g7: !!it.g7, options: G.planOptions(st).map((o) => ({ key: o.key, label: o.label, blurb: o.blurb, fit: o.key === 'balanced' ? null : fitWord(o.fit) })) });
+      const G = NBA.Game, info = G.SERIES_INFO(st, it), rv = state(st).rival, ot = st.league.teams.find((x) => x.name === it.opp), rq = rv && st.league.players[rv.id];
+      const rivalHere = !!(rq && ot && rq.teamId === ot.id);
+      return Object.assign(info, { si: it.ps, g7: !!it.g7, teamId: ot ? ot.id : null, rival: rivalHere ? rv.name : null, options: G.planOptions(st).filter((o) => o.key !== 'callout' || rivalHere).map((o) => ({ key: o.key, label: o.label, blurb: o.blurb, fit: o.key === 'balanced' || o.key === 'callout' ? null : fitWord(o.fit) })) });
     },
     view(st, ctx) { return ctx; },
     choose(st, ctx, key) {
-      const G = NBA.Game, r = G.setPlan(st, ctx.si, key), label = G.PLANS[key].label;
+      const G = NBA.Game, label = G.PLANS[key].label;
+      if (key === 'callout') state(st).flags.calledOut = { id: state(st).rival.id, name: ctx.rival, teamId: ctx.teamId, year: st.league.year };
+      G.setPlan(st, ctx.si, key);
       return { done: true, tone: 'neutral', text: label + ' against the ' + ctx.opp.split(' ').slice(-1)[0] + '.', journal: key === 'balanced' ? null : { tone: 'neutral', text: ctx.round + ' vs the ' + ctx.opp + ': ' + label.toLowerCase() + '.' } };
     },
     auto() { return { key: 'balanced' }; },
@@ -287,6 +294,48 @@
     view(st, ctx) { return ctx; },
     choose(st, ctx, key) { const r = NBA.Game.resolveClutch(st, key); return { done: true, tone: r.wins ? 'good' : 'bad', text: r.text, effects: [], journal: r.journal, result: r }; },
     auto(st, ctx) { const w = ctx._win; return { key: Object.keys(w).sort((a, b) => w[b] - w[a])[0] }; },
+  });
+
+
+  // ================================================================ decisions 5-6: high school and the role you take in college
+  const soloTop = (st, n) => { const p = st.player, w = D.ARCHETYPES[p.arch].weights; return ATTRS.filter((a) => a !== 'dur' && a !== 'ath').sort((a, b) => w[b] * (100 - p.attrs[b]) - w[a] * (100 - p.attrs[a])).slice(0, n); };
+  register({
+    id: 'hs', title: 'High school', trigger: 'hs',
+    open(st) { return { top: soloTop(st, 1)[0], breakP: st.stars <= 3 ? 0.34 : st.stars === 4 ? 0.2 : 0 }; },
+    view(st, ctx) {
+      return { options: [
+        { key: 'prep', label: 'A national prep powerhouse', blurb: 'Elite coaching and every scout in the building. You play with other stars, so the numbers are modest.', vibe: 'Steady and well-seen' },
+        { key: 'home', label: 'Stay home and be the guy', blurb: 'You are the whole offense, you work harder than anyone, and fewer scouts ever see you.', vibe: 'Big numbers, small stage' },
+        { key: 'circuit', label: 'Chase the summer circuit', blurb: 'Showcases against the best in the country. You could blow up, or you could wear yourself down.', vibe: ctx.breakP ? 'High risk, high reward' : 'A grind: little to gain at the top' },
+      ] };
+    },
+    choose(st, ctx, key) {
+      const p = st.player, rnd = rng(st, 'hs')();
+      if (key === 'prep') return { done: true, tone: 'good', text: 'You went to a prep powerhouse: the coaching sharpened your game and the scouts know your name.', effects: [{ k: 'attr', a: 'iq', d: 1.2 }, { k: 'player', f: 'vis', d: 0.1 }], journal: { tone: 'good', text: 'Spent senior year at a national prep powerhouse: better coaching, more eyes on you.' } };
+      if (key === 'home') return { done: true, tone: 'neutral', text: 'You stayed home and carried the team. It made you tougher, even if fewer people watched.', effects: [{ k: 'attr', a: ctx.top, d: 1.4 }, { k: 'player', f: 'work', d: 0.05 }, { k: 'player', f: 'vis', d: -0.05 }], journal: { tone: 'neutral', text: 'Stayed home for senior year and carried the team. Tougher, but fewer scouts saw it.' } };
+      const up = rnd < ctx.breakP, eff = [{ k: 'attr', a: 'handling', d: 1 }, { k: 'raw', a: 'dur', d: -2 }];
+      if (up) eff.push({ k: 'stars', d: 1 }, { k: 'player', f: 'vis', d: 0.12 });
+      return { done: true, tone: up ? 'good' : 'bad', text: up ? 'You blew up on the circuit: your stock jumped and the big programs are calling. It cost your body something.' : 'The circuit ground you down. You got a bit sharper, and a bit more worn.', effects: eff, journal: { tone: up ? 'good' : 'bad', text: up ? 'Dominated the summer circuit: recruiting rank jumped to ' + Math.min(5, st.stars + 1) + ' stars. Paid for it in wear and tear.' : 'Ground through the summer circuit. A bit sharper, a bit worn down, no breakout.' } };
+    },
+    auto() { return { key: 'prep' }; },
+  });
+  register({
+    id: 'role', title: 'Your role in college', trigger: 'role',
+    open(st) { return { top: soloTop(st, 1)[0] }; },
+    view(st, ctx) {
+      return { options: [
+        { key: 'takeover', label: 'Take over the offense', blurb: 'More shots and minutes, a bigger name. The team wins less and you develop a little less.', vibe: 'Stats and draft hype' },
+        { key: 'fit', label: 'Fit into the system', blurb: 'Win games, play for the team. Your numbers are modest and you learn the game.', vibe: 'Wins and a clean reputation' },
+        { key: 'quiet', label: 'Develop quietly', blurb: 'Fewer minutes and shots while you work on your game. Scouts see less.', vibe: 'Growth over hype' },
+      ] };
+    },
+    choose(st, ctx, key) {
+      const eff = [{ k: 'set', f: 'collegeRole', v: key }];
+      if (key === 'quiet') eff.push({ k: 'attr', a: ctx.top, d: 1.5 }); if (key === 'fit') eff.push({ k: 'attr', a: 'iq', d: 0.9 });
+      const text = { takeover: 'You will be the first option. Everyone knows it.', fit: 'You will play within the system and win.', quiet: 'You will take a back seat and work on your game.' }[key];
+      return { done: true, tone: 'neutral', text, effects: eff, journal: { tone: 'neutral', text: { takeover: 'Arrived at ' + st.college.name + ' ready to take over the offense.', fit: 'Arrived at ' + st.college.name + ' and bought into the system.', quiet: 'Arrived at ' + st.college.name + ' and chose to develop quietly.' }[key] } };
+    },
+    auto() { return { key: 'fit' }; },
   });
 
   Object.assign(NBA, { Decisions: { carry, register, state, rng, vibe, apply, offer, view, choose, autoResolve, takeSeason, log, relOf, TIERS, SKILL_WORDS, campMentors, standing } });

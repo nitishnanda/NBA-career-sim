@@ -96,7 +96,9 @@
     const o = ovr(p);
     const oEff = o + 5.5 + (5 - c.prestige) * 1.1;
     const minsFixed = clamp(Math.round(19 + 0.85 * (oEff - 64) + ({ 1: 0, 2: 1.5, 3: 3.5, 4: 6.5, 5: 9 }[st.stars] || 0)), 16, 35);
-    const e = expLine(p, { pace: 81.6, minsFixed, usgMult: 1.03 + ({ 1: 0, 2: 0.04, 3: 0.1, 4: 0.19, 5: 0.27 }[st.stars] || 0) + 0.02 * (5 - c.prestige) + (c.home ? 0.01 : 0), tsAdj: -0.012 + 0.003 * (oEff - 70) / 5, rebMult: 0.97, astMult: 1.05, coTax: 0 });
+    // the role you chose when you arrived (human careers): more usage and a bigger name, a system that wins, or a quiet development year
+    const role = ({ takeover: { u: 1.1, m: 2, w: -2.5 }, fit: { u: 0.97, m: 0, w: 3 }, quiet: { u: 0.93, m: -3, w: 0 } })[st.collegeRole] || { u: 1, m: 0, w: 0 };
+    const e = expLine(p, { pace: 81.6, minsFixed: minsFixed + role.m, usgMult: role.u * (1.03 + ({ 1: 0, 2: 0.04, 3: 0.1, 4: 0.19, 5: 0.27 }[st.stars] || 0) + 0.02 * (5 - c.prestige) + (c.home ? 0.01 : 0)), tsAdj: -0.012 + 0.003 * (oEff - 70) / 5, rebMult: 0.97, astMult: 1.05, coTax: 0 });
     const av = rollAvail(p, { noRest: true });
     const gp = clamp(34 - Math.round(av.miss * 0.35), 12, 36);
     const m = { pts: e.pts * (1 + 0.04 * randn()), reb: e.reb, ast: e.ast, stl: e.stl * 1.1, blk: e.blk * 1.1, tov: e.tov, mins: e.mins };
@@ -106,7 +108,7 @@
     const line = { gp, mins: s.mins, pts: s.pts, reb: s.reb, ast: s.ast, stl: s.stl, blk: s.blk, tov: s.tov, fgp: sl.fgp, tpp: sl.tpp, ftp: sl.ftp, ts: sl.ts, td: s.td, high: s.high };
     const pf = perfOf({ pts: s.pts, reb: s.reb, ast: s.ast, stl: s.stl, blk: s.blk, tov: s.tov, ts: sl.ts });
     const games2 = 33;
-    const wins = clamp(Math.round(22 + (c.prestige - 3) * 2.6 + (oEff - 70) * 0.22 + randn() * 3.4), 8, 37);
+    const wins = clamp(Math.round(22 + (c.prestige - 3) * 2.6 + (oEff - 70) * 0.22 + role.w + randn() * 3.4), 8, 37);
     const rounds = ['Lost in the First Round', 'Lost in the Round of 32', 'Lost in the Sweet 16', 'Lost in the Elite Eight', 'Lost in the Final Four', 'Lost in the National Championship', 'Won the National Championship'];
     let tourney = 'Missed the NCAA Tournament';
     if (wins >= 20) {
@@ -124,6 +126,7 @@
   function stockBonus(st) {
     const c = st.college, last = st.collegeYears[st.collegeYears.length - 1];
     let b = (c.prestige - 3) * 0.9 + (st.genBonus || 0) * Math.min(1, Math.max(0, (st.stars - 1) / 3));   // scouts only credit 'generational' once the recruit is a known name
+    b += ({ takeover: 0.8, fit: 0.2, quiet: -0.4 })[st.collegeRole] || 0;
     if (last.honors.includes('National Player of the Year')) b += 3;
     else if (last.honors.includes('Consensus All-American')) b += 1.5;
     if (st.collegeYears.some((y) => y.tourney.includes('Won the National'))) b += 0.8;
@@ -140,6 +143,14 @@
     rec.mustDeclare = rec.year >= 4;
     st.stage = 'college_decision';
     return rec;
+  }
+  // the transfer portal: a new school, a fresh role, and a year of settling in
+  function transferCollege(st, id) {
+    const c = D.COLLEGES[id], old = st.college.name;
+    if (st.transferred) throw new Error('already transferred');
+    st.college = { id: c.id, name: c.name, state: c.state, prestige: c.prestige, home: c.state === D.STATE_ABBR[st.player.home] }; st.transferred = true; st.collegeRole = null;
+    NBA.Decisions.log(st, { kind: 'college', title: 'Transfer', tone: 'neutral', text: 'Left ' + old + ' through the transfer portal for ' + c.name + '.' });
+    return stayInCollege(st);
   }
   function stayInCollege(st) {
     NBA.npcDraft(st.league);
@@ -366,6 +377,7 @@
     balanced: { label: 'Stay balanced', blurb: 'Play your normal game.', mult: {} },
     allin: { label: 'Go all-in', blurb: 'More minutes, more shots, everything on your shoulders. It wears you down for the next round.', mult: { mins: 3.5, pts: 1.07, ast: 0.95, tov: 1.07 } },
     team: { label: 'Play through the team', blurb: 'Share the ball and trust the supporting cast. Better with a strong cast.', mult: { pts: 0.93, ast: 1.16, tov: 0.94 } },
+    callout: { label: 'Call him out', blurb: 'Make it personal with your rival. It fires you up, and the whole league is watching if it goes wrong.', mult: { pts: 1.04, tov: 1.05 } },
     lock: { label: 'Lock in on defense', blurb: 'Take the best scorer on the other side. Fewer shots for you, more stops.', mult: { pts: 0.95, stl: 1.14, blk: 1.14 } },
   };
   function planPower(st, key) {
@@ -373,6 +385,7 @@
     const others = NBA.rosterOf(L, t).slice(0, 4).map((q) => ovr(q)), sup = others.length ? others.reduce((a, b) => a + b, 0) / others.length : 65;
     if (key === 'allin') return clamp(0.2 + (o - 74) * 0.04, -0.1, 0.8);
     if (key === 'team') return clamp(0.1 + (sup - 68) * 0.04, -0.1, 0.7);
+    if (key === 'callout') return clamp(0.3 + (o - 78) * 0.01, 0.15, 0.5);
     if (key === 'lock') return clamp(0.12 + (Math.max(p.attrs.perD, p.attrs.rimP) - 62) * 0.015, 0, 0.6);
     return 0;
   }
@@ -691,6 +704,11 @@
       salary: st.contract.salary, mvp: A.mvp ? A.mvp.name + ' (' + r1(A.mvp.pts) + '/' + r1(A.mvp.reb) + '/' + r1(A.mvp.ast) + ')' : '', champion: po.champion.name, league: res.league,
       rookie: p.rookie, leaders: res.leaders, perfRank: 1 + res.entries.filter((e) => !e.isUser && e.l.gp >= 58 && e.l.perf > userLine.perf).length,
     };
+    // who the player's season set him against: the best player of every playoff opponent and the MVP rivals ahead of him (facts only: rivalries are updated once, when the season is done)
+    { const facts = [];
+      (po.userSeries || []).forEach((sr) => { const ot = L.teams.find((x) => x.name === sr.opp), star = ot && NBA.rosterOf(L, ot)[0]; if (star) facts.push({ id: star.id, name: star.name, teamId: ot.id, w: (sr.won ? 1 : 2) + (sr.games === 7 ? 1 : 0), why: sr.won ? 'You beat the ' + ot.nick + ' in the ' + sr.round : 'The ' + ot.nick + ' beat you in the ' + sr.round }); });
+      const mv = A.mvpIds || [], ui = mv.indexOf('user'); (ui < 0 ? mv.slice(0, 3) : mv.slice(0, ui).slice(0, 3)).forEach((id) => { const q = L.players[id]; if (q && id !== 'user') facts.push({ id: q.id, name: q.name, teamId: q.teamId, w: 1.5, why: 'You chased the same MVP trophy' }); });
+      rec.rivalFacts = facts; }
     const gl = l.gameList; delete l.gameList;
     if (l.gpCut && !rec.injury) rec.injury = 'Suffered a season-ending injury and missed the rest of the year.';
     st.leagueSnap = { year: L.year, label: res.label, standings: res.standings, leaders: res.leaders, leadersO: res.leadersOthers, race: A.race, raceO: A.raceOthers };
@@ -769,6 +787,32 @@
     if (it.po && g7) { const sr = (rec.perSeries || []).find((x) => x.round === it.rnd); }
     const opp = it.o, text = (wins ? 'You won it' : 'You lost it') + (g7 ? ' in Game 7 against the ' + opp : ' against the ' + opp) + ': ' + (wins ? ({ shot: 'the shot dropped', pass: 'the pass found the open man', drive: 'you won it at the line', reset: 'the play worked' }[key]) : ({ shot: 'the shot rimmed out', pass: 'the pass was not enough', drive: 'it did not go your way', reset: 'the play broke down' }[key])) + '.';
     return { wins, text, g7, key, journal: g7 || (key === 'shot' && wins) ? { tone: wins ? 'good' : 'bad', text: text } : null };
+  }
+
+
+  // ---------------------------------------------------------------- rivals and relationships
+  // A rivalry builds from what a season put between you and another player (beat him or lost to him in the playoffs, chased the same MVP) and fades 25% a year.
+  function finalizeRivals(st) {
+    const Dc = NBA.Decisions, d = Dc.state(st), rec = st.proSeasons[st.proSeasons.length - 1], L = st.league;
+    if (!rec || d.rivYear === rec.label) return null; d.rivYear = rec.label;
+    const rv = d.rivalry || (d.rivalry = {});
+    Object.keys(rv).forEach((k) => { rv[k].s *= 0.75; });
+    (rec.rivalFacts || []).forEach((f) => { const r = rv[f.id] || (rv[f.id] = { name: f.name, s: 0 }); r.s += f.w; r.why = f.why; });
+    const notes = [];
+    Object.keys(rv).forEach((k) => { if (!L.players[k]) { if (d.rival && String(d.rival.id) === k) { notes.push({ tone: 'neutral', text: rv[k].name + ' is out of the league. The rivalry ends there.' }); d.rival = null; } delete rv[k]; } else rv[k].teamId = L.players[k].teamId; });
+    const top = Object.keys(rv).map((k) => [k, rv[k]]).sort((a, b) => b[1].s - a[1].s)[0];
+    if (top && top[1].s >= 3 && (!d.rival || String(d.rival.id) !== top[0])) { d.rival = { id: top[0], name: top[1].name, since: L.year }; notes.push({ tone: 'neutral', text: 'A rivalry is born with ' + top[1].name + '. ' + top[1].why + '.' }); }
+    else if (d.rival && (!rv[d.rival.id] || rv[d.rival.id].s < 1.2)) { notes.push({ tone: 'neutral', text: 'The rivalry with ' + d.rival.name + ' has cooled.' }); d.rival = null; }
+    // a call-out is settled on the court
+    const co = d.flags.calledOut;
+    if (co && co.year === L.year) {
+      const ps = (rec.perSeries || []).find((x) => x.opp && L.teams.find((t) => t.name === x.opp && t.id === co.teamId)), won = ps ? /^W/.test(ps.result) : false;
+      if (won) notes.push({ tone: 'good', text: 'You called out ' + co.name + ' and backed it up: you won the series.' });
+      else { notes.push({ tone: 'bad', text: 'You called out ' + co.name + ' and lost the series. The locker room heard every word.' }); Dc.apply(st, [{ k: 'season', v: { depth: -1.2 } }]); }
+      d.flags.calledOut = null;
+    }
+    notes.forEach((n) => Dc.log(st, { kind: 'rival', title: 'Rivalry', tone: n.tone, text: n.text }));
+    return notes;
   }
 
   // ---------------------------------------------------------------- changing the game plan mid-season
@@ -933,9 +977,12 @@
     const r = NBA.rosterOf(L, t), fourth = r[3] ? ovr(r[3]) : 60;
     const space = clamp(0.75 - 0.011 * (t.wins - 41) + (rnd() - 0.5) * 0.9, 0, 1), need = NBA.teamNeeds(L, t)[p.pos] || 0.3;
     const gap = v - fourth;
-    const s = 0.22 * (gap + 3) + 2.2 * (space - 0.4) + 1.2 * (need - 0.3) + 0.5 * NBA.Decisions.relOf(st, 'team' + t.id) + 0.8 * (rnd() - 0.5);
+    // mentors on that club vouch for you
+    const rel = NBA.Decisions.state(st).rel; let vouch = 0; Object.keys(rel).forEach((k) => { const q = L.players[k]; if (q && q.teamId === t.id && rel[k].v > 0) vouch += Math.min(2, rel[k].v); });
+    const s = 0.22 * (gap + 3) + 2.2 * (space - 0.4) + 1.2 * (need - 0.3) + 0.5 * NBA.Decisions.relOf(st, 'team' + t.id) + 0.8 * Math.min(2, vouch) + 0.8 * (rnd() - 0.5);
+    const vouched = vouch > 0;
     const reason = space < 0.25 ? 'They have no cap room.' : gap < -4 ? 'They do not see you as a rotation player.' : need < 0.15 && gap < 3 ? 'They are set at your position.' : 'They went in another direction.';
-    return { p: sig(s), yes: rnd() < sig(s), reason, space, gap };
+    return { p: sig(s), yes: rnd() < sig(s), reason, space, gap, vouched };
   }
   // Players a club will not cut however the box score looks: anyone still on a rookie deal, the core of the rotation, anyone playing real minutes for a winner,
   // and glue players (defense, reading the game, passing) whose value the numbers hide. Returns why he is safe, or null.
@@ -962,6 +1009,7 @@
     const forceRetire = p.age >= 42 || (p.age >= 35 && v < 57) || (p.age >= 25 && v < 55) || (p.age >= 31 && v < 60) || (c.left <= 0 && p.age >= 26 && v < (p.age <= 27 ? 62 : 62 + (p.age - 27) * NBA.tuning.marketSlope));
     out.mustRetire = forceRetire;
     const human = !st.autoPlay, Dc = NBA.Decisions;
+    if (human) finalizeRivals(st);
     // a club can cut a player who is doing badly (his contract is voided; the salary he was owed is still paid): he goes to the market like any other free agent
     if (human && !out.expiring && !forceRetire && c.left > 0 && p.age >= 24 && v < 63 && !protection(st) && Dc.rng(st, 'cut|' + L.year)() < (v < 58 ? 0.55 : 0.3)) {
       out.expiring = true; out.waived = 'The ' + L.teams[st.teamId].nick + ' waived you: they decided your spot and your salary were better spent elsewhere.';
@@ -980,7 +1028,7 @@
         const teams = L.teams.filter((t) => t.id !== st.teamId).map((t) => [rnd(), t]).sort((x, y) => x[0] - y[0]).slice(0, n).map((x) => x[1]);
         out.market = teams.map((t) => {
           const ti = teamInterest(st, t, v), sal = Math.max(2.3 * capFor(L.year) / 154.6, baseSal * (0.88 + rnd() * 0.17) * (t.wins < 33 ? 1.04 : 1));
-          return { teamId: t.id, name: t.name, nick: teamKey(t), wins: t.wins, label: teamLabel(t, t.wins), role: role(st, t), vibe: Dc.vibe(ti.p), yes: ti.yes, reason: ti.reason, salary: r1(sal), maxYears: p.age >= 36 ? 1 : p.age >= 33 ? 2 : 4, pitched: null };
+          return { teamId: t.id, name: t.name, nick: teamKey(t), wins: t.wins, label: teamLabel(t, t.wins), role: role(st, t), vibe: Dc.vibe(ti.p), vouch: ti.vouched, yes: ti.yes, reason: ti.reason, salary: r1(sal), maxYears: p.age >= 36 ? 1 : p.age >= 33 ? 2 : 4, pitched: null };
         }).sort((a, b) => b.wins - a.wins);
         out.offers = [];
       } else {
@@ -1022,7 +1070,7 @@
     }
     if (action === 'request') {
       // you let the front office know you want out: they shop you through the season, and a request that goes nowhere leaves a mark
-      NBA.Decisions.state(st).flags.tradeReq = L.year;
+      NBA.Decisions.state(st).flags.tradeReq = L.year; NBA.Decisions.apply(st, [{ k: 'rel', id: 'team' + st.teamId, name: L.teams[st.teamId].name, d: -1 }]);
       NBA.Decisions.apply(st, [{ k: 'season', v: { depth: -1.5 } }]);
       NBA.Decisions.log(st, { kind: 'trade', title: 'Trade request', tone: 'bad', text: 'Asked the ' + L.teams[st.teamId].nick + ' for a trade. The locker room felt it, and they will shop you before the deadline.' });
       st.stage = 'training'; st.afterTraining = 'pro';
@@ -1047,6 +1095,7 @@
       st.teamId = t.id; p.teamId = t.id;
       st.contract = { salary: arg.salary, years, left: years, type: 'veteran' };
       note((action === 'switch' ? 'Signed with ' : 'Re-signed with ') + t.name + ' (' + years + 'y, $' + arg.salary + 'M)');
+      if (!st.autoPlay) NBA.Decisions.apply(st, [{ k: 'rel', id: 'team' + t.id, name: t.name, d: 0.5 }]);
       if (!st.autoPlay) NBA.Decisions.log(st, { kind: 'contract', title: 'Free agency', tone: 'neutral', text: (action === 'switch' ? 'Signed with the ' + t.nick : 'Re-signed with the ' + t.nick) + ' for ' + years + ' year' + (years > 1 ? 's' : '') + ', $' + arg.salary + 'M a year.' });
       st.stage = 'training'; st.afterTraining = 'pro';
       return { text: (action === 'switch' ? 'Signed with the ' : 'Re-signed with the ') + t.nick + ' for ' + years + ' years, $' + arg.salary + 'M/yr.' };
@@ -1116,6 +1165,6 @@
     return st;
   }
 
-  Object.assign(NBA, { Game: { SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { Game: { transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

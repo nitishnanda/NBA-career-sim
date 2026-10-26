@@ -28,14 +28,25 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   console.log('SIZE create', JSON.stringify({ mode: sz0.mode, sliders: sz0.sliders, tallest: sz1.v, note: sz1.note }));
   await shot('01-create');
   await page.click('text=Get scouted');
-  await page.waitForSelector('text=Choose my college', { timeout: 15000 });
+  await page.waitForSelector('text=Next: high school', { timeout: 15000 });
   const szS = await page.evaluate(() => ({ ht: window.__NBA_UI.state.player.ht, wt: window.__NBA_UI.state.player.wt, ws: window.__NBA_UI.state.player.ws, line: (document.body.innerText.match(/C · [^\n]*lb[^\n]*/) || [''])[0] }));
   const okSz = sz0.sliders === 3 && szS.ht === 86 && szS.wt === Math.round(249 + 2.5 * (86 - 82.8)) + 10 && szS.ws === 86 + 4 + 3 && /7'2"/.test(szS.line) && /7'9" wingspan/.test(szS.line);
   console.log('SIZE scouting', okSz ? 'OK' : 'MISMATCH', JSON.stringify(szS)); if (!okSz) errors.push('SIZE scouting ' + JSON.stringify(szS));
   await shot('02-scouting');
+  // high school: three paths, each with a read (not a number); then the college pick, then the role you take in your first year
+  await page.click('text=Next: high school');
+  await page.waitForSelector('h1:has-text("finish high school")'); await shot('02b-high-school');
+  const hs = await page.evaluate(() => ({ opts: document.querySelectorAll('.wkcard').length, vibes: document.querySelectorAll('.wkcard .vibe').length, stage: window.__NBA_UI.state.stage }));
+  const okHs = hs.opts === 3 && hs.vibes === 3 && hs.stage === 'hs'; console.log('HIGH SCHOOL', okHs ? 'OK' : 'MISMATCH', JSON.stringify(hs)); if (!okHs) errors.push('HS ' + JSON.stringify(hs));
+  await page.click('.wkcard >> nth=0 >> button');
+  await page.waitForSelector('text=Choose my college');
+  const hsj = await page.evaluate(() => window.__NBA_UI.state.dec.journal.length); if (hsj !== 1) errors.push('HS journal ' + hsj);
   await page.click('text=Choose my college');
   await shot('03-college-pick');
   await page.click('.opt >> nth=0');
+  await page.waitForSelector('h1:has-text("what is your role")'); await shot('03b-college-role');
+  await page.click('.wkcard >> nth=1 >> button');
+  const role = await page.evaluate(() => window.__NBA_UI.state.collegeRole); console.log('COLLEGE role', role === 'fit' ? 'OK' : 'MISMATCH', role); if (role !== 'fit') errors.push('role ' + role);
   await page.click('text=Play the season');
   await page.waitForSelector('text=Declare for the NBA Draft');
   await shot('04-college-decision');
@@ -108,7 +119,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
     if (await page.$('button:has-text("Start the season")')) await page.click('button:has-text("Start the season")');
     else if (await page.$('.mcard.t3')) await page.click('button:has-text("Start the season")');
     else await page.click('h3:has-text("own game") ~ div button >> nth=0');
-    if (campN === 1) { const j = await page.evaluate(() => window.__NBA_UI.state.dec.journal.length); if (j !== 1) errors.push('CAMP journal ' + j); else console.log('CAMP journal OK'); }
+    if (campN === 1) { const j = await page.evaluate(() => window.__NBA_UI.state.dec.journal.map((e) => e.kind).join()); if (j !== 'hs,role,camp') errors.push('CAMP journal ' + j); else console.log('CAMP journal OK (hs, role, camp)'); }
   };
   await trainLoop();
   await shot('06-pro-ready');
