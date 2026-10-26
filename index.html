@@ -1168,6 +1168,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     // real tails: more truly bad teams, fewer 60+ juggernauts
     L.teams.forEach((t) => { let w = t.wins - (mw - 41); if (w < 33) w -= (33 - w) * 0.22; if (w > 54) w -= (w - 54) * ((user && t.id === user.teamId && ovr(user.p) >= 88) ? T.userWinShrink : 0.2); t.wins = clamp(Math.round(w), 12, 73); t.losses = 82 - t.wins; });
     L.teams.forEach((t) => { t.power = (t.wins - 41) / 2.7 + randn() * 0.8; t.prevWins = t.wins; });
+    deadlineTrades(L);
     if (user) { const ut = L.teams[user.teamId]; ut.power += clamp((ovr(user.p) - 84) * 0.1, 0, 1.5); } // superstars matter more in the playoffs: shorter rotations, more minutes
 
     // user line (needs team context)
@@ -1565,20 +1566,81 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 
   // teams shop their lesser players for similar value; a franchise player only moves when a bad team sells him to a contender
   const rosterOf = (L, t) => t.core.concat(t.bench || []).map((id) => L.players[id]).filter((q) => q && !q.rookie).sort((x, y) => ovr(y) - ovr(x));
+  // ------------------------------------------------------------ contracts, tenure and the trade market
+  // Every player has a tenure (when he joined his club) and a contract end, handed out from his id so nothing here touches the random stream until a deal is made.
+  // A player who has just arrived is almost never moved again (real: ~85% of players on a roster have been there 2+ seasons at the deadline); sellers trade veterans, buyers pay younger depth.
+  const hOf = (p) => Math.abs(hashOf('d|' + p.id + '|' + p.name));
+  function deal(L, p) {
+    if (p.since == null) p.since = L.year - (p.rookie ? 0 : hOf(p) % 5);
+    if (p.cEnd == null) p.cEnd = L.year + (hOf(p) >> 3) % (p.age >= 33 ? 2 : 4);
+    return p;
+  }
+  const tenureAt = (L, p, phase) => (phase === 'deadline' ? L.year + 0.5 : L.year + 1) - deal(L, p).since;   // offseason runs at the end of season L.year: the season just played counts
+  const moveWeight = (L, p, phase) => { const t = tenureAt(L, p, phase), young = (p.yearsPro || 0) <= 3 ? 0.35 : 1; return young * (t >= 2.5 ? 1 : t >= 2 ? 0.8 : t >= 1 ? 0.12 : 0.02); };
+  const tag = (q) => q.pos + ', ' + q.age + ', ' + Math.round(ovr(q));
+  function logMove(L, phase, text, a, b) { (L.moves = L.moves || []).push({ year: L.year, phase, text, a: a.nick, b: b.nick }); if (L.moves.length > 160) L.moves.shift(); }
   function swapPlayers(L, a, pa, b, pb) {
     [a, b].forEach((t) => { t.core = t.core.filter((id) => id !== pa.id && id !== pb.id); t.bench = (t.bench || []).filter((id) => id !== pa.id && id !== pb.id); });
     a.bench.push(pb.id); b.bench.push(pa.id); pa.teamId = b.id; pb.teamId = a.id;
   }
-  function npcTrades(L, n) {
-    for (let k = 0, done = 0; k < 60 && done < n; k++) {
-      const a = pick(L.teams), b = pick(L.teams); if (a === b) continue;
+  const cashOut = (L, pa, phase) => { deal(L, pa); };
+  // phase 'offseason': mostly like-for-like swaps (talent just changes address) plus the odd star request; 'deadline': sellers move veterans to contenders for lesser, younger players
+  function marketTrades(L, n, phase) {
+    const dl = phase === 'deadline', yr = dl ? L.year + 0.5 : L.year + 1;
+    let done = 0;
+    for (let k = 0; k < 80 && done < n; k++) {
+      const sellers = L.teams.filter((t) => t.wins <= 37), buyers = L.teams.filter((t) => t.wins >= 43);
+      const a = dl || rand() < 0.6 ? pick(sellers.length ? sellers : L.teams) : pick(L.teams), b = dl || rand() < 0.6 ? pick(buyers.length ? buyers : L.teams) : pick(L.teams);
+      if (a === b) continue;
       const ra = rosterOf(L, a), rb = rosterOf(L, b); if (ra.length < 6 || rb.length < 6) continue;
-      const star = done === 0 && rand() < 0.3 && a.wins < 33 && b.wins >= 44 && ovr(ra[0]) >= 80 && ra[0].age >= 26;
-      const pa = star ? ra[0] : ra[rint(3, ra.length - 1)], tg = ovr(pa);
-      const cand = rb.filter((q, i) => (star ? i <= 2 && ovr(q) >= tg - 7 && ovr(q) <= tg + 1 : i >= 3 && Math.abs(ovr(q) - tg) <= 4));
+      const star = !dl && done === 0 && rand() < 0.3 && a.wins < 33 && b.wins >= 44 && ovr(ra[0]) >= 80 && ra[0].age >= 26 && tenureAt(L, ra[0], phase) >= 3;
+      const pool = star ? [ra[0]] : ra.filter((q, i) => i >= 2 && (dl ? q.age >= 27 && ovr(q) >= 64 : true));
+      if (!pool.length) continue;
+      const pa = pool[rint(0, pool.length - 1)];
+      if (rand() > moveWeight(L, pa, phase)) continue;
+      const tg = ovr(pa);
+      const cand = rb.filter((q, i) => (star ? i <= 2 && ovr(q) >= tg - 7 && ovr(q) <= tg + 1 : dl ? i >= 2 && ovr(q) <= tg - 1.5 && ovr(q) >= tg - 8 && q.age <= pa.age - 2 : i >= 3 && Math.abs(ovr(q) - tg) <= 4) && rand() <= moveWeight(L, q, phase));
       if (!cand.length) continue;
-      swapPlayers(L, a, pa, b, pick(cand)); done++;
+      const pb = pick(cand);
+      swapPlayers(L, a, pa, b, pb); done++;
+      pa.since = yr; pb.since = yr; pa.moved = pb.moved = L.year;
+      const sweet = ovr(pa) - ovr(pb) >= 3 ? ' and a ' + (L.year + 1 + rint(0, 3)) + ' ' + (rand() < 0.6 ? 'first' : 'second') + '-round pick' : '';
+      logMove(L, phase, star ? a.nick + ' trade franchise player ' + pa.name + ' (' + tag(pa) + ') to the ' + b.nick + ' after a trade request, for ' + pb.name + ' (' + tag(pb) + ')' + sweet
+        : b.nick + ' acquire ' + pa.name + ' (' + tag(pa) + ') from the ' + a.nick + ' for ' + pb.name + ' (' + tag(pb) + ')' + sweet, a, b);
+      if (dl) { b.dlBoost = (b.dlBoost || 0) + clamp((ovr(pa) - ovr(pb)) * 0.12, 0.05, 0.7); }
     }
+    return done;
+  }
+  // free agency: some contracts end each summer; most stars and starters re-sign, the rest test the market and fill roster spots at other clubs (the unlucky ones fall out of the league)
+  function freeAgency(L) {
+    const fa = [], yr = L.year + 1;
+    L.teams.forEach((t) => rosterOf(L, t).forEach((p) => {
+      deal(L, p);
+      if (p.cEnd > L.year) return;
+      const o = ovr(p), tn = tenureAt(L, p, 'offseason');
+      const keep = clamp(0.58 + 0.014 * (o - 66) + (tn >= 3 ? 0.1 : 0) - (p.age >= 33 ? 0.2 : 0) + (o >= 82 ? 0.15 : 0), 0.25, 0.97);
+      if (rand() < keep) { p.cEnd = L.year + 1 + (p.age >= 33 ? rint(0, 1) : p.age >= 30 ? rint(0, 2) : rint(1, 4)); return; }
+      t.core = t.core.filter((id) => id !== p.id); t.bench = (t.bench || []).filter((id) => id !== p.id);
+      fa.push({ p, from: t });
+    }));
+    fa.sort((x, y) => ovr(y.p) - ovr(x.p));
+    fa.forEach((f) => {
+      const open = L.teams.filter((t) => rosterOf(L, t).length < 10 && t.id !== f.from.id);
+      if (!open.length) return;
+      // stars and good players pick winners, role players take whatever fits
+      const w = open.map((t) => Math.exp(clamp((ovr(f.p) - 68) / 12, -1, 2) * (t.wins - 41) / 14));
+      let r = rand() * sum(w), t = open[open.length - 1];
+      for (let i = 0; i < open.length; i++) { r -= w[i]; if (r <= 0) { t = open[i]; break; } }
+      f.p.teamId = t.id; t.bench = (t.bench || []).concat([f.p.id]); f.p.since = yr; f.p.moved = L.year; f.p.cEnd = L.year + 1 + (f.p.age >= 33 ? rint(0, 1) : rint(1, 3)); f.signed = t;
+      if (ovr(f.p) >= 70) logMove(L, 'freeagency', f.p.name + ' (' + tag(f.p) + ') leaves the ' + f.from.nick + ' in free agency and signs with the ' + t.nick, f.from, t);
+    });
+    fa.filter((f) => !f.signed).forEach((f) => { delete L.players[f.p.id]; if (ovr(f.p) >= 66) logMove(L, 'freeagency', f.p.name + ' (' + tag(f.p) + ') went unsigned and is out of the league', f.from, f.from); });
+  }
+  // the deadline: real contenders add veterans for the run, bad teams sell (this season's playoff strength moves a little with it)
+  function deadlineTrades(L) {
+    const n = marketTrades(L, 3 + (rand() < 0.5 ? 1 : 0), 'deadline');
+    L.teams.forEach((t) => { if (t.dlBoost) { t.power += t.dlBoost; t.dlBoost = 0; } });
+    return n;
   }
   function offseason(L, opts) {
     opts = opts || {};
@@ -1592,7 +1654,8 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       }
     });
     settleRookies(L);
-    npcTrades(L, 5);
+    freeAgency(L);
+    marketTrades(L, 5, 'offseason');
     L.teams.forEach((t) => fillCore(L, t));
     if (opts.draft !== false) npcDraft(L);
     L.year++;
@@ -1743,6 +1806,8 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       else if (e.k === 'bonusPts') st.bonusPoints = (st.bonusPoints || 0) + e.d;
     });
   }
+  // after a season is replayed from its snapshot, the decisions made since tip-off (journal, relationships, flags, an open question) carry over
+  function carry(st, live) { const d = state(st); if (live) { d.journal = live.journal; d.rel = live.rel; d.flags = live.flags; d.pending = live.pending; d.seq = live.seq; } }
   const relOf = (st, id) => { const r = state(st).rel[id]; return r ? r.v : 0; };
   // the next season consumes whatever the player's decisions queued (playSeason merges it into the season's event modifiers)
   function takeSeason(st) { const d = state(st), s = d.season; d.season = {}; return s; }
@@ -1776,7 +1841,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     pd.step++; if (res.text) pd.log.push({ text: res.text, tone: res.tone || 'neutral' });
     if (res.effects) apply(st, res.effects);
     if (res.journal) { if (typeof res.journal.text === 'function') res.journal.text = res.journal.text(); log(st, Object.assign({ kind: pd.id, title: def.title }, res.journal)); }
-    if (res.done) d.pending = null;
+    if (res.done) state(st).pending = null;   // a replayed season swaps st.dec: always write to the live one
     return res;
   }
   // the autopilot answers every question with a sensible default (so bulk careers, tests and realism checks do not need a person)
@@ -1897,7 +1962,65 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     },
   });
 
-  Object.assign(NBA, { Decisions: { register, state, rng, vibe, apply, offer, view, choose, autoResolve, takeSeason, log, relOf, TIERS, SKILL_WORDS, campMentors, standing } });
+
+  // ================================================================ decision 2: the trade deadline
+  // Fires once a season when the games reach the deadline. One situation at most: a club cuts you (you are doing badly), your trade request comes due, or a contender calls.
+  const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
+  register({
+    id: 'deadline', title: 'Trade deadline', trigger: 'deadline',
+    open(st) {
+      const G = NBA.Game, L = st.league, p = st.player, t = L.teams[st.teamId], d = state(st), rnd = rng(st, 'dl|' + L.year);
+      const v = G.marketV(st), rec = st.proSeasons[st.proSeasons.length - 1], c = st.contract;
+      const shown = (st.matchLog || []).slice(0, st.matchIdx || 0).filter((x) => x.k === 'g' && !x.po && !x.dnp);
+      // 1. waived: a vet who is playing badly on a deal that still has years on it
+      if (!st.autoPlay && c.left >= 1 && p.yearsPro >= 3 && p.age >= 24 && v < 64 && v >= 52 && rec && rec.perfRank > 250 && rnd() < 0.45) {
+        const sal = G.minSalary(L), paid = Math.round(c.salary * 54 / 82 * 10) / 10;
+        const teams = L.teams.filter((x) => x.id !== st.teamId && x.wins >= 36).map((x) => [rnd(), x]).sort((a, b) => a[0] - b[0]).slice(0, 3).map((x) => x[1]);
+        return { kind: 'waive', text: 'The ' + t.nick + ' are waiving you. The rest of your contract is guaranteed, but you are out of their plans.', options: teams.map((x) => ({ teamId: x.id, name: x.name, nick: G.teamKey(x), label: x.wins + ' wins', salary: sal, paid })) };
+      }
+      const offers = () => G.tradeOffers(st, 6).filter((o) => o.ok).slice(0, 3);
+      // 2. your request comes due
+      if (d.flags.tradeReq) {
+        const found = rnd() < (t.wins < 38 ? 0.7 : 0.5), opts = found ? offers() : [];
+        if (opts.length) return { kind: 'request', text: 'The ' + t.nick + ' found suitors for your trade request. Pick a destination, or stay put.', options: opts };
+        return { kind: 'norequest', text: 'The ' + t.nick + ' could not find a deal for you before the deadline. You are staying, and the front office remembers the request.', options: [] };
+      }
+      // 3. a contender calls (a good player on a team going nowhere)
+      if (t.wins <= 36 && v >= 70 && p.age >= 27 && rnd() < 0.3) {
+        const opts = offers().slice(0, 2);
+        if (opts.length) return { kind: 'call', text: 'Contenders are calling the ' + t.nick + ' about you. If you want out, now is the time.', options: opts };
+      }
+      return null;
+    },
+    view(st, ctx) {
+      return { kind: ctx.kind, text: ctx.text, options: ctx.options.map((o) => Object.assign({}, o, o.partner ? { partnerName: o.partner.name + ' (' + o.partner.pos + ', ' + o.partner.age + ', ' + o.partner.ovr + ' OVR)' } : {})), canDecline: ctx.kind !== 'waive' };
+    },
+    choose(st, ctx, key, arg) {
+      const G = NBA.Game, L = st.league, d = state(st), old = L.teams[st.teamId];
+      if (key === 'decline') {
+        if (ctx.kind === 'norequest') { d.flags.tradeReq = null; return { done: true, tone: 'bad', text: 'You stay put.', effects: [{ k: 'season', v: { depth: -1 } }], journal: { tone: 'bad', text: 'Your trade request went nowhere: the ' + old.nick + ' kept you, and the room was tense for the rest of the year.' } }; }
+        if (ctx.kind === 'request') { d.flags.tradeReq = null; return { done: true, tone: 'neutral', text: 'You turned the offers down.', journal: { tone: 'neutral', text: 'Wanted out of the ' + old.nick + ', but none of the deals felt right. Stayed.' } }; }
+        return { done: true, tone: 'neutral', text: 'You told them you are staying.', journal: { tone: 'neutral', text: 'Contenders called at the deadline. Stayed with the ' + old.nick + '.' } };
+      }
+      if (key === 'trade') {
+        const o = ctx.options.find((x) => x.teamId === arg); if (!o) throw new Error('bad trade');
+        const t = L.teams[o.teamId], text = 'traded to the ' + t.nick;
+        G.midSeasonMove(st, { kind: 'trade', teamId: o.teamId, partnerId: o.partner.id, partnerText: o.partner.name + ' (' + o.partner.ovr + ' ovr)', requested: ctx.kind === 'request', text });
+        state(st).flags.tradeReq = null;
+        return { done: true, tone: 'good', text: 'Traded to the ' + t.nick + ' for ' + o.partner.name + '. New team, new situation.', journal: { tone: 'good', text: (ctx.kind === 'request' ? 'Got the trade you asked for: ' : 'Traded at the deadline: ') + old.nick + ' to ' + t.nick + ', for ' + o.partner.name + '.' } };
+      }
+      if (key === 'sign') {
+        const o = ctx.options.find((x) => x.teamId === arg); if (!o) throw new Error('bad suitor');
+        const t = L.teams[o.teamId];
+        G.midSeasonMove(st, { kind: 'sign', teamId: o.teamId, salary: o.salary, paid: o.paid, text: 'waived by the ' + old.nick + ', signed with the ' + t.nick });
+        return { done: true, tone: 'bad', text: 'Signed with the ' + t.nick + ' on a minimum deal.', journal: { tone: 'bad', text: 'Waived by the ' + old.nick + ' at the deadline after a bad stretch. Picked up by the ' + t.nick + ' on a minimum deal.' } };
+      }
+      throw new Error('bad deadline choice');
+    },
+    auto(st, ctx) { return ctx.options.length && ctx.kind !== 'waive' ? { key: 'trade', arg: ctx.options[0].teamId } : ctx.options.length ? { key: 'sign', arg: ctx.options[0].teamId } : { key: 'decline' }; },
+  });
+
+  Object.assign(NBA, { Decisions: { carry, register, state, rng, vibe, apply, offer, view, choose, autoResolve, takeSeason, log, relOf, TIERS, SKILL_WORDS, campMentors, standing } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -2417,6 +2540,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       if (b) it.pm = Math.round((it.f - it.a) * (b.m / 48) * 1.1 + randn() * 4);
       items.push(it);
       if (i === 51) items.push({ k: 'hdr', text: 'All-Star Weekend' + (rec.awards.includes('All-Star') ? ' · you were selected ★' : '') });
+      if (i === 54) items.push({ k: 'hdr', dl: 1, text: 'Trade deadline' });
     }
     items.push({ k: 'hdr', text: 'Regular season complete · ' + t.wins + '-' + t.losses });
     // playoffs
@@ -2456,6 +2580,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       st.seasonSeed = Math.floor(rand() * 2147483647);
       st.styleSeq = [[0, st.style || 'balanced']];
       st.shotScope = null;   // a new season's shot chart follows the playoffs once they start
+      st.dlDone = false; st.dlChecked = false; st.seasonMoves = [];   // the trade deadline comes once a season
       SNAP = JSON.stringify(st);
     }
     NBA.setSeed(st.seasonSeed);
@@ -2565,11 +2690,12 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     for (let i = 0; i < idx; i++) { const it = items[i]; if (it.k === 'g') { if (it.po) po++; else reg++; } }
     return po > 0 ? 82 + po : reg;
   }
-  function spliceLog(st, oldLog, newLog, idx) {
+  function spliceLog(st, oldLog, newLog, idx, force) {
     if (!idx) return newLog;
     const a = oldLog[idx - 1], b = newLog[idx - 1];
-    if (!a || !b || a.k !== b.k || a.o !== b.o || a.n !== b.n || !!a.po !== !!b.po) return newLog;
+    if (!force && (!a || !b || a.k !== b.k || a.o !== b.o || a.n !== b.n || !!a.po !== !!b.po)) return newLog;
     const out = oldLog.slice(0, idx).concat(newLog.slice(idx));
+    if (force) return out;   // a mid-season move: the games you saw stay as they were (another team's schedule), the rest come from the new team
     const rec = st.proSeasons[st.proSeasons.length - 1];
     const regIdx = []; out.forEach((x, i) => { if (x.k === 'g' && !x.po) regIdx.push(i); });
     const diff = rec.wins - regIdx.filter((i) => out[i].w).length;
@@ -2629,16 +2755,48 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const slot = slotNow(st), prev = (st.styleSeq || [[0, st.style || 'balanced']]);
     if (styleAt(prev, slot) === style) return { ok: true, same: true };
     const seq = prev.filter((x) => x[0] < slot); seq.push([slot, style]);
-    const keep = { idx: st.matchIdx || 0, shotTab: st.shotTab, shotScope: st.shotScope, log: st.matchLog, view: st.view };
-    const snapObj = JSON.parse(SNAP);
-    Object.keys(st).forEach((k) => delete st[k]); Object.assign(st, snapObj);
-    st.style = style; st.styleSeq = seq;
-    playSeason(st, { rerun: true });
-    st.matchLog = spliceLog(st, keep.log, st.matchLog, keep.idx); st.matchIdx = keep.idx; st.shotTab = keep.shotTab; st.shotScope = keep.shotScope;
-    recomputeFromLog(st);
+    replay(st, st.seasonMoves || [], { style, seq });
     return { ok: true };
   }
-
+  // Replay the season from its tip-off snapshot with the player's changes applied (a new game plan, a mid-season move): the league's results come from the same seeds,
+  // the games already shown stay exactly as they were, and everything after comes from the new situation.
+  function replay(st, moves, opt) {
+    const keep = { idx: st.matchIdx || 0, shotTab: st.shotTab, shotScope: st.shotScope, log: st.matchLog, view: st.view, dec: st.dec, dlDone: st.dlDone, dlChecked: st.dlChecked, style: st.style, styleSeq: st.styleSeq };
+    const snapObj = JSON.parse(SNAP), startTeam = snapObj.teamId;
+    Object.keys(st).forEach((k) => delete st[k]); Object.assign(st, snapObj);
+    NBA.Decisions.carry(st, keep.dec);
+    st.style = opt.style || keep.style; st.styleSeq = opt.seq || keep.styleSeq; st.dlDone = keep.dlDone; st.dlChecked = keep.dlChecked; st.seasonMoves = moves;
+    moves.forEach((m) => applyMoveState(st, m));
+    playSeason(st, { rerun: true });
+    st.matchLog = spliceLog(st, keep.log, st.matchLog, keep.idx, moves.length > 0); st.matchIdx = keep.idx; st.shotTab = keep.shotTab; st.shotScope = keep.shotScope;
+    recomputeFromLog(st);
+    const rec = st.proSeasons[st.proSeasons.length - 1];
+    if (moves.length) {
+      const reg = st.matchLog.filter((x) => x.k === 'g' && !x.po);
+      rec.wins = reg.filter((x) => x.w).length; rec.losses = reg.length - rec.wins;
+      rec.prevTeam = st.league.teams[startTeam].name;
+      moves.forEach((m) => { if (m.paid) { st.earnings += m.paid; st.earnings26 = (st.earnings26 || 0) + m.paid / capFor(st.league.year) * capFor(2026); } });
+      const dl = st.matchLog.find((x) => x.k === 'hdr' && x.dl); if (dl) dl.text = 'Trade deadline · ' + moves[moves.length - 1].text;
+    }
+  }
+  // the state changes of one mid-season move, applied to the pre-season state before the season is played again
+  function applyMoveState(st, mv) {
+    const L = st.league, p = st.player, old = L.teams[st.teamId], t = L.teams[mv.teamId];
+    if (mv.kind === 'trade') {
+      const partner = L.players[mv.partnerId];
+      if (partner) { t.core = t.core.filter((id) => id !== partner.id); t.bench = (t.bench || []).filter((id) => id !== partner.id); old.bench = (old.bench || []).concat([partner.id]); partner.teamId = old.id; partner.since = L.year + 0.5; partner.moved = L.year; }
+      (st.trades = st.trades || []).push({ year: L.year, label: NBA.seasonLabel(L.year), from: old.name, to: t.name, ovr: Math.round(ovr(p)), age: p.age, partner: mv.partnerText, requested: !!mv.requested, midSeason: true });
+    } else if (mv.kind === 'sign') {
+      st.contract = { salary: mv.salary, years: 1, left: 1, type: 'veteran' };
+      (st.trades = st.trades || []).push({ year: L.year, label: NBA.seasonLabel(L.year), from: old.name, to: t.name, ovr: Math.round(ovr(p)), age: p.age, partner: 'waived, then signed', waived: true, midSeason: true });
+    }
+    st.teamId = t.id; p.teamId = t.id; p.since = L.year + 0.5;
+  }
+  function midSeasonMove(st, mv) {
+    if (!SNAP) return { ok: false, why: 'This save was made before mid-season moves existed. It will work from the next season.' };
+    replay(st, (st.seasonMoves || []).concat([mv]), {});
+    return { ok: true };
+  }
 
   // ---------------------------------------------------------------- contracts and decisions
   function marketPct(st) {
@@ -2677,6 +2835,20 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     if (rand() > accept) return Object.assign(base, { ok: false, reason: why || 'The ' + mine.nick + ' turned the deal down.' });
     return Object.assign(base, { ok: true });
   }
+  // How a club answers a free agent: his value against their fourth-best player (is there a starting spot), cap room, need at his position, and what they think of him.
+  // The answers are rolled once from the career's own seeded stream, so reloading the page never changes a rejection.
+  const sig = (x) => 1 / (1 + Math.exp(-x));
+  const minSalary = (L) => r1(2.3 * capFor(L.year) / 154.6);
+  function teamInterest(st, t, v) {
+    const L = st.league, p = st.player, rnd = NBA.Decisions.rng(st, 'fa|' + t.id + '|' + L.year);
+    const r = NBA.rosterOf(L, t), fourth = r[3] ? ovr(r[3]) : 60;
+    const space = clamp(0.75 - 0.011 * (t.wins - 41) + (rnd() - 0.5) * 0.9, 0, 1), need = NBA.teamNeeds(L, t)[p.pos] || 0.3;
+    const gap = v - fourth;
+    const s = 0.22 * (gap + 3) + 2.2 * (space - 0.4) + 1.2 * (need - 0.3) + 0.5 * NBA.Decisions.relOf(st, 'team' + t.id) + 0.8 * (rnd() - 0.5);
+    const reason = space < 0.25 ? 'They have no cap room.' : gap < -4 ? 'They do not see you as a rotation player.' : need < 0.15 && gap < 3 ? 'They are set at your position.' : 'They went in another direction.';
+    return { p: sig(s), yes: rnd() < sig(s), reason, space, gap };
+  }
+  const teamKey = (t) => (t.name.endsWith('Trail Blazers') ? 'Trail Blazers' : t.nick);
   function decisionOptions(st) {
     const L = st.league, p = st.player, c = st.contract;
     const cap = capNow(L);
@@ -2687,23 +2859,55 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const st0 = (p.tr && p.tr.stay) || 0, sty = p.age >= 31 ? NBA.tuning.stayMarket * (st0 > 0 ? st0 : 0.5 * st0) : 0, v = mk.v + sty;   // only veterans: young players get offers on talent
     const forceRetire = p.age >= 42 || (p.age >= 35 && v < 57) || (p.age >= 25 && v < 55) || (p.age >= 31 && v < 60) || (c.left <= 0 && p.age >= 26 && v < (p.age <= 27 ? 62 : 62 + (p.age - 27) * NBA.tuning.marketSlope));
     out.mustRetire = forceRetire;
+    const human = !st.autoPlay, Dc = NBA.Decisions;
+    // a club can cut a player who is doing badly (his contract is voided; the salary he was owed is still paid): he goes to the market like any other free agent
+    if (human && !out.expiring && !forceRetire && c.left > 0 && p.yearsPro >= 3 && p.age >= 24 && v < 63 && Dc.rng(st, 'cut|' + L.year)() < (v < 58 ? 0.55 : 0.3)) {
+      out.expiring = true; out.waived = 'The ' + L.teams[st.teamId].nick + ' waived you: they decided your spot and your salary were better spent elsewhere.';
+    }
     if (out.expiring) {
       const own = L.teams[st.teamId];
       const maxYrsOwn = p.age >= 36 ? 1 : p.age >= 33 ? 2 : 5;
       out.resign = { teamId: own.id, name: own.name, salary: r1(Math.max(2.3 * capFor(L.year) / 154.6, baseSal)), maxYears: maxYrsOwn, role: role(st, own), label: teamLabel(own, own.wins) };
-      let offers = [];
-      const n = mk.v >= 76 ? 6 : mk.v >= 68 ? 4 : mk.v >= 60 ? 3 : 1;
-      const teams = L.teams.filter((t) => t.id !== st.teamId).sort(() => rand() - 0.5).slice(0, n);
-      teams.forEach((t) => {
-        const sal = Math.max(2.3 * capFor(L.year) / 154.6, baseSal * (0.88 + rand() * 0.17) * (t.wins < 33 ? 1.04 : 1));
-        offers.push({ teamId: t.id, name: t.name, salary: r1(sal), maxYears: p.age >= 36 ? 1 : p.age >= 33 ? 2 : 4, role: role(st, t), label: teamLabel(t, t.wins), wins: t.wins });
-      });
-      out.offers = offers.sort((a, b) => b.salary - a.salary);
+      if (human) {
+        // your own club may not want you back, or only for less
+        const rs = Dc.rng(st, 'resign|' + L.year)(), keepP = out.waived ? 0 : clamp(0.5 + 0.035 * (v - 62) + 0.12 * Math.min(2, Dc.relOf(st, 'team' + own.id)), 0.1, 0.97);
+        if (rs > keepP) out.resign = null;
+        else if (rs > keepP - 0.18 && v < 70) { out.resign.salary = r1(out.resign.salary * 0.8); out.resign.cut = true; }
+        out.resignText = out.resign ? (out.resign.cut ? 'The ' + own.nick + ' want you back, but at a discount.' : 'The ' + own.nick + ' want you back.') : 'The ' + own.nick + ' are letting you walk.';
+        const n = v >= 76 ? 10 : v >= 68 ? 8 : v >= 60 ? 7 : 6, rnd = Dc.rng(st, 'market|' + L.year);
+        const teams = L.teams.filter((t) => t.id !== st.teamId).map((t) => [rnd(), t]).sort((x, y) => x[0] - y[0]).slice(0, n).map((x) => x[1]);
+        out.market = teams.map((t) => {
+          const ti = teamInterest(st, t, v), sal = Math.max(2.3 * capFor(L.year) / 154.6, baseSal * (0.88 + rnd() * 0.17) * (t.wins < 33 ? 1.04 : 1));
+          return { teamId: t.id, name: t.name, nick: teamKey(t), wins: t.wins, label: teamLabel(t, t.wins), role: role(st, t), vibe: Dc.vibe(ti.p), yes: ti.yes, reason: ti.reason, salary: r1(sal), maxYears: p.age >= 36 ? 1 : p.age >= 33 ? 2 : 4, pitched: null };
+        }).sort((a, b) => b.wins - a.wins);
+        out.offers = [];
+      } else {
+        const offers = [];
+        const n = mk.v >= 76 ? 6 : mk.v >= 68 ? 4 : mk.v >= 60 ? 3 : 1;
+        const teams = L.teams.filter((t) => t.id !== st.teamId).sort(() => rand() - 0.5).slice(0, n);
+        teams.forEach((t) => {
+          const sal = Math.max(2.3 * capFor(L.year) / 154.6, baseSal * (0.88 + rand() * 0.17) * (t.wins < 33 ? 1.04 : 1));
+          offers.push({ teamId: t.id, name: t.name, salary: r1(sal), maxYears: p.age >= 36 ? 1 : p.age >= 33 ? 2 : 4, role: role(st, t), label: teamLabel(t, t.wins), wins: t.wins });
+        });
+        out.offers = offers.sort((a, b) => b.salary - a.salary);
+      }
     } else {
-      const dest = L.teams.filter((t) => t.id !== st.teamId).sort(() => rand() - 0.5).slice(0, 4);
-      out.tradeOptions = dest.map((t) => tradeDeal(st, t));
+      out.tradeOptions = tradeOffers(st, 4);
+      out.requested = !!(Dc.state(st).flags.tradeReq);
     }
     return out;
+  }
+  function tradeOffers(st, n) {
+    const L = st.league;
+    return L.teams.filter((t) => t.id !== st.teamId).sort(() => rand() - 0.5).slice(0, n).map((t) => tradeDeal(st, t));
+  }
+  // pitch yourself to a club on the free-agent market: they either make an offer or turn you down (the answer was rolled when the market opened)
+  function pitch(st, teamId) {
+    const d = st.decision, m = d && d.market && d.market.find((x) => x.teamId === teamId);
+    if (!m || m.pitched) throw new Error('already pitched');
+    m.pitched = m.yes ? 'offer' : 'no';
+    if (!d.market.some((x) => !x.pitched || x.pitched === 'offer') && !d.resign) d.noOffers = true;
+    return m;
   }
   function decide(st, action, arg) {
     const L = st.league, p = st.player, c = st.contract;
@@ -2714,6 +2918,14 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       st.stage = 'training'; st.afterTraining = 'pro';
       return { text: 'Staying put with the ' + L.teams[st.teamId].nick + '.' };
     }
+    if (action === 'request') {
+      // you let the front office know you want out: they shop you through the season, and a request that goes nowhere leaves a mark
+      NBA.Decisions.state(st).flags.tradeReq = L.year;
+      NBA.Decisions.apply(st, [{ k: 'season', v: { depth: -1.5 } }]);
+      NBA.Decisions.log(st, { kind: 'trade', title: 'Trade request', tone: 'bad', text: 'Asked the ' + L.teams[st.teamId].nick + ' for a trade. The locker room felt it, and they will shop you before the deadline.' });
+      st.stage = 'training'; st.afterTraining = 'pro';
+      return { text: 'Request filed. The ' + L.teams[st.teamId].nick + ' will try to find a deal by the deadline.' };
+    }
     if (action === 'trade') {
       const t = L.teams[arg.teamId], opt = (st.decision && st.decision.tradeOptions || []).find((x) => x.teamId === t.id);
       if (!opt || !opt.ok) throw new Error('trade not available');
@@ -2722,6 +2934,8 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       st.teamId = t.id; p.teamId = t.id;
       (st.trades = st.trades || []).push({ year: L.year, label: NBA.seasonLabel(L.year), from: old.name, to: t.name, ovr: Math.round(ovr(p)), age: p.age, partner: opt.partner.name + ' (' + opt.partner.ovr + ' ovr)', requested: true });
       note('Traded to ' + t.name + ' for ' + opt.partner.name);
+      NBA.Decisions.state(st).flags.tradeReq = null;
+      NBA.Decisions.log(st, { kind: 'trade', title: 'Traded', tone: 'neutral', text: 'Traded from the ' + old.nick + ' to the ' + t.nick + ' for ' + opt.partner.name + '.' });
       st.stage = 'training'; st.afterTraining = 'pro';
       return { text: 'Trade done. You are now a ' + t.nick + '; the ' + old.nick + ' got ' + opt.partner.name + '.' };
     }
@@ -2731,6 +2945,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       st.teamId = t.id; p.teamId = t.id;
       st.contract = { salary: arg.salary, years, left: years, type: 'veteran' };
       note((action === 'switch' ? 'Signed with ' : 'Re-signed with ') + t.name + ' (' + years + 'y, $' + arg.salary + 'M)');
+      if (!st.autoPlay) NBA.Decisions.log(st, { kind: 'contract', title: 'Free agency', tone: 'neutral', text: (action === 'switch' ? 'Signed with the ' + t.nick : 'Re-signed with the ' + t.nick) + ' for ' + years + ' year' + (years > 1 ? 's' : '') + ', $' + arg.salary + 'M a year.' });
       st.stage = 'training'; st.afterTraining = 'pro';
       return { text: (action === 'switch' ? 'Signed with the ' : 'Re-signed with the ') + t.nick + ' for ' + years + ' years, $' + arg.salary + 'M/yr.' };
     }
@@ -2799,7 +3014,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     return st;
   }
 
-  Object.assign(NBA, { Game: { shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { Game: { pitch, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -2807,7 +3022,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v42';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v43';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -3256,25 +3471,35 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   let mTab = 'box';
   let speed = '2x', playing = false, timer = null, leagueRace = 'mvp';
   function stopAuto() { playing = false; if (timer) { clearTimeout(timer); timer = null; } }
+  // the trade deadline stops the games: the front office has something to say (or nothing, and the season carries on)
+  // (when the front office has nothing to say the games simply carry on)
+  const holdAt = () => {
+    const it = S.matchLog && S.matchLog[S.matchIdx || 0]; if (!(it && it.k === 'hdr' && it.dl && !S.dlDone)) return false;
+    if (!S.dlChecked) { S.dlChecked = true; NBA.Decisions.offer(S, 'deadline'); save(); }
+    if (S.dec && S.dec.pending && S.dec.pending.id === 'deadline') return true;
+    S.dlDone = true; S.matchIdx++; save(); return false;
+  };
   function advanceOne() {
     const items = S.matchLog; let got = false;
+    if (holdAt()) return;
     while (S.matchIdx < items.length) {
       const it = items[S.matchIdx]; S.matchIdx++;
       if (it.k === 'g') got = true;
-      if (got) { while (items[S.matchIdx] && items[S.matchIdx].k === 'hdr') S.matchIdx++; break; }
+      if (got) { while (items[S.matchIdx] && items[S.matchIdx].k === 'hdr' && !(items[S.matchIdx].dl && !S.dlDone)) S.matchIdx++; break; }
     }
   }
   function autoplay(until) {
     stopAuto(); const items = S.matchLog, delay = { '1x': 480, '2x': 200, inst: 0 }[speed];
-    if (!delay) { let guard = 0; while (!until() && S.matchIdx < items.length && guard++ < 400) advanceOne(); save(); render(); return; }
+    if (!delay) { let guard = 0; while (!until() && S.matchIdx < items.length && !holdAt() && guard++ < 400) advanceOne(); save(); render(); return; }
     playing = true;
-    const tick = () => { if (!playing) return; if (until() || S.matchIdx >= items.length) { stopAuto(); save(); render(); return; } advanceOne(); save(); render(); timer = setTimeout(tick, delay); };
+    const tick = () => { if (!playing) return; if (until() || S.matchIdx >= items.length || holdAt()) { stopAuto(); save(); render(); return; } advanceOne(); save(); render(); timer = setTimeout(tick, delay); };
     tick();
   }
 
   // ------------------------------------------------------------ season dashboard
   function screenSeasonPlay() {
     if (!S.leagueSnap || !S.matchLog) { S.stage = 'season_recap'; save(); return screenRecap(); } // save from an older build
+    if (holdAt()) return screenDeadline();
     const items = S.matchLog || [], idx = S.matchIdx || 0, L = S.league, p = S.player, t = L.teams[S.teamId];
     const shown = items.slice(0, idx), done = idx >= items.length;
     const reg = shown.filter((x) => x.k === 'g' && !x.po), poG = shown.filter((x) => x.k === 'g' && x.po);
@@ -3561,7 +3786,8 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
         h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '☷'), h('h2', null, 'Standings'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, label)),
           h('div', { class: 'grid2 conf' }, h('div', null, h('h3', null, 'Eastern conference'), confTable(rows, 'E', mine)), h('div', null, h('h3', null, 'Western conference'), confTable(rows, 'W', mine))), h('p', { class: 'small muted' }, 'Top 6 clinch a playoff spot, 7-10 go to the play-in.')),
         h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '★'), h('h2', null, live ? 'Award ladder' : 'Award race'), h('span', { class: 'spacer' }), h('div', { class: 'seg2 tight' }, raceKeys.map(([k, n]) => h('button', { class: leagueRace === k ? 'on' : '', onclick: () => { leagueRace = k; render(); } }, n)))), raceBody)),
-      h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '▲'), h('h2', null, 'Stat leaders · top 5'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, snap ? snap.label : 'Last season')), h('div', { class: 'grid3' }, leadCards)));
+      h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '▲'), h('h2', null, 'Stat leaders · top 5'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, snap ? snap.label : 'Last season')), h('div', { class: 'grid3' }, leadCards)),
+      (L.moves && L.moves.length ? h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '⇄'), h('h2', null, 'Transactions'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, 'Trades and free agency')), h('div', { class: 'jlist' }, L.moves.slice(-14).reverse().map((m) => h('div', { class: 'jrow' }, h('span', { class: 'jyr' }, m.phase === 'deadline' ? 'Deadline ' + m.year : m.phase === 'freeagency' ? 'FA ' + (m.year + 1) : 'Summer ' + (m.year + 1)), h('div', { class: 'small' }, m.text))))) : null));
   }
   // download the whole career as a file (for bug reports: lets a problem be replayed from the exact save)
   function exportSave() {
@@ -3609,10 +3835,22 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
         const sel = h('select', { onchange: (e) => (yrs = +e.target.value) }, Array.from({ length: o.maxYears }, (_, i) => h('option', { value: i + 1, selected: i + 1 === yrs }, (i + 1) + ' year' + (i ? 's' : ''))));
         return h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('b', null, o.name), h('div', { class: 'small muted' }, o.label + ' · you would be a ' + o.role)), h('span', { class: 'spacer' }), h('b', null, money(o.salary) + ' / yr'), sel, h('button', { class: 'primary', onclick: () => done(G.decide(S, kind, { teamId: o.teamId, salary: o.salary, years: yrs })) }, kind === 'resign' ? 'Re-sign' : 'Sign')));
       };
-      out.push(h('h3', null, 'Your contract expired · stay'), mkOffer(d.resign, 'resign'), h('h3', null, 'Test free agency · switch teams'), d.offers.length ? d.offers.map((o) => mkOffer(o, 'switch')) : h('p', { class: 'muted' }, 'No other team made an offer.'));
+      if (d.waived) out.push(h('div', { class: 'callout' }, d.waived));
+      if (d.market) {
+        // free agency is a pitch, not a menu: clubs can say no
+        const pitchCard = (m) => m.pitched === 'offer' ? mkOffer(Object.assign({}, m, { name: m.name, label: m.label + ' · they made you an offer' }), 'switch')
+          : h('div', { class: 'card' + (m.pitched === 'no' ? ' off' : '') }, h('div', { class: 'row' }, logo(m.nick, 36), h('div', null, h('b', null, m.name), h('div', { class: 'small muted' }, m.label + ' · you would be a ' + m.role),
+            m.pitched === 'no' ? h('div', { class: 'small bad' }, '✖ Turned you down. ' + m.reason) : h('div', { class: 'small vibe' }, m.vibe)), h('span', { class: 'spacer' }),
+            m.pitched ? h('span', { class: 'badge' }, 'Rejected') : h('button', { onclick: () => { try { G.pitch(S, m.teamId); save(); render(); } catch (e) { console.error(e); } } }, 'Pitch yourself')));
+        out.push(h('h3', null, 'Your club'), d.resign ? [h('p', { class: 'small muted' }, d.resignText), mkOffer(d.resign, 'resign')] : h('div', { class: 'card off' }, d.resignText), h('h3', null, 'Free agency · pitch to other clubs'),
+          h('p', { class: 'small muted' }, 'You can pitch to as many teams as you like. A club says yes or no based on your value, their cap room, who they already have at your position and how they see you. Nobody tells you the odds.'), d.market.map(pitchCard));
+        if (!d.resign && d.market.every((m) => m.pitched === 'no')) out.push(h('div', { class: 'callout' }, 'Every club turned you down and nobody is calling. This is where the road ends: no team wants you.'), h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { G.retire(S); S.decision = null; go(); } }, 'Retire from basketball')));
+      } else {
+        out.push(h('h3', null, 'Your contract expired · stay'), mkOffer(d.resign, 'resign'), h('h3', null, 'Test free agency · switch teams'), d.offers.length ? d.offers.map((o) => mkOffer(o, 'switch')) : h('p', { class: 'muted' }, 'No other team made an offer.'));
+      }
     } else if (!d.mustRetire) {
       out.push(h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('b', null, 'Stay with the ' + d.team), h('div', { class: 'small muted' }, 'Contract: ' + money(d.contract.salary) + ' · ' + d.contract.left + ' more year(s)')), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => done(G.decide(S, 'stay')) }, 'Stay'))),
-        h('h3', null, 'Demand a trade (pick a destination)'), d.tradeOptions.map((o) => h('div', { class: 'card' + (o.ok ? '' : ' off') }, h('div', { class: 'row' }, h('div', null, withLogo(o.name.split(' ').slice(-1)[0] === 'Blazers' ? 'Trail Blazers' : (D.TEAMS.find((x) => x.id === o.teamId) || {}).nick, 22, o.name), h('div', { class: 'small muted' }, o.label + ' (' + o.wins + ' wins last year) · you would be a ' + o.role), o.partner ? h('div', { class: 'small' }, 'They send back: ', h('b', null, o.partner.name), ' · ' + o.partner.pos + ' · age ' + o.partner.age + ' · ' + o.partner.ovr + ' OVR') : null, o.ok ? null : h('div', { class: 'small bad' }, '✖ ' + o.reason)), h('span', { class: 'spacer' }), o.ok ? h('button', { onclick: () => done(G.decide(S, 'trade', { teamId: o.teamId })) }, 'Request trade') : h('span', { class: 'badge' }, 'Rejected')))), h('p', { class: 'small muted' }, 'A trade is a swap: your club has to be willing to move you and get a comparable player back, and the other side has to agree. Franchise players on winning teams are not traded on request.'));
+        h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('b', null, d.requested ? 'Trade request on file' : 'Ask for a trade'), h('div', { class: 'small muted' }, d.requested ? 'The front office is shopping you. They will report back at the deadline.' : 'File a request and let them shop you through the season. A request that goes nowhere costs you chemistry.')), h('span', { class: 'spacer' }), d.requested ? null : confirmBtn('File a request', '', () => done(G.decide(S, 'request'))))), h('h3', null, 'Demand a trade (pick a destination)'), d.tradeOptions.map((o) => h('div', { class: 'card' + (o.ok ? '' : ' off') }, h('div', { class: 'row' }, h('div', null, withLogo(o.name.split(' ').slice(-1)[0] === 'Blazers' ? 'Trail Blazers' : (D.TEAMS.find((x) => x.id === o.teamId) || {}).nick, 22, o.name), h('div', { class: 'small muted' }, o.label + ' (' + o.wins + ' wins last year) · you would be a ' + o.role), o.partner ? h('div', { class: 'small' }, 'They send back: ', h('b', null, o.partner.name), ' · ' + o.partner.pos + ' · age ' + o.partner.age + ' · ' + o.partner.ovr + ' OVR') : null, o.ok ? null : h('div', { class: 'small bad' }, '✖ ' + o.reason)), h('span', { class: 'spacer' }), o.ok ? h('button', { onclick: () => done(G.decide(S, 'trade', { teamId: o.teamId })) }, 'Request trade') : h('span', { class: 'badge' }, 'Rejected')))), h('p', { class: 'small muted' }, 'A trade is a swap: your club has to be willing to move you and get a comparable player back, and the other side has to agree. Franchise players on winning teams are not traded on request.'));
     }
     out.push(h('div', { class: 'row', style: 'margin-top:14px' }, confirmBtn('Retire from basketball', 'danger', () => { G.retire(S); S.decision = null; go(); })));
     return h('div', null, out);
@@ -3624,7 +3862,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     return h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, head.map((x, i) => h('th', { class: i === 2 ? 'l' : '' }, x)))),
       h('tbody', null, rows.map((s) => playoffs
         ? h('tr', null, h('td', null, s.label + (rings.has(s.label) ? ' 🏆' : '')), h('td', null, s.age), h('td', { class: 'l' }, s.team), h('td', null, s.gp), h('td', null, f1(s.mins)), h('td', null, f1(s.pts)), h('td', null, f1(s.reb)), h('td', null, f1(s.ast)), h('td', null, f1(s.stl)), h('td', null, f1(s.blk)), h('td', null, pct(s.fgp)), h('td', null, pct(s.tpp)), h('td', null, pct(s.ts)), h('td', null, s.td), h('td', { title: 'Playoff ppg as a share of this season\'s regular-season ppg' }, (() => { const rs = S.proSeasons.find((x) => x.label === String(s.label).replace(' ●', '')); return rs && rs.pts ? '×' + (s.pts / rs.pts).toFixed(2) : '–'; })()), h('td', { title: 'Postseason scoring form: this run\'s scoring multiplier vs the regular season, before game-to-game luck' }, s.form != null ? '×' + s.form.toFixed(2) : '–'), h('td', null, s.rating ? ratingBadge(s.rating, 2) : '–'))
-        : h('tr', null, h('td', null, s.label), h('td', null, s.age), h('td', { class: 'l' }, s.team), h('td', null, s.wins + '-' + s.losses), h('td', null, s.gp), h('td', null, f1(s.mins)), h('td', null, f1(s.pts)), h('td', null, f1(s.reb)), h('td', null, f1(s.ast)), h('td', null, f1(s.stl)), h('td', null, f1(s.blk)), h('td', null, pct(s.fgp)), h('td', null, pct(s.tpp)), h('td', null, pct(s.ftp)), h('td', null, pct(s.ts)), h('td', null, s.td), h('td', null, s.ovr), h('td', null, s.avgRating ? ratingBadge(s.avgRating, 2) : '–'))))));
+        : h('tr', null, h('td', null, s.label), h('td', null, s.age), h('td', { class: 'l' }, (s.prevTeam ? s.prevTeam.split(' ').slice(-1)[0] + ' → ' : '') + s.team), h('td', null, s.wins + '-' + s.losses), h('td', null, s.gp), h('td', null, f1(s.mins)), h('td', null, f1(s.pts)), h('td', null, f1(s.reb)), h('td', null, f1(s.ast)), h('td', null, f1(s.stl)), h('td', null, f1(s.blk)), h('td', null, pct(s.fgp)), h('td', null, pct(s.tpp)), h('td', null, pct(s.ftp)), h('td', null, pct(s.ts)), h('td', null, s.td), h('td', null, s.ovr), h('td', null, s.avgRating ? ratingBadge(s.avgRating, 2) : '–'))))));
   }
   function careerTotals(ps) {
     if (!ps.length) return null;
@@ -3712,6 +3950,26 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { wipe(); S = null; boot(); } }, 'Start a new career')));
   }
 
+  // ------------------------------------------------------------ the trade deadline (decision engine)
+  function screenDeadline() {
+    const Dc = DEC(), L = S.league, t = L.teams[S.teamId];
+    if (!S.dlChecked) { S.dlChecked = true; Dc.offer(S, 'deadline'); save(); }
+    if (!(S.dec && S.dec.pending && S.dec.pending.id === 'deadline')) { S.dlDone = true; S.matchIdx++; save(); return screenSeasonPlay(); }
+    const v = Dc.view(S), deals = (L.moves || []).filter((m) => m.year === L.year && m.phase === 'deadline');
+    const reg = (S.matchLog || []).slice(0, S.matchIdx).filter((x) => x.k === 'g' && !x.po), w = reg.filter((x) => x.w).length;
+    const finish = (key, arg) => {
+      try { const r = Dc.choose(S, key, arg); S.dlDone = true; S.matchIdx = (S.matchIdx || 0) + 1; S.flash = r.text; save(); if (key !== 'decline') saveSnap(); go(); } catch (e) { console.error(e); S.flash = 'That deal fell through.'; render(); }
+    };
+    const optCard = (o) => h('div', { class: 'card' }, h('div', { class: 'row' }, logo(o.nick || (D.TEAMS.find((x) => x.id === o.teamId) || {}).nick, 40), h('div', null, h('b', null, o.name), h('div', { class: 'small muted' }, (o.label || '') + (o.role ? ' · you would be a ' + o.role : '')),
+      o.partnerName ? h('div', { class: 'small' }, 'They send back: ', h('b', null, o.partnerName)) : null, v.kind === 'waive' ? h('div', { class: 'small' }, 'Minimum contract, rest of the season') : null),
+      h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => finish(v.kind === 'waive' ? 'sign' : 'trade', o.teamId) }, v.kind === 'waive' ? 'Sign' : 'Accept trade')));
+    const declineLabel = v.kind === 'norequest' ? 'Continue the season' : v.kind === 'request' ? 'Stay with the ' + t.nick : 'Stay put';
+    return h('div', null, h('h1', null, 'Trade deadline'), h('p', { class: 'muted' }, t.name + ' · ' + w + '-' + (reg.length - w) + ' through ' + reg.length + ' games'),
+      h('div', { class: 'card' + (v.kind === 'waive' ? ' off' : '') }, h('h3', { style: 'margin-top:0' }, v.kind === 'waive' ? 'You have been waived' : v.kind === 'norequest' ? 'No deal for your request' : v.kind === 'request' ? 'Your trade request' : 'Contenders are calling'), h('p', null, v.text)),
+      v.options.map(optCard), v.canDecline ? h('div', { class: 'row' }, h('button', { onclick: () => finish('decline') }, declineLabel)) : null,
+      deals.length ? h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Around the league'), deals.map((m) => h('div', { class: 'small', style: 'margin:4px 0' }, '• ' + m.text))) : null);
+  }
+
   // ------------------------------------------------------------ preseason camp (decision engine)
   const DEC = () => NBA.Decisions;
   function journalCard(n, title) {
@@ -3753,7 +4011,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     app.append((m[st] || screenCreate)());
   }
   function boot() { S = null; draft.name = ''; render(); }
-  window.__NBA_UI = { get state() { return S; } };
+  window.__NBA_UI = { get state() { return S; }, set state(v) { S = v; }, go, render, saveSnap };
   boot();
 })();
 
