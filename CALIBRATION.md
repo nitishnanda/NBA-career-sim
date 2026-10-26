@@ -683,3 +683,19 @@ Feedback from play: draft night went by too fast to take in your own pick, and s
   fit (usg ×0.97, +3 wins, +0.9 IQ), quiet (usg ×0.93, −3 mpg, +1.5 top skill, −0.4 stock). Transfer portal once if no honors or mock slot > 20.
 - Late career: injury comeback (rush: 38% re-injury = +18 games missed, −1.2 athleticism; rehab: +9 games, +2 durability); stance at 33+ (stats / wins / mentor / farewell);
   loyalty discount (−25%, +1 relationship, +1 team depth) and ring chase (−30% pay at 48+ win clubs, easier to sign). Farewell season ends the career after it; mentor +2 and farewell +3 legacy points in the Hall of Fame score.
+
+## v45 — press conferences, the farewell season, the comeback
+- Autopilot/bulk careers unchanged (peak OVR 76.68, 13.02 ppg over 60 careers).
+- Press bank: 224 questions with slots filled from the real league (opponent and its star, rival, teammates, rookie, vet, draft slot, college, old team, milestones, streaks, farewell...),
+  each with a heat (0-2) and a condition; no question repeats for ~90 asks. Six tones: credit the team, confident, joke, keep it simple (always), trash talk (heat ≥1 and a rival/star present),
+  get in his face (heat ≥2).
+- Hyped games (≤5 a season, 8 in a farewell year): opener, rival's team (2), revenge game after a trade, up to 2 marquee matchups (opp ≥56 wins or a 92+ star), first game back from a 5+ game absence,
+  farewell tour stops. Playoffs: every series after round 1, any with a rival, every Game 7 series.
+- Effects: game = ±(0.05·(fire − 0.35·heat)) of your points (cap −15%/+18%) and the same-sized chance to flip the result (record, standings and box score follow);
+  series = power ±(0.22·net) (cap −0.35..+0.45) and a ±3% stat multiplier, replayed from tip-off. Trash talk lands with p = 0.55 + 0.012·(your OVR − their star), a failed one hurts
+  (−0.7 fire, extra heat); a fight lands with p ≈ 0.45 (a miss: fined, 60% a one-game suspension, −1 locker room). Meters: media (free-agency interest +0.12/pt) and locker room
+  (≥3: +0.8 team depth next year; ≤−3: −1.0), both halved each season.
+- Farewell: announce at 33+ before tip-off: +0.02 form, ×0.94 minutes, team depth −0.4 (−0.9 for a 48+ win contender), a tribute at every road arena, more pressers.
+  At the end the farewell is a crossroads: retire as promised (+3 legacy) or play on after a warning (media −3, locker −1, depth −1, form −0.01, once the contract is signed).
+- Comeback: a retired player under 42 can sit out 1-3 years (the league keeps playing, −0.6 on every rating and −1.4 athleticism a year on top of aging), then goes back to the market;
+  a legend's name adds up to +4 value for interest and the retirement check (once). Back after announcing a farewell: media −2 (the fans are split).

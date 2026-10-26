@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v44';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v45';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -387,6 +387,9 @@
     return h('div', null, h('h1', null, NBA.seasonLabel(L.year) + (isRook ? ' · Rookie season' : ' season')),
       h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('div', { class: 'big' }, Math.round(NBA.ovr(p))), h('div', { class: 'muted small' }, 'OVERALL')), h('div', null, h('b', null, t.name), h('div', { class: 'muted small' }, 'Last season: ' + t.wins + '-' + t.losses + ' · age ' + p.age)), h('div', null, h('b', null, money(c.salary) + ' / yr'), h('div', { class: 'muted small' }, (c.type === 'rookie' ? 'Rookie deal' : 'Contract') + ' · ' + c.left + ' yr left'))), h('p', { class: 'small muted' }, 'Game plan: ' + ({ balanced: 'Balanced', score: 'Scoring priority', playmake: 'Pass & rebound', defend: 'Defend more' }[S.style || 'balanced']) + '. You can switch it at any point during the season.'),
         h('h3', null, 'Ratings'), attrBars(p),
+        (p.age >= 33 || S.finalYear ? (S.finalYear
+          ? h('div', { class: 'callout', style: 'margin-top:12px' }, '🎤 Farewell season announced. Every arena is planning a tribute, there will be more cameras, and the team feels the distraction.')
+          : h('div', { class: 'callout', style: 'margin-top:12px' }, h('b', null, 'Is this the last one? '), 'You can announce that this is your farewell season. You get a send-off, more attention and more press conferences, and the team feels the distraction. You can still change your mind later, but the fans will notice.', h('div', { style: 'margin-top:8px' }, confirmBtn('Announce my farewell season', '', () => { G.announceFarewell(S); save(); render(); })))) : null),
         h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { G.playSeason(S); saveSnap(); go(); } }, 'Tip off the ' + NBA.seasonLabel(L.year) + ' season →'))));
   }
 
@@ -467,17 +470,33 @@
       if (pend('deadline')) { if (S.autoDec) { Dc.autoResolve(S); S.dlDone = true; S.matchIdx++; save(); return false; } return true; }
       S.dlDone = true; S.matchIdx++; save(); return false;
     }
-    if (it.k === 'hdr' && it.ps != null && !(S.poPlans && S.poPlans[it.ps] !== undefined)) {
-      if (!pend('series')) Dc.offer(S, 'series');
-      if (!pend('series')) { S.poPlans = Object.assign({}, S.poPlans, { [it.ps]: 'balanced' }); return false; }
-      if (S.autoDec) { Dc.autoResolve(S); S.matchIdx++; save(); return false; }
-      return true;
+    if (it.k === 'hdr' && it.ps != null) {
+      if (!(S.poPlans && S.poPlans[it.ps] !== undefined)) {
+        if (!pend('series')) Dc.offer(S, 'series');
+        if (!pend('series')) { S.poPlans = Object.assign({}, S.poPlans, { [it.ps]: 'balanced' }); return holdAt(); }
+        if (S.autoDec) { Dc.autoResolve(S); save(); return holdAt(); }
+        return true;
+      }
+      // the plan is set: the press conference before a big series, then the series itself
+      if (it.pc && !(S.poPress && S.poPress[it.ps] !== undefined)) {
+        if (!pend('press')) Dc.offer(S, 'press');
+        if (pend('press')) { if (S.autoDec) { Dc.autoResolve(S); save(); return holdAt(); } return true; }
+        S.poPress = Object.assign({}, S.poPress, { [it.ps]: null });
+      }
+      S.matchIdx++; save(); return holdAt();
     }
-    if (it.k === 'g' && it.cl && !it.cd) {
-      if (!pend('clutch')) Dc.offer(S, 'clutch');
-      if (!pend('clutch')) { it.cd = 1; return false; }
-      if (S.autoDec) { Dc.autoResolve(S); save(); return false; }
-      return true;
+    if (it.k === 'g') {
+      if (it.pc && !it.pd && !it.po) {
+        if (!pend('press')) Dc.offer(S, 'press');
+        if (pend('press')) { if (S.autoDec) { Dc.autoResolve(S); save(); return holdAt(); } return true; }
+        it.pd = 1;
+      }
+      if (it.cl && !it.cd) {
+        if (!pend('clutch')) Dc.offer(S, 'clutch');
+        if (!pend('clutch')) { it.cd = 1; return false; }
+        if (S.autoDec) { Dc.autoResolve(S); save(); return false; }
+        return true;
+      }
     }
     return false;
   };
@@ -487,7 +506,7 @@
     while (S.matchIdx < items.length) {
       const it = items[S.matchIdx]; S.matchIdx++;
       if (it.k === 'g') got = true;
-      if (got) { while (items[S.matchIdx] && items[S.matchIdx].k === 'hdr' && !(items[S.matchIdx].dl && !S.dlDone) && !(items[S.matchIdx].ps != null && !(S.poPlans && S.poPlans[items[S.matchIdx].ps] !== undefined))) S.matchIdx++; break; }
+      if (got) { while (items[S.matchIdx] && items[S.matchIdx].k === 'hdr' && !(items[S.matchIdx].dl && !S.dlDone) && !(items[S.matchIdx].ps != null)) S.matchIdx++; break; }
     }
   }
   function autoplay(until) {
@@ -501,7 +520,7 @@
   // ------------------------------------------------------------ season dashboard
   function screenSeasonPlay() {
     if (!S.leagueSnap || !S.matchLog) { S.stage = 'season_recap'; save(); return screenRecap(); } // save from an older build
-    if (holdAt()) { const pid = S.dec.pending.id; return pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : screenDeadline(); }
+    if (holdAt()) { const pid = S.dec.pending.id; return pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : pid === 'press' ? screenPress() : screenDeadline(); }
     const items = S.matchLog || [], idx = S.matchIdx || 0, L = S.league, p = S.player, t = L.teams[S.teamId];
     const shown = items.slice(0, idx), done = idx >= items.length;
     const reg = shown.filter((x) => x.k === 'g' && !x.po), poG = shown.filter((x) => x.k === 'g' && x.po);
@@ -827,11 +846,18 @@
 
   function screenDecision() {
     const d = S.decision || (S.decision = G.decisionOptions(S));
-    const done = (res) => { if (S.dec && S.dec.pending && S.dec.pending.id === 'late') DEC().autoResolve(S); S.decision = null; alloc = {}; S.flash = res && res.text; go(); };
+    const done = (res) => { if (S.dec && S.dec.pending && S.dec.pending.id === 'late') DEC().autoResolve(S); S.farewellOverride = false; S.decision = null; alloc = {}; S.flash = res && res.text; go(); };
     const out = [h('h1', null, 'Offseason: what now?'), h('p', { class: 'muted' }, 'Age ' + d.age + ' · OVR ' + d.ovr + ' · ' + d.team + ' · market value ~' + money(d.marketSalary) + ' (cap ' + money(d.cap) + ')')];
     { const dd = S.dec, rv = dd && dd.rival, rq = rv && S.league.players[rv.id];
       if (rv && rq) { const tm = S.league.teams[rq.teamId], g = (S.matchLog || []).filter((x) => x.k === 'g' && !x.po && !x.dnp && tm && x.o === tm.nick), w = g.filter((x) => x.w).length;
         out.push(h('div', { class: 'card' }, h('div', { class: 'row' }, tm ? logo(tm.nick, 36) : null, h('div', null, h('b', null, '🔥 Your rival: ' + rv.name), h('div', { class: 'small muted' }, (tm ? tm.name + ' · ' : '') + Math.round(NBA.ovr(rq)) + ' OVR · rivals since ' + rv.since + (g.length ? ' · you went ' + w + '-' + (g.length - w) + ' against his team this year' : '')))))); } }
+    if (d.farewell && !d.mustRetire && !S.farewellOverride) {
+      out.push(h('div', { class: 'callout' }, 'Your farewell season is over. You told the world this was the last one.'),
+        h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { G.retire(S); S.decision = null; go(); } }, 'Retire, as promised'), confirmBtn('Play another year anyway', 'danger', () => { S.farewellOverride = true; render(); })),
+        h('p', { class: 'small muted' }, 'If you play on, the fans and the media will remember that you said goodbye, and the locker room will feel it.'));
+      return h('div', null, out);
+    }
+    if (d.farewell && S.farewellOverride) out.push(h('div', { class: 'callout' }, 'You said this was your farewell. If you sign or stay, the fans, the media and the room will all notice, and it will cost you.'));
     if (S.dec && S.dec.pending && S.dec.pending.id === 'late' && !d.mustRetire) { const v = DEC().view(S);
       out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, v.title), h('p', { class: 'small muted' }, v.text), S.dec.pending.log.length ? h('div', { class: 'jlog' }, S.dec.pending.log.map((x) => h('div', { class: 'jmsg ' + x.tone }, x.text))) : null,
         h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { onclick: () => { try { DEC().choose(S, o.key); save(); render(); } catch (e) { console.error(e); } } }, 'Choose'))))))); }
@@ -953,6 +979,9 @@
     return h('div', null, mark, h('h1', null, p.name + ' retires'),
       h('div', { class: 'card' }, h('div', { class: 'big', style: 'color:' + (hof.hall ? 'var(--gold)' : 'inherit') }, hof.hall ? '🏛️ ' + hof.tier : hof.tier), (() => { const ct = careerTotals(S.proSeasons), pt = playoffTotals(S.playoffLines); return ct && ct.rating ? h('p', null, h('b', null, 'Career avg match rating '), ratingBadge(ct.rating, 2), pt && pt.rating ? h('span', null, '  ·  playoffs ', ratingBadge(pt.rating, 2)) : null) : null; })(),
         h('p', { class: 'muted' }, 'Legacy score ' + hof.score + ' (Hall of Fame line: 85) · ' + S.proSeasons.length + ' seasons · ' + archLabel(p) + ' · hidden ceiling was ' + Math.round(p.ceiling) + ' · ' + S.stars + '★ recruit' + (S.draft && S.draft.slot ? ' · drafted #' + S.draft.slot : ' · undrafted'))),
+      (G.canComeback(S) ? (() => { let yrs = 1; return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Miss it already?'),
+        h('p', { class: 'small muted' }, 'Players do come back (ask Jordan). A few years away costs you athleticism and the league moves on, but a famous name still gets a call. You are ' + p.age + (S.farewellAnnounced || S.farewellDone ? '. You told the world it was your farewell, so the fans will be split.' : '.')),
+        h('div', { class: 'row' }, h('select', { onchange: (e) => { yrs = +e.target.value; } }, [1, 2, 3].filter((y) => p.age + y <= 42).map((y) => h('option', { value: y }, y + (y === 1 ? ' year away' : ' years away')))), confirmBtn('Come out of retirement', '', () => { G.comeback(S, yrs); go(); }))); })() : null),
       movesCard(), journalCard(40, 'Career journal'),
       h('div', { class: 'card' }, careerBody()),
       h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { wipe(); S = null; boot(); } }, 'Start a new career')));
@@ -978,11 +1007,22 @@
       deals.length ? h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Around the league'), deals.map((m) => h('div', { class: 'small', style: 'margin:4px 0' }, '• ' + m.text))) : null);
   }
 
+  // ------------------------------------------------------------ the press conference
+  function screenPress() {
+    const Dc = DEC(), v = Dc.view(S), t = S.league.teams[S.teamId], pd = S.dec.pending;
+    const pick = (key) => { try { const r = Dc.choose(S, key); if (!(S.dec.pending && S.dec.pending.id === 'press')) { S.flash = r.text; saveSnap(); } save(); go(); } catch (e) { console.error(e); } };
+    return h('div', null, h('h1', null, 'Press conference'), h('p', { class: 'muted' }, t.name + ' · ' + v.why),
+      pd.log.length ? h('div', { class: 'jlog' }, pd.log.map((x) => h('div', { class: 'jmsg' }, '🎤 ' + x.text))) : null,
+      h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, 'Question ' + (v.step + 1) + ' of ' + v.total), h('h2', { style: 'margin:8px 0' }, '“' + v.question + '”')),
+      h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' + (o.spicy ? ' spicy' : '') }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.line), h('div', { style: 'margin-top:8px' }, h('button', { class: o.spicy ? '' : 'primary', onclick: () => pick(o.key) }, 'Say it'))))),
+      autoDecBar());
+  }
+
   // ------------------------------------------------------------ playoff approach and clutch moments (decision engine)
   const autoDecBar = () => h('label', { class: 'small muted autodec' }, h('input', { type: 'checkbox', checked: !!S.autoDec, onchange: (e) => { S.autoDec = e.target.checked; save(); } }), ' Let the coach make these calls for the rest of the season');
   function screenSeries() {
     const Dc = DEC(), v = Dc.view(S), t = S.league.teams[S.teamId];
-    const pick = (key) => { try { Dc.choose(S, key); S.matchIdx++; save(); saveSnap(); go(); } catch (e) { console.error(e); } };
+    const pick = (key) => { try { Dc.choose(S, key); save(); saveSnap(); go(); } catch (e) { console.error(e); } };
     return h('div', null, h('h1', null, v.round), h('p', { class: 'muted' }, t.name + ' vs the ' + v.opp + (v.oppWins != null ? ' (' + v.oppWins + ' wins)' : '') + (v.g7 ? '' : '')),
       h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'How do you want to approach this series?'),
         h('p', { class: 'small muted' }, (v.rival ? '🔥 Rivalry series: ' + v.rival + ' is on the other side. ' : '') + (v.oppStar ? 'Their best player: ' + v.oppStar + '. ' : '') + 'Your supporting cast averages ' + v.support + ' OVR; you are ' + v.mine + '. Every approach has a price: nothing here is free.'),

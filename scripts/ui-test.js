@@ -1,12 +1,13 @@
 const path = require('path');
 const { chromium } = require(require('child_process').execSync('npm root -g').toString().trim() + '/playwright');
+let PG_DBG = null;
 (async () => {
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox'] });
   const mobile = process.env.MOBILE === '1';
   const ctx = await browser.newContext(mobile ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } : { viewport: { width: 1000, height: 900 } });
-  const page = await ctx.newPage();
+  const page = await ctx.newPage(); PG_DBG = page;
   const errors = [];
-  page.on('pageerror', (e) => errors.push('PAGEERROR ' + e.message));
+  page.on('pageerror', (e) => { errors.push('PAGEERROR ' + e.message); console.log('PAGEERROR', e.message, (e.stack || '').split('\n').slice(0, 4).join(' | ')); });
   page.on('console', (m) => { if (m.type() === 'error') errors.push('CONSOLE ' + m.text()); });
   page.on('dialog', (d) => d.accept());
   const shot = (n) => page.screenshot({ path: process.env.SHOTS + '/' + (mobile ? 'm-' : '') + n + '.png', fullPage: true });
@@ -77,7 +78,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   // a trade alert can hold the controls for a few seconds, and an early pick has nothing to skip to
   await page.waitForSelector('button:has-text("Skip to my pick"), button:has-text("Continue →")', { timeout: 30000 });
   if (await page.$('button:has-text("Skip to my pick")')) await page.click('button:has-text("Skip to my pick")');
-  const hold = await page.waitForSelector('button:has-text("Continue →")', { timeout: 30000 }).then(() => page.evaluate(() => ({ rows: document.querySelectorAll('.prow:not(.pending)').length, big: !!document.querySelector('.bigpick'), wrapShown: /landing spot/i.test(document.body.innerText) })));
+  const hold = await page.waitForSelector('button:has-text("Continue →")', { timeout: 90000 }).then(() => page.evaluate(() => ({ rows: document.querySelectorAll('.prow:not(.pending)').length, big: !!document.querySelector('.bigpick'), wrapShown: /landing spot/i.test(document.body.innerText) })));
   const pickN = await page.evaluate(() => window.__NBA_UI.state.draft.slot);
   const okH = hold.big && !hold.wrapShown && (pickN ? hold.rows === pickN : true); console.log('DRAFT held pick', okH ? 'OK' : 'MISMATCH', JSON.stringify(hold));
   if (!okH) errors.push('DRAFT held pick ' + JSON.stringify(hold));
@@ -149,7 +150,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   const scopeTo = (lbl) => page.evaluate((t) => { const b = Array.from(document.querySelectorAll('.seg2 button')).find((x) => x.textContent === t); if (b) b.click(); }, lbl);
   for (let i = 0; i < 40; i++) {
     console.log('season', i); await page.click('text=/Tip off the .* season/');
-    await page.evaluate(() => { window.__NBA_UI.state.autoDec = true; });   // the coach makes the in-game calls here; the decision screens are tested in ui-market.js
+    await page.evaluate(() => { window.__NBA_UI.state.autoDec = true; window.__NBA_UI.render(); });   // the coach makes the in-game calls here; the decision screens are tested in ui-market.js
     await page.waitForSelector('text=Sim next game');
     if (i === 0) {
       await shot('06b-opening-night');
@@ -215,4 +216,4 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   await shot('11-resumed');
   console.log('errors:', errors.length ? errors : 'none');
   await browser.close();
-})().catch((e) => { console.error('TEST FAILED', e.message); process.exit(1); });
+})().catch(async (e) => { console.error('TEST FAILED', e.message.split('\n')[0]); if (PG_DBG) { try { console.error(await PG_DBG.evaluate(() => JSON.stringify({ stage: window.__NBA_UI.state.stage, idx: window.__NBA_UI.state.matchIdx, pend: window.__NBA_UI.state.dec && window.__NBA_UI.state.dec.pending && window.__NBA_UI.state.dec.pending.id, text: document.querySelector('#app').innerText.slice(0, 260) }))); } catch (x) { /* ignore */ } } process.exit(1); });

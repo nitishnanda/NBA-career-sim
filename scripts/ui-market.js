@@ -21,6 +21,13 @@ let PG = null;
   });
   // ---- 1. the deadline: a trade request comes due with suitors
   await page.click('text=/Tip off the .* season/');
+  // the opener is a hyped game: the press room comes first. Three kinds of answer, each with the words you would say; a trash-talk option appears when a question has bite
+  await page.waitForSelector('h1:has-text("Press conference")');
+  const pc0 = await page.evaluate(() => ({ q: document.querySelector('.card.suspense h2').textContent, opts: document.querySelectorAll('.wkcard').length, lines: Array.from(document.querySelectorAll('.wkcard .small')).filter((e) => /^"/.test(e.textContent)).length, why: document.querySelector('h1 + p').textContent }));
+  const okPc = pc0.opts >= 3 && pc0.lines === pc0.opts && pc0.q.length > 15; console.log('PRESS screen', okPc ? 'OK' : 'MISMATCH', JSON.stringify(pc0)); if (!okPc) errors.push('PRESS ' + JSON.stringify(pc0)); await shot('27-press');
+  for (let k = 0; k < 4 && (await page.$('h1:has-text("Press conference")')); k++) await page.click('.wkcard button >> nth=0');
+  const pc1 = await page.evaluate(() => { const S = window.__NBA_UI.state; return { pd: !!S.matchLog[0].pd, meters: Object.keys(S.dec.flags).filter((k) => /media|locker/.test(k)).length }; });
+  const okPc1 = pc1.pd && pc1.meters === 2; console.log('PRESS answered', okPc1 ? 'OK' : 'MISMATCH', JSON.stringify(pc1)); if (!okPc1) errors.push('PRESS answered ' + JSON.stringify(pc1));
   await page.waitForSelector('text=Sim next game');
   const arm = () => page.evaluate(() => {
     const S = window.__NBA_UI.state, G = window.NBA.Game; if (!S.matchLog || S.dlDone) return null; window.__NBA_UI.saveSnap();
@@ -43,6 +50,7 @@ let PG = null;
       }
       await page.click('.wkcard button >> nth=0'); await page.waitForTimeout(100); await arm(); return 'clutch';
     }
+    if (/Press conference/.test(h1)) { for (let k = 0; k < 4 && (await page.$('h1:has-text("Press conference")')); k++) await page.click('.wkcard button >> nth=0'); await arm(); return 'press'; }
     return /Trade deadline/.test(h1) ? 'deadline' : /^(First Round|Conference|NBA Finals)/i.test(h1) ? 'series' : null;
   };
   await page.click('button:has-text("Instant")'); await simOn();
@@ -93,7 +101,7 @@ let PG = null;
   const okF1 = fa1.pitchLeft === 0 && fa1.rejected + fa1.sign >= 6; console.log('FA pitches answered', okF1 ? 'OK' : 'MISMATCH', JSON.stringify(fa1)); if (!okF1) errors.push('FA pitches ' + JSON.stringify(fa1));
   await shot('22-free-agency-pitched');
   // ---- late career: a 34-year-old is asked how he wants to play the late years; a loyalty deal and ring-chase discounts show up in the market
-  await page.evaluate(() => { const S = window.__NBA_UI.state; S.player.age = 34; S.player.tr = Object.assign({}, S.player.tr, { stay: 1 }); S.decision = null; S.dec.pending = null; window.__NBA_UI.go(); });
+  await page.evaluate(() => { const S = window.__NBA_UI.state; S.player.age = 34; S.dec.season = {}; S.player.tr = Object.assign({}, S.player.tr, { stay: 1 }); S.decision = null; S.dec.pending = null; window.__NBA_UI.go(); });
   await page.waitForSelector('text=How do you want to play the late years');
   const lt = await page.evaluate(() => ({ opts: document.querySelectorAll('.wkcard').length, loyal: /Loyalty deal/.test(document.body.innerText), ring: /ring chase/.test(document.body.innerText), tour: /farewell season/i.test(document.body.innerText), age: window.__NBA_UI.state.player.age }));
   const okL = lt.opts >= 4 && lt.loyal; console.log('LATE CAREER card', okL ? 'OK' : 'MISMATCH', JSON.stringify(lt)); if (!okL) errors.push('LATE ' + JSON.stringify(lt)); await shot('26-late-career');
@@ -107,5 +115,27 @@ let PG = null;
   await shot('23-nobody-wants-you');
   await page.click('button:has-text("Retire from basketball")'); await page.waitForSelector('text=retires');
   console.log('FA nobody wants you OK');
+  // ---- the comeback: he retired, and a few years later wants back in (Jordan); then the farewell season and the warning for going back on it
+  await page.waitForSelector('h3:has-text("Miss it already")');
+  const cb0 = await page.evaluate(() => ({ age: window.__NBA_UI.state.player.age, hof: !!window.__NBA_UI.state.hof, opts: document.querySelectorAll('.row select option').length }));
+  await page.selectOption('.row select', '2'); await shot('28-comeback-card');
+  await page.click('button:has-text("Come out of retirement")'); await page.click('button:has-text("Tap again to confirm")');
+  await page.waitForSelector('text=pitch to other clubs, text=Offseason: what now', { timeout: 15000 }).catch(() => {});
+  const cb1 = await page.evaluate(() => { const S = window.__NBA_UI.state; return { retired: S.retired, stage: S.stage, n: S.comebacks, age: S.player.age, last: S.dec.journal.slice(-1)[0].text }; });
+  const okCb = !cb1.retired && cb1.stage === 'decision' && cb1.n === 1 && cb1.age === cb0.age + 2 && /Came out of retirement/.test(cb1.last); console.log('COMEBACK', okCb ? 'OK' : 'MISMATCH', JSON.stringify({ cb0, cb1 })); if (!okCb) errors.push('COMEBACK ' + JSON.stringify({ cb0, cb1 }));
+  await page.evaluate(() => { const S = window.__NBA_UI.state; S.stage = 'pro_ready'; S.player.age = 36; S.decision = null; S.dec.season = {}; S.dec.flags.media = 0; window.__NBA_UI.go(); });
+  await page.waitForSelector('text=Is this the last one');
+  await page.click('button:has-text("Announce my farewell season")'); await page.click('button:has-text("Tap again to confirm")');
+  await page.waitForSelector('text=Farewell season announced');
+  const fw = await page.evaluate(() => { const S = window.__NBA_UI.state; return { fy: S.finalYear, fx: S.dec.season }; });
+  const okFw = fw.fy === true && fw.fx.minsMult === 0.94 && fw.fx.form === 0.02 && (fw.fx.depth === -0.4 || fw.fx.depth === -0.9); console.log('FAREWELL announced', okFw ? 'OK' : 'MISMATCH', JSON.stringify(fw)); if (!okFw) errors.push('FAREWELL ' + JSON.stringify(fw));
+  await page.evaluate(() => { const S = window.__NBA_UI.state; S.stage = 'decision'; S.contract = { salary: 20, years: 3, left: 2, type: 'veteran' }; S.player.tr = Object.assign({}, S.player.tr, { stay: 1 }); S.decision = null; window.__NBA_UI.go(); });
+  await page.waitForSelector('text=Your farewell season is over'); await shot('29-farewell-over');
+  const fo = await page.evaluate(() => ({ retire: Array.from(document.querySelectorAll('button')).some((b) => /Retire, as promised/.test(b.textContent)), again: Array.from(document.querySelectorAll('button')).some((b) => /Play another year anyway/.test(b.textContent)) }));
+  await page.click('button:has-text("Play another year anyway")'); await page.click('button:has-text("Tap again to confirm")');
+  await page.waitForSelector('text=it will cost you'); await shot('30-farewell-warning');
+  await page.click('button:has-text("Stay")');
+  const fb = await page.evaluate(() => { const S = window.__NBA_UI.state; return { fy: S.finalYear, broken: S.farewellBroken, media: S.dec.flags.media, last: S.dec.journal.filter((j) => j.kind === 'farewell').slice(-1)[0].text }; });
+  const okFb = fo.retire && fo.again && fb.fy === false && fb.broken === 1 && fb.media === -1.5 && /changed your mind/.test(fb.last); console.log('FAREWELL reversed', okFb ? 'OK' : 'MISMATCH', JSON.stringify({ fo, fb })); if (!okFb) errors.push('FAREWELL reversed ' + JSON.stringify({ fo, fb }));
   console.log('errors:', errors.length ? errors : 'none'); await browser.close();
 })().catch(async (e) => { console.error('TEST FAILED', e.message); if (PG) { try { console.error(await PG.evaluate(() => JSON.stringify({ stage: window.__NBA_UI.state.stage, idx: window.__NBA_UI.state.matchIdx, pend: window.__NBA_UI.state.dec && window.__NBA_UI.state.dec.pending && window.__NBA_UI.state.dec.pending.id, text: document.querySelector('#app').innerText.slice(0, 300) }))); } catch (x) { /* ignore */ } } process.exit(1); });
