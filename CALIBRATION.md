@@ -644,3 +644,14 @@ Feedback from play: draft night went by too fast to take in your own pick, and s
 - Your own pick is traded on draft night with p = clamp(`T.userTradeP` 0.14 + 0.05·fans, 0, 0.4) (~15%);
   destination favoured by workout interest. Story: "Drafted by X, traded to Y". Same rookie contract.
 - All randomness uses local seeded RNG (`st.draftSeed`), so the league's main stream is untouched.
+
+## v42 — decision engine + preseason camp
+- `src/decisions.js`: a registry of decisions (trigger, open, view, choose, auto). Choices resolve to one effect list
+  (attr gain, next-season modifiers, relationships, flags, bonus points) and write the career journal (`st.dec.journal`).
+  Rolls use their own seeded stream (`st.dec.seed`), so decisions never move the league's random stream.
+- Camp (first decision): ≤7 mentors (2 superstars, 2 All-Stars, 2 skill-specialist vets, 1 teammate), 2 asks per summer.
+  P(yes) = sigmoid(tier ask − 0.09·(his OVR − yours) + accolades + rookie draft-slot bonus + same-position + relationship + noise).
+  Gain on yes: star 3.2, All-Star 2.4, vet 2.0, teammate 1.5 attribute points (×(0.85+0.3·work), capped by the ceiling rules like training).
+  Each no costs 0.6 of the 1.2-point solo fallback; two nos = no summer.
+- Bulk/autopilot careers skip decisions unless `auto(st,{decisions:true})`, so realism baselines are unchanged.
+  With autopilot asking only ≥25% mentors: peak OVR +0.28, avg PPG +0.3 over 60 careers (a thoughtful player gets a bit more by design).

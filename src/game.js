@@ -1,7 +1,7 @@
 (function (g) {
   'use strict';
   const NBA = g.NBA;
-  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); } catch (e) { /* browser build loads real.js separately */ } }
+  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); } catch (e) { /* browser build loads real.js separately */ } }
   const D = NBA.data;
   const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
   const ATTRS = D.ATTRS;
@@ -258,6 +258,8 @@
     if (next === 'college') st.stage = 'college_ready';
     else if (next === 'pro_first') st.stage = 'pro_ready';
     else { NBA.offseason(st.league, { draft: true }); st.stage = 'pro_ready'; }
+    // a pro preseason opens camp: who to train with (the autopilot answers it itself)
+    if (st.stage === 'pro_ready') { if (st.autoPlay) { if (st.autoDecide && NBA.Decisions.offer(st, 'camp')) NBA.Decisions.autoResolve(st); } else if (NBA.Decisions.offer(st, 'camp')) st.stage = 'camp'; }
     return rep;
   }
 
@@ -559,6 +561,8 @@
     st.pre = { career: JSON.parse(JSON.stringify(st.career)), earnings: st.earnings, earnings26: st.earnings26 || 0, nPlayoff: st.playoffLines.length, rookie: p.yearsPro === 0 };
     const age = p.age;
     const fx = rollEvents(st, p);
+    const dfx = NBA.Decisions.takeSeason(st);   // what the player's own decisions queued for this season
+    fx.form += dfx.form || 0; fx.extraMiss += dfx.extraMiss || 0; fx.minsMult *= dfx.minsMult || 1; fx.depth += dfx.depth || 0;
     // rookie role: coaches bring some young players along off the bench whatever their talent (Kobe 15 mpg at 18, Giannis 25, Jokic 22, Harden 23 behind Westbrook and Durant);
     // real future stars' rookie minutes vary by 7-9 mpg, far more than rating alone gives. It is a cap on minutes (it only bites a rookie good enough to play more),
     // drawn on its own stream so nothing else in the season changes; the second season's cap is 8 minutes higher
@@ -858,6 +862,7 @@
   function auto(st, opt) {
     opt = opt || {};
     const lines = [];
+    st.autoPlay = true; st.autoDecide = !!opt.decisions;   // bulk careers skip the player's decisions unless asked: the calibrated baseline stays as it was
     // pick college: most prestigious we can
     const opts = collegeOptions(st);
     chooseCollege(st, opts[0].id);

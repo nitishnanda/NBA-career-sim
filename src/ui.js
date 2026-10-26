@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v41';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v42';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -902,9 +902,35 @@
     return h('div', null, mark, h('h1', null, p.name + ' retires'),
       h('div', { class: 'card' }, h('div', { class: 'big', style: 'color:' + (hof.hall ? 'var(--gold)' : 'inherit') }, hof.hall ? '🏛️ ' + hof.tier : hof.tier), (() => { const ct = careerTotals(S.proSeasons), pt = playoffTotals(S.playoffLines); return ct && ct.rating ? h('p', null, h('b', null, 'Career avg match rating '), ratingBadge(ct.rating, 2), pt && pt.rating ? h('span', null, '  ·  playoffs ', ratingBadge(pt.rating, 2)) : null) : null; })(),
         h('p', { class: 'muted' }, 'Legacy score ' + hof.score + ' (Hall of Fame line: 85) · ' + S.proSeasons.length + ' seasons · ' + archLabel(p) + ' · hidden ceiling was ' + Math.round(p.ceiling) + ' · ' + S.stars + '★ recruit' + (S.draft && S.draft.slot ? ' · drafted #' + S.draft.slot : ' · undrafted'))),
-      movesCard(),
+      movesCard(), journalCard(40, 'Career journal'),
       h('div', { class: 'card' }, careerBody()),
       h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { wipe(); S = null; boot(); } }, 'Start a new career')));
+  }
+
+  // ------------------------------------------------------------ preseason camp (decision engine)
+  const DEC = () => NBA.Decisions;
+  function journalCard(n, title) {
+    const j = ((S.dec && S.dec.journal) || []).slice().reverse(); if (!j.length) return null;
+    return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, title || 'Your journal'), h('div', { class: 'jlist' }, j.slice(0, n || 40).map((e) => h('div', { class: 'jrow ' + (e.tone || '') }, h('span', { class: 'jyr' }, e.label), h('div', null, h('b', { class: 'small' }, e.title), h('div', { class: 'small' }, e.text))))));
+  }
+  function screenCamp() {
+    const Dc = DEC(); if (!S.dec || !S.dec.pending || S.dec.pending.id !== 'camp') { S.stage = 'pro_ready'; return screenProReady(); }
+    const v = Dc.view(S), p = S.player, L = S.league;
+    const done = !!v.taken, noAsks = v.asks <= 0, forced = noAsks && !done;
+    const ask = (m) => { try { Dc.choose(S, 'ask', m.id); save(); render(); } catch (e) { console.error(e); } };
+    const finish = (key, arg) => { try { Dc.choose(S, key, arg); S.stage = 'pro_ready'; go(); } catch (e) { console.error(e); } };
+    const card = (m) => h('div', { class: 'wkcard mcard' + (m.asked === 'yes' ? ' done t3' : m.asked === 'no' ? ' done t0' : '') },
+      h('div', { class: 'row' }, logo(m.team, 44), h('div', null, h('b', null, m.name), h('div', { class: 'small muted' }, m.tierLabel + ' · ' + m.pos + ' · ' + m.age + ' · ' + m.team + ' · ' + m.ovr + ' OVR'))),
+      h('div', { class: 'small', style: 'margin:8px 0' }, 'Teaches ' + m.skillLabel + ' (' + m.his + ' vs your ' + m.yours + ')'),
+      m.asked ? h('div', { class: 'wkres' }, m.asked === 'yes' ? 'Said yes' : 'Turned you down') : h('div', { class: 'row' }, h('span', { class: 'vibe' }, m.vibe), h('span', { class: 'spacer' }), h('button', { disabled: v.asks <= 0 || done, onclick: () => ask(m) }, 'Ask')));
+    return h('div', null, h('h1', null, 'Preseason camp · ' + NBA.seasonLabel(L.year)),
+      h('p', { class: 'muted' }, 'Who do you want to train with this summer? You can ask ' + v.asks + ' more ' + (v.asks === 1 ? 'person' : 'people') + '. Big names teach the most and say no the most, and every no costs you summer time. Anyone you worked with before is more likely to say yes.'),
+      h('div', { class: 'card' }, h('div', { class: 'row' }, h('h2', { style: 'margin:0' }, done ? 'Camp is set' : v.asks + ' of 2 asks left'), h('span', { class: 'spacer' }), done ? h('button', { class: 'primary', onclick: () => finish('solo') }, 'Start the season →') : null),
+        v.log.length ? h('div', { class: 'jlog' }, v.log.map((x) => h('div', { class: 'jmsg ' + x.tone }, x.text))) : null,
+        h('div', { class: 'wkgrid' }, v.mentors.map(card))),
+      done ? null : h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, forced ? 'No mentor this summer: work on your own game' : 'Or work on your own game'),
+        h('p', { class: 'small muted' }, v.soloGain > 0 ? 'Guaranteed, but small: about +' + v.soloGain.toFixed(1) + ' on one skill. Each no from a mentor takes some of that away.' : 'Nobody wanted to work with you, and the summer is gone.'),
+        h('div', { class: 'row', style: 'flex-wrap:wrap' }, v.soloGain > 0 ? v.solo.map((a) => h('button', { onclick: () => finish('solo', a.key) }, a.label + ' (' + a.v + ')')) : null, h('button', { onclick: () => finish('rest') }, v.soloGain > 0 ? 'Take the summer off' : 'Continue →'))));
   }
 
   // ------------------------------------------------------------ router
@@ -917,7 +943,7 @@
     if (view === 'team' && st !== 'create') { app.append(screenTeam()); return; }
     if (view === 'league' && st !== 'create') { app.append(screenLeague()); return; }
     if (view === 'career' && st !== 'create') { app.append(screenCareer()); return; }
-    const m = { scouting: screenScouting, college_pick: screenCollegePick, college_ready: screenCollegeReady, college_decision: screenCollegeDecision, combine: screenCombine, workouts: screenWorkouts, draft_night: screenDraft, training: screenTraining, pro_ready: screenProReady, season_play: screenSeasonPlay, season_recap: screenRecap, decision: screenDecision, retired: screenRetired };
+    const m = { scouting: screenScouting, college_pick: screenCollegePick, college_ready: screenCollegeReady, college_decision: screenCollegeDecision, combine: screenCombine, workouts: screenWorkouts, draft_night: screenDraft, training: screenTraining, camp: screenCamp, pro_ready: screenProReady, season_play: screenSeasonPlay, season_recap: screenRecap, decision: screenDecision, retired: screenRetired };
     if (S.flash && st !== 'decision') { app.append(h('div', { class: 'callout' }, S.flash)); S.flash = null; }
     app.append((m[st] || screenCreate)());
   }
