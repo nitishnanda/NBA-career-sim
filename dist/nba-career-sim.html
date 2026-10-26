@@ -850,12 +850,17 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const tov = Math.max(0, Math.round(m.tov * mm + Math.sqrt(m.tov * mm) * 0.8 * randn()));
     return { min: m.mins * mm, pts, reb, ast, stl, blk, tov };
   }
-  // Sofascore-style match rating (3-10, everyone starts at 6.5). Coefficients fitted to eight reference box scores for the rating tiers (red 3-5 ... deep blue 9-10)
-  // supplied by the user, plus season-average anchors (30/10/10 ≈ 8.3, Jokic-style 26/12/9 ≈ 8.7). Fewer minutes shrink the swing toward 6.5.
+  // Sofascore match rating (3-10). OLS fit on 3,037 rated player-games from 154 real NBA games (Oct 2026; data/sofascore-sample.csv holds a 399-row slice, the fit is in the
+  // 'Regression' tab of the source sheet; players under ~6 minutes have no rating). Model B (box score + plus/minus + team result, R2 0.919, holdout RMSE 0.222) is used when the game
+  // is known; Model A (box score only, R2 0.897, RMSE 0.259) before it is. Missed shots matter far more than made ones: that is the efficiency Sofascore rewards.
+  const RA = { int: 6.0118, pts: 0.0817, reb: 0.053, ast: 0.1155, stl: 0.1083, blk: 0.0918, tov: -0.1284, pf: -0.044, mfg: -0.0903, mft: -0.0783, tpm: 0.0383, min: -0.0027 };
+  const RB = { int: 6.0875, pts: 0.0778, reb: 0.0471, ast: 0.1059, stl: 0.0909, blk: 0.0875, tov: -0.1129, pf: -0.0439, mfg: -0.083, mft: -0.0727, tpm: 0.0295, min: -0.001, pm: 0.0124, won: -0.1057 };
   function gameRating(g, b) {
-    const poe = g.pts - 0.8 * (b.fga + 0.44 * b.fta);
-    const swing = 0.111 * poe + 0.065 * g.reb + 0.089 * g.ast + 0.054 * g.stl + 0.171 * g.blk - 0.146 * g.tov - 0.484 * Math.min(1, g.min / 36);
-    const r = 6.5 + 0.86 * swing * Math.min(1, g.min / 14);
+    b = b || {};
+    const fga = b.fga != null ? b.fga : g.pts * 0.8, fgm = b.fgm != null ? b.fgm : fga * 0.46, fta = b.fta != null ? b.fta : fga * 0.2, ftm = b.ftm != null ? b.ftm : fta * 0.78, tpm = b.tpm != null ? b.tpm : 0.3 * fga * 0.4, pf = b.pf != null ? b.pf : 2;
+    const k = b.pm != null && b.w != null ? RB : RA;
+    let r = k.int + k.pts * g.pts + k.reb * g.reb + k.ast * g.ast + k.stl * g.stl + k.blk * g.blk + k.tov * g.tov + k.pf * pf + k.mfg * Math.max(0, fga - fgm) + k.mft * Math.max(0, fta - ftm) + k.tpm * tpm + k.min * g.min;
+    if (k === RB) r += k.pm * b.pm + k.won * (b.w ? 1 : 0);
     return Math.round(clamp(r, 3, 10) * 10) / 10;
   }
   function summarize(games) {
@@ -3135,6 +3140,8 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const ot = margin <= 4 && rand() < 0.4 ? 1 : 0;
     return { f: won ? win : win - margin, a: won ? win - margin : win, ot };
   }
+  // a logged game's rating: its own box score, plus/minus and result
+  const rateItem = (it) => NBA.gameRating({ pts: it.pt, reb: it.rb, ast: it.as, stl: it.st, blk: it.bk, tov: it.to, min: it.m }, it);
   function buildMatchLog(st, rec, line, games, series, t, injuryText, poLine) {
     const L = st.league, teams = Object.values(L.teams).filter((x) => x.id !== st.teamId);
     const total = 82, gp = games.length, miss = Math.max(0, total - gp);
@@ -3149,8 +3156,8 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       const rebA = st.player.attrs ? st.player.attrs.reb : 50;
       const orR = clamp(0.2 + (rebA - 50) * 0.003, 0.14, 0.4);
       const orb = clamp(Math.round(g.reb * orR + randn() * 0.7), 0, g.reb);
-      const pf = clamp(Math.round(1.9 + (st.player.attrs ? (st.player.attrs.rimP - 40) * 0.01 : 0) + randn() * 1.3), 0, 6);
-      return Object.assign({ m: Math.round(g.min), pt: g.pts, rb: g.reb, or: orb, as: g.ast, st: g.stl, bk: g.blk, to: g.tov, pf, r: NBA.gameRating(g, b), tg }, b);
+      const pf = clamp(Math.round(2.35 + (st.player.attrs ? (st.player.attrs.rimP - 40) * 0.01 : 0) + randn() * 1.3), 0, 6);   // real 25+ minute players: 2.4-2.7 fouls a game (Oct 2026 sample)
+      return Object.assign({ m: Math.round(g.min), pt: g.pts, rb: g.reb, or: orb, as: g.ast, st: g.stl, bk: g.blk, to: g.tov, pf, r: NBA.gameRating(g, Object.assign({ pf }, b)), tg }, b);
     };
     const score = gameScore;
     // regular season: 82 slots, opponents twice each plus 24 extra
@@ -3204,6 +3211,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       fitShooting(poGames.map((x) => x[0]), poLine && poLine.fga != null ? poLine : { fgp: rec.playoff ? rec.playoff.fgp : line.fgp, tpp: rec.playoff ? rec.playoff.tpp : line.tpp, ftp: line.ftp }, mulberry(shotSeed(st, 6000)));
       poGames.forEach(([it, g], i) => { it.r = NBA.gameRating(g, it); it.sh = shotsFor(it, st.player, shotSeed(st, 1000 + i)); });
     }
+    items.forEach((x) => { if (x.k === 'g' && !x.dnp && x.pm != null) x.r = rateItem(x); });   // now that the plus/minus and the result exist
     const rg = items.filter((x) => x.k === 'g' && !x.po && !x.dnp), ratings = rg.map((x) => x.r);
     const pr = items.filter((x) => x.k === 'g' && x.po && !x.dnp).map((x) => x.r); rec.poRating = pr.length ? Math.round(pr.reduce((a, b) => a + b, 0) / pr.length * 100) / 100 : null;
     rec.avgRating = ratings.length ? Math.round(ratings.reduce((a, b) => a + b, 0) / ratings.length * 100) / 100 : null;
@@ -3400,7 +3408,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       if (d !== 0 && Math.abs(s0) >= 0.03) it.tg.unshift(s0 > 0 ? 'Fired up by the press room' : 'Rattled by the press room');
       const flip = rnd() < Math.abs(s0) * 1.1;
       if (flip && ((s0 > 0 && !it.w) || (s0 < 0 && it.w))) { flipGame(st, it, s0 > 0); it.tg.unshift(s0 > 0 ? 'You willed the team to a win' : 'The team came out flat'); }
-      it.sh = shotsFor(it, p, shotSeed(st, 7500 + it.n)); it.r = NBA.gameRating({ pts: it.pt, reb: it.rb, ast: it.as, stl: it.st, blk: it.bk, tov: it.to, min: it.m }, it);
+      it.sh = shotsFor(it, p, shotSeed(st, 7500 + it.n)); it.r = rateItem(it);
       if (susp) { const nx = st.matchLog.slice(ctx.idx + 1).find((x) => x.k === 'g' && !x.po); if (nx) { ['m', 'pt', 'rb', 'or', 'as', 'st', 'bk', 'to', 'pf', 'r', 'fgm', 'fga', 'tpm', 'tpa', 'ftm', 'fta', 'sh', 'pm'].forEach((k) => { delete nx[k]; }); nx.tg = []; nx.dnp = 'Suspended'; nx.cl = 0; nx.pc = 0; } }
       recomputeFromLog(st);
       line = s0 >= 0.03 ? 'You walked in fired up.' : s0 <= -0.03 ? 'You walked in rattled.' : 'You walked in the same as always.';
@@ -3456,7 +3464,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     else if (key === 'drive') { it.fta += 2; if (wins) { it.ftm += 2; it.pt += 2; it.tg.unshift('Won it at the line'); } else { const m = rnd2 < 0.5 ? 1 : 0; it.ftm += m; it.pt += m; it.tg.unshift('Could not finish at the line'); } }
     else it.tg.unshift(wins ? 'Executed the final play' : 'The final play broke down');
     it.sh = shotsFor(it, p, shotSeed(st, 7000 + n));
-    it.r = NBA.gameRating({ pts: it.pt, reb: it.rb, ast: it.as, stl: it.st, blk: it.bk, tov: it.to, min: it.m }, it);
+    it.r = rateItem(it);
     recomputeFromLog(st);
     const rec = st.proSeasons[st.proSeasons.length - 1];
     if (it.po && g7) { const sr = (rec.perSeries || []).find((x) => x.round === it.rnd); }
@@ -3903,7 +3911,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v46';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v47';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -4603,7 +4611,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   function rosterRows(t, inSeason, N, prog) {
     const L = S.league, items = S.matchLog || [], idx = S.matchIdx || 0, p = S.player;
     const noise = (k) => seeded(k * 131 + N * 7 + 3), bridge = (v, k) => v * (1 + (noise(k)() - 0.5) * 0.12 * (1 - prog));
-    const rate = (l, mins) => { const den = l.pts / (2 * Math.max(0.4, l.ts || 0.56)), fga = den / 1.088, fta = 0.2 * fga; return NBA.gameRating({ pts: l.pts, reb: l.reb, ast: l.ast, stl: l.stl, blk: l.blk, tov: l.tov, min: mins }, { fga, fta }); };
+    const rate = (l, mins) => { const den = l.pts / (2 * Math.max(0.4, l.ts || 0.56)), fga = den / 1.088, fta = 0.2 * fga; return NBA.gameRating({ pts: l.pts, reb: l.reb, ast: l.ast, stl: l.stl, blk: l.blk, tov: l.tov, min: mins }, { fga, fgm: fga * (l.fgp || 0.46), fta, ftm: fta * (l.ftp || 0.78), tpm: (l.tpa || 0) * (l.tpp || 0.35) || 0.3 * fga * 0.4 }); };
     // everyone on the club, rookies included (they only join the core/bench lists the summer after their draft)
     const rows = Object.values(L.players).filter((q) => q.teamId === t.id).map((q) => {
       const id = q.id, l = L.lines[id]; if (!l) return null;

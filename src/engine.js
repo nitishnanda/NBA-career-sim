@@ -395,12 +395,17 @@
     const tov = Math.max(0, Math.round(m.tov * mm + Math.sqrt(m.tov * mm) * 0.8 * randn()));
     return { min: m.mins * mm, pts, reb, ast, stl, blk, tov };
   }
-  // Sofascore-style match rating (3-10, everyone starts at 6.5). Coefficients fitted to eight reference box scores for the rating tiers (red 3-5 ... deep blue 9-10)
-  // supplied by the user, plus season-average anchors (30/10/10 ≈ 8.3, Jokic-style 26/12/9 ≈ 8.7). Fewer minutes shrink the swing toward 6.5.
+  // Sofascore match rating (3-10). OLS fit on 3,037 rated player-games from 154 real NBA games (Oct 2026; data/sofascore-sample.csv holds a 399-row slice, the fit is in the
+  // 'Regression' tab of the source sheet; players under ~6 minutes have no rating). Model B (box score + plus/minus + team result, R2 0.919, holdout RMSE 0.222) is used when the game
+  // is known; Model A (box score only, R2 0.897, RMSE 0.259) before it is. Missed shots matter far more than made ones: that is the efficiency Sofascore rewards.
+  const RA = { int: 6.0118, pts: 0.0817, reb: 0.053, ast: 0.1155, stl: 0.1083, blk: 0.0918, tov: -0.1284, pf: -0.044, mfg: -0.0903, mft: -0.0783, tpm: 0.0383, min: -0.0027 };
+  const RB = { int: 6.0875, pts: 0.0778, reb: 0.0471, ast: 0.1059, stl: 0.0909, blk: 0.0875, tov: -0.1129, pf: -0.0439, mfg: -0.083, mft: -0.0727, tpm: 0.0295, min: -0.001, pm: 0.0124, won: -0.1057 };
   function gameRating(g, b) {
-    const poe = g.pts - 0.8 * (b.fga + 0.44 * b.fta);
-    const swing = 0.111 * poe + 0.065 * g.reb + 0.089 * g.ast + 0.054 * g.stl + 0.171 * g.blk - 0.146 * g.tov - 0.484 * Math.min(1, g.min / 36);
-    const r = 6.5 + 0.86 * swing * Math.min(1, g.min / 14);
+    b = b || {};
+    const fga = b.fga != null ? b.fga : g.pts * 0.8, fgm = b.fgm != null ? b.fgm : fga * 0.46, fta = b.fta != null ? b.fta : fga * 0.2, ftm = b.ftm != null ? b.ftm : fta * 0.78, tpm = b.tpm != null ? b.tpm : 0.3 * fga * 0.4, pf = b.pf != null ? b.pf : 2;
+    const k = b.pm != null && b.w != null ? RB : RA;
+    let r = k.int + k.pts * g.pts + k.reb * g.reb + k.ast * g.ast + k.stl * g.stl + k.blk * g.blk + k.tov * g.tov + k.pf * pf + k.mfg * Math.max(0, fga - fgm) + k.mft * Math.max(0, fta - ftm) + k.tpm * tpm + k.min * g.min;
+    if (k === RB) r += k.pm * b.pm + k.won * (b.w ? 1 : 0);
     return Math.round(clamp(r, 3, 10) * 10) / 10;
   }
   function summarize(games) {

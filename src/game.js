@@ -537,6 +537,8 @@
     const ot = margin <= 4 && rand() < 0.4 ? 1 : 0;
     return { f: won ? win : win - margin, a: won ? win - margin : win, ot };
   }
+  // a logged game's rating: its own box score, plus/minus and result
+  const rateItem = (it) => NBA.gameRating({ pts: it.pt, reb: it.rb, ast: it.as, stl: it.st, blk: it.bk, tov: it.to, min: it.m }, it);
   function buildMatchLog(st, rec, line, games, series, t, injuryText, poLine) {
     const L = st.league, teams = Object.values(L.teams).filter((x) => x.id !== st.teamId);
     const total = 82, gp = games.length, miss = Math.max(0, total - gp);
@@ -551,8 +553,8 @@
       const rebA = st.player.attrs ? st.player.attrs.reb : 50;
       const orR = clamp(0.2 + (rebA - 50) * 0.003, 0.14, 0.4);
       const orb = clamp(Math.round(g.reb * orR + randn() * 0.7), 0, g.reb);
-      const pf = clamp(Math.round(1.9 + (st.player.attrs ? (st.player.attrs.rimP - 40) * 0.01 : 0) + randn() * 1.3), 0, 6);
-      return Object.assign({ m: Math.round(g.min), pt: g.pts, rb: g.reb, or: orb, as: g.ast, st: g.stl, bk: g.blk, to: g.tov, pf, r: NBA.gameRating(g, b), tg }, b);
+      const pf = clamp(Math.round(2.35 + (st.player.attrs ? (st.player.attrs.rimP - 40) * 0.01 : 0) + randn() * 1.3), 0, 6);   // real 25+ minute players: 2.4-2.7 fouls a game (Oct 2026 sample)
+      return Object.assign({ m: Math.round(g.min), pt: g.pts, rb: g.reb, or: orb, as: g.ast, st: g.stl, bk: g.blk, to: g.tov, pf, r: NBA.gameRating(g, Object.assign({ pf }, b)), tg }, b);
     };
     const score = gameScore;
     // regular season: 82 slots, opponents twice each plus 24 extra
@@ -606,6 +608,7 @@
       fitShooting(poGames.map((x) => x[0]), poLine && poLine.fga != null ? poLine : { fgp: rec.playoff ? rec.playoff.fgp : line.fgp, tpp: rec.playoff ? rec.playoff.tpp : line.tpp, ftp: line.ftp }, mulberry(shotSeed(st, 6000)));
       poGames.forEach(([it, g], i) => { it.r = NBA.gameRating(g, it); it.sh = shotsFor(it, st.player, shotSeed(st, 1000 + i)); });
     }
+    items.forEach((x) => { if (x.k === 'g' && !x.dnp && x.pm != null) x.r = rateItem(x); });   // now that the plus/minus and the result exist
     const rg = items.filter((x) => x.k === 'g' && !x.po && !x.dnp), ratings = rg.map((x) => x.r);
     const pr = items.filter((x) => x.k === 'g' && x.po && !x.dnp).map((x) => x.r); rec.poRating = pr.length ? Math.round(pr.reduce((a, b) => a + b, 0) / pr.length * 100) / 100 : null;
     rec.avgRating = ratings.length ? Math.round(ratings.reduce((a, b) => a + b, 0) / ratings.length * 100) / 100 : null;
@@ -802,7 +805,7 @@
       if (d !== 0 && Math.abs(s0) >= 0.03) it.tg.unshift(s0 > 0 ? 'Fired up by the press room' : 'Rattled by the press room');
       const flip = rnd() < Math.abs(s0) * 1.1;
       if (flip && ((s0 > 0 && !it.w) || (s0 < 0 && it.w))) { flipGame(st, it, s0 > 0); it.tg.unshift(s0 > 0 ? 'You willed the team to a win' : 'The team came out flat'); }
-      it.sh = shotsFor(it, p, shotSeed(st, 7500 + it.n)); it.r = NBA.gameRating({ pts: it.pt, reb: it.rb, ast: it.as, stl: it.st, blk: it.bk, tov: it.to, min: it.m }, it);
+      it.sh = shotsFor(it, p, shotSeed(st, 7500 + it.n)); it.r = rateItem(it);
       if (susp) { const nx = st.matchLog.slice(ctx.idx + 1).find((x) => x.k === 'g' && !x.po); if (nx) { ['m', 'pt', 'rb', 'or', 'as', 'st', 'bk', 'to', 'pf', 'r', 'fgm', 'fga', 'tpm', 'tpa', 'ftm', 'fta', 'sh', 'pm'].forEach((k) => { delete nx[k]; }); nx.tg = []; nx.dnp = 'Suspended'; nx.cl = 0; nx.pc = 0; } }
       recomputeFromLog(st);
       line = s0 >= 0.03 ? 'You walked in fired up.' : s0 <= -0.03 ? 'You walked in rattled.' : 'You walked in the same as always.';
@@ -858,7 +861,7 @@
     else if (key === 'drive') { it.fta += 2; if (wins) { it.ftm += 2; it.pt += 2; it.tg.unshift('Won it at the line'); } else { const m = rnd2 < 0.5 ? 1 : 0; it.ftm += m; it.pt += m; it.tg.unshift('Could not finish at the line'); } }
     else it.tg.unshift(wins ? 'Executed the final play' : 'The final play broke down');
     it.sh = shotsFor(it, p, shotSeed(st, 7000 + n));
-    it.r = NBA.gameRating({ pts: it.pt, reb: it.rb, ast: it.as, stl: it.st, blk: it.bk, tov: it.to, min: it.m }, it);
+    it.r = rateItem(it);
     recomputeFromLog(st);
     const rec = st.proSeasons[st.proSeasons.length - 1];
     if (it.po && g7) { const sr = (rec.perSeries || []).find((x) => x.round === it.rnd); }

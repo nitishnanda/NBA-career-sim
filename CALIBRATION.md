@@ -708,3 +708,13 @@ Feedback from play: draft night went by too fast to take in your own pick, and s
 - Artifact: `sample` capability (declared `{sample: {}}`): Claude (quick tier, no cache) returns {tone, intensity, profane, reaction, headline} for the typed answer; the answer is sent as DATA,
   the reply is validated (unknown tone → built-in reader), and any failure (not granted, rate limited, invalid JSON) falls back to the built-in reader. Nothing is ever sent unless the viewer
   types an answer and presses Say it.
+
+## v47 — match ratings refit on the Sofascore sheet (Oct 2026)
+- Source: Google Sheet "Sofascore NBA box scores + player ratings (Oct 2026)": 154 games, 3,037 rated player-games (players under ~6 min are unrated), with an OLS fit in its Regression tab.
+  Model A (box score only): R² 0.897, holdout RMSE 0.258. Model B (+ plus/minus + team won): R² 0.919, holdout RMSE 0.222.
+- `gameRating` is now Model B when the game's plus/minus and result are known (every logged game is re-rated once its result exists), Model A otherwise
+  (6.0118 + 0.0817·pts + 0.053·reb + 0.1155·ast + 0.1083·stl + 0.0918·blk − 0.1284·tov − 0.044·pf − 0.0903·missed FG − 0.0783·missed FT + 0.0383·3PM − 0.0027·min), clamped 3-10.
+- Check on a 399-row slice (data/sofascore-sample.csv, 347 rated; scripts/rating-fit.py): previous formula RMSE 0.447 (bias +0.075) → new 0.298 (bias −0.001); a refit on the slice itself only reaches 0.289.
+- Sim vs real, mean rating by minutes: <12 6.13/6.14, 12-20 6.41/6.42, 20-28 6.75/6.77, 28-34 7.33/7.25, 34+ 7.87/7.71 (sim/real). At the same points, sim stars rate +0.1 (11-20 pts) to +0.35 (26+ pts)
+  above the real sample: sim star careers have more rebounds/assists/blocks and fewer missed shots than the 18 real 26+ point games (too few to retune the box-score model on).
+- Personal fouls: sim base raised 1.9 → 2.35 (real 25+ minute players 2.4-2.7 a game). Autopilot baseline unchanged (peak OVR 76.68, 13.02 ppg).

@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v46';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v47';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -702,7 +702,7 @@
   function rosterRows(t, inSeason, N, prog) {
     const L = S.league, items = S.matchLog || [], idx = S.matchIdx || 0, p = S.player;
     const noise = (k) => seeded(k * 131 + N * 7 + 3), bridge = (v, k) => v * (1 + (noise(k)() - 0.5) * 0.12 * (1 - prog));
-    const rate = (l, mins) => { const den = l.pts / (2 * Math.max(0.4, l.ts || 0.56)), fga = den / 1.088, fta = 0.2 * fga; return NBA.gameRating({ pts: l.pts, reb: l.reb, ast: l.ast, stl: l.stl, blk: l.blk, tov: l.tov, min: mins }, { fga, fta }); };
+    const rate = (l, mins) => { const den = l.pts / (2 * Math.max(0.4, l.ts || 0.56)), fga = den / 1.088, fta = 0.2 * fga; return NBA.gameRating({ pts: l.pts, reb: l.reb, ast: l.ast, stl: l.stl, blk: l.blk, tov: l.tov, min: mins }, { fga, fgm: fga * (l.fgp || 0.46), fta, ftm: fta * (l.ftp || 0.78), tpm: (l.tpa || 0) * (l.tpp || 0.35) || 0.3 * fga * 0.4 }); };
     // everyone on the club, rookies included (they only join the core/bench lists the summer after their draft)
     const rows = Object.values(L.players).filter((q) => q.teamId === t.id).map((q) => {
       const id = q.id, l = L.lines[id]; if (!l) return null;
