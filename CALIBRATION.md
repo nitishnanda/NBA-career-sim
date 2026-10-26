@@ -611,3 +611,6 @@ players with 4+ NBA seasons for measurables comps). Before this a declaring play
   age, height and wingspan, a steal / reach tag when a pick lands 12+ spots after / before his talent-only rank, your pick with a suspense beat, skip-to-my-pick and
   reveal-all, your road to the draft (mocks, combine, where you went), landing spot (record, core players, where your overall ranks on the roster) and class notes.
 - Fixes along the way: older helper scripts that called `declare` now call `enterDraft` as well; boards saved before v39 (30 picks, no logos) are filled in on load.
+- Checks: realism 88% (v38b 89%; noise +-1), gen MVPs 1.78 per gen over 900 picks (real 1.86), league report on 12 fresh seeds: two 20-ppg teammates 34% (34%), three 20 5.1%
+  (4.3%), top-5 repeat 2.33 (2.42). UI tests (desktop and phone) cover the combine (measurements = the player's own, 6 test rows, 10 percentile bars, the report) and the
+  draft board (60 rows in two rounds, the player's row at his slot).
