@@ -134,14 +134,14 @@
   const ABBR = { Hawks: 'ATL', Celtics: 'BOS', Nets: 'BKN', Hornets: 'CHA', Bulls: 'CHI', Cavaliers: 'CLE', Mavericks: 'DAL', Nuggets: 'DEN', Pistons: 'DET', Warriors: 'GSW', Rockets: 'HOU', Pacers: 'IND', Clippers: 'LAC', Lakers: 'LAL', Grizzlies: 'MEM', Heat: 'MIA', Bucks: 'MIL', Timberwolves: 'MIN', Pelicans: 'NOP', Knicks: 'NYK', Thunder: 'OKC', Magic: 'ORL', '76ers': 'PHI', Suns: 'PHX', 'Trail Blazers': 'POR', Blazers: 'POR', Kings: 'SAC', Spurs: 'SAS', Raptors: 'TOR', Jazz: 'UTA', Wizards: 'WAS' };
   // Heights and weights by position (scripts/real-sizes.py: NBA players since 2005, 40+ games at 18+ mpg, n 210-252 a position): mean height in inches,
   // sd, 2nd-98th percentile; mean weight in lb and the sd of weight at a given height (it rises ~2.5 lb an inch within a position)
-  // arm: how far the wingspan runs over the height, mean and sd in inches. NOT measured here (the bball-reference files have no wingspans and the combine tables
-  // could not be fetched): a rough public rule of thumb, about +4.5 on average and a little more for bigs, with a ~2 inch spread
+  // arm / asd: how far wingspan runs over LISTED height, mean and sd in inches, measured on the NBA draft combine (Kaggle file, 2000-2026): 1,146 players matched to
+  // an NBA career (combine heights are barefoot, listed heights run 0.87 inch above them; wingspan - listed height is what the game shows)
   const SIZE = {
-    PG: { ht: 74.4, sd: 2.19, lo: 70, hi: 79, wt: 191, rsd: 11.5, arm: 4.0, asd: 2.0 },
-    SG: { ht: 76.9, sd: 1.51, lo: 73, hi: 80, wt: 204, rsd: 12.6, arm: 4.3, asd: 2.0 },
-    SF: { ht: 79.0, sd: 1.42, lo: 77, hi: 82, wt: 217, rsd: 13.3, arm: 4.6, asd: 2.0 },
-    PF: { ht: 80.8, sd: 1.62, lo: 78, hi: 84, wt: 234, rsd: 15.0, arm: 5.0, asd: 2.0 },
-    C: { ht: 82.8, sd: 1.69, lo: 79, hi: 86, wt: 249, rsd: 19.2, arm: 5.4, asd: 2.0 },
+    PG: { ht: 74.4, sd: 2.19, lo: 70, hi: 79, wt: 191, rsd: 11.5, arm: 3.5, asd: 2.1 },
+    SG: { ht: 76.9, sd: 1.51, lo: 73, hi: 80, wt: 204, rsd: 12.6, arm: 3.9, asd: 2.1 },
+    SF: { ht: 79.0, sd: 1.42, lo: 77, hi: 82, wt: 217, rsd: 13.3, arm: 3.7, asd: 2.3 },
+    PF: { ht: 80.8, sd: 1.62, lo: 78, hi: 84, wt: 234, rsd: 15.0, arm: 4.3, asd: 2.2 },
+    C: { ht: 82.8, sd: 1.69, lo: 79, hi: 86, wt: 249, rsd: 19.2, arm: 4.4, asd: 2.3 },
   };
 
   NBA.data = { SIZE, TEAM_COLORS, ABBR, ARENAS, ATTRS, ATTR_LABELS, POSITIONS, ARCHETYPES, TEAMS, REGIONS, STATE_ABBR, COLLEGES, FIRST, LAST };

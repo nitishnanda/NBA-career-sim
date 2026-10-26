@@ -571,11 +571,15 @@ with the real spread (sd 1.4-2.2 inches) and weight rising ~2.5 lb an inch withi
 
 ## v38: wingspan, and random or chosen size
 
-Players now also have a wingspan (`p.ws`, inches). Unlike height and weight it is NOT measured on real data: the bball-reference files have no wingspans and
-the combine tables could not be fetched here, so `D.SIZE[pos].arm` / `asd` (wingspan minus height: PG +4.0, SG +4.3, SF +4.6, PF +5.0, C +5.4, sd 2.0 inches)
-is a rough public rule of thumb (wingspan runs ~4-5 inches over height, more for bigs), and its sim effect is a guess kept tiny (per +1 sd of length beyond
-the height: rim protection +3, perimeter defence +2, rebounding +1, inside +0.5; `fitOvr` still rescales to the ceiling). Real-roster players have no
-wingspan (shown as height and weight only): their real wingspans are not in the data and are not invented.
+Players now also have a wingspan (`p.ws`, inches). Real data: the Kaggle NBA draft combine file (2000-2026, 1,742 players with a wingspan), 1,146 of them matched by name
+and draft year to an NBA career in the Basketball-Reference files. Combine heights are barefoot and the game's are listed heights, which run 0.87 inch above them, so
+the model is wingspan minus LISTED height: PG +3.5, SG +3.9, SF +3.7, PF +4.3, C +4.4 inches, sd 2.1-2.3 (`D.SIZE[pos].arm` / `asd`), uncorrelated with height
+(r -0.01). (An earlier v38 cut used a guessed +4.0 to +5.4; the data says about 0.5-1 inch less.) Real-roster players have no wingspan (shown as height and weight
+only): the combine file does not cover most of them and their wingspans are not invented.
+- Light sim effect, calibrated on those 630 matched players' pro per-36 stats (within position, height and weight held fixed), sim / real per +1 sd of wingspan beyond
+  his height: rebounds +0.40 / +0.39, blocks +0.16 / +0.17, steals +0.03 / +0.06, assists -0.08 / -0.11 (rim protection +12, rebounding +3, perimeter defence +3, inside +2;
+  `fitOvr` still rescales to the ceiling, overall -0.05 a sd). Real long-armed players also score a bit more per 36 (+0.32); the sim's are slightly lower (-0.25):
+  not copied (confounded with role), and the effect is meant to stay light.
 - Create screen: Random (a whole new body for the position, with Re-roll) or Choose myself (height, weight and wingspan sliders; switching starts from the
   current roll). The UI test checks Re-roll changes the body, the sliders reach the player and the scouting report, and a random roll becomes the player's body (5/5 positions).
 - Checks: realism 90% (v37 90%), gen MVPs per gen 1.71 with size on vs 1.80 with size off on the same 900 picks (real 1.86; runs vary +-0.2, so the gap is noise),

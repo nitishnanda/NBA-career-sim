@@ -105,14 +105,14 @@
   const SZ_SLOPE = 2.5;   // lb per inch within a position
   const SZ_H = { reb: 2, rimP: 7, inside: 1.5, ath: -2.5, handling: -2.5, passing: -1, three: -1.5, perD: -1 };   // rating points per sd of height above the position's mean
   const SZ_W = { inside: 3, reb: 2, rimP: 1, ath: -0.5 };
-  const SZ_L = { rimP: 3, perD: 2, reb: 1, inside: 0.5 };   // ... per sd of wingspan beyond what his height predicts (a guess: no real wingspans here to calibrate on, so kept small)                                 // ... per sd of weight above what his height predicts
+  const SZ_L = { rimP: 12, perD: 3, reb: 3, inside: 2 };   // ... per sd of wingspan beyond what his height predicts (real draft-combine players: per +1 sd of length, +0.39 rebounds and +0.17 blocks per 36, height and weight held fixed)
   const wtAt = (pos, ht) => Math.round(D.SIZE[pos].wt + SZ_SLOPE * (ht - D.SIZE[pos].ht));
   function rollSize(p, o) {
     const s = D.SIZE[p.pos] || D.SIZE.SF;
     p.ht = o.ht != null ? o.ht : clamp(Math.round(s.ht + s.sd * randn()), s.lo, s.hi);
     p.wt = o.wt != null ? o.wt : Math.round(clamp(wtAt(p.pos, p.ht) + s.rsd * randn(), wtAt(p.pos, p.ht) - 2.2 * s.rsd, wtAt(p.pos, p.ht) + 2.2 * s.rsd));
     if (o.sizeFx === false) p.sizeFx = false;
-    else p.ws = o.ws != null ? o.ws : Math.round(clamp(p.ht + s.arm + s.asd * randn(), p.ht - 1, p.ht + s.arm + 2.4 * s.asd));   // real-roster players have none: their real wingspans are not in the data
+    else p.ws = o.ws != null ? o.ws : Math.round(clamp(p.ht + s.arm + s.asd * randn(), p.ht - 1, p.ht + s.arm + 2.2 * s.asd));   // real-roster players have none: their real wingspans are not in the data
   }
   const randomSize = (pos) => { const p = { pos }; rollSize(p, {}); return { pos, ht: p.ht, wt: p.wt, ws: p.ws }; };   // a whole new body for the create screen's Random option
   const wsAt = (pos, ht) => Math.round(ht + D.SIZE[pos].arm);
