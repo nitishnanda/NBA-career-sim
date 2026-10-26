@@ -1,7 +1,7 @@
 (function (g) {
   'use strict';
   const NBA = g.NBA;
-  if (typeof require !== 'undefined') { try { require('./real.js'); } catch (e) { /* browser build loads real.js separately */ } }
+  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); } catch (e) { /* browser build loads real.js separately */ } }
   const D = NBA.data;
   const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
   const ATTRS = D.ATTRS;
@@ -147,8 +147,28 @@
     st.stage = 'training'; st.afterTraining = 'college';
     return trainingInfo(st);
   }
+  // declaring for the draft leads to the combine: you are measured (height, weight, wingspan, reach), then choose whether to take the athletic tests or skip them,
+  // and the scouts' view of you moves; then it is draft night
   function declare(st) {
+    const p = st.player, last = st.collegeYears[st.collegeYears.length - 1];
+    p.cmb = NBA.combineFor(p, { test: false, year: st.league.year });   // measured at the combine; the tests are the choice
+    st.combine = { year: st.league.year, pre: last && last.mock ? last.mock : null, done: false, test: null, post: null, comp: null };
+    st.stage = 'combine';
+    return st.combine;
+  }
+  function runCombine(st, test) {
+    const p = st.player, c = st.combine;
+    const yr = st.league.year, seed = (p.name.length * 7919 + yr * 104729 + 12345) | 0, bonus = stockBonus(st);
+    const mine = NBA.combineFor(p, { test: !!test, year: yr }), other = NBA.combineFor(p, { test: !test, year: yr });
+    p.cmb = mine; c.test = !!test; c.comp = NBA.combineComp(p, mine); c.done = true;
+    // the scouts' projection before the combine, after it, and after the other choice (all against the same classes)
+    c.pre = NBA.mockSeeded(st.league, p, bonus, seed, null); c.post = NBA.mockSeeded(st.league, p, bonus, seed, mine); c.alt = NBA.mockSeeded(st.league, p, bonus, seed, other); c.altBonus = other ? other.bonus : 0;
+    return c;
+  }
+  function enterDraft(st) {
     const p = st.player;
+    if (!st.combine || !st.combine.done) { if (!st.combine) declare(st); runCombine(st, true); }
+    p.from = st.college.name;
     const res = NBA.userDraft(st.league, p, stockBonus(st));
     p.rookie = false; p.isPro = true;
     let slot = res.slot, team = res.team;
@@ -157,7 +177,7 @@
       slot = null;
       team = pick(st.league.teams);
     }
-    st.draft = { slot, team: team.name, teamId: team.id, year: st.league.year, board: res.board, college: st.college.name };
+    st.draft = { slot, team: team.name, teamId: team.id, year: st.league.year, board: res.board, college: st.college.name, mockRank: res.mockRank, pre: st.combine.pre, post: st.combine.post, combineBonus: p.cmb ? p.cmb.bonus : 0, tested: st.combine.test, classSize: res.classSize, teamRec: team.wins + '-' + team.losses };
     st.teamId = team.id; p.teamId = team.id;
     const cap = capNow(st.league);
     let sal, yrs;
@@ -819,7 +839,7 @@
       stayInCollege(st);
       train(st, autoAlloc(st.player, trainingInfo(st).points));
     }
-    declare(st);
+    declare(st); runCombine(st, true); enterDraft(st);
     startPro(st);
     train(st, autoAlloc(st.player, trainingInfo(st).points));
     for (let guard = 0; guard < 30; guard++) {
@@ -840,6 +860,6 @@
     return st;
   }
 
-  Object.assign(NBA, { Game: { shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { Game: { shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

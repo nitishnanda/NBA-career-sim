@@ -40,7 +40,22 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   await page.waitForSelector('text=Declare for the NBA Draft');
   await shot('04-college-decision');
   await page.click('text=Declare for the NBA Draft');
+  // the combine: measurements shown are the player's own, the tests can be taken, the scouts' report moves the projection, and the draft board is the whole 60-pick class with him on it
+  await page.waitForSelector('text=NBA Draft Combine'); await shot('04b-combine-measured');
+  const cm0 = await page.evaluate(() => { const S = window.__NBA_UI.state, cb = S.player.cmb, shown = Array.from(document.querySelectorAll('.ctv')).map((e) => e.textContent); return { shown, stage: S.stage, tested: cb.tested, hasTests: !!cb.tests, hb: cb.hb, wt: cb.wt, ws: cb.ws }; });
+  const okM = cm0.stage === 'combine' && !cm0.tested && !cm0.hasTests && cm0.shown.length === 4 && cm0.shown[1] === cm0.wt + ' lb';
+  console.log('COMBINE measured', okM ? 'OK' : 'MISMATCH', JSON.stringify(cm0)); if (!okM) errors.push('COMBINE measured ' + JSON.stringify(cm0));
+  await page.click('button:has-text("Take all the tests")'); await page.waitForSelector("text=Scouts' report"); await shot('04c-combine-tested');
+  const cm1 = await page.evaluate(() => { const S = window.__NBA_UI.state, cb = S.player.cmb, c = S.combine; return { tested: cb.tested, rows: document.querySelectorAll('.trow').length, bonus: +cb.bonus.toFixed(2), post: !!(c.pre && c.post && c.alt), bars: document.querySelectorAll('.ctile .pbar, .trow .pbar').length }; });
+  const okT = cm1.tested && cm1.rows === 6 && cm1.post && cm1.bars === 3 + 6 + 1;
+  console.log('COMBINE tested', okT ? 'OK' : 'MISMATCH', JSON.stringify(cm1)); if (!okT) errors.push('COMBINE tested ' + JSON.stringify(cm1));
+  await page.click('button:has-text("Head to the draft")');
+  await page.waitForSelector('button:has-text("Reveal the whole draft")'); await page.click('button:has-text("Reveal the whole draft")');
   await page.waitForSelector('text=Start my NBA career', { timeout: 30000 });
+  const dr = await page.evaluate(() => { const S = window.__NBA_UI.state, d = S.draft, rows = Array.from(document.querySelectorAll('.prow')), me = rows.filter((r) => r.classList.contains('me')), pos = rows.indexOf(me[0]);
+    return { rows: rows.length, board: d.board.length, me: me.length, slot: d.slot, rowSlot: pos + 1, rounds: document.querySelectorAll('.rhead').length, userRowOnBoard: d.board.filter((r) => r.isUser).length, tested: d.tested }; });
+  const okD = dr.rows === 60 && dr.board === 60 && dr.rounds === 2 && (dr.slot ? dr.me === 1 && dr.rowSlot === dr.slot : dr.me === 0);
+  console.log('DRAFT board', okD ? 'OK' : 'MISMATCH', JSON.stringify(dr)); if (!okD) errors.push('DRAFT board ' + JSON.stringify(dr));
   await shot('05-draft-night');
   await page.click('text=Start my NBA career');
   const trainLoop = async () => {

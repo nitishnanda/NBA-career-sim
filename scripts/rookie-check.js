@@ -5,7 +5,7 @@ for (let i = 0; i < +(process.env.N || 240); i++) {
   const arch = ARCH[i % 6], stars = 3 + (i % 3);
   const st = G.newCareer({ name: 'x', pos: ['SF', 'PG', 'C', 'PF', 'SG'][i % 5], arch, home: 'Ohio', seed: 5100 + i, stars });
   const o = G.collegeOptions(st); G.chooseCollege(st, o[0].id); let guard = 0;
-  while (st.stage !== 'pro_ready' && guard++ < 20) { if (st.stage === 'college_ready') G.playCollege(st); else if (st.stage === 'college_decision') G.declare(st); else if (st.stage === 'draft_night') G.startPro(st); else if (st.stage === 'training') { G.train(st, G.autoAlloc(st.player, G.trainingInfo(st).points)); } else break; }
+  while (st.stage !== 'pro_ready' && guard++ < 20) { if (st.stage === 'college_ready') G.playCollege(st); else if (st.stage === 'college_decision') G.declare(st); else if (st.stage === 'combine') G.enterDraft(st); else if (st.stage === 'draft_night') G.startPro(st); else if (st.stage === 'training') { G.train(st, G.autoAlloc(st.player, G.trainingInfo(st).points)); } else break; }
   if (st.stage !== 'pro_ready') continue;
   const rec = G.playSeason(st); if (rec.gp >= 50) out.push({ arch, ppg: rec.pts, slot: st.draft && st.draft.slot, gp: rec.gp });
 }

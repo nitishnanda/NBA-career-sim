@@ -4,7 +4,7 @@ const G = N.Game; const avg = a => a.reduce((s, x) => s + x, 0) / a.length;
 const d1 = [], d2 = [], tops = [];
 for (let i = 0; i < 60; i++) {
   const st = G.newCareer({ name: 'R', pos: 'SF', arch: ['generational', 'scorer', 'dominator'][i % 3], home: 'Ohio', seed: 200 + i, stars: 5, ceiling: 85 + (i % 10) });
-  const c = G.collegeOptions(st)[0]; G.chooseCollege(st, c.id); G.playCollege(st); G.declare(st);
+  const c = G.collegeOptions(st)[0]; G.chooseCollege(st, c.id); G.playCollege(st); G.declare(st); G.enterDraft(st);
   const before = st.league.teams[st.teamId].wins; G.startPro(st); G.train(st, G.autoAlloc(st.player, 9));
   G.playSeason(st); const w1 = st.proSeasons[0].wins; G.decide(st, 'stay'); G.train(st, G.autoAlloc(st.player, 9)); G.playSeason(st); const w2 = st.proSeasons[1].wins;
   d1.push(w1 - before); d2.push(w2 - before); if (w1 >= 50 && before <= 32) tops.push(before + '->' + w1);

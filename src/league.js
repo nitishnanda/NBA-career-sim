@@ -441,6 +441,53 @@
     return first.concat(second);
   }
 
+  // ------------------------------------------------------------ draft combine
+  // Every prospect is measured (barefoot height, weight, wingspan, standing reach) and can be put through the athletic tests (standing and max vertical, lane agility,
+  // 3/4-court sprint, shuttle, bench press). Numbers come from the real combine tables (NBA.COMBINE, src/combine.js, scripts/real-combine.py): each test is the prospect's
+  // athleticism rating on the real test's scale for his position, with the real structure (the tests share one athleticism factor: loadings .70 vertical, .69 sprint, .44
+  // agility; heavier and taller prospects test slower) and noise. Scouts read the combine: its result moves a prospect's draft stock (the bonus below), it never changes his
+  // ratings. Real draft position vs combine, within a position (1,534 prospects): per +1 sd, log(pick) -0.15 height, -0.08 wingspan, -0.06 weight, and -0.15 for the average
+  // of the vertical / sprint / agility z-scores (~10 stock points per unit of log(pick) in this sim); size already shapes ratings here, so the size terms are 60% of the real ones.
+  const ATH_POS = { PG: [54.9, 13.0], SG: [56.5, 13.4], SF: [61.8, 12.0], PF: [62.6, 11.7], C: [57.7, 11.6] };   // prospects' athleticism rating by position: mean, sd
+  const CB_K = { ath: 1.5, hgt: 0.9, len: 0.5, wgt: 0.35, skip: -0.8 };   // stock points per +1 sd (athletic composite, height, wingspan beyond height, weight for his height); skipping the tests
+  const CB_SD = 1.3;   // sd of the combine bonus across a class (measured), so mock-draft ranges carry the same spread
+  const mulberry = (seed) => { let a = seed | 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+  const hashOf = (v) => { const t = String(v); let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return h | 0; };
+  const phi = (z) => 0.5 * (1 + Math.tanh(0.7978845608 * (z + 0.044715 * z * z * z)));
+  function combineFor(p, o) {
+    o = o || {}; const C = NBA.COMBINE; if (!C || p.ht == null) return null;
+    const rnd = mulberry(hashOf(p.id + '|' + p.name + '|' + (o.year || 0)) ^ 0x2c1b3c6d), gauss = () => { let u = 0, v = 0; while (u === 0) u = rnd(); v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };   // its own random stream: the league's never moves
+    const T0 = C.tab[p.pos] || C.tab.SF, ap = ATH_POS[p.pos] || [58.5, 12.7], sz = NBA.sizeZ(p), ws0 = p.ws != null ? p.ws : p.ht + (D.SIZE[p.pos] || D.SIZE.SF).arm;
+    const q4 = (x) => Math.round(x * 4) / 4;
+    const hb = q4(p.ht - 0.87 + 0.2 * gauss()), wt = Math.round(p.wt + (T0.wgt.m - (D.SIZE[p.pos] || D.SIZE.SF).wt) + 3 * gauss()), ws = q4(ws0 + 0.2 * gauss());
+    const reach = Math.round((C.reach.a + C.reach.h * hb + C.reach.w * ws + C.reach.sd * gauss()) * 2) / 2;
+    const athz = clamp((p.attrs.ath - ap[0]) / ap[1], -3, 3), zt = (k, load, extra) => 0.85 * load * athz + C.eff[k].hgt * sz.h + C.eff[k].wgt * sz.w + Math.sqrt(Math.max(0.05, 1 - load * load)) * gauss() + (extra || 0);
+    const zV = zt('vert', C.load.vert), zSp = zt('sprint', C.load.sprint), zL = zt('lane', C.load.lane), zSh = zt('shuttle', C.load.shuttle), zB = 0.45 * sz.w + 0.25 * athz + 0.85 * gauss();
+    const tests = { stv: T0.stv.m + T0.stv.sd * (0.93 * zV + 0.37 * gauss()), mxv: T0.mxv.m + T0.mxv.sd * zV, lane: T0.lane.m - T0.lane.sd * zL, sprint: T0.sprint.m - T0.sprint.sd * zSp, shuttle: T0.shuttle.m - T0.shuttle.sd * zSh, bench: Math.max(0, Math.round(T0.bench.m + T0.bench.sd * zB)) };
+    const r1 = (x, d) => Math.round(x * d) / d; tests.stv = r1(tests.stv, 2); tests.mxv = r1(tests.mxv, 2); tests.lane = r1(tests.lane, 100); tests.sprint = r1(tests.sprint, 100); tests.shuttle = r1(tests.shuttle, 100);
+    const cz = (zV + zSp + zL) / 3, z = { vert: zV, sprint: zSp, lane: zL, shuttle: zSh, bench: zB };
+    const pct = (v, t) => Math.round(100 * phi((v - t.m) / t.sd)), pc = { hgt: pct(hb, T0.hgt), wgt: pct(wt, T0.wgt), ws: pct(ws, T0.ws), reach: pct(reach, T0.reach), vert: Math.round(100 * phi(zV)), sprint: Math.round(100 * phi(zSp)), lane: Math.round(100 * phi(zL)), shuttle: Math.round(100 * phi(zSh)), bench: Math.round(100 * phi(zB)) };
+    const parts = { ath: o.test ? CB_K.ath * cz : CB_K.skip, hgt: CB_K.hgt * sz.h, len: CB_K.len * sz.l, wgt: CB_K.wgt * sz.w };
+    return { year: o.year || 0, hb, wt, ws, reach, tested: !!o.test, tests: o.test ? tests : null, z: o.test ? z : null, pct: pc, cz: o.test ? cz : null, parts, bonus: parts.ath + parts.hgt + parts.len + parts.wgt };
+  }
+  // the real prospect whose measurements are closest (same position or one next to it): height, weight, wingspan and, when both were tested, jump and speed
+  function combineComp(p, cb) {
+    const C = NBA.COMBINE; if (!C || !cb) return null; const order = ['PG', 'SG', 'SF', 'PF', 'C'], pi = order.indexOf(p.pos), T0 = C.tab[p.pos] || C.tab.SF;
+    let best = null, bd = Infinity;
+    C.comps.forEach((c) => { const ci = order.indexOf(c[1]); if (Math.abs(ci - pi) > 1) return;
+      let d = ((c[2] - cb.hb) / 1.2) ** 2 + ((c[3] - cb.wt) / 12) ** 2 + ((c[4] - cb.ws) / 1.5) ** 2 + 2 * (ci - pi) ** 2;
+      if (cb.tests && c[5] != null && c[6] != null) d += ((c[5] - cb.tests.mxv) / 3.2) ** 2 + ((c[6] - cb.tests.sprint) / 0.11) ** 2;
+      if (d < bd) { bd = d; best = c; } });
+    return best ? { name: best[0], pos: best[1], hgt: best[2], wgt: best[3], ws: best[4], year: best[8] } : null;
+  }
+  const INTL = ['Spain', 'France', 'Australia', 'Serbia', 'Germany', 'Lithuania', 'Canada', 'Turkey', 'Greece', 'Brazil', 'Nigeria', 'Slovenia', 'Italy', 'Croatia', 'Japan', 'G League Ignite', 'NBL Next Stars', 'Overtime Elite'];
+  function schoolFor(p, q, intl) {   // cosmetic: where he played (big programs for the best recruits), on its own stream
+    const r = mulberry(hashOf(p.id + '|from') ^ 0x51ed27), list = D.COLLEGES;
+    if (intl) return INTL[Math.floor(r() * INTL.length)];
+    const pr = clamp(Math.round(5 - 3.4 * q + 0.9 * (r() + r() + r() - 1.5) * 2), 1, 5), pool = list.filter((c) => c.prestige === pr);
+    return (pool.length ? pool : list)[Math.floor(r() * (pool.length || list.length))].name;
+  }
+
   function makeProspect(L, age, ceil0) {
     const ceiling = ceil0 != null ? ceil0 : rollCeiling(0, null);
     const arch = randomArch(ceiling);
@@ -453,7 +500,7 @@
     // scouts only see the true ceiling in proportion to how visible the prospect is (recruit tier); an under-scouted talent is judged on what they look like now
     const vis = p.vis == null ? 1 : p.vis, o = ovr(p) - 7 * (1 - vis), seen = vis * p.ceiling + (1 - vis) * 76;
     const est = seen + randn() * (9 + 10 * (1 - vis)) + (rand() < 0.12 ? randn() * 16 : 0);
-    return 0.5 * o + 0.5 * est - 1.4 * (p.age - 19) + (bonus || 0) + randn() * 5;
+    return 0.5 * o + 0.5 * est - 1.4 * (p.age - 19) + (bonus || 0) + (p.cmb ? p.cmb.bonus : 0) + randn() * 5;
   }
   function projectStock(p) { // deterministic version for mock draft
     return 0.5 * ovr(p) + 0.5 * p.ceiling - 1.4 * (p.age - 19);
@@ -476,10 +523,10 @@
       const q = (i + 0.5) / nCol; let acc = 0, tier = RECRUIT_TIERS[RECRUIT_TIERS.length - 1];
       for (const t of RECRUIT_TIERS) { acc += t[0]; if (q <= acc / 1.0) { tier = t; break; } }
       const yr = +weighted({ 0: tier[1][0], 1: tier[1][1], 2: tier[1][2], 3: tier[1][3] });
-      const p = makeProspect(L, 19 + yr, c); p.stock = stockOf(p); out.push(p);
+      const p = makeProspect(L, 19 + yr, c); p.cmb = combineFor(p, { test: true, year: L.year }); p.from = schoolFor(p, q, false); p.stock = stockOf(p); out.push(p);
     });
     for (let i = 0; i < nInt; i++) {
-      const p = makeProspect(L, +weighted({ 19: 45, 20: 30, 21: 18, 22: 7 })); p.stock = stockOf(p); out.push(p);
+      const p = makeProspect(L, +weighted({ 19: 45, 20: 30, 21: 18, 22: 7 })); p.cmb = combineFor(p, { test: true, year: L.year }); p.from = schoolFor(p, 0.5, true); p.stock = stockOf(p); out.push(p);
     }
     return out;
   }
@@ -508,28 +555,37 @@
     const picks = [];
     all.forEach((p, i) => { if (p !== user && i < 60) picks.push({ p, slot: i + 1 }); });
     addRookies(L, picks, order);
-    const board = all.slice(0, 30).map((p, i) => ({ slot: i + 1, name: p === user ? user.name : p.name, pos: p.pos, age: p.age, team: order[i] ? order[i].name : '', isUser: p === user, ovr: Math.round(ovr(p)) }));
-    return { slot: slot > 60 ? null : slot, team: slot > 60 ? null : order[slot - 1], board, order, classSize: all.length };
+    // the board: all 60 picks with who, where from, how big, how he tested, and where the pre-draft ranking (by talent and age alone, before the scouts' noise and the combine) had him
+    const proj = all.slice().sort((x, y) => (projectStock(y) + (y === user ? bonus || 0 : 0)) - (projectStock(x) + (x === user ? bonus || 0 : 0))), mockRank = new Map(proj.map((q, i) => [q, i + 1]));
+    const board = all.slice(0, 60).map((p, i) => ({ slot: i + 1, name: p.name, pos: p.pos, age: p.age, team: order[i] ? order[i].name : '', nick: order[i] ? order[i].nick : '', teamRec: order[i] ? order[i].wins + '-' + order[i].losses : '', isUser: p === user, ovr: Math.round(ovr(p)), from: p.from || '', ht: p.ht, wt: p.wt, ws: p.ws, mockRank: mockRank.get(p), cz: p.cmb && p.cmb.cz != null ? Math.round(100 * p.cmb.cz) / 100 : null, bonus: p.cmb ? Math.round(10 * p.cmb.bonus) / 10 : 0 }));
+    return { slot: slot > 60 ? null : slot, team: slot > 60 ? null : order[slot - 1], board, order, classSize: all.length, mockRank: mockRank.get(user) };
   }
-  function mockRange(L, user, bonus) {
+  function mockRange(L, user, bonus, n) {
     // rough projection: run a few class simulations
     // cheap approximation of the class (no full player objects) so this stays fast
     const rem = { 19: 0.7, 20: 0.49, 21: 0.35, 22: 0.26 };
     const ranks = [];
-    for (let k = 0; k < 16; k++) {
+    const K = n || 16;
+    for (let k = 0; k < K; k++) {
       const s = stockOf(user, bonus);
       let better = 0;
       for (let i = 0; i < 72; i++) {
         const age = +weighted({ 19: 46, 20: 26, 21: 16, 22: 12 });
         const c = rollCeiling(0, null);
         const o = c - (10 + 12 * rand()) * rem[age];
-        const st = 0.5 * o + 0.5 * (c + randn() * 9) - 1.4 * (age - 19) + randn() * 5;
+        const st = 0.5 * o + 0.5 * (c + randn() * 9) - 1.4 * (age - 19) + randn() * 5 + randn() * CB_SD;
         if (st > s) better++;
       }
       ranks.push(1 + better);
     }
     ranks.sort((a, b) => a - b);
-    return { lo: ranks[2], mid: ranks[8], hi: ranks[13] };
+    return { lo: ranks[Math.round(0.14 * (K - 1))], mid: ranks[Math.round(0.5 * (K - 1))], hi: ranks[Math.round(0.86 * (K - 1))] };
+  }
+  // the same projection drawn from a fixed seed, so two projections of one player (with and without the combine, tested or skipped) face the same classes and the same scouting noise:
+  // the difference is the combine's alone. The league's own random stream is put back afterwards.
+  function mockSeeded(L, user, bonus, seed, cmb) {
+    const sv = NBA.rngGet(), keep = user.cmb; user.cmb = cmb || null; NBA.setSeed(seed);
+    const r = mockRange(L, user, bonus, 40); NBA.rngSet(sv); user.cmb = keep; return r;
   }
 
   function settleRookies(L) {
@@ -588,6 +644,6 @@
     return { n90: o.filter((x) => x >= 90).length, n85: o.filter((x) => x >= 85).length, n80: o.filter((x) => x >= 80).length, mean: sum(o) / o.length, top: o.slice(0, 6).map((x) => Math.round(x)) };
   }
 
-  Object.assign(NBA, { recruitYears, rosterOf, swapPlayers, seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, makeReal, userDraft, npcDraft, draftClass, makeProspect, retireP, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
+  Object.assign(NBA, { recruitYears, rosterOf, swapPlayers, seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, makeReal, userDraft, npcDraft, draftClass, mockSeeded, ATH_POS, combineFor, combineComp, CB_K, makeProspect, retireP, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

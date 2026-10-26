@@ -586,3 +586,28 @@ only): the combine file does not cover most of them and their wingspans are not 
   4+ MVPs 13% (14%); star wins (2 seeds) 55.9 / 51.0 / 47.7 / 44.0 (55.1 / 51.5 / 49.2 / 43.8). Desktop and phone UI tests pass.
 - Checks with the combine-fitted wingspan: realism 89% (v38 90%; noise +-1), gen MVPs 1.73 per gen over 900 picks (real 1.86; runs vary +-0.2, size off gave 1.80 on a
   previous run), desktop and phone UI tests pass (5/5 random rolls reach the player).
+
+## v39: the draft combine, scouting, and a new draft night
+
+Data: the Kaggle NBA draft combine file (2000-2026, 1,748 prospects: barefoot height, weight, wingspan, standing reach, standing and max vertical, lane agility,
+3/4-court sprint, shuttle, bench press), summarised by scripts/real-combine.py into src/combine.js (per-position tables, how the tests relate, a pool of 563 real
+players with 4+ NBA seasons for measurables comps). Before this a declaring player went straight to a ticker of 30 names; now: declare -> combine -> draft night.
+- Every prospect (the other 72 in the class and you) gets a combine (`combineFor`, league.js): barefoot height (listed - 0.87 in), weight, wingspan, standing reach
+  (real regression on height and wingspan, sd 1.5), and, when tested, max / standing vertical, lane agility, sprint, shuttle and bench. Each test is the prospect's
+  athleticism rating on the real test's scale for his position, with the real structure: the tests share one factor (loadings .70 vertical, .69 sprint, .44 agility,
+  scaled by 0.85 because the real ones already include shared size effects), heavier and taller prospects test slower (real: -0.15 sd per sd of weight, -0.10 to -0.16
+  per sd of height), plus noise. Check over 5,760 simulated prospects vs the real tables: position means and sds within 1-3% (e.g. C max vertical 31.8 / 31.7 in, sprint
+  3.38 / 3.38 s, PG weight 187.2 / 187.4 lb); tests correlate .54 / .45 / .46 (vertical-sprint / vertical-lane / sprint-lane) against .48 / .31 / .30 real, a bit high.
+  Drawn from its own seeded stream (by player, name and year), so the league's random stream never moves and the same player always measures the same.
+- Scouting: the combine moves draft stock, never ratings. Real draft position within a position (1,534 prospects): per +1 sd, log(pick) -0.15 height, -0.08 wingspan,
+  -0.06 weight, and -0.15 per unit of the athletic z-score average; about 10 stock points per unit of log(pick) in this sim, so stock bonus = 1.5 x athletic composite
+  + 0.9 height + 0.5 length + 0.35 frame (size terms 60% of the real ones: size already shapes ratings here); skipping the tests drops the athletic term and costs 0.8.
+  Class combine bonus: sd 1.3 stock points, correlated .36 with ovr; a measured combine moves a typical first-round pick ~1.2 slots, a big miss or an elite
+  tester 5-10. Testing vs skipping the same player against the same class: below-average athletes lose ~1.6 draft slots by testing, above-average ones gain ~1.0,
+  average ones ~0.5 (57% are better off testing).
+- Mock drafts: the projection before and after the combine (and after the other choice) is drawn from one seed (`mockSeeded`, 40 simulated classes), so the shown
+  stock movement is the combine's alone, not resampling noise. Mock range quantiles are unchanged (14th / 50th / 86th percentile of the ranks).
+- Draft night: all 60 picks (two rounds) with team logo, school (colleges for the college prospects, clubs and countries for internationals; cosmetic, own stream),
+  age, height and wingspan, a steal / reach tag when a pick lands 12+ spots after / before his talent-only rank, your pick with a suspense beat, skip-to-my-pick and
+  reveal-all, your road to the draft (mocks, combine, where you went), landing spot (record, core players, where your overall ranks on the roster) and class notes.
+- Fixes along the way: older helper scripts that called `declare` now call `enterDraft` as well; boards saved before v39 (30 picks, no logos) are filled in on load.

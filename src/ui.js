@@ -185,26 +185,103 @@
       h('div', { class: 'card' }, h('h2', null, 'College stats'), collegeTable()));
   }
 
-  function screenDraft() {
-    const d = S.draft;
-    const board = d.board.slice();
-    const host = h('div', { class: 'card' });
-    const list = h('div'); const footer = h('div');
-    host.append(h('h2', null, d.year + ' NBA Draft · Night of'), h('p', { class: 'muted' }, S.player.name + ' · ' + d.college), list, footer);
-    const finish = () => {
-      footer.replaceChildren(h('div', { class: 'callout reveal' }, d.slot ? h('div', null, h('div', { class: 'big' }, '#' + d.slot + ' pick'), h('p', null, 'With the ' + ord(d.slot) + ' pick in the ' + d.year + ' NBA Draft, the ' + d.team + ' select ', h('b', null, S.player.name), ' of ' + d.college + '.')) : h('div', null, h('div', { class: 'big' }, 'Undrafted'), h('p', null, 'Your name was never called. You signed a minimum deal with the ' + d.team + ' right after the draft. Prove them wrong.')),
-        h('p', null, 'Rookie contract: ' + money(S.contract.salary) + ' × ' + S.contract.years + ' years'), h('button', { class: 'primary', onclick: () => { G.startPro(S); alloc = {}; go(); } }, 'Start my NBA career →')));
-    };
-    const limit = d.slot ? Math.min(d.slot, board.length) : board.length;
-    if (S.draftSeen) { board.slice(0, limit).forEach((r) => list.append(tick(r))); finish(); } else {
-      let i = 0;
-      const t = setInterval(() => {
-        const r = board[i]; list.append(tick(r)); i++;
-        if (i >= limit) { clearInterval(t); S.draftSeen = true; save(); setTimeout(finish, 700); }
-      }, d.slot && d.slot <= 5 ? 700 : 220);
+  // ------------------------------------------------------------ draft combine and draft night
+  const ftIn = (x) => { const f = Math.floor(x / 12), r = Math.round((x - 12 * f) * 4) / 4; return f + "'" + String(r).replace(/\.0$/, '') + '"'; };
+  const tierOf = (pc) => (pc >= 90 ? ['Elite', 'p-elite'] : pc >= 70 ? ['Above average', 'p-good'] : pc >= 30 ? ['Average', 'p-mid'] : pc >= 10 ? ['Below average', 'p-low'] : ['Poor', 'p-poor']);
+  const pbar = (pc) => { const t = tierOf(pc); return h('div', { class: 'pbarw' }, h('div', { class: 'pbar' }, h('i', { class: t[1], style: 'width:' + Math.max(3, pc) + '%' })), h('span', { class: 'ptag ' + t[1] }, t[0] + ' · ' + ord(pc))); };
+  const mockTxt = (m) => (!m ? '–' : m.lo > 60 ? 'Undrafted risk' : '#' + m.lo + ' – #' + Math.min(60, m.hi) + ' (about #' + Math.min(60, m.mid) + ')');
+
+  function screenCombine() {
+    const p = S.player, cb = p.cmb, c = S.combine;
+    if (!cb || !c) { G.enterDraft(S); save(); return screenDraft(); }   // a save from before the combine existed
+    const pos = D.SIZE[p.pos] ? p.pos : 'SF', T = NBA.COMBINE.tab[pos], ap = NBA.ATH_POS[pos] || [58.5, 12.7], athz = (p.attrs.ath - ap[0]) / ap[1];
+    const tile = (lbl, val, pc, sub) => h('div', { class: 'ctile' }, h('div', { class: 'ctl' }, lbl), h('div', { class: 'ctv' }, val), pc != null ? pbar(pc) : null, sub ? h('div', { class: 'small muted' }, sub) : null);
+    const meas = h('div', { class: 'ctiles' }, tile('Height (no shoes)', ftIn(cb.hb), cb.pct.hgt, 'vs. ' + pos + 's at the combine'), tile('Weight', cb.wt + ' lb', cb.pct.wgt), tile('Wingspan', ftIn(cb.ws), cb.pct.ws, (cb.ws - cb.hb >= 0 ? '+' : '') + (Math.round((cb.ws - cb.hb) * 4) / 4) + '" over his height'), tile('Standing reach', ftIn(cb.reach), cb.pct.reach));
+    const cards = [h('h1', null, 'NBA Draft Combine'), h('p', { class: 'muted' }, c.year + ' · Chicago · every team in the building. ' + S.player.name + ' · ' + p.pos + ' · ' + S.college.name), h('div', { class: 'card' }, h('h2', null, 'Measurements'), meas)];
+    if (!c.done) {
+      const hint = athz >= 0.7 ? 'You are one of the more explosive ' + pos + 's out there. The tests should help you.' : athz <= -0.7 ? 'Your athleticism is below average for a ' + pos + '. The tests could cost you, though skipping costs a little too.' : 'Your athleticism is about average for a ' + pos + ': testing is close to a coin flip.';
+      cards.push(h('div', { class: 'card' }, h('h2', null, 'Athletic testing'), h('p', null, 'Vertical leap, lane agility, three-quarter-court sprint, shuttle run and the bench press. Scouts read them against every other ' + pos + ' in the gym. Skip them and they only have your measurements and the tape, and a skip always raises an eyebrow.'),
+        h('p', { class: 'small muted' }, h('b', null, 'Your read: '), hint, ' Testing never changes your ratings, only what scouts think of you.'),
+        h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { G.runCombine(S, true); save(); render(); window.scrollTo(0, 0); } }, '🏃 Take all the tests'), h('button', { onclick: () => { G.runCombine(S, false); save(); render(); window.scrollTo(0, 0); } }, '🧤 Skip: measurements only'))));
+    } else {
+      if (c.test) {
+        const t = cb.tests, row = (lbl, val, pc) => h('div', { class: 'trow' }, h('span', { class: 'tl' }, lbl), h('b', { class: 'tv' }, val), pbar(pc));
+        cards.push(h('div', { class: 'card' }, h('h2', null, 'Athletic testing'), row('Max vertical', t.mxv + '"', cb.pct.vert), row('Standing vertical', t.stv + '"', cb.pct.vert), row('Lane agility', t.lane.toFixed(2) + ' s', cb.pct.lane), row('3/4-court sprint', t.sprint.toFixed(2) + ' s', cb.pct.sprint), row('Shuttle run', t.shuttle.toFixed(2) + ' s', cb.pct.shuttle), row('Bench press (185 lb)', t.bench + ' reps', cb.pct.bench),
+          h('p', { class: 'small muted', style: 'margin-top:10px' }, 'Percentiles against the real combine classes, 2000 to 2026, for ' + pos + 's.')));
+      } else cards.push(h('div', { class: 'card' }, h('h2', null, 'Athletic testing'), h('p', null, 'You skipped it. Scouts have your measurements and your tape, and the question marks are on you.')));
+      const mv = c.pre && c.post ? c.pre.mid - c.post.mid : 0, mvTxt = mv >= 2 ? '▲ stock up about ' + mv + ' spots' : mv <= -2 ? '▼ stock down about ' + -mv + ' spots' : '▬ stock about the same', altBetter = c.alt ? c.post.mid - c.alt.mid : 0;
+      const chips = []; const P = cb.parts; const chip = (lbl, v) => { if (Math.abs(v) >= 0.2) chips.push(h('span', { class: 'pill ' + (v > 0 ? 'good' : 'bad') }, lbl + ' ' + (v > 0 ? '+' : '') + v.toFixed(1))); };
+      if (c.test) chip('Athletic testing', P.ath); else chip('Skipped the testing', P.ath); chip('Height', P.hgt); chip('Length', P.len); chip('Frame', P.wgt);
+      cards.push(h('div', { class: 'card' }, h('h2', null, "Scouts' report"),
+        h('div', { class: 'kv' }, h('span', null, 'Before the combine'), h('b', null, mockTxt(c.pre))), h('div', { class: 'kv' }, h('span', null, 'After the combine'), h('b', null, mockTxt(c.post))),
+        h('p', { class: 'stockmove ' + (mv >= 2 ? 'up' : mv <= -2 ? 'down' : '') }, mvTxt), h('div', { style: 'margin:6px 0' }, chips.length ? chips : h('span', { class: 'muted small' }, 'Nothing about your numbers stood out.')),
+        c.alt && Math.abs(altBetter) >= 2 ? h('p', { class: 'small muted' }, (c.test ? 'Skipping the tests' : 'Taking the tests') + ' would have projected you about ' + Math.abs(altBetter) + (altBetter > 0 ? ' spots higher.' : ' spots lower.')) : null,
+        c.comp ? h('p', { class: 'small' }, h('b', null, 'Measurables comp: '), c.comp.name + ' (' + c.comp.year + ' combine: ' + ftIn(c.comp.hgt) + ', ' + c.comp.wgt + ' lb, ' + ftIn(c.comp.ws) + ' wingspan)') : null,
+        h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { G.enterDraft(S); go(); } }, 'Head to the draft →'))));
     }
+    return h('div', null, cards);
+  }
+
+  let draftTimer = null;
+  function screenDraft() {
+    if (draftTimer) { clearTimeout(draftTimer); draftTimer = null; }
+    const d = S.draft, board = d.board, L = S.league, p = S.player, N = board.length, mine = board.findIndex((r) => r.isUser);   // mine: -1 when undrafted
+    board.forEach((r) => { if (!r.nick) r.nick = (r.team || '').split(' ').slice(-1)[0]; if (r.mockRank == null) r.mockRank = r.slot; });   // boards saved before v39 had 30 picks and no pre-draft rank
+    const tag = (r) => { const dl = r.slot - r.mockRank; return dl >= 12 ? ['▲ Steal', 'good'] : dl <= -12 ? ['▼ Reach', 'bad'] : r.slot <= 3 ? ['Franchise pick', 'gold'] : null; };   // taken 12+ spots later / earlier than his talent-only rank
+    const chipOf = (r) => ftIn(r.ht) + (r.ws ? ' · ' + ftIn(r.ws) + ' WS' : '');
+    const prow = (r) => { const t = tag(r); return h('div', { class: 'prow reveal' + (r.isUser ? ' me' : '') + (r.slot <= 5 ? ' top' : '') }, h('span', { class: 'pn' }, r.slot), logo(r.nick, 30),
+      h('div', { class: 'pmain' }, h('b', null, r.isUser ? '⭐ ' + r.name : r.name), h('div', { class: 'small muted' }, r.pos + ' · ' + r.age + ' · ' + (r.from || '—'))), h('div', { class: 'pside' }, h('span', { class: 'small' }, r.nick), h('span', { class: 'small muted' }, chipOf(r))), t ? h('span', { class: 'pill ' + t[1] }, t[0]) : null); };
+    const r1 = h('div', { class: 'pround' }, h('div', { class: 'rhead' }, 'Round 1')), r2 = h('div', { class: 'pround' }, h('div', { class: 'rhead' }, 'Round 2'));
+    const clock = h('div', { class: 'onclock well' }), controls = h('div', { class: 'row dctl' }), wrap = h('div'), prog = h('div', { class: 'bar2' }, h('i', { style: 'width:0%' }));
+    const pickLine = (r) => h('div', null, h('div', { class: 'cap2' }, 'Pick ' + r.slot + ' · ' + (r.slot <= 30 ? 'Round 1' : 'Round 2')), h('div', { class: 'clk' }, logo(r.nick, 56), h('div', null, h('div', { class: 'small muted' }, 'With the ' + ord(r.slot) + ' pick, the ' + r.team + ' select'), h('div', { class: 'clkname' }, r.isUser ? '⭐ ' + r.name : r.name), h('div', { class: 'small muted' }, r.pos + ' · ' + r.age + ' · ' + (r.from || '—') + ' · ' + chipOf(r)))));
+    // --- your road to the draft (always on screen) and the wrap-up once you are picked
+    const c = S.combine || {}, cb = p.cmb;
+    const ruler = (marks) => {
+      const x = (v) => 6 + 88 * (Math.min(60, Math.max(1, v)) - 1) / 59, ms = marks.filter((m) => m.v != null), merged = [];
+      ms.forEach((m) => { const same = merged.find((q) => !q.big && !m.big && Math.abs(q.v - m.v) < 3); if (same) same.t += ' · ' + m.t; else merged.push(Object.assign({}, m)); });
+      return h('div', { html: '<svg viewBox="0 0 100 34" class="ruler"><line x1="6" y1="14" x2="94" y2="14" stroke="rgba(255,255,255,.25)" stroke-width="1"/>' + [1, 10, 20, 30, 40, 50, 60].map((t) => '<text x="' + x(t) + '" y="32" font-size="4" text-anchor="middle" fill="rgba(255,255,255,.45)">' + t + '</text>').join('')
+        + merged.map((m) => '<circle cx="' + x(m.v) + '" cy="14" r="' + (m.big ? 4.2 : 2.6) + '" fill="' + m.c + '"/><text x="' + Math.min(88, Math.max(12, x(m.v))) + '" y="' + (m.big ? 6 : 24) + '" font-size="3.8" text-anchor="middle" fill="' + m.c + '">' + m.t + '</text>').join('') + '</svg>' });
+    };
+    const story = h('section', { class: 'card' }, h('h2', null, 'Your road to the draft'),
+      h('div', { class: 'kv' }, h('span', null, 'College'), h('b', null, S.college.name)), h('div', { class: 'kv' }, h('span', null, 'Before the combine'), h('b', null, mockTxt(d.pre))),
+      h('div', { class: 'kv' }, h('span', null, 'Combine'), h('b', null, d.tested ? 'Tested' + (cb && cb.bonus >= 0.5 ? ' · buzz up' : cb && cb.bonus <= -0.5 ? ' · buzz down' : '') : 'Skipped the tests')), h('div', { class: 'kv' }, h('span', null, 'Final mock'), h('b', null, mockTxt(d.post))),
+      cb ? h('div', { class: 'kv' }, h('span', null, 'Measurables'), h('b', null, ftIn(cb.hb) + ' · ' + cb.wt + ' lb · ' + ftIn(cb.ws) + ' WS')) : null, h('div', { class: 'rulerwrap' }, h('div', { class: 'small muted' }, 'Where you were projected, and where you went'), ruler([{ v: d.pre && d.pre.mid, c: 'rgba(255,255,255,.55)', t: 'mock' }, { v: d.post && d.post.mid, c: '#9ecbff', t: 'final mock' }, { v: d.slot || null, c: '#ffd166', t: '#' + d.slot, big: true }])));
+    const rest = h('div', { class: 'dside' }, story, wrap);
+    const host = h('div', { class: 'dgrid' }, h('div', { class: 'dleft' }, h('section', { class: 'card dhead' }, h('h2', null, d.year + ' NBA Draft'), h('div', { class: 'cap2' }, 'Barclays Center, Brooklyn · night of · ' + S.player.name), prog, clock, controls), r1, r2), rest);
+    // --- the reveal
+    let idx = 0, shown = false, auto = true, wrapped = false, suspense = false;
+    const setProg = () => { prog.firstChild.style.width = Math.round(100 * idx / N) + '%'; };
+    const showWrap = () => {
+      if (wrapped) return; wrapped = true;
+      const t = L.teams[d.teamId], ros = NBA.rosterOf(L, t).slice(0, 3), myOvr = Math.round(NBA.ovr(p)), rank = 1 + NBA.rosterOf(L, t).filter((q) => NBA.ovr(q) > NBA.ovr(p)).length;
+      const dl = d.slot ? (d.post ? d.post.mid : d.slot) - d.slot : 0;
+      const verdict = !d.slot ? 'Your name was never called.' : dl >= 6 ? 'You went about ' + dl + ' spots higher than the final mock drafts had you.' : dl <= -6 ? 'You slid about ' + -dl + ' spots below the final mock drafts.' : 'Right where the final mock drafts had you.';
+      const tops = board.slice(0, 5), steal = board.filter((r) => !r.isUser).slice().sort((a, b) => (b.slot - b.mockRank) - (a.slot - a.mockRank))[0], reach = board.filter((r) => !r.isUser).slice().sort((a, b) => (a.slot - a.mockRank) - (b.slot - b.mockRank))[0];
+      wrap.replaceChildren(
+        h('section', { class: 'card callout reveal' }, d.slot ? h('div', null, h('div', { class: 'big' }, '#' + d.slot + ' pick'), h('p', null, 'With the ' + ord(d.slot) + ' pick in the ' + d.year + ' NBA Draft, the ' + d.team + ' select ', h('b', null, S.player.name), ' of ' + d.college + '.'), h('p', { class: 'muted small' }, verdict)) : h('div', null, h('div', { class: 'big' }, 'Undrafted'), h('p', null, 'Your name was never called. You signed a minimum deal with the ' + d.team + ' right after the draft. Prove them wrong.'), h('p', { class: 'muted small' }, verdict)),
+          h('p', null, 'Rookie contract: ' + money(S.contract.salary) + ' × ' + S.contract.years + ' years'), h('button', { class: 'primary', onclick: () => { G.startPro(S); alloc = {}; go(); } }, 'Start my NBA career →')),
+        h('section', { class: 'card' }, h('h2', null, 'Your landing spot'), h('div', { class: 'row' }, logo(t.nick, 44), h('div', null, h('b', null, t.name), h('div', { class: 'small muted' }, 'Last season ' + (d.teamRec || (t.wins + '-' + t.losses)) + ' · ' + (t.conf === 'W' ? 'West' : 'East')))),
+          h('div', { class: 'small', style: 'margin-top:8px' }, h('b', null, 'Core: '), ros.map((q) => q.name + ' (' + Math.round(NBA.ovr(q)) + ')').join(' · ')), h('div', { class: 'small muted' }, 'You arrive as a ' + myOvr + ' OVR, which would rank ' + ord(rank) + ' on the roster today.')),
+        h('section', { class: 'card' }, h('h2', null, 'Class notes'), h('div', { class: 'small' }, h('b', null, 'Top of the board: '), tops.map((r) => r.slot + '. ' + r.name + ' (' + r.nick + ')').join(' · ')),
+          steal && steal.slot - steal.mockRank >= 5 ? h('div', { class: 'small', style: 'margin-top:6px' }, h('b', null, 'Biggest steal: '), steal.name + ', ' + ord(steal.slot) + ' pick (ranked ' + ord(steal.mockRank) + ' by talent).') : null,
+          reach && reach.mockRank - reach.slot >= 5 ? h('div', { class: 'small', style: 'margin-top:6px' }, h('b', null, 'Biggest reach: '), reach.name + ', ' + ord(reach.slot) + ' pick (ranked ' + ord(reach.mockRank) + ' by talent).') : null));
+      story.querySelector('.rulerwrap').replaceChildren(h('div', { class: 'small muted' }, 'Where you were projected, and where you went'), ruler([{ v: d.pre && d.pre.mid, c: 'rgba(255,255,255,.55)', t: 'mock' }, { v: d.post && d.post.mid, c: '#9ecbff', t: 'final mock' }, { v: d.slot || null, c: '#ffd166', t: '#' + d.slot, big: true }]));
+    };
+    const reveal = (r) => { (r.slot <= 30 ? r1 : r2).append(prow(r)); clock.replaceChildren(pickLine(r)); idx++; setProg(); if (r.isUser) showWrap(); };
+    const finish = () => { auto = false; if (!S.draftSeen) { S.draftSeen = true; save(); } showWrap(); clock.replaceChildren(h('div', null, h('div', { class: 'cap2' }, 'Draft complete'), h('div', { class: 'small muted' }, N + ' picks in two rounds · ' + d.classSize + ' prospects'))); controls.replaceChildren(); };
+    const step = () => {
+      draftTimer = null; if (idx >= N) return finish();
+      const r = board[idx];
+      if (r.isUser && !suspense && !S.draftSeen) { suspense = true; clock.replaceChildren(h('div', { class: 'suspense' }, h('div', { class: 'cap2' }, 'Pick ' + r.slot), logo(r.nick, 56), h('div', { class: 'clkname' }, 'The ' + r.team + ' are on the clock'), h('div', { class: 'small muted' }, '📱 Your phone is ringing…'))); draftTimer = setTimeout(step, 2600); return; }
+      reveal(r); if (idx >= N) return finish();
+      if (auto) draftTimer = setTimeout(step, mine >= 0 && idx > mine ? 120 : r.slot <= 5 ? 750 : 210);
+    };
+    const toMine = () => { auto = false; if (draftTimer) clearTimeout(draftTimer); while (idx < N && !(board[idx].isUser)) { const r = board[idx]; (r.slot <= 30 ? r1 : r2).append(prow(r)); idx++; } setProg(); auto = true; suspense = false; step(); };
+    const all = () => { auto = false; if (draftTimer) { clearTimeout(draftTimer); draftTimer = null; } while (idx < N) { const r = board[idx]; (r.slot <= 30 ? r1 : r2).append(prow(r)); idx++; } setProg(); clock.replaceChildren(pickLine(board[N - 1])); finish(); };
+    controls.append(mine >= 0 ? h('button', { onclick: toMine }, 'Skip to my pick ▸') : null, h('button', { onclick: all }, 'Reveal the whole draft ⏭'));
+    if (S.draftSeen) { board.forEach((r) => (r.slot <= 30 ? r1 : r2).append(prow(Object.assign({}, r)))); idx = N; setProg(); clock.replaceChildren(h('div', { class: 'small muted' }, 'Draft complete')); controls.replaceChildren(); showWrap(); }
+    else { clock.replaceChildren(h('div', { class: 'small muted' }, 'The commissioner approaches the podium…')); draftTimer = setTimeout(step, 900); }
     return h('div', null, host);
-    function tick(r) { return h('div', { class: 'tick reveal' + (r.isUser ? ' me' : '') }, h('span', { class: 'n' }, '#' + r.slot), h('span', null, r.isUser ? '⭐ ' + r.name : r.name), h('span', { class: 'muted' }, r.pos + ' · ' + r.team)); }
   }
 
   function screenTraining() {
@@ -774,7 +851,7 @@
     if (view === 'team' && st !== 'create') { app.append(screenTeam()); return; }
     if (view === 'league' && st !== 'create') { app.append(screenLeague()); return; }
     if (view === 'career' && st !== 'create') { app.append(screenCareer()); return; }
-    const m = { scouting: screenScouting, college_pick: screenCollegePick, college_ready: screenCollegeReady, college_decision: screenCollegeDecision, draft_night: screenDraft, training: screenTraining, pro_ready: screenProReady, season_play: screenSeasonPlay, season_recap: screenRecap, decision: screenDecision, retired: screenRetired };
+    const m = { scouting: screenScouting, college_pick: screenCollegePick, college_ready: screenCollegeReady, college_decision: screenCollegeDecision, combine: screenCombine, draft_night: screenDraft, training: screenTraining, pro_ready: screenProReady, season_play: screenSeasonPlay, season_recap: screenRecap, decision: screenDecision, retired: screenRetired };
     if (S.flash && st !== 'decision') { app.append(h('div', { class: 'callout' }, S.flash)); S.flash = null; }
     app.append((m[st] || screenCreate)());
   }
