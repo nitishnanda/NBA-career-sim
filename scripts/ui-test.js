@@ -45,12 +45,23 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   const cm0 = await page.evaluate(() => { const S = window.__NBA_UI.state, cb = S.player.cmb, shown = Array.from(document.querySelectorAll('.ctv')).map((e) => e.textContent); return { shown, stage: S.stage, tested: cb.tested, hasTests: !!cb.tests, hb: cb.hb, wt: cb.wt, ws: cb.ws }; });
   const okM = cm0.stage === 'combine' && !cm0.tested && !cm0.hasTests && cm0.shown.length === 4 && cm0.shown[1] === cm0.wt + ' lb';
   console.log('COMBINE measured', okM ? 'OK' : 'MISMATCH', JSON.stringify(cm0)); if (!okM) errors.push('COMBINE measured ' + JSON.stringify(cm0));
-  await page.click('button:has-text("Take all the tests")'); await page.waitForSelector("text=Scouts' report"); await shot('04c-combine-tested');
-  const cm1 = await page.evaluate(() => { const S = window.__NBA_UI.state, cb = S.player.cmb, c = S.combine; return { tested: cb.tested, rows: document.querySelectorAll('.trow').length, bonus: +cb.bonus.toFixed(2), post: !!(c.pre && c.post && c.alt), bars: document.querySelectorAll('.ctile .pbar, .trow .pbar').length }; });
+  await page.click('button:has-text("Take all the tests")'); await page.waitForSelector('text=Mock drafts'); await shot('04c-combine-tested');
+  const cm1 = await page.evaluate(() => { const S = window.__NBA_UI.state, cb = S.player.cmb, c = S.combine; return { tested: cb.tested, rows: document.querySelectorAll('.trow').length, bonus: +cb.bonus.toFixed(2), post: !!(c.mocks && c.mocks.outlets.length === 4 && c.mocks.ranks.before.length === 4 && c.mocks.ranks.after.length === 4 && c.mocks.ranks.alt.length === 4), bars: document.querySelectorAll('.ctile .pbar, .trow .pbar').length }; });
   const okT = cm1.tested && cm1.rows === 6 && cm1.post && cm1.bars === 3 + 6 + 1;
   console.log('COMBINE tested', okT ? 'OK' : 'MISMATCH', JSON.stringify(cm1)); if (!okT) errors.push('COMBINE tested ' + JSON.stringify(cm1));
   await page.click('button:has-text("Head to the draft")');
-  await page.waitForSelector('button:has-text("Reveal the whole draft")'); await page.click('button:has-text("Reveal the whole draft")');
+  // draft night is paced: nothing about where he is projected is on the page, the first picks take seconds, and the player's own pick is held until Continue
+  await page.waitForSelector('button:has-text("Reveal everything")'); await page.waitForTimeout(500);
+  const spoil = await page.evaluate(() => /about #|projected|final mock/i.test(document.querySelector('.dgrid').innerText));
+  const t0 = Date.now(); await page.waitForSelector('.prow', { timeout: 15000 }); const firstPickMs = Date.now() - t0;
+  const okP = !spoil && firstPickMs >= 2500; console.log('DRAFT pacing', okP ? 'OK' : 'MISMATCH', JSON.stringify({ spoil, firstPickMs }));
+  if (!okP) errors.push('DRAFT pacing ' + JSON.stringify({ spoil, firstPickMs }));
+  await page.click('button:has-text("Skip to my pick")');
+  const hold = await page.waitForSelector('button:has-text("Continue →")', { timeout: 30000 }).then(() => page.evaluate(() => ({ rows: document.querySelectorAll('.prow').length, big: !!document.querySelector('.bigpick'), wrapShown: /landing spot/i.test(document.body.innerText) })));
+  const pickN = await page.evaluate(() => window.__NBA_UI.state.draft.slot);
+  const okH = hold.big && !hold.wrapShown && (pickN ? hold.rows === pickN : true); console.log('DRAFT held pick', okH ? 'OK' : 'MISMATCH', JSON.stringify(hold));
+  if (!okH) errors.push('DRAFT held pick ' + JSON.stringify(hold));
+  await page.click('button:has-text("Continue →")'); await page.waitForSelector('text=Your landing spot'); await page.click('button:has-text("Reveal everything")');
   await page.waitForSelector('text=Start my NBA career', { timeout: 30000 });
   const dr = await page.evaluate(() => { const S = window.__NBA_UI.state, d = S.draft, rows = Array.from(document.querySelectorAll('.prow')), me = rows.filter((r) => r.classList.contains('me')), pos = rows.indexOf(me[0]);
     return { rows: rows.length, board: d.board.length, me: me.length, slot: d.slot, rowSlot: pos + 1, rounds: document.querySelectorAll('.rhead').length, userRowOnBoard: d.board.filter((r) => r.isUser).length, tested: d.tested }; });

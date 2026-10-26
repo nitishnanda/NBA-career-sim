@@ -269,3 +269,9 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 .ruler { width: 100%; height: auto; display: block; margin-top: 6px; } .rulerwrap { margin-top: 10px; }
 @media (max-width: 900px) { .dgrid { grid-template-columns: minmax(0, 1fr); } .dside { position: static; } .trow { grid-template-columns: 1fr auto; } .trow .pbarw { grid-column: 1 / -1; } .prow { grid-template-columns: 28px 26px minmax(0, 1fr) auto; } .prow .pill { display: none; } }
 .card > h2 + .ctiles { margin-top: 12px; } .card > h2 + .trow { margin-top: 4px; }
+
+/* mock drafts and draft-night pacing */
+.mocktabs { margin: 6px 0 10px; flex-wrap: wrap; } .mocklist { display: grid; gap: 4px; max-height: 420px; overflow-y: auto; padding-right: 4px; } .mrow { display: grid; grid-template-columns: 30px 26px minmax(0, 1fr); gap: 10px; align-items: center; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; }
+.mrow.me { border-color: #ffd166; background: rgba(255,209,102,.1); } .mockmoves { margin-top: 12px; }
+.bigpick .clkname { font-size: 32px; } .bigpick .clk { margin-top: 10px; } .gold { color: var(--gold); }
+.mockmoves .kv .pill { flex: 0 0 auto; margin: 0 0 0 auto; } .mockmoves .kv { align-items: center; }

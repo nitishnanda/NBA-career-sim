@@ -275,6 +275,12 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 @media (max-width: 900px) { .dgrid { grid-template-columns: minmax(0, 1fr); } .dside { position: static; } .trow { grid-template-columns: 1fr auto; } .trow .pbarw { grid-column: 1 / -1; } .prow { grid-template-columns: 28px 26px minmax(0, 1fr) auto; } .prow .pill { display: none; } }
 .card > h2 + .ctiles { margin-top: 12px; } .card > h2 + .trow { margin-top: 4px; }
 
+/* mock drafts and draft-night pacing */
+.mocktabs { margin: 6px 0 10px; flex-wrap: wrap; } .mocklist { display: grid; gap: 4px; max-height: 420px; overflow-y: auto; padding-right: 4px; } .mrow { display: grid; grid-template-columns: 30px 26px minmax(0, 1fr); gap: 10px; align-items: center; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; }
+.mrow.me { border-color: #ffd166; background: rgba(255,209,102,.1); } .mockmoves { margin-top: 12px; }
+.bigpick .clkname { font-size: 32px; } .bigpick .clk { margin-top: 10px; } .gold { color: var(--gold); }
+.mockmoves .kv .pill { flex: 0 0 auto; margin: 0 0 0 auto; } .mockmoves .kv { align-items: center; }
+
 </style>
 <header id="top"><div class="brand"><span class="logo">🏀</span><div><b>NBA CAREER SIM</b><small>PRO CIRCUIT</small></div></div><nav id="nav"></nav><div id="who"></div></header>
 <main id="app"></main>
@@ -1413,10 +1419,12 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     return { order };
   }
   // user draft: user ranked among a class
-  function userDraft(L, user, bonus) {
-    const order = lotteryOrder(L);
-    const cls = draftClass(L, 72);
-    user.stock = stockOf(user, bonus);
+  // o.cls / o.order (team ids) / o.stock: the class, the draft order and the player's stock settled when he declared (so the mock drafts he saw describe this very draft)
+  function userDraft(L, user, bonus, o) {
+    o = o || {};
+    const order = o.order ? o.order.map((id) => L.teams[id]) : lotteryOrder(L);
+    const cls = o.cls || draftClass(L, 72);
+    user.stock = o.stock != null ? o.stock : stockOf(user, bonus);
     const all = cls.concat([user]).sort((a, b) => b.stock - a.stock);
     const slot = all.indexOf(user) + 1;
     const picks = [];
@@ -1447,6 +1455,28 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     }
     ranks.sort((a, b) => a - b);
     return { lo: ranks[Math.round(0.14 * (K - 1))], mid: ranks[Math.round(0.5 * (K - 1))], hi: ranks[Math.round(0.86 * (K - 1))] };
+  }
+  // ------------------------------------------------------------ mock drafts
+  // Three outlets mock the class that will actually be drafted. A mock is a noisy preview: each blends the prospect's real draft stock (0.5) with what scouts can see of
+  // him (0.5: current rating, the part of his ceiling that is visible, age, college prestige) and adds its own opinion (sd 3.5 stock points), so mocks agree on the top
+  // few picks, disagree further down, and the real night still holds surprises (the real order carries the rest of the scouting noise).
+  const OUTLETS = ['Hoops Insider', 'Draft Central', 'Courtside Report'];
+  function scoutMean(p, bonus) { const vis = p.vis == null ? 1 : p.vis, o = ovr(p) - 7 * (1 - vis), seen = vis * p.ceiling + (1 - vis) * 76; return 0.5 * o + 0.5 * seen - 1.4 * (p.age - 19) + (bonus || 0); }
+  // the player's stock without the combine and with a fixed seed for the scouting noise: stock after the combine = this + the combine's bonus
+  function stockBase(L, user, bonus, seed) { const sv = NBA.rngGet(), keep = user.cmb; user.cmb = null; NBA.setSeed(seed); const r = stockOf(user, bonus); NBA.rngSet(sv); user.cmb = keep; return r; }
+  function mockBoards(L, cls, user, bonus, orderIds, stocks) {   // stocks: the player's stock in the three states: { before, after, alt }
+    const order = orderIds.map((id) => L.teams[id]), gauss = (r) => { let u = 0; while (u === 0) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r()); };
+    const noise = cls.concat([user]).reduce((m, p) => { m.set(p, OUTLETS.map((n, oi) => 3.5 * gauss(mulberry(hashOf(oi + '|' + p.id + '|' + p.name + '|mock'))))); return m; }, new Map());
+    const run = (us) => {
+      const sc = (p, oi) => { const st = p === user ? us : p.stock; return 0.5 * st + 0.5 * scoutMean(p, p === user ? bonus : 0) + noise.get(p)[oi]; };
+      const boards = OUTLETS.map((name, oi) => cls.concat([user]).map((p) => ({ p, s: sc(p, oi) })).sort((a, b) => b.s - a.s));
+      const cons = cls.concat([user]).map((p) => ({ p, s: OUTLETS.reduce((t, n, oi) => t + sc(p, oi), 0) / OUTLETS.length })).sort((a, b) => b.s - a.s);
+      return { boards, cons };
+    };
+    const rows = (items) => items.slice(0, 30).map((x, i) => ({ slot: i + 1, name: x.p.name, pos: x.p.pos, age: x.p.age, from: x.p.from || '', nick: order[i] ? order[i].nick : '', isUser: x.p === user, ht: x.p.ht, ws: x.p.ws }));
+    const ranks = (r) => r.boards.map((b) => 1 + b.findIndex((x) => x.p === user)).concat([1 + r.cons.findIndex((x) => x.p === user)]);
+    const after = run(stocks.after), before = run(stocks.before), alt = run(stocks.alt);
+    return { outlets: after.boards.map((b, oi) => ({ name: OUTLETS[oi], rows: rows(b), rank: 1 + b.findIndex((x) => x.p === user) })).concat([{ name: 'Consensus', rows: rows(after.cons), rank: 1 + after.cons.findIndex((x) => x.p === user) }]), ranks: { before: ranks(before), after: ranks(after), alt: ranks(alt) } };
   }
   // the same projection drawn from a fixed seed, so two projections of one player (with and without the combine, tested or skipped) face the same classes and the same scouting noise:
   // the difference is the combine's alone. The league's own random stream is put back afterwards.
@@ -1511,7 +1541,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     return { n90: o.filter((x) => x >= 90).length, n85: o.filter((x) => x >= 85).length, n80: o.filter((x) => x >= 80).length, mean: sum(o) / o.length, top: o.slice(0, 6).map((x) => Math.round(x)) };
   }
 
-  Object.assign(NBA, { recruitYears, rosterOf, swapPlayers, seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, makeReal, userDraft, npcDraft, draftClass, mockSeeded, ATH_POS, combineFor, combineComp, CB_K, makeProspect, retireP, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
+  Object.assign(NBA, { recruitYears, rosterOf, swapPlayers, seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, makeReal, userDraft, npcDraft, draftClass, mockSeeded, stockBase, mockBoards, ATH_POS, combineFor, combineComp, CB_K, makeProspect, retireP, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -1745,28 +1775,31 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     return trainingInfo(st);
   }
   // declaring for the draft leads to the combine: you are measured (height, weight, wingspan, reach), then choose whether to take the athletic tests or skip them,
-  // and the scouts' view of you moves; then it is draft night
+  // and the mock drafts move; then it is draft night. The class and the draft order are settled when you declare, so the mocks describe the draft you will face.
   function declare(st) {
-    const p = st.player, last = st.collegeYears[st.collegeYears.length - 1];
+    const p = st.player;
     p.cmb = NBA.combineFor(p, { test: false, year: st.league.year });   // measured at the combine; the tests are the choice
-    st.combine = { year: st.league.year, pre: last && last.mock ? last.mock : null, done: false, test: null, post: null, comp: null };
-    st.stage = 'combine';
+    st.class = NBA.draftClass(st.league, 72); st.draftOrder = NBA.lotteryOrder(st.league).map((t) => t.id);
+    st.combine = { year: st.league.year, done: false, test: null, mocks: null, comp: null };
+    st.stage = 'combine'; st.draftProg = 0; st.draftSeen = false;
     return st.combine;
   }
   function runCombine(st, test) {
-    const p = st.player, c = st.combine;
-    const yr = st.league.year, seed = (p.name.length * 7919 + yr * 104729 + 12345) | 0, bonus = stockBonus(st);
+    const p = st.player, c = st.combine, yr = st.league.year, bonus = stockBonus(st), seed = (p.name.length * 7919 + yr * 104729 + 12345) | 0;
     const mine = NBA.combineFor(p, { test: !!test, year: yr }), other = NBA.combineFor(p, { test: !test, year: yr });
     p.cmb = mine; c.test = !!test; c.comp = NBA.combineComp(p, mine); c.done = true;
-    // the scouts' projection before the combine, after it, and after the other choice (all against the same classes)
-    c.pre = NBA.mockSeeded(st.league, p, bonus, seed, null); c.post = NBA.mockSeeded(st.league, p, bonus, seed, mine); c.alt = NBA.mockSeeded(st.league, p, bonus, seed, other); c.altBonus = other ? other.bonus : 0;
+    // the player's stock is settled here (one fixed scouting-noise draw; the combine's bonus is added on top), and the mock drafts before the combine, after it and after the other choice are made from it
+    st.stockBase = NBA.stockBase(st.league, p, bonus, seed);
+    c.mocks = NBA.mockBoards(st.league, st.class, p, bonus, st.draftOrder, { before: st.stockBase, after: st.stockBase + mine.bonus, alt: st.stockBase + (other ? other.bonus : 0) });
     return c;
   }
   function enterDraft(st) {
     const p = st.player;
-    if (!st.combine || !st.combine.done) { if (!st.combine) declare(st); runCombine(st, true); }
+    if (!st.class || !st.draftOrder) { st.class = NBA.draftClass(st.league, 72); st.draftOrder = NBA.lotteryOrder(st.league).map((t) => t.id); }   // a combine started before v39.1
+    if (!st.combine || !st.combine.done) { if (!st.combine) { p.cmb = NBA.combineFor(p, { test: false, year: st.league.year }); st.combine = { year: st.league.year, done: false }; } runCombine(st, true); }
     p.from = st.college.name;
-    const res = NBA.userDraft(st.league, p, stockBonus(st));
+    const res = NBA.userDraft(st.league, p, stockBonus(st), { cls: st.class, order: st.draftOrder, stock: st.stockBase + (p.cmb ? p.cmb.bonus : 0) });
+    st.class = null;
     p.rookie = false; p.isPro = true;
     let slot = res.slot, team = res.team;
     if (!slot) {
@@ -1774,7 +1807,8 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       slot = null;
       team = pick(st.league.teams);
     }
-    st.draft = { slot, team: team.name, teamId: team.id, year: st.league.year, board: res.board, college: st.college.name, mockRank: res.mockRank, pre: st.combine.pre, post: st.combine.post, combineBonus: p.cmb ? p.cmb.bonus : 0, tested: st.combine.test, classSize: res.classSize, teamRec: team.wins + '-' + team.losses };
+    const mk = st.combine.mocks;
+    st.draft = { slot, team: team.name, teamId: team.id, year: st.league.year, board: res.board, college: st.college.name, mockRank: res.mockRank, mocks: mk ? { ranks: mk.ranks, outlets: mk.outlets.map((o) => o.name) } : null, combineBonus: p.cmb ? p.cmb.bonus : 0, tested: st.combine.test, classSize: res.classSize, teamRec: team.wins + '-' + team.losses };
     st.teamId = team.id; p.teamId = team.id;
     const cap = capNow(st.league);
     let sal, yrs;
@@ -2637,11 +2671,11 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   function screenCollegeDecision() {
     const y = S.collegeYears[S.collegeYears.length - 1], l = y.line;
     const mock = y.mock;
-    const proj = mock.lo > 60 ? 'Undrafted risk' : '#' + mock.lo + ' – #' + Math.min(60, mock.hi) + ' (most likely ~#' + Math.min(60, mock.mid) + ')';
+    const proj = tierRange(mock);
     return h('div', null, h('h1', null, y.label + ' season complete'),
       h('div', { class: 'card' }, h('div', { class: 'grid stats' }, statBox(f1(l.pts), 'PPG'), statBox(f1(l.reb), 'RPG'), statBox(f1(l.ast), 'APG'), statBox(f1(l.stl), 'SPG'), statBox(f1(l.blk), 'BPG'), statBox(pct(l.ts) + '%', 'TS%')),
         h('p', { style: 'margin-top:12px' }, h('b', null, y.record), ' · ' + y.tourney), y.honors.length ? h('div', null, y.honors.map((x) => h('span', { class: 'pill gold' }, '🏅 ' + x))) : null),
-      h('div', { class: 'card' }, h('h2', null, 'Draft stock'), h('p', null, 'Mock draft range: ', h('b', null, proj)),
+      h('div', { class: 'card' }, h('h2', null, 'Draft stock'), h('p', null, 'Where the mock drafts have you: ', h('b', null, proj)),
         h('p', { class: 'muted small' }, 'Staying develops your game (and adds upgrade points) but draft boards move on, and you only get so many years of eligibility.'),
         h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { G.declare(S); go(); } }, 'Declare for the NBA Draft'),
           y.mustDeclare ? h('span', { class: 'muted' }, 'Senior year: eligibility is up.') : h('button', { onclick: () => { G.stayInCollege(S); alloc = {}; go(); } }, 'Stay another year'))),
@@ -2652,12 +2686,13 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   const ftIn = (x) => { const f = Math.floor(x / 12), r = Math.round((x - 12 * f) * 4) / 4; return f + "'" + String(r).replace(/\.0$/, '') + '"'; };
   const tierOf = (pc) => (pc >= 90 ? ['Elite', 'p-elite'] : pc >= 70 ? ['Above average', 'p-good'] : pc >= 30 ? ['Average', 'p-mid'] : pc >= 10 ? ['Below average', 'p-low'] : ['Poor', 'p-poor']);
   const pbar = (pc) => { const t = tierOf(pc); return h('div', { class: 'pbarw' }, h('div', { class: 'pbar' }, h('i', { class: t[1], style: 'width:' + Math.max(3, pc) + '%' })), h('span', { class: 'ptag ' + t[1] }, t[0] + ' · ' + ord(pc))); };
-  const mockTxt = (m) => (!m ? '–' : m.lo > 60 ? 'Undrafted risk' : '#' + m.lo + ' – #' + Math.min(60, m.hi) + ' (about #' + Math.min(60, m.mid) + ')');
+  const slotTier = (n) => (n > 60 ? 'undrafted' : n <= 5 ? 'a top-5 pick' : n <= 14 ? 'the lottery' : n <= 20 ? 'the middle of the first round' : n <= 30 ? 'the end of the first round' : n <= 45 ? 'the early second round' : 'the late second round');
+  const tierRange = (m) => { if (!m) return '–'; const a = slotTier(m.lo), b = slotTier(Math.min(61, m.hi)); return a === b ? 'around ' + a + ' (mocks disagree)' : 'from ' + a + ' to ' + b + ' (mocks disagree)'; };
 
   function screenCombine() {
     const p = S.player, cb = p.cmb, c = S.combine;
     if (!cb || !c) { G.enterDraft(S); save(); return screenDraft(); }   // a save from before the combine existed
-    const pos = D.SIZE[p.pos] ? p.pos : 'SF', T = NBA.COMBINE.tab[pos], ap = NBA.ATH_POS[pos] || [58.5, 12.7], athz = (p.attrs.ath - ap[0]) / ap[1];
+    const pos = D.SIZE[p.pos] ? p.pos : 'SF', ap = NBA.ATH_POS[pos] || [58.5, 12.7], athz = (p.attrs.ath - ap[0]) / ap[1];
     const tile = (lbl, val, pc, sub) => h('div', { class: 'ctile' }, h('div', { class: 'ctl' }, lbl), h('div', { class: 'ctv' }, val), pc != null ? pbar(pc) : null, sub ? h('div', { class: 'small muted' }, sub) : null);
     const meas = h('div', { class: 'ctiles' }, tile('Height (no shoes)', ftIn(cb.hb), cb.pct.hgt, 'vs. ' + pos + 's at the combine'), tile('Weight', cb.wt + ' lb', cb.pct.wgt), tile('Wingspan', ftIn(cb.ws), cb.pct.ws, (cb.ws - cb.hb >= 0 ? '+' : '') + (Math.round((cb.ws - cb.hb) * 4) / 4) + '" over his height'), tile('Standing reach', ftIn(cb.reach), cb.pct.reach));
     const cards = [h('h1', null, 'NBA Draft Combine'), h('p', { class: 'muted' }, c.year + ' · Chicago · every team in the building. ' + S.player.name + ' · ' + p.pos + ' · ' + S.college.name), h('div', { class: 'card' }, h('h2', null, 'Measurements'), meas)];
@@ -2672,19 +2707,27 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
         cards.push(h('div', { class: 'card' }, h('h2', null, 'Athletic testing'), row('Max vertical', t.mxv + '"', cb.pct.vert), row('Standing vertical', t.stv + '"', cb.pct.vert), row('Lane agility', t.lane.toFixed(2) + ' s', cb.pct.lane), row('3/4-court sprint', t.sprint.toFixed(2) + ' s', cb.pct.sprint), row('Shuttle run', t.shuttle.toFixed(2) + ' s', cb.pct.shuttle), row('Bench press (185 lb)', t.bench + ' reps', cb.pct.bench),
           h('p', { class: 'small muted', style: 'margin-top:10px' }, 'Percentiles against the real combine classes, 2000 to 2026, for ' + pos + 's.')));
       } else cards.push(h('div', { class: 'card' }, h('h2', null, 'Athletic testing'), h('p', null, 'You skipped it. Scouts have your measurements and your tape, and the question marks are on you.')));
-      const mv = c.pre && c.post ? c.pre.mid - c.post.mid : 0, mvTxt = mv >= 2 ? '▲ stock up about ' + mv + ' spots' : mv <= -2 ? '▼ stock down about ' + -mv + ' spots' : '▬ stock about the same', altBetter = c.alt ? c.post.mid - c.alt.mid : 0;
+      // mock drafts: three outlets and their consensus, all of the class you will face on draft night; the combine moved them, and you only see how
+      const mk = c.mocks, R = mk.ranks, cons = R.after[3] - R.before[3], mv = -cons, altD = R.after[3] - R.alt[3];
+      const idxTab = Math.min(S.mockTab == null ? 3 : S.mockTab, mk.outlets.length - 1), ob = mk.outlets[idxTab];
+      const arrow = (i) => { const d = R.before[i] - R.after[i]; return d >= 2 ? h('span', { class: 'pill good' }, '▲ up') : d <= -2 ? h('span', { class: 'pill bad' }, '▼ down') : h('span', { class: 'pill' }, '▬ steady'); };
+      const tabs = h('div', { class: 'seg2 mocktabs' }, mk.outlets.map((o, i) => h('button', { class: i === idxTab ? 'on' : '', onclick: () => { S.mockTab = i; render(); } }, o.name)));
+      const list = ob.rows.map((r) => h('div', { class: 'mrow' + (r.isUser ? ' me' : '') }, h('span', { class: 'pn' }, r.slot), logo(r.nick, 24), h('div', { class: 'pmain' }, h('b', null, r.isUser ? '⭐ ' + r.name : r.name), h('span', { class: 'small muted' }, ' ' + r.pos + ' · ' + r.age + ' · ' + (r.from || '—')))));
       const chips = []; const P = cb.parts; const chip = (lbl, v) => { if (Math.abs(v) >= 0.2) chips.push(h('span', { class: 'pill ' + (v > 0 ? 'good' : 'bad') }, lbl + ' ' + (v > 0 ? '+' : '') + v.toFixed(1))); };
       if (c.test) chip('Athletic testing', P.ath); else chip('Skipped the testing', P.ath); chip('Height', P.hgt); chip('Length', P.len); chip('Frame', P.wgt);
-      cards.push(h('div', { class: 'card' }, h('h2', null, "Scouts' report"),
-        h('div', { class: 'kv' }, h('span', null, 'Before the combine'), h('b', null, mockTxt(c.pre))), h('div', { class: 'kv' }, h('span', null, 'After the combine'), h('b', null, mockTxt(c.post))),
-        h('p', { class: 'stockmove ' + (mv >= 2 ? 'up' : mv <= -2 ? 'down' : '') }, mvTxt), h('div', { style: 'margin:6px 0' }, chips.length ? chips : h('span', { class: 'muted small' }, 'Nothing about your numbers stood out.')),
-        c.alt && Math.abs(altBetter) >= 2 ? h('p', { class: 'small muted' }, (c.test ? 'Skipping the tests' : 'Taking the tests') + ' would have projected you about ' + Math.abs(altBetter) + (altBetter > 0 ? ' spots higher.' : ' spots lower.')) : null,
+      cards.push(h('div', { class: 'card' }, h('h2', null, 'Mock drafts'), h('p', { class: 'small muted' }, 'Three outlets mock the class you will face. Mocks are educated guesses: they agree on the top of the board and argue about the rest, and the real night can differ.'), tabs,
+        h('div', { class: 'mocklist' }, list), !ob.rows.some((r) => r.isUser) ? h('div', { class: 'small muted', style: 'margin-top:8px' }, 'This mock does not have you in the first round.') : null,
+        h('div', { class: 'mockmoves' }, h('div', { class: 'small muted' }, 'Since the combine'), mk.outlets.map((o, i) => h('div', { class: 'kv' }, h('span', null, o.name), arrow(i)))),
+        h('p', { class: 'stockmove ' + (mv >= 2 ? 'up' : mv <= -2 ? 'down' : '') }, mv >= 2 ? '▲ the mocks have you higher after the combine' : mv <= -2 ? '▼ the mocks have you lower after the combine' : '▬ the mocks barely moved'),
+        h('div', { style: 'margin:6px 0' }, chips.length ? chips : h('span', { class: 'muted small' }, 'Nothing about your numbers stood out.')),
+        Math.abs(altD) >= 2 ? h('p', { class: 'small muted' }, (c.test ? 'Skipping the tests' : 'Taking the tests') + ' would have moved the consensus about ' + Math.abs(altD) + (altD > 0 ? ' spots in your favour.' : ' spots against you.')) : null,
         c.comp ? h('p', { class: 'small' }, h('b', null, 'Measurables comp: '), c.comp.name + ' (' + c.comp.year + ' combine: ' + ftIn(c.comp.hgt) + ', ' + c.comp.wgt + ' lb, ' + ftIn(c.comp.ws) + ' wingspan)') : null,
         h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { G.enterDraft(S); go(); } }, 'Head to the draft →'))));
     }
     return h('div', null, cards);
   }
 
+  // draft night is paced like the real one: the top of the lottery gets time, the second round moves, and your own pick is built up and then held until you are ready
   let draftTimer = null;
   function screenDraft() {
     if (draftTimer) { clearTimeout(draftTimer); draftTimer = null; }
@@ -2692,34 +2735,34 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     board.forEach((r) => { if (!r.nick) r.nick = (r.team || '').split(' ').slice(-1)[0]; if (r.mockRank == null) r.mockRank = r.slot; });   // boards saved before v39 had 30 picks and no pre-draft rank
     const tag = (r) => { const dl = r.slot - r.mockRank; return dl >= 12 ? ['▲ Steal', 'good'] : dl <= -12 ? ['▼ Reach', 'bad'] : r.slot <= 3 ? ['Franchise pick', 'gold'] : null; };   // taken 12+ spots later / earlier than his talent-only rank
     const chipOf = (r) => ftIn(r.ht) + (r.ws ? ' · ' + ftIn(r.ws) + ' WS' : '');
-    const prow = (r) => { const t = tag(r); return h('div', { class: 'prow reveal' + (r.isUser ? ' me' : '') + (r.slot <= 5 ? ' top' : '') }, h('span', { class: 'pn' }, r.slot), logo(r.nick, 30),
+    const prow = (r) => { const t = r.isUser ? null : tag(r); return h('div', { class: 'prow reveal' + (r.isUser ? ' me' : '') + (r.slot <= 5 ? ' top' : '') }, h('span', { class: 'pn' }, r.slot), logo(r.nick, 30),
       h('div', { class: 'pmain' }, h('b', null, r.isUser ? '⭐ ' + r.name : r.name), h('div', { class: 'small muted' }, r.pos + ' · ' + r.age + ' · ' + (r.from || '—'))), h('div', { class: 'pside' }, h('span', { class: 'small' }, r.nick), h('span', { class: 'small muted' }, chipOf(r))), t ? h('span', { class: 'pill ' + t[1] }, t[0]) : null); };
     const r1 = h('div', { class: 'pround' }, h('div', { class: 'rhead' }, 'Round 1')), r2 = h('div', { class: 'pround' }, h('div', { class: 'rhead' }, 'Round 2'));
     const clock = h('div', { class: 'onclock well' }), controls = h('div', { class: 'row dctl' }), wrap = h('div'), prog = h('div', { class: 'bar2' }, h('i', { style: 'width:0%' }));
-    const pickLine = (r) => h('div', null, h('div', { class: 'cap2' }, 'Pick ' + r.slot + ' · ' + (r.slot <= 30 ? 'Round 1' : 'Round 2')), h('div', { class: 'clk' }, logo(r.nick, 56), h('div', null, h('div', { class: 'small muted' }, 'With the ' + ord(r.slot) + ' pick, the ' + r.team + ' select'), h('div', { class: 'clkname' }, r.isUser ? '⭐ ' + r.name : r.name), h('div', { class: 'small muted' }, r.pos + ' · ' + r.age + ' · ' + (r.from || '—') + ' · ' + chipOf(r)))));
-    // --- your road to the draft (always on screen) and the wrap-up once you are picked
-    const c = S.combine || {}, cb = p.cmb;
+    const pickLine = (r, big) => h('div', { class: big ? 'bigpick' : '' }, h('div', { class: 'cap2' }, 'Pick ' + r.slot + ' · ' + (r.slot <= 30 ? 'Round 1' : 'Round 2')), h('div', { class: 'clk' }, logo(r.nick, big ? 72 : 56), h('div', null, h('div', { class: 'small muted' }, 'With the ' + ord(r.slot) + ' pick, the ' + r.team + ' select'), h('div', { class: 'clkname' }, r.isUser ? '⭐ ' + r.name : r.name), h('div', { class: 'small muted' }, r.pos + ' · ' + r.age + ' · ' + (r.from || '—') + ' · ' + chipOf(r)))));
+    // --- your road to the draft: nothing about where you are projected until your name is called; then how the mocks had you
+    const cb = p.cmb, mk = d.mocks;
     const ruler = (marks) => {
       const x = (v) => 6 + 88 * (Math.min(60, Math.max(1, v)) - 1) / 59, ms = marks.filter((m) => m.v != null), merged = [];
       ms.forEach((m) => { const same = merged.find((q) => !q.big && !m.big && Math.abs(q.v - m.v) < 3); if (same) same.t += ' · ' + m.t; else merged.push(Object.assign({}, m)); });
       return h('div', { html: '<svg viewBox="0 0 100 34" class="ruler"><line x1="6" y1="14" x2="94" y2="14" stroke="rgba(255,255,255,.25)" stroke-width="1"/>' + [1, 10, 20, 30, 40, 50, 60].map((t) => '<text x="' + x(t) + '" y="32" font-size="4" text-anchor="middle" fill="rgba(255,255,255,.45)">' + t + '</text>').join('')
         + merged.map((m) => '<circle cx="' + x(m.v) + '" cy="14" r="' + (m.big ? 4.2 : 2.6) + '" fill="' + m.c + '"/><text x="' + Math.min(88, Math.max(12, x(m.v))) + '" y="' + (m.big ? 6 : 24) + '" font-size="3.8" text-anchor="middle" fill="' + m.c + '">' + m.t + '</text>').join('') + '</svg>' });
     };
+    const mocksLine = () => (mk ? h('div', { class: 'rulerwrap' }, h('div', { class: 'small muted' }, 'Where the mock drafts had you, and where you went'), mk.outlets.slice(0, 3).map((n, i) => h('div', { class: 'kv' }, h('span', null, n), h('b', null, mk.ranks.after[i] > 60 ? 'out of the first two rounds' : '#' + mk.ranks.after[i]))),
+      ruler([{ v: mk.ranks.after[3], c: '#9ecbff', t: 'mocks' }, { v: d.slot || null, c: '#ffd166', t: '#' + d.slot, big: true }])) : null);
     const story = h('section', { class: 'card' }, h('h2', null, 'Your road to the draft'),
-      h('div', { class: 'kv' }, h('span', null, 'College'), h('b', null, S.college.name)), h('div', { class: 'kv' }, h('span', null, 'Before the combine'), h('b', null, mockTxt(d.pre))),
-      h('div', { class: 'kv' }, h('span', null, 'Combine'), h('b', null, d.tested ? 'Tested' + (cb && cb.bonus >= 0.5 ? ' · buzz up' : cb && cb.bonus <= -0.5 ? ' · buzz down' : '') : 'Skipped the tests')), h('div', { class: 'kv' }, h('span', null, 'Final mock'), h('b', null, mockTxt(d.post))),
-      cb ? h('div', { class: 'kv' }, h('span', null, 'Measurables'), h('b', null, ftIn(cb.hb) + ' · ' + cb.wt + ' lb · ' + ftIn(cb.ws) + ' WS')) : null, h('div', { class: 'rulerwrap' }, h('div', { class: 'small muted' }, 'Where you were projected, and where you went'), ruler([{ v: d.pre && d.pre.mid, c: 'rgba(255,255,255,.55)', t: 'mock' }, { v: d.post && d.post.mid, c: '#9ecbff', t: 'final mock' }, { v: d.slot || null, c: '#ffd166', t: '#' + d.slot, big: true }])));
-    const rest = h('div', { class: 'dside' }, story, wrap);
-    const host = h('div', { class: 'dgrid' }, h('div', { class: 'dleft' }, h('section', { class: 'card dhead' }, h('h2', null, d.year + ' NBA Draft'), h('div', { class: 'cap2' }, 'Barclays Center, Brooklyn · night of · ' + S.player.name), prog, clock, controls), r1, r2), rest);
+      h('div', { class: 'kv' }, h('span', null, 'College'), h('b', null, S.college.name)), h('div', { class: 'kv' }, h('span', null, 'Combine'), h('b', null, d.tested ? 'Tested' + (cb && cb.bonus >= 0.5 ? ' · buzz up' : cb && cb.bonus <= -0.5 ? ' · buzz down' : '') : 'Skipped the tests')),
+      cb ? h('div', { class: 'kv' }, h('span', null, 'Measurables'), h('b', null, ftIn(cb.hb) + ' · ' + cb.wt + ' lb · ' + ftIn(cb.ws) + ' WS')) : null, h('div', { class: 'rulerwrap small muted' }, 'Nobody knows where you will go. Every team has you on its board. Wait for your name.'));
+    const host = h('div', { class: 'dgrid' }, h('div', { class: 'dleft' }, h('section', { class: 'card dhead' }, h('h2', null, d.year + ' NBA Draft'), h('div', { class: 'cap2' }, 'Barclays Center, Brooklyn · night of · ' + S.player.name), prog, clock, controls), r1, r2), h('div', { class: 'dside' }, story, wrap));
     // --- the reveal
-    let idx = 0, shown = false, auto = true, wrapped = false, suspense = false;
+    let idx = 0, auto = true, wrapped = false, phase = 0, held = false;
     const setProg = () => { prog.firstChild.style.width = Math.round(100 * idx / N) + '%'; };
     const showWrap = () => {
       if (wrapped) return; wrapped = true;
       const t = L.teams[d.teamId], ros = NBA.rosterOf(L, t).slice(0, 3), myOvr = Math.round(NBA.ovr(p)), rank = 1 + NBA.rosterOf(L, t).filter((q) => NBA.ovr(q) > NBA.ovr(p)).length;
-      const dl = d.slot ? (d.post ? d.post.mid : d.slot) - d.slot : 0;
-      const verdict = !d.slot ? 'Your name was never called.' : dl >= 6 ? 'You went about ' + dl + ' spots higher than the final mock drafts had you.' : dl <= -6 ? 'You slid about ' + -dl + ' spots below the final mock drafts.' : 'Right where the final mock drafts had you.';
-      const tops = board.slice(0, 5), steal = board.filter((r) => !r.isUser).slice().sort((a, b) => (b.slot - b.mockRank) - (a.slot - a.mockRank))[0], reach = board.filter((r) => !r.isUser).slice().sort((a, b) => (a.slot - a.mockRank) - (b.slot - b.mockRank))[0];
+      const dl = d.slot && mk ? mk.ranks.after[3] - d.slot : 0;
+      const verdict = !d.slot ? 'Your name was never called.' : dl >= 6 ? 'You went about ' + dl + ' spots higher than the mock drafts had you.' : dl <= -6 ? 'You slid about ' + -dl + ' spots below the mock drafts.' : 'Right about where the mock drafts had you.';
+      const tops = board.slice(0, 5), others = board.filter((r) => !r.isUser), steal = others.slice().sort((a, b) => (b.slot - b.mockRank) - (a.slot - a.mockRank))[0], reach = others.slice().sort((a, b) => (a.slot - a.mockRank) - (b.slot - b.mockRank))[0];
       wrap.replaceChildren(
         h('section', { class: 'card callout reveal' }, d.slot ? h('div', null, h('div', { class: 'big' }, '#' + d.slot + ' pick'), h('p', null, 'With the ' + ord(d.slot) + ' pick in the ' + d.year + ' NBA Draft, the ' + d.team + ' select ', h('b', null, S.player.name), ' of ' + d.college + '.'), h('p', { class: 'muted small' }, verdict)) : h('div', null, h('div', { class: 'big' }, 'Undrafted'), h('p', null, 'Your name was never called. You signed a minimum deal with the ' + d.team + ' right after the draft. Prove them wrong.'), h('p', { class: 'muted small' }, verdict)),
           h('p', null, 'Rookie contract: ' + money(S.contract.salary) + ' × ' + S.contract.years + ' years'), h('button', { class: 'primary', onclick: () => { G.startPro(S); alloc = {}; go(); } }, 'Start my NBA career →')),
@@ -2728,22 +2771,41 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
         h('section', { class: 'card' }, h('h2', null, 'Class notes'), h('div', { class: 'small' }, h('b', null, 'Top of the board: '), tops.map((r) => r.slot + '. ' + r.name + ' (' + r.nick + ')').join(' · ')),
           steal && steal.slot - steal.mockRank >= 5 ? h('div', { class: 'small', style: 'margin-top:6px' }, h('b', null, 'Biggest steal: '), steal.name + ', ' + ord(steal.slot) + ' pick (ranked ' + ord(steal.mockRank) + ' by talent).') : null,
           reach && reach.mockRank - reach.slot >= 5 ? h('div', { class: 'small', style: 'margin-top:6px' }, h('b', null, 'Biggest reach: '), reach.name + ', ' + ord(reach.slot) + ' pick (ranked ' + ord(reach.mockRank) + ' by talent).') : null));
-      story.querySelector('.rulerwrap').replaceChildren(h('div', { class: 'small muted' }, 'Where you were projected, and where you went'), ruler([{ v: d.pre && d.pre.mid, c: 'rgba(255,255,255,.55)', t: 'mock' }, { v: d.post && d.post.mid, c: '#9ecbff', t: 'final mock' }, { v: d.slot || null, c: '#ffd166', t: '#' + d.slot, big: true }]));
+      story.querySelector('.rulerwrap').replaceWith(mocksLine() || h('div'));
     };
-    const reveal = (r) => { (r.slot <= 30 ? r1 : r2).append(prow(r)); clock.replaceChildren(pickLine(r)); idx++; setProg(); if (r.isUser) showWrap(); };
+    // how long a pick stays on screen before the next one: the top of the lottery gets the longest, your neighbours get a beat of tension, the rest of the board moves once you are in
+    const delayAfter = (r) => { if (mine >= 0 && idx > mine) return r.slot <= 30 ? 650 : 380; const next = idx; return (r.slot <= 3 ? 4200 : r.slot <= 5 ? 3400 : r.slot <= 14 ? 2500 : r.slot <= 30 ? 1700 : 1000) + (mine >= 0 && mine - next >= 0 && mine - next <= 2 ? 1600 : 0); };
+    const awayNote = (r) => { const n = mine - idx; return mine >= 0 && n >= 1 && n <= 5 ? h('div', { class: 'small gold', style: 'margin-top:6px' }, n === 1 ? 'You are next.' : 'You are ' + n + ' picks away.') : null; };
+    const append = (r) => (r.slot <= 30 ? r1 : r2).append(prow(r));
+    const reveal = (r) => { append(r); idx++; S.draftProg = idx; setProg(); clock.replaceChildren(pickLine(r)); const a = awayNote(r); if (a) clock.firstChild.append(a); };
     const finish = () => { auto = false; if (!S.draftSeen) { S.draftSeen = true; save(); } showWrap(); clock.replaceChildren(h('div', null, h('div', { class: 'cap2' }, 'Draft complete'), h('div', { class: 'small muted' }, N + ' picks in two rounds · ' + d.classSize + ' prospects'))); controls.replaceChildren(); };
-    const step = () => {
-      draftTimer = null; if (idx >= N) return finish();
-      const r = board[idx];
-      if (r.isUser && !suspense && !S.draftSeen) { suspense = true; clock.replaceChildren(h('div', { class: 'suspense' }, h('div', { class: 'cap2' }, 'Pick ' + r.slot), logo(r.nick, 56), h('div', { class: 'clkname' }, 'The ' + r.team + ' are on the clock'), h('div', { class: 'small muted' }, '📱 Your phone is ringing…'))); draftTimer = setTimeout(step, 2600); return; }
-      reveal(r); if (idx >= N) return finish();
-      if (auto) draftTimer = setTimeout(step, mine >= 0 && idx > mine ? 120 : r.slot <= 5 ? 750 : 210);
+    const setControls = () => {
+      if (held) return;
+      controls.replaceChildren(...[h('button', { onclick: () => { auto = !auto; if (auto) schedule(600); else if (draftTimer) { clearTimeout(draftTimer); draftTimer = null; } setControls(); } }, auto ? '⏸ Pause' : '▶ Play'), !auto ? h('button', { onclick: () => step(true) }, 'Next pick ▸') : null,
+        mine >= 0 && idx <= mine ? h('button', { onclick: toMine }, 'Skip to my pick ▸▸') : null, h('button', { onclick: all }, 'Reveal everything ⏭')].filter(Boolean));
     };
-    const toMine = () => { auto = false; if (draftTimer) clearTimeout(draftTimer); while (idx < N && !(board[idx].isUser)) { const r = board[idx]; (r.slot <= 30 ? r1 : r2).append(prow(r)); idx++; } setProg(); auto = true; suspense = false; step(); };
-    const all = () => { auto = false; if (draftTimer) { clearTimeout(draftTimer); draftTimer = null; } while (idx < N) { const r = board[idx]; (r.slot <= 30 ? r1 : r2).append(prow(r)); idx++; } setProg(); clock.replaceChildren(pickLine(board[N - 1])); finish(); };
-    controls.append(mine >= 0 ? h('button', { onclick: toMine }, 'Skip to my pick ▸') : null, h('button', { onclick: all }, 'Reveal the whole draft ⏭'));
-    if (S.draftSeen) { board.forEach((r) => (r.slot <= 30 ? r1 : r2).append(prow(Object.assign({}, r)))); idx = N; setProg(); clock.replaceChildren(h('div', { class: 'small muted' }, 'Draft complete')); controls.replaceChildren(); showWrap(); }
-    else { clock.replaceChildren(h('div', { class: 'small muted' }, 'The commissioner approaches the podium…')); draftTimer = setTimeout(step, 900); }
+    const schedule = (ms) => { if (draftTimer) clearTimeout(draftTimer); draftTimer = setTimeout(() => step(false), ms); };
+    // your pick: the call comes in (2.6 s), the team turns in its card (2.6 s), then the pick is shown and held until you press Continue
+    const yourPick = () => {
+      const r = board[mine]; held = true; controls.replaceChildren();
+      if (phase === 0) { phase = 1; clock.replaceChildren(h('div', { class: 'suspense' }, h('div', { class: 'cap2' }, 'Pick ' + r.slot), logo(r.nick, 64), h('div', { class: 'clkname' }, 'The ' + r.team + ' are on the clock'), h('div', { class: 'small muted' }, '📱 Your phone is ringing…'))); draftTimer = setTimeout(yourPick, 3000); return; }
+      if (phase === 1) { phase = 2; clock.replaceChildren(h('div', { class: 'suspense' }, h('div', { class: 'cap2' }, 'Pick ' + r.slot), logo(r.nick, 64), h('div', { class: 'clkname' }, 'The ' + r.team + ' have turned in their card'), h('div', { class: 'small muted' }, 'The commissioner is walking to the podium…'))); draftTimer = setTimeout(yourPick, 2800); return; }
+      append(r); idx++; S.draftProg = idx; setProg(); clock.replaceChildren(pickLine(r, true), h('p', { class: 'small', style: 'margin-top:10px' }, 'Welcome to the ' + r.team + '. Take a second.'));
+      controls.replaceChildren(h('button', { class: 'primary', onclick: () => { held = false; showWrap(); auto = true; setControls(); schedule(1400); } }, 'Continue →'));
+    };
+    const step = (manual) => {
+      draftTimer = null; if (idx >= N) return finish();
+      if (idx === mine && !wrapped && !S.draftSeen) return yourPick();
+      const r = board[idx]; reveal(r); if (idx >= N) return finish();
+      if (auto && !manual) schedule(delayAfter(r)); setControls();
+    };
+    function toMine() { if (draftTimer) clearTimeout(draftTimer); draftTimer = null; while (idx < mine) { append(board[idx]); idx++; } setProg(); auto = true; step(false); }
+    function all() { if (draftTimer) { clearTimeout(draftTimer); draftTimer = null; } held = false; while (idx < N) { append(board[idx]); idx++; } setProg(); clock.replaceChildren(pickLine(board[N - 1])); finish(); }
+    if (S.draftSeen) { board.forEach((r) => append(Object.assign({}, r))); idx = N; setProg(); clock.replaceChildren(h('div', { class: 'small muted' }, 'Draft complete')); showWrap(); }
+    else if (S.draftProg > 0 && S.draftProg < N) {   // the screen was redrawn mid-draft: pick up where it was
+      while (idx < S.draftProg) { append(board[idx]); idx++; } setProg(); if (mine >= 0 && idx > mine) { phase = 2; showWrap(); }
+      clock.replaceChildren(h('div', { class: 'small muted' }, 'Back on the clock…')); setControls(); draftTimer = setTimeout(() => step(false), 1500);
+    } else { clock.replaceChildren(h('div', null, h('div', { class: 'cap2' }, 'Green room'), h('div', { class: 'clkname' }, 'The commissioner approaches the podium…'), h('div', { class: 'small muted' }, N + ' picks, two rounds. Nobody knows where you will go.'))); setControls(); draftTimer = setTimeout(() => step(false), 3500); }
     return h('div', null, host);
   }
 

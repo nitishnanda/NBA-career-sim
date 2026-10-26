@@ -546,10 +546,12 @@
     return { order };
   }
   // user draft: user ranked among a class
-  function userDraft(L, user, bonus) {
-    const order = lotteryOrder(L);
-    const cls = draftClass(L, 72);
-    user.stock = stockOf(user, bonus);
+  // o.cls / o.order (team ids) / o.stock: the class, the draft order and the player's stock settled when he declared (so the mock drafts he saw describe this very draft)
+  function userDraft(L, user, bonus, o) {
+    o = o || {};
+    const order = o.order ? o.order.map((id) => L.teams[id]) : lotteryOrder(L);
+    const cls = o.cls || draftClass(L, 72);
+    user.stock = o.stock != null ? o.stock : stockOf(user, bonus);
     const all = cls.concat([user]).sort((a, b) => b.stock - a.stock);
     const slot = all.indexOf(user) + 1;
     const picks = [];
@@ -580,6 +582,28 @@
     }
     ranks.sort((a, b) => a - b);
     return { lo: ranks[Math.round(0.14 * (K - 1))], mid: ranks[Math.round(0.5 * (K - 1))], hi: ranks[Math.round(0.86 * (K - 1))] };
+  }
+  // ------------------------------------------------------------ mock drafts
+  // Three outlets mock the class that will actually be drafted. A mock is a noisy preview: each blends the prospect's real draft stock (0.5) with what scouts can see of
+  // him (0.5: current rating, the part of his ceiling that is visible, age, college prestige) and adds its own opinion (sd 3.5 stock points), so mocks agree on the top
+  // few picks, disagree further down, and the real night still holds surprises (the real order carries the rest of the scouting noise).
+  const OUTLETS = ['Hoops Insider', 'Draft Central', 'Courtside Report'];
+  function scoutMean(p, bonus) { const vis = p.vis == null ? 1 : p.vis, o = ovr(p) - 7 * (1 - vis), seen = vis * p.ceiling + (1 - vis) * 76; return 0.5 * o + 0.5 * seen - 1.4 * (p.age - 19) + (bonus || 0); }
+  // the player's stock without the combine and with a fixed seed for the scouting noise: stock after the combine = this + the combine's bonus
+  function stockBase(L, user, bonus, seed) { const sv = NBA.rngGet(), keep = user.cmb; user.cmb = null; NBA.setSeed(seed); const r = stockOf(user, bonus); NBA.rngSet(sv); user.cmb = keep; return r; }
+  function mockBoards(L, cls, user, bonus, orderIds, stocks) {   // stocks: the player's stock in the three states: { before, after, alt }
+    const order = orderIds.map((id) => L.teams[id]), gauss = (r) => { let u = 0; while (u === 0) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r()); };
+    const noise = cls.concat([user]).reduce((m, p) => { m.set(p, OUTLETS.map((n, oi) => 3.5 * gauss(mulberry(hashOf(oi + '|' + p.id + '|' + p.name + '|mock'))))); return m; }, new Map());
+    const run = (us) => {
+      const sc = (p, oi) => { const st = p === user ? us : p.stock; return 0.5 * st + 0.5 * scoutMean(p, p === user ? bonus : 0) + noise.get(p)[oi]; };
+      const boards = OUTLETS.map((name, oi) => cls.concat([user]).map((p) => ({ p, s: sc(p, oi) })).sort((a, b) => b.s - a.s));
+      const cons = cls.concat([user]).map((p) => ({ p, s: OUTLETS.reduce((t, n, oi) => t + sc(p, oi), 0) / OUTLETS.length })).sort((a, b) => b.s - a.s);
+      return { boards, cons };
+    };
+    const rows = (items) => items.slice(0, 30).map((x, i) => ({ slot: i + 1, name: x.p.name, pos: x.p.pos, age: x.p.age, from: x.p.from || '', nick: order[i] ? order[i].nick : '', isUser: x.p === user, ht: x.p.ht, ws: x.p.ws }));
+    const ranks = (r) => r.boards.map((b) => 1 + b.findIndex((x) => x.p === user)).concat([1 + r.cons.findIndex((x) => x.p === user)]);
+    const after = run(stocks.after), before = run(stocks.before), alt = run(stocks.alt);
+    return { outlets: after.boards.map((b, oi) => ({ name: OUTLETS[oi], rows: rows(b), rank: 1 + b.findIndex((x) => x.p === user) })).concat([{ name: 'Consensus', rows: rows(after.cons), rank: 1 + after.cons.findIndex((x) => x.p === user) }]), ranks: { before: ranks(before), after: ranks(after), alt: ranks(alt) } };
   }
   // the same projection drawn from a fixed seed, so two projections of one player (with and without the combine, tested or skipped) face the same classes and the same scouting noise:
   // the difference is the combine's alone. The league's own random stream is put back afterwards.
@@ -644,6 +668,6 @@
     return { n90: o.filter((x) => x >= 90).length, n85: o.filter((x) => x >= 85).length, n80: o.filter((x) => x >= 80).length, mean: sum(o) / o.length, top: o.slice(0, 6).map((x) => Math.round(x)) };
   }
 
-  Object.assign(NBA, { recruitYears, rosterOf, swapPlayers, seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, makeReal, userDraft, npcDraft, draftClass, mockSeeded, ATH_POS, combineFor, combineComp, CB_K, makeProspect, retireP, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
+  Object.assign(NBA, { recruitYears, rosterOf, swapPlayers, seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, makeReal, userDraft, npcDraft, draftClass, mockSeeded, stockBase, mockBoards, ATH_POS, combineFor, combineComp, CB_K, makeProspect, retireP, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

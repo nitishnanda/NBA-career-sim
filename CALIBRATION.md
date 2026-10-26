@@ -614,3 +614,20 @@ players with 4+ NBA seasons for measurables comps). Before this a declaring play
 - Checks: realism 88% (v38b 89%; noise +-1), gen MVPs 1.78 per gen over 900 picks (real 1.86), league report on 12 fresh seeds: two 20-ppg teammates 34% (34%), three 20 5.1%
   (4.3%), top-5 repeat 2.33 (2.42). UI tests (desktop and phone) cover the combine (measurements = the player's own, 6 test rows, 10 percentile bars, the report) and the
   draft board (60 rows in two rounds, the player's row at his slot).
+
+## v40: mock drafts instead of a projected pick, and a slower draft night
+
+Feedback from play: draft night went by too fast to take in your own pick, and showing a projected slot (and a before/after range at the combine) took the surprise out of it.
+- No projected slot is shown before the pick. The college decision page says where the mocks have you in words ("from a top-5 pick to the middle of the first round (mocks
+  disagree)"); the combine page shows mock drafts; draft night shows nothing about where you are projected until your name is called, then how the mocks had you.
+- Mock drafts (`mockBoards`, league.js): three made-up outlets (Hoops Insider, Draft Central, Courtside Report) plus their consensus mock the class you will actually face (the class
+  and the lottery order are settled when you declare, `st.class` / `st.draftOrder`; your stock is settled at the combine from one fixed scouting-noise draw plus the combine's
+  bonus, `stockBase`). Each outlet = 0.5 real draft stock + 0.5 what scouts can see (rating, the visible part of the ceiling, age, college prestige) + its own opinion (sd 3.5 stock
+  points). Over 40 simulated drafts: your actual pick lands a median 4 slots from the consensus (80% within 8), and the consensus top 5 contains 3.8 of the real top 5, so
+  mocks are good previews with room for surprises. The combine page shows the top 30 of each, and for every outlet whether the combine moved you up, down or not at all
+  (same classes and same noise before and after, so the move is the combine's alone), and what the other choice would have done in spots.
+- Pacing: top-3 picks 4.2 s, picks 4-5 3.4 s, rest of the lottery 2.5 s, picks 15-30 1.7 s, round 2 1.0 s, plus 1.6 s of tension for the two picks before yours (with "You are
+  next"). Your own pick: the call (3.0 s), the team turns in its card (2.8 s), then your pick is shown big and held until you press Continue; only then the wrap-up appears and
+  the rest of the board runs (0.4-0.65 s a pick). Controls: Pause / Play, Next pick, Skip to my pick, Reveal everything. A redraw mid-draft resumes where it was.
+- UI test: nothing about a projection on the draft page ("about #", "projected", "final mock"), the first pick takes 2.5 s or more, the player's pick is held (big card, no wrap-up
+  yet), the board still ends with 60 rows and the player's row at his slot. Fixed along the way: a stray "null" between control buttons, and no steal/reach tag on your own row.

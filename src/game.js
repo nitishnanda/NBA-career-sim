@@ -148,28 +148,31 @@
     return trainingInfo(st);
   }
   // declaring for the draft leads to the combine: you are measured (height, weight, wingspan, reach), then choose whether to take the athletic tests or skip them,
-  // and the scouts' view of you moves; then it is draft night
+  // and the mock drafts move; then it is draft night. The class and the draft order are settled when you declare, so the mocks describe the draft you will face.
   function declare(st) {
-    const p = st.player, last = st.collegeYears[st.collegeYears.length - 1];
+    const p = st.player;
     p.cmb = NBA.combineFor(p, { test: false, year: st.league.year });   // measured at the combine; the tests are the choice
-    st.combine = { year: st.league.year, pre: last && last.mock ? last.mock : null, done: false, test: null, post: null, comp: null };
-    st.stage = 'combine';
+    st.class = NBA.draftClass(st.league, 72); st.draftOrder = NBA.lotteryOrder(st.league).map((t) => t.id);
+    st.combine = { year: st.league.year, done: false, test: null, mocks: null, comp: null };
+    st.stage = 'combine'; st.draftProg = 0; st.draftSeen = false;
     return st.combine;
   }
   function runCombine(st, test) {
-    const p = st.player, c = st.combine;
-    const yr = st.league.year, seed = (p.name.length * 7919 + yr * 104729 + 12345) | 0, bonus = stockBonus(st);
+    const p = st.player, c = st.combine, yr = st.league.year, bonus = stockBonus(st), seed = (p.name.length * 7919 + yr * 104729 + 12345) | 0;
     const mine = NBA.combineFor(p, { test: !!test, year: yr }), other = NBA.combineFor(p, { test: !test, year: yr });
     p.cmb = mine; c.test = !!test; c.comp = NBA.combineComp(p, mine); c.done = true;
-    // the scouts' projection before the combine, after it, and after the other choice (all against the same classes)
-    c.pre = NBA.mockSeeded(st.league, p, bonus, seed, null); c.post = NBA.mockSeeded(st.league, p, bonus, seed, mine); c.alt = NBA.mockSeeded(st.league, p, bonus, seed, other); c.altBonus = other ? other.bonus : 0;
+    // the player's stock is settled here (one fixed scouting-noise draw; the combine's bonus is added on top), and the mock drafts before the combine, after it and after the other choice are made from it
+    st.stockBase = NBA.stockBase(st.league, p, bonus, seed);
+    c.mocks = NBA.mockBoards(st.league, st.class, p, bonus, st.draftOrder, { before: st.stockBase, after: st.stockBase + mine.bonus, alt: st.stockBase + (other ? other.bonus : 0) });
     return c;
   }
   function enterDraft(st) {
     const p = st.player;
-    if (!st.combine || !st.combine.done) { if (!st.combine) declare(st); runCombine(st, true); }
+    if (!st.class || !st.draftOrder) { st.class = NBA.draftClass(st.league, 72); st.draftOrder = NBA.lotteryOrder(st.league).map((t) => t.id); }   // a combine started before v39.1
+    if (!st.combine || !st.combine.done) { if (!st.combine) { p.cmb = NBA.combineFor(p, { test: false, year: st.league.year }); st.combine = { year: st.league.year, done: false }; } runCombine(st, true); }
     p.from = st.college.name;
-    const res = NBA.userDraft(st.league, p, stockBonus(st));
+    const res = NBA.userDraft(st.league, p, stockBonus(st), { cls: st.class, order: st.draftOrder, stock: st.stockBase + (p.cmb ? p.cmb.bonus : 0) });
+    st.class = null;
     p.rookie = false; p.isPro = true;
     let slot = res.slot, team = res.team;
     if (!slot) {
@@ -177,7 +180,8 @@
       slot = null;
       team = pick(st.league.teams);
     }
-    st.draft = { slot, team: team.name, teamId: team.id, year: st.league.year, board: res.board, college: st.college.name, mockRank: res.mockRank, pre: st.combine.pre, post: st.combine.post, combineBonus: p.cmb ? p.cmb.bonus : 0, tested: st.combine.test, classSize: res.classSize, teamRec: team.wins + '-' + team.losses };
+    const mk = st.combine.mocks;
+    st.draft = { slot, team: team.name, teamId: team.id, year: st.league.year, board: res.board, college: st.college.name, mockRank: res.mockRank, mocks: mk ? { ranks: mk.ranks, outlets: mk.outlets.map((o) => o.name) } : null, combineBonus: p.cmb ? p.cmb.bonus : 0, tested: st.combine.test, classSize: res.classSize, teamRec: team.wins + '-' + team.losses };
     st.teamId = team.id; p.teamId = team.id;
     const cap = capNow(st.league);
     let sal, yrs;
