@@ -104,17 +104,21 @@
   // assists and threes); the real-roster players keep their real ratings (sizeFx false) and just carry their real size.
   const SZ_SLOPE = 2.5;   // lb per inch within a position
   const SZ_H = { reb: 2, rimP: 7, inside: 1.5, ath: -2.5, handling: -2.5, passing: -1, three: -1.5, perD: -1 };   // rating points per sd of height above the position's mean
-  const SZ_W = { inside: 3, reb: 2, rimP: 1, ath: -0.5 };                                 // ... per sd of weight above what his height predicts
+  const SZ_W = { inside: 3, reb: 2, rimP: 1, ath: -0.5 };
+  const SZ_L = { rimP: 3, perD: 2, reb: 1, inside: 0.5 };   // ... per sd of wingspan beyond what his height predicts (a guess: no real wingspans here to calibrate on, so kept small)                                 // ... per sd of weight above what his height predicts
   const wtAt = (pos, ht) => Math.round(D.SIZE[pos].wt + SZ_SLOPE * (ht - D.SIZE[pos].ht));
   function rollSize(p, o) {
     const s = D.SIZE[p.pos] || D.SIZE.SF;
     p.ht = o.ht != null ? o.ht : clamp(Math.round(s.ht + s.sd * randn()), s.lo, s.hi);
     p.wt = o.wt != null ? o.wt : Math.round(clamp(wtAt(p.pos, p.ht) + s.rsd * randn(), wtAt(p.pos, p.ht) - 2.2 * s.rsd, wtAt(p.pos, p.ht) + 2.2 * s.rsd));
     if (o.sizeFx === false) p.sizeFx = false;
+    else p.ws = o.ws != null ? o.ws : Math.round(clamp(p.ht + s.arm + s.asd * randn(), p.ht - 1, p.ht + s.arm + 2.4 * s.asd));   // real-roster players have none: their real wingspans are not in the data
   }
+  const randomSize = (pos) => { const p = { pos }; rollSize(p, {}); return { pos, ht: p.ht, wt: p.wt, ws: p.ws }; };   // a whole new body for the create screen's Random option
+  const wsAt = (pos, ht) => Math.round(ht + D.SIZE[pos].arm);
   function sizeZ(p) {
     const s = D.SIZE[p.pos] || D.SIZE.SF; if (p.ht == null) return { h: 0, w: 0 };
-    return { h: clamp((p.ht - s.ht) / s.sd, -2.5, 2.5), w: clamp((p.wt - wtAt(p.pos, p.ht)) / s.rsd, -2.5, 2.5) };
+    return { h: clamp((p.ht - s.ht) / s.sd, -2.5, 2.5), w: clamp((p.wt - wtAt(p.pos, p.ht)) / s.rsd, -2.5, 2.5), l: p.ws != null ? clamp((p.ws - p.ht - s.arm) / s.asd, -2.5, 2.5) : 0 };
   }
   const fmtHt = (ht) => Math.floor(ht / 12) + "'" + (ht % 12) + '"';
 
@@ -127,7 +131,7 @@
       const pb = p.arch === 'defender' && (a === 'reb' || a === 'rimP') ? DEF_POS[p.pos] : 1;
       t[a] = clamp(50 + P[a] + A.boost[a] * pb + (S ? 0.4 * S.boost[a] : 0) + (tilt[a] || 0) + randn() * 4.5, 12, 99);
     });
-    if (p.sizeFx !== false && T.sizeFx && p.ht != null) { const z = sizeZ(p); ATTRS.forEach((x) => { t[x] = clamp(t[x] + T.sizeFx * ((SZ_H[x] || 0) * z.h + (SZ_W[x] || 0) * z.w), 12, 99); }); }
+    if (p.sizeFx !== false && T.sizeFx && p.ht != null) { const z = sizeZ(p); ATTRS.forEach((x) => { t[x] = clamp(t[x] + T.sizeFx * ((SZ_H[x] || 0) * z.h + (SZ_W[x] || 0) * z.w + (SZ_L[x] || 0) * z.l), 12, 99); }); }
     // defensive anchors come in two kinds: the shot-blocker (Mutombo, Eaton, Bol) and the glass cleaner (Rodman, Oakley): real blocks 1.3 +- 0.8, boards 8.4 +- 3.0
     if (p.arch === 'defender') { const s = (p.tr || NOTR).style || 0; t.rimP = clamp(t.rimP + T.defRim * s, 12, 99); t.reb = clamp(t.reb - T.defGlass * s, 12, 99); }
     fitOvr(t, p, ceiling);
@@ -419,7 +423,7 @@
   Object.assign(NBA, {
     rand, randn, clamp, rint, pick, r1, weighted, sum, setSeed, useRandom, rngGet, rngSet,
     ovr, ovrOf, makePlayer, buildTarget, rollCeiling, rollTdPlan, randomArch, randomPos, nameGen, regionOf,
-    rollSize, sizeZ, wtAt, fmtHt, progress, applyTraining, trainPoints, rookieFloor, expLine, shootingLine, genGame, summarize, gameRating,
+    rollSize, randomSize, sizeZ, wtAt, wsAt, fmtHt, progress, applyTraining, trainPoints, rookieFloor, expLine, shootingLine, genGame, summarize, gameRating,
   });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -248,5 +248,6 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 .card.off { opacity: .72; } .small.bad { color: #ff8b8b; margin-top: 4px; }
 
 /* height & weight on the create screen */
-.szcard { margin-top: 14px; } .szrow { display: grid; grid-template-columns: 62px 1fr 76px; gap: 12px; align-items: center; margin: 8px 0; } .szv { font: 700 17px var(--disp); letter-spacing: .04em; text-align: right; }
+.szcard { margin-top: 14px; } .szrow { display: grid; grid-template-columns: 78px 1fr 76px; gap: 12px; align-items: center; margin: 8px 0; } .szv { font: 700 17px var(--disp); letter-spacing: .04em; text-align: right; }
 .szcard input[type=range] { width: 100%; accent-color: #fff; background: transparent; padding: 0; border: 0; } .szcard .small { line-height: 1.45; margin-top: 4px; }
+.szcard .seg2 { margin: 6px 0 10px; } .szro { grid-template-columns: 78px 0 1fr; } .szro .szv { text-align: left; }

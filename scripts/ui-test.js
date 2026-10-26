@@ -14,17 +14,23 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   await page.fill('input[type=text]', 'Nitish Nanda');
   await page.click('text=Box-Score Dominator');
   await page.click('button:has-text("C")');
-  // height & weight: the sliders start at the position's average, move the label, and the choice reaches the player and the scouting report
-  const sz0 = await page.evaluate(() => Array.from(document.querySelectorAll('.szv')).map((e) => e.textContent).join(' / '));
+  // size: Random shows a rolled body (and re-rolls), Choose myself gives three sliders; either way the body reaches the player and the scouting report
+  const bodyNow = () => page.evaluate(() => ({ v: Array.from(document.querySelectorAll('.szv')).map((e) => e.textContent).join(' / '), mode: document.querySelector('.szcard .seg2 button.on').textContent.trim(), sliders: document.querySelectorAll('.szcard input[type=range]').length }));
+  const r0 = await bodyNow(); await page.click('button:has-text("Re-roll")'); const r1 = await bodyNow();
+  let reroll = r0.v !== r1.v; for (let k = 0; !reroll && k < 6; k++) { await page.click('button:has-text("Re-roll")'); reroll = (await bodyNow()).v !== r0.v; }
+  console.log('SIZE random', reroll && r0.sliders === 0 ? 'OK' : 'MISMATCH', JSON.stringify({ first: r0.v, rerolled: r1.v, sliders: r0.sliders })); if (!(reroll && r0.sliders === 0)) errors.push('SIZE random');
+  await page.click('button:has-text("Choose myself")');
+  const sz0 = await bodyNow();
   await page.$eval('input[aria-label=Height]', (el) => { el.value = el.max; el.dispatchEvent(new Event('input', { bubbles: true })); });
   await page.$eval('input[aria-label=Weight]', (el) => { el.value = 10; el.dispatchEvent(new Event('input', { bubbles: true })); });
-  const sz1 = await page.evaluate(() => ({ v: Array.from(document.querySelectorAll('.szv')).map((e) => e.textContent).join(' / '), note: document.querySelector('.szcard').innerText.replace(/\s+/g, ' ').slice(0, 260) }));
-  console.log('SIZE create', JSON.stringify({ start: sz0, tallest: sz1.v, note: sz1.note }));
+  await page.$eval('input[aria-label=Wingspan]', (el) => { el.value = 3; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  const sz1 = await page.evaluate(() => ({ v: Array.from(document.querySelectorAll('.szv')).map((e) => e.textContent).join(' / '), note: document.querySelector('.szcard').innerText.replace(/\s+/g, ' ').slice(0, 330) }));
+  console.log('SIZE create', JSON.stringify({ mode: sz0.mode, sliders: sz0.sliders, tallest: sz1.v, note: sz1.note }));
   await shot('01-create');
   await page.click('text=Get scouted');
   await page.waitForSelector('text=Choose my college', { timeout: 15000 });
-  const szS = await page.evaluate(() => ({ ht: window.__NBA_UI.state.player.ht, wt: window.__NBA_UI.state.player.wt, line: document.body.innerText.match(/C · [^\n]*lb[^\n]*/) && document.body.innerText.match(/C · [^\n]*lb[^\n]*/)[0] }));
-  const okSz = szS.ht === 86 && szS.wt === Math.round(249 + 2.5 * (86 - 82.8)) + 10 && /7'2"/.test(szS.line || '');
+  const szS = await page.evaluate(() => ({ ht: window.__NBA_UI.state.player.ht, wt: window.__NBA_UI.state.player.wt, ws: window.__NBA_UI.state.player.ws, line: (document.body.innerText.match(/C · [^\n]*lb[^\n]*/) || [''])[0] }));
+  const okSz = sz0.sliders === 3 && szS.ht === 86 && szS.wt === Math.round(249 + 2.5 * (86 - 82.8)) + 10 && szS.ws === 86 + 5 + 3 && /7'2"/.test(szS.line) && /7'10" wingspan/.test(szS.line);
   console.log('SIZE scouting', okSz ? 'OK' : 'MISMATCH', JSON.stringify(szS)); if (!okSz) errors.push('SIZE scouting ' + JSON.stringify(szS));
   await shot('02-scouting');
   await page.click('text=Choose my college');

@@ -253,8 +253,9 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 .card.off { opacity: .72; } .small.bad { color: #ff8b8b; margin-top: 4px; }
 
 /* height & weight on the create screen */
-.szcard { margin-top: 14px; } .szrow { display: grid; grid-template-columns: 62px 1fr 76px; gap: 12px; align-items: center; margin: 8px 0; } .szv { font: 700 17px var(--disp); letter-spacing: .04em; text-align: right; }
+.szcard { margin-top: 14px; } .szrow { display: grid; grid-template-columns: 78px 1fr 76px; gap: 12px; align-items: center; margin: 8px 0; } .szv { font: 700 17px var(--disp); letter-spacing: .04em; text-align: right; }
 .szcard input[type=range] { width: 100%; accent-color: #fff; background: transparent; padding: 0; border: 0; } .szcard .small { line-height: 1.45; margin-top: 4px; }
+.szcard .seg2 { margin: 6px 0 10px; } .szro { grid-template-columns: 78px 0 1fr; } .szro .szv { text-align: left; }
 
 </style>
 <header id="top"><div class="brand"><span class="logo">🏀</span><div><b>NBA CAREER SIM</b><small>PRO CIRCUIT</small></div></div><nav id="nav"></nav><div id="who"></div></header>
@@ -397,12 +398,14 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   const ABBR = { Hawks: 'ATL', Celtics: 'BOS', Nets: 'BKN', Hornets: 'CHA', Bulls: 'CHI', Cavaliers: 'CLE', Mavericks: 'DAL', Nuggets: 'DEN', Pistons: 'DET', Warriors: 'GSW', Rockets: 'HOU', Pacers: 'IND', Clippers: 'LAC', Lakers: 'LAL', Grizzlies: 'MEM', Heat: 'MIA', Bucks: 'MIL', Timberwolves: 'MIN', Pelicans: 'NOP', Knicks: 'NYK', Thunder: 'OKC', Magic: 'ORL', '76ers': 'PHI', Suns: 'PHX', 'Trail Blazers': 'POR', Blazers: 'POR', Kings: 'SAC', Spurs: 'SAS', Raptors: 'TOR', Jazz: 'UTA', Wizards: 'WAS' };
   // Heights and weights by position (scripts/real-sizes.py: NBA players since 2005, 40+ games at 18+ mpg, n 210-252 a position): mean height in inches,
   // sd, 2nd-98th percentile; mean weight in lb and the sd of weight at a given height (it rises ~2.5 lb an inch within a position)
+  // arm: how far the wingspan runs over the height, mean and sd in inches. NOT measured here (the bball-reference files have no wingspans and the combine tables
+  // could not be fetched): a rough public rule of thumb, about +4.5 on average and a little more for bigs, with a ~2 inch spread
   const SIZE = {
-    PG: { ht: 74.4, sd: 2.19, lo: 70, hi: 79, wt: 191, rsd: 11.5 },
-    SG: { ht: 76.9, sd: 1.51, lo: 73, hi: 80, wt: 204, rsd: 12.6 },
-    SF: { ht: 79.0, sd: 1.42, lo: 77, hi: 82, wt: 217, rsd: 13.3 },
-    PF: { ht: 80.8, sd: 1.62, lo: 78, hi: 84, wt: 234, rsd: 15.0 },
-    C: { ht: 82.8, sd: 1.69, lo: 79, hi: 86, wt: 249, rsd: 19.2 },
+    PG: { ht: 74.4, sd: 2.19, lo: 70, hi: 79, wt: 191, rsd: 11.5, arm: 4.0, asd: 2.0 },
+    SG: { ht: 76.9, sd: 1.51, lo: 73, hi: 80, wt: 204, rsd: 12.6, arm: 4.3, asd: 2.0 },
+    SF: { ht: 79.0, sd: 1.42, lo: 77, hi: 82, wt: 217, rsd: 13.3, arm: 4.6, asd: 2.0 },
+    PF: { ht: 80.8, sd: 1.62, lo: 78, hi: 84, wt: 234, rsd: 15.0, arm: 5.0, asd: 2.0 },
+    C: { ht: 82.8, sd: 1.69, lo: 79, hi: 86, wt: 249, rsd: 19.2, arm: 5.4, asd: 2.0 },
   };
 
   NBA.data = { SIZE, TEAM_COLORS, ABBR, ARENAS, ATTRS, ATTR_LABELS, POSITIONS, ARCHETYPES, TEAMS, REGIONS, STATE_ABBR, COLLEGES, FIRST, LAST };
@@ -520,17 +523,21 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   // assists and threes); the real-roster players keep their real ratings (sizeFx false) and just carry their real size.
   const SZ_SLOPE = 2.5;   // lb per inch within a position
   const SZ_H = { reb: 2, rimP: 7, inside: 1.5, ath: -2.5, handling: -2.5, passing: -1, three: -1.5, perD: -1 };   // rating points per sd of height above the position's mean
-  const SZ_W = { inside: 3, reb: 2, rimP: 1, ath: -0.5 };                                 // ... per sd of weight above what his height predicts
+  const SZ_W = { inside: 3, reb: 2, rimP: 1, ath: -0.5 };
+  const SZ_L = { rimP: 3, perD: 2, reb: 1, inside: 0.5 };   // ... per sd of wingspan beyond what his height predicts (a guess: no real wingspans here to calibrate on, so kept small)                                 // ... per sd of weight above what his height predicts
   const wtAt = (pos, ht) => Math.round(D.SIZE[pos].wt + SZ_SLOPE * (ht - D.SIZE[pos].ht));
   function rollSize(p, o) {
     const s = D.SIZE[p.pos] || D.SIZE.SF;
     p.ht = o.ht != null ? o.ht : clamp(Math.round(s.ht + s.sd * randn()), s.lo, s.hi);
     p.wt = o.wt != null ? o.wt : Math.round(clamp(wtAt(p.pos, p.ht) + s.rsd * randn(), wtAt(p.pos, p.ht) - 2.2 * s.rsd, wtAt(p.pos, p.ht) + 2.2 * s.rsd));
     if (o.sizeFx === false) p.sizeFx = false;
+    else p.ws = o.ws != null ? o.ws : Math.round(clamp(p.ht + s.arm + s.asd * randn(), p.ht - 1, p.ht + s.arm + 2.4 * s.asd));   // real-roster players have none: their real wingspans are not in the data
   }
+  const randomSize = (pos) => { const p = { pos }; rollSize(p, {}); return { pos, ht: p.ht, wt: p.wt, ws: p.ws }; };   // a whole new body for the create screen's Random option
+  const wsAt = (pos, ht) => Math.round(ht + D.SIZE[pos].arm);
   function sizeZ(p) {
     const s = D.SIZE[p.pos] || D.SIZE.SF; if (p.ht == null) return { h: 0, w: 0 };
-    return { h: clamp((p.ht - s.ht) / s.sd, -2.5, 2.5), w: clamp((p.wt - wtAt(p.pos, p.ht)) / s.rsd, -2.5, 2.5) };
+    return { h: clamp((p.ht - s.ht) / s.sd, -2.5, 2.5), w: clamp((p.wt - wtAt(p.pos, p.ht)) / s.rsd, -2.5, 2.5), l: p.ws != null ? clamp((p.ws - p.ht - s.arm) / s.asd, -2.5, 2.5) : 0 };
   }
   const fmtHt = (ht) => Math.floor(ht / 12) + "'" + (ht % 12) + '"';
 
@@ -543,7 +550,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       const pb = p.arch === 'defender' && (a === 'reb' || a === 'rimP') ? DEF_POS[p.pos] : 1;
       t[a] = clamp(50 + P[a] + A.boost[a] * pb + (S ? 0.4 * S.boost[a] : 0) + (tilt[a] || 0) + randn() * 4.5, 12, 99);
     });
-    if (p.sizeFx !== false && T.sizeFx && p.ht != null) { const z = sizeZ(p); ATTRS.forEach((x) => { t[x] = clamp(t[x] + T.sizeFx * ((SZ_H[x] || 0) * z.h + (SZ_W[x] || 0) * z.w), 12, 99); }); }
+    if (p.sizeFx !== false && T.sizeFx && p.ht != null) { const z = sizeZ(p); ATTRS.forEach((x) => { t[x] = clamp(t[x] + T.sizeFx * ((SZ_H[x] || 0) * z.h + (SZ_W[x] || 0) * z.w + (SZ_L[x] || 0) * z.l), 12, 99); }); }
     // defensive anchors come in two kinds: the shot-blocker (Mutombo, Eaton, Bol) and the glass cleaner (Rodman, Oakley): real blocks 1.3 +- 0.8, boards 8.4 +- 3.0
     if (p.arch === 'defender') { const s = (p.tr || NOTR).style || 0; t.rimP = clamp(t.rimP + T.defRim * s, 12, 99); t.reb = clamp(t.reb - T.defGlass * s, 12, 99); }
     fitOvr(t, p, ceiling);
@@ -835,7 +842,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   Object.assign(NBA, {
     rand, randn, clamp, rint, pick, r1, weighted, sum, setSeed, useRandom, rngGet, rngSet,
     ovr, ovrOf, makePlayer, buildTarget, rollCeiling, rollTdPlan, randomArch, randomPos, nameGen, regionOf,
-    rollSize, sizeZ, wtAt, fmtHt, progress, applyTraining, trainPoints, rookieFloor, expLine, shootingLine, genGame, summarize, gameRating,
+    rollSize, randomSize, sizeZ, wtAt, wsAt, fmtHt, progress, applyTraining, trainPoints, rookieFloor, expLine, shootingLine, genGame, summarize, gameRating,
   });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -1560,7 +1567,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     if (!stars) stars = +weighted(STAR_ODDS);
     if (ceiling == null) ceiling = NBA.rollCeiling(stars, o.arch);
     const genBonus = genLevel && !lateBloomer ? (genLevel === 2 ? 8 : 4) : 0; // true generational talents are seen as such by scouts
-    const p = NBA.makePlayer({ id: 'user', name: o.name || 'Rookie', pos: o.pos, arch: o.arch, sec: o.sec && o.sec !== o.arch ? o.sec : null, home: o.home, ht: o.ht, wt: o.wt, ceiling, age: 18, stars, gap });
+    const p = NBA.makePlayer({ id: 'user', name: o.name || 'Rookie', pos: o.pos, arch: o.arch, sec: o.sec && o.sec !== o.arch ? o.sec : null, home: o.home, ht: o.ht, wt: o.wt, ws: o.ws, ceiling, age: 18, stars, gap });
     p.vis = clamp(0.15 + 0.19 * (stars - 1), 0.15, 0.92);
     const L = NBA.newLeague(2026, { real: true }); // the real league as of 20 Oct 2026
     const st = {
@@ -2361,7 +2368,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   const BUILD = 'build 25 Oct · BallerSim dashboard v37';
   const app = document.getElementById('app');
   let S = null;           // game state
-  let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', ht: null, wd: 0 };   // ht inches (null: the position's average), wd lb above what his height predicts
+  let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
   let alloc = {};
   let report = null;
   let tab = 'overview';
@@ -2422,27 +2429,42 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   }
 
   // ------------------------------------------------------------ screens
-  const sizeTxt = (p) => (p && p.ht != null ? NBA.fmtHt(p.ht) + ', ' + p.wt + ' lb' : '');   // players from saves before v37 have no size
+  const sizeTxt = (p) => (p && p.ht != null ? NBA.fmtHt(p.ht) + ', ' + p.wt + ' lb' + (p.ws != null ? ', ' + NBA.fmtHt(p.ws) + ' wingspan' : '') : '');   // players from saves before v37 have no size
   // ---- height and weight of the player being created: the slider spans the real 2nd-98th percentile of his position
   const cdf = (z) => 0.5 * (1 + Math.tanh(0.7978845608 * (z + 0.044715 * z * z * z)));
-  const mySize = () => { const sz = D.SIZE[draft.pos], ht = draft.ht != null ? Math.min(sz.hi, Math.max(sz.lo, draft.ht)) : Math.round(sz.ht); return { ht, wt: NBA.wtAt(draft.pos, ht) + (draft.wd || 0) }; };
+  const armOf = (pos) => Math.round(D.SIZE[pos].arm);
+  const mySize = () => {
+    const sz = D.SIZE[draft.pos];
+    if (draft.sizeMode === 'manual') { const ht = draft.ht != null ? Math.min(sz.hi, Math.max(sz.lo, draft.ht)) : Math.round(sz.ht); return { ht, wt: NBA.wtAt(draft.pos, ht) + (draft.wd || 0), ws: ht + armOf(draft.pos) + (draft.wsd || 0) }; }
+    if (!draft.roll || draft.roll.pos !== draft.pos) draft.roll = NBA.randomSize(draft.pos);
+    return draft.roll;
+  }
   function sizeCard() {
-    const sz = D.SIZE[draft.pos], out = { ht: h('b', { class: 'szv' }), wt: h('b', { class: 'szv' }), note: h('div', { class: 'small muted' }), fx: h('div', { class: 'small' }) };
+    const sz = D.SIZE[draft.pos], manual = draft.sizeMode === 'manual', note = h('div', { class: 'small muted' }), fx = h('div', { class: 'small' });
+    const val = () => h('b', { class: 'szv' });
+    const v = { ht: val(), wt: val(), ws: val() };
     const show = () => {
-      const m = mySize(), z = NBA.sizeZ({ pos: draft.pos, ht: m.ht, wt: m.wt }), word = (q) => (q >= 0.5 ? 'taller' : 'shorter');
-      out.ht.textContent = NBA.fmtHt(m.ht); out.wt.textContent = m.wt + ' lb';
+      const m = mySize(), z = NBA.sizeZ({ pos: draft.pos, ht: m.ht, wt: m.wt, ws: m.ws });
+      v.ht.textContent = NBA.fmtHt(m.ht); v.wt.textContent = m.wt + ' lb'; v.ws.textContent = NBA.fmtHt(m.ws);
       const pc = Math.round(100 * cdf(z.h));
-      out.note.textContent = pc >= 45 && pc <= 55 ? 'Right at the average for a ' + draft.pos + '.' : (pc > 50 ? 'Taller than ' + pc : 'Shorter than ' + (100 - pc)) + '% of NBA ' + draft.pos + 's' + (z.w > 0.8 ? ', and built heavy.' : z.w < -0.8 ? ', and lean.' : '.');
+      note.textContent = (pc >= 45 && pc <= 55 ? 'Right at the average height for a ' + draft.pos : (pc > 50 ? 'Taller than ' + pc : 'Shorter than ' + (100 - pc)) + '% of NBA ' + draft.pos + 's') + (z.w > 0.8 ? ', built heavy' : z.w < -0.8 ? ', built lean' : '') + (z.l > 0.8 ? ', with long arms.' : z.l < -0.8 ? ', with short arms.' : '.');
       const up = [], dn = [];
       if (z.h > 0.6) { up.push('rebounding', 'rim protection'); dn.push('ball handling'); } else if (z.h < -0.6) { up.push('ball handling', 'quickness'); dn.push('rebounding', 'rim protection'); }
       if (z.w > 0.8) { up.push('strength inside'); dn.push('quickness'); } else if (z.w < -0.8) { up.push('quickness'); dn.push('strength inside'); }
-      out.fx.textContent = up.length || dn.length ? 'A little better at ' + [...new Set(up)].join(', ') + (dn.length ? '; a little worse at ' + [...new Set(dn)].join(', ') : '') + '. Size reshapes your ratings, it never raises them.' : 'No size edge either way: ratings come from your archetype and talent.';
+      if (z.l > 0.8) up.push('rim protection', 'perimeter defence'); else if (z.l < -0.8) dn.push('rim protection', 'perimeter defence');
+      const U = [...new Set(up)], Dn = [...new Set(dn)];
+      fx.textContent = U.length || Dn.length ? (U.length ? 'A little better at ' + U.join(', ') : '') + (U.length && Dn.length ? '; ' : '') + (Dn.length ? (U.length ? 'a little worse at ' : 'A little worse at ') + Dn.join(', ') : '') + '. Size reshapes your ratings, it never raises them.' : 'No size edge either way: ratings come from your archetype and talent.';
     };
-    const hIn = h('input', { type: 'range', min: sz.lo, max: sz.hi, step: 1, value: mySize().ht, 'aria-label': 'Height', oninput: (e) => { draft.ht = +e.target.value; show(); } });
-    const wIn = h('input', { type: 'range', min: Math.round(-2 * sz.rsd), max: Math.round(2 * sz.rsd), step: 1, value: draft.wd || 0, 'aria-label': 'Weight', oninput: (e) => { draft.wd = +e.target.value; show(); } });
+    const slider = (label, min, max, value, onIn, aria, out) => h('div', { class: 'szrow' }, h('label', { class: 'small muted' }, label), h('input', { type: 'range', min, max, step: 1, value, 'aria-label': aria, oninput: (e) => { onIn(+e.target.value); show(); } }), out);
+    const readout = (label, out) => h('div', { class: 'szrow szro' }, h('label', { class: 'small muted' }, label), h('span'), out);
+    const mode = h('div', { class: 'seg2' },
+      h('button', { class: manual ? '' : 'on', onclick: () => { if (manual) { draft.sizeMode = 'random'; draft.roll = null; render(); } } }, '🎲 Random'),
+      h('button', { class: manual ? 'on' : '', onclick: () => { if (!manual) { const m = mySize(); draft.sizeMode = 'manual'; draft.ht = m.ht; draft.wd = m.wt - NBA.wtAt(draft.pos, m.ht); draft.wsd = m.ws - m.ht - armOf(draft.pos); render(); } } }, '✋ Choose myself'));
     show();
-    return h('div', { class: 'szcard' }, h('h3', null, 'Height & weight'),
-      h('div', { class: 'szrow' }, h('label', { class: 'small muted' }, 'Height'), hIn, out.ht), h('div', { class: 'szrow' }, h('label', { class: 'small muted' }, 'Weight'), wIn, out.wt), out.note, out.fx);
+    const body = manual
+      ? [slider('Height', sz.lo, sz.hi, mySize().ht, (x) => { draft.ht = x; }, 'Height', v.ht), slider('Weight', Math.round(-2 * sz.rsd), Math.round(2 * sz.rsd), draft.wd || 0, (x) => { draft.wd = x; }, 'Weight', v.wt), slider('Wingspan', -(armOf(draft.pos) + 1), 5, draft.wsd || 0, (x) => { draft.wsd = x; }, 'Wingspan', v.ws)]
+      : [readout('Height', v.ht), readout('Weight', v.wt), readout('Wingspan', v.ws), h('div', { class: 'row', style: 'margin:6px 0' }, h('button', { class: 'tiny', onclick: () => { draft.roll = NBA.randomSize(draft.pos); render(); } }, '🎲 Re-roll'))];
+    return h('div', { class: 'szcard' }, h('h3', null, 'Height, weight & wingspan'), mode, ...body, note, fx);
   }
   function screenCreate() {
     const regions = D.REGIONS;
@@ -2464,11 +2486,11 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       h('p', { class: 'muted' }, 'Pick a name, position, archetype and where you grew up. Scouts will rate you, you choose a college, then it is draft night. Stats are tuned to the real NBA: nobody averages 35 for a decade.'),
       saved && saved.stage !== 'create' ? h('div', { class: 'callout row' }, h('span', null, 'Saved career found: ', h('b', null, saved.player.name), ' (' + saved.stage.replace(/_/g, ' ') + ')'), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => { S = saved; if (S.player && S.player.ht == null) NBA.rollSize(S.player, { sizeFx: false }); if (S.stage === 'season_play') loadSnap(); render(); } }, 'Continue')) : null,
       h('div', { class: 'card' }, h('h2', null, '1. Who are you?'), h('div', { class: 'grid g2' }, h('div', null, h('label', { class: 'small muted' }, 'Name'), nameIn), h('div', null, h('label', { class: 'small muted' }, 'Where in the US are you from?'), h('select', { onchange: (e) => (draft.home = e.target.value) }, stateOptions))),
-        h('h3', null, 'Position'), h('div', { class: 'row' }, Object.keys(D.POSITIONS).map((p) => h('button', { class: draft.pos === p ? 'primary' : '', onclick: () => { draft.pos = p; draft.ht = null; draft.wd = 0; render(); } }, p))),
+        h('h3', null, 'Position'), h('div', { class: 'row' }, Object.keys(D.POSITIONS).map((p) => h('button', { class: draft.pos === p ? 'primary' : '', onclick: () => { draft.pos = p; draft.ht = null; draft.wd = 0; draft.wsd = 0; draft.roll = null; render(); } }, p))),
         sizeCard()),
       h('div', { class: 'card' }, h('h2', null, '2. Archetype'), h('div', { class: 'grid g3' }, archCards),
         h('h3', null, 'Secondary tag (optional, small bonus)'), h('select', { onchange: (e) => (draft.sec = e.target.value) }, h('option', { value: '' }, 'None'), Object.keys(D.ARCHETYPES).filter((k) => k !== draft.arch).map((k) => h('option', { value: k, selected: draft.sec === k }, D.ARCHETYPES[k].name)))),
-      h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { S = G.newCareer({ name: (draft.name || '').trim() || 'Rookie', pos: draft.pos, arch: draft.arch, sec: draft.sec, home: draft.home, ht: mySize().ht, wt: mySize().wt }); S.stage = 'scouting'; S.revealed = false; go(); } }, 'Get scouted →')),
+      h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { S = G.newCareer({ name: (draft.name || '').trim() || 'Rookie', pos: draft.pos, arch: draft.arch, sec: draft.sec, home: draft.home, ht: mySize().ht, wt: mySize().wt, ws: mySize().ws }); S.stage = 'scouting'; S.revealed = false; go(); } }, 'Get scouted →')),
       h('p', { class: 'muted small', style: 'text-align:center;margin-top:18px' }, BUILD));
   }
 

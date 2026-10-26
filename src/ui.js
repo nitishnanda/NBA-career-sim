@@ -5,7 +5,7 @@
   const BUILD = 'build 25 Oct · BallerSim dashboard v37';
   const app = document.getElementById('app');
   let S = null;           // game state
-  let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', ht: null, wd: 0 };   // ht inches (null: the position's average), wd lb above what his height predicts
+  let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
   let alloc = {};
   let report = null;
   let tab = 'overview';
@@ -66,27 +66,42 @@
   }
 
   // ------------------------------------------------------------ screens
-  const sizeTxt = (p) => (p && p.ht != null ? NBA.fmtHt(p.ht) + ', ' + p.wt + ' lb' : '');   // players from saves before v37 have no size
+  const sizeTxt = (p) => (p && p.ht != null ? NBA.fmtHt(p.ht) + ', ' + p.wt + ' lb' + (p.ws != null ? ', ' + NBA.fmtHt(p.ws) + ' wingspan' : '') : '');   // players from saves before v37 have no size
   // ---- height and weight of the player being created: the slider spans the real 2nd-98th percentile of his position
   const cdf = (z) => 0.5 * (1 + Math.tanh(0.7978845608 * (z + 0.044715 * z * z * z)));
-  const mySize = () => { const sz = D.SIZE[draft.pos], ht = draft.ht != null ? Math.min(sz.hi, Math.max(sz.lo, draft.ht)) : Math.round(sz.ht); return { ht, wt: NBA.wtAt(draft.pos, ht) + (draft.wd || 0) }; };
+  const armOf = (pos) => Math.round(D.SIZE[pos].arm);
+  const mySize = () => {
+    const sz = D.SIZE[draft.pos];
+    if (draft.sizeMode === 'manual') { const ht = draft.ht != null ? Math.min(sz.hi, Math.max(sz.lo, draft.ht)) : Math.round(sz.ht); return { ht, wt: NBA.wtAt(draft.pos, ht) + (draft.wd || 0), ws: ht + armOf(draft.pos) + (draft.wsd || 0) }; }
+    if (!draft.roll || draft.roll.pos !== draft.pos) draft.roll = NBA.randomSize(draft.pos);
+    return draft.roll;
+  }
   function sizeCard() {
-    const sz = D.SIZE[draft.pos], out = { ht: h('b', { class: 'szv' }), wt: h('b', { class: 'szv' }), note: h('div', { class: 'small muted' }), fx: h('div', { class: 'small' }) };
+    const sz = D.SIZE[draft.pos], manual = draft.sizeMode === 'manual', note = h('div', { class: 'small muted' }), fx = h('div', { class: 'small' });
+    const val = () => h('b', { class: 'szv' });
+    const v = { ht: val(), wt: val(), ws: val() };
     const show = () => {
-      const m = mySize(), z = NBA.sizeZ({ pos: draft.pos, ht: m.ht, wt: m.wt }), word = (q) => (q >= 0.5 ? 'taller' : 'shorter');
-      out.ht.textContent = NBA.fmtHt(m.ht); out.wt.textContent = m.wt + ' lb';
+      const m = mySize(), z = NBA.sizeZ({ pos: draft.pos, ht: m.ht, wt: m.wt, ws: m.ws });
+      v.ht.textContent = NBA.fmtHt(m.ht); v.wt.textContent = m.wt + ' lb'; v.ws.textContent = NBA.fmtHt(m.ws);
       const pc = Math.round(100 * cdf(z.h));
-      out.note.textContent = pc >= 45 && pc <= 55 ? 'Right at the average for a ' + draft.pos + '.' : (pc > 50 ? 'Taller than ' + pc : 'Shorter than ' + (100 - pc)) + '% of NBA ' + draft.pos + 's' + (z.w > 0.8 ? ', and built heavy.' : z.w < -0.8 ? ', and lean.' : '.');
+      note.textContent = (pc >= 45 && pc <= 55 ? 'Right at the average height for a ' + draft.pos : (pc > 50 ? 'Taller than ' + pc : 'Shorter than ' + (100 - pc)) + '% of NBA ' + draft.pos + 's') + (z.w > 0.8 ? ', built heavy' : z.w < -0.8 ? ', built lean' : '') + (z.l > 0.8 ? ', with long arms.' : z.l < -0.8 ? ', with short arms.' : '.');
       const up = [], dn = [];
       if (z.h > 0.6) { up.push('rebounding', 'rim protection'); dn.push('ball handling'); } else if (z.h < -0.6) { up.push('ball handling', 'quickness'); dn.push('rebounding', 'rim protection'); }
       if (z.w > 0.8) { up.push('strength inside'); dn.push('quickness'); } else if (z.w < -0.8) { up.push('quickness'); dn.push('strength inside'); }
-      out.fx.textContent = up.length || dn.length ? 'A little better at ' + [...new Set(up)].join(', ') + (dn.length ? '; a little worse at ' + [...new Set(dn)].join(', ') : '') + '. Size reshapes your ratings, it never raises them.' : 'No size edge either way: ratings come from your archetype and talent.';
+      if (z.l > 0.8) up.push('rim protection', 'perimeter defence'); else if (z.l < -0.8) dn.push('rim protection', 'perimeter defence');
+      const U = [...new Set(up)], Dn = [...new Set(dn)];
+      fx.textContent = U.length || Dn.length ? (U.length ? 'A little better at ' + U.join(', ') : '') + (U.length && Dn.length ? '; ' : '') + (Dn.length ? (U.length ? 'a little worse at ' : 'A little worse at ') + Dn.join(', ') : '') + '. Size reshapes your ratings, it never raises them.' : 'No size edge either way: ratings come from your archetype and talent.';
     };
-    const hIn = h('input', { type: 'range', min: sz.lo, max: sz.hi, step: 1, value: mySize().ht, 'aria-label': 'Height', oninput: (e) => { draft.ht = +e.target.value; show(); } });
-    const wIn = h('input', { type: 'range', min: Math.round(-2 * sz.rsd), max: Math.round(2 * sz.rsd), step: 1, value: draft.wd || 0, 'aria-label': 'Weight', oninput: (e) => { draft.wd = +e.target.value; show(); } });
+    const slider = (label, min, max, value, onIn, aria, out) => h('div', { class: 'szrow' }, h('label', { class: 'small muted' }, label), h('input', { type: 'range', min, max, step: 1, value, 'aria-label': aria, oninput: (e) => { onIn(+e.target.value); show(); } }), out);
+    const readout = (label, out) => h('div', { class: 'szrow szro' }, h('label', { class: 'small muted' }, label), h('span'), out);
+    const mode = h('div', { class: 'seg2' },
+      h('button', { class: manual ? '' : 'on', onclick: () => { if (manual) { draft.sizeMode = 'random'; draft.roll = null; render(); } } }, '🎲 Random'),
+      h('button', { class: manual ? 'on' : '', onclick: () => { if (!manual) { const m = mySize(); draft.sizeMode = 'manual'; draft.ht = m.ht; draft.wd = m.wt - NBA.wtAt(draft.pos, m.ht); draft.wsd = m.ws - m.ht - armOf(draft.pos); render(); } } }, '✋ Choose myself'));
     show();
-    return h('div', { class: 'szcard' }, h('h3', null, 'Height & weight'),
-      h('div', { class: 'szrow' }, h('label', { class: 'small muted' }, 'Height'), hIn, out.ht), h('div', { class: 'szrow' }, h('label', { class: 'small muted' }, 'Weight'), wIn, out.wt), out.note, out.fx);
+    const body = manual
+      ? [slider('Height', sz.lo, sz.hi, mySize().ht, (x) => { draft.ht = x; }, 'Height', v.ht), slider('Weight', Math.round(-2 * sz.rsd), Math.round(2 * sz.rsd), draft.wd || 0, (x) => { draft.wd = x; }, 'Weight', v.wt), slider('Wingspan', -(armOf(draft.pos) + 1), 5, draft.wsd || 0, (x) => { draft.wsd = x; }, 'Wingspan', v.ws)]
+      : [readout('Height', v.ht), readout('Weight', v.wt), readout('Wingspan', v.ws), h('div', { class: 'row', style: 'margin:6px 0' }, h('button', { class: 'tiny', onclick: () => { draft.roll = NBA.randomSize(draft.pos); render(); } }, '🎲 Re-roll'))];
+    return h('div', { class: 'szcard' }, h('h3', null, 'Height, weight & wingspan'), mode, ...body, note, fx);
   }
   function screenCreate() {
     const regions = D.REGIONS;
@@ -108,11 +123,11 @@
       h('p', { class: 'muted' }, 'Pick a name, position, archetype and where you grew up. Scouts will rate you, you choose a college, then it is draft night. Stats are tuned to the real NBA: nobody averages 35 for a decade.'),
       saved && saved.stage !== 'create' ? h('div', { class: 'callout row' }, h('span', null, 'Saved career found: ', h('b', null, saved.player.name), ' (' + saved.stage.replace(/_/g, ' ') + ')'), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => { S = saved; if (S.player && S.player.ht == null) NBA.rollSize(S.player, { sizeFx: false }); if (S.stage === 'season_play') loadSnap(); render(); } }, 'Continue')) : null,
       h('div', { class: 'card' }, h('h2', null, '1. Who are you?'), h('div', { class: 'grid g2' }, h('div', null, h('label', { class: 'small muted' }, 'Name'), nameIn), h('div', null, h('label', { class: 'small muted' }, 'Where in the US are you from?'), h('select', { onchange: (e) => (draft.home = e.target.value) }, stateOptions))),
-        h('h3', null, 'Position'), h('div', { class: 'row' }, Object.keys(D.POSITIONS).map((p) => h('button', { class: draft.pos === p ? 'primary' : '', onclick: () => { draft.pos = p; draft.ht = null; draft.wd = 0; render(); } }, p))),
+        h('h3', null, 'Position'), h('div', { class: 'row' }, Object.keys(D.POSITIONS).map((p) => h('button', { class: draft.pos === p ? 'primary' : '', onclick: () => { draft.pos = p; draft.ht = null; draft.wd = 0; draft.wsd = 0; draft.roll = null; render(); } }, p))),
         sizeCard()),
       h('div', { class: 'card' }, h('h2', null, '2. Archetype'), h('div', { class: 'grid g3' }, archCards),
         h('h3', null, 'Secondary tag (optional, small bonus)'), h('select', { onchange: (e) => (draft.sec = e.target.value) }, h('option', { value: '' }, 'None'), Object.keys(D.ARCHETYPES).filter((k) => k !== draft.arch).map((k) => h('option', { value: k, selected: draft.sec === k }, D.ARCHETYPES[k].name)))),
-      h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { S = G.newCareer({ name: (draft.name || '').trim() || 'Rookie', pos: draft.pos, arch: draft.arch, sec: draft.sec, home: draft.home, ht: mySize().ht, wt: mySize().wt }); S.stage = 'scouting'; S.revealed = false; go(); } }, 'Get scouted →')),
+      h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { S = G.newCareer({ name: (draft.name || '').trim() || 'Rookie', pos: draft.pos, arch: draft.arch, sec: draft.sec, home: draft.home, ht: mySize().ht, wt: mySize().wt, ws: mySize().ws }); S.stage = 'scouting'; S.revealed = false; go(); } }, 'Get scouted →')),
       h('p', { class: 'muted small', style: 'text-align:center;margin-top:18px' }, BUILD));
   }
 

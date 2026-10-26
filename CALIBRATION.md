@@ -568,3 +568,13 @@ with the real spread (sd 1.4-2.2 inches) and weight rising ~2.5 lb an inch withi
 - Checks: realism 90% (v36 89%; run-to-run noise +-1), gen MVPs 1.85 per gen over 900 picks (1.86), 4+ MVPs 14% (14%); league report on 12 fresh seeds
   with size on vs off: two 20-ppg teammates 30% vs 32% on one seed set and 32% vs 29% on another (the sign flips: noise, not an effect), top-5 repeat 2.25-2.43
   either way. UI tests (desktop and phone): the sliders move the label and note, the chosen size reaches the player and the scouting report (7'2" / 267 lb).
+
+## v38: wingspan, and random or chosen size
+
+Players now also have a wingspan (`p.ws`, inches). Unlike height and weight it is NOT measured on real data: the bball-reference files have no wingspans and
+the combine tables could not be fetched here, so `D.SIZE[pos].arm` / `asd` (wingspan minus height: PG +4.0, SG +4.3, SF +4.6, PF +5.0, C +5.4, sd 2.0 inches)
+is a rough public rule of thumb (wingspan runs ~4-5 inches over height, more for bigs), and its sim effect is a guess kept tiny (per +1 sd of length beyond
+the height: rim protection +3, perimeter defence +2, rebounding +1, inside +0.5; `fitOvr` still rescales to the ceiling). Real-roster players have no
+wingspan (shown as height and weight only): their real wingspans are not in the data and are not invented.
+- Create screen: Random (a whole new body for the position, with Re-roll) or Choose myself (height, weight and wingspan sliders; switching starts from the
+  current roll). The UI test checks Re-roll changes the body, the sliders reach the player and the scouting report, and a random roll becomes the player's body (5/5 positions).
