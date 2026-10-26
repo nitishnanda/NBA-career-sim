@@ -770,14 +770,15 @@
     if (!pk.questions.length) return null;
     const qs = pk.questions.map((q) => ({ i: q.i, topic: q.topic, heat: q.heat, text: q.text, opts: P.answerOptions(q, pk.c, rnd) }));
     const why = it.k === 'g' ? it.pcWhy || 'A big game' : (it.rnd || 'Playoff series') + ' vs the ' + it.opp;
-    return { kind: it.k === 'g' ? 'game' : 'series', idx: st.matchIdx, si: it.ps, why, opp: it.k === 'g' ? it.o : it.opp, qs, picks: [], c: { oppStarOvr: pk.c.oppStarOvr, winning: pk.c.winning, hot: pk.c.hot, slump: pk.c.slump, oppStar: pk.c.oppStar, rivalHere: pk.c.rivalHere } };
+    return { kind: it.k === 'g' ? 'game' : 'series', idx: st.matchIdx, si: it.ps, why, opp: it.k === 'g' ? it.o : it.opp, qs, picks: [], c: { oppStarOvr: pk.c.oppStarOvr, winning: pk.c.winning, hot: pk.c.hot, slump: pk.c.slump, oppStar: pk.c.oppStar, rivalHere: pk.c.rivalHere, rival: pk.c.rival, opp: pk.c.opp, team: pk.c.team, me: st.player.name, pos: st.player.pos }, headlines: [] };
   }
   // what the answers did: the game (or series) you are about to play, the locker room, the media, and sometimes a fine or a suspension
   function resolvePress(st, ctx) {
     const Dc = NBA.Decisions, T = NBA.Press.TONES, p = st.player, L = st.league, c = ctx.c, rnd = Dc.rng(st, 'pressr|' + L.year + '|' + (ctx.kind === 'game' ? ctx.idx : 's' + ctx.si));
     let F = 0, H = 0, Lk = 0, M = 0, Hy = 0, susp = false, fine = 0; const notes = [];
     ctx.picks.forEach((pk) => {
-      const tn = T[pk.tone]; let f = tn.fire, h = tn.heat, lk = tn.locker, m = tn.media;
+      const tn = T[pk.tone], k = pk.intensity || 1; let f = tn.fire * (pk.tone === 'trash' || pk.tone === 'fight' ? k : 1), h = tn.heat * (pk.tone === 'trash' || pk.tone === 'fight' ? k : 1), lk = tn.locker, m = tn.media;
+      if (pk.profane) { fine = Math.max(fine, 0.05); m -= 0.5; notes.push('The league did not love your language.'); }
       if (pk.tone === 'trash') {
         if (rnd() < clamp(0.55 + 0.012 * (ovr(p) - c.oppStarOvr) + (c.winning ? 0.04 : 0) + (c.hot ? 0.03 : 0) - (c.slump ? 0.05 : 0), 0.2, 0.85)) { m += 0.5; notes.push('The trash talk fired you up.'); }
         else { f = -0.7; m -= 1.2; h *= 1.5; notes.push('The trash talk backfired: it fired them up, not you.'); }
@@ -812,7 +813,9 @@
       line = pr.d > 0.04 ? 'The series starts with the momentum on your side.' : pr.d < -0.04 ? 'The series starts with the momentum on theirs.' : 'The series starts as it always would.';
     }
     const big = fine || ctx.picks.some((pk) => pk.tone === 'trash' || pk.tone === 'fight');
-    return { text: (notes.concat([line]).join(' ')), tone: net > 0.2 ? 'good' : net < -0.2 || susp ? 'bad' : 'neutral', journal: big ? { tone: net > 0.2 && !susp ? 'good' : 'bad', text: (ctx.kind === 'game' ? ctx.why + ' vs the ' + ctx.opp : ctx.why) + ': ' + notes.join(' ') } : null };
+    const head = (ctx.headlines || []).filter(Boolean)[0], quote = ctx.picks.find((pk) => pk.text && (pk.tone === 'trash' || pk.tone === 'fight'));
+    if (head) notes.unshift('Headline: "' + head + '".');
+    return { text: (notes.concat([line]).join(' ')), tone: net > 0.2 ? 'good' : net < -0.2 || susp ? 'bad' : 'neutral', journal: big ? { tone: net > 0.2 && !susp ? 'good' : 'bad', text: (ctx.kind === 'game' ? ctx.why + ' vs the ' + ctx.opp : ctx.why) + ': ' + (quote ? 'You said "' + quote.text.slice(0, 90) + (quote.text.length > 90 ? '…' : '') + '". ' : '') + notes.join(' ') } : null };
   }
 
   // ---- decisions made while the games play: a playoff plan per series, and the clutch moments

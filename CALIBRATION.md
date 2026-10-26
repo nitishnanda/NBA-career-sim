@@ -699,3 +699,12 @@ Feedback from play: draft night went by too fast to take in your own pick, and s
   At the end the farewell is a crossroads: retire as promised (+3 legacy) or play on after a warning (media −3, locker −1, depth −1, form −0.01, once the contract is signed).
 - Comeback: a retired player under 42 can sit out 1-3 years (the league keeps playing, −0.6 on every rating and −1.4 athleticism a year on top of aging), then goes back to the market;
   a legend's name adds up to +4 value for interest and the retirement check (once). Back after announcing a farewell: media −2 (the fans are split).
+
+## v46 — typed press answers
+- Any question can be answered in your own words (240 chars). The answer is read into one of the six existing tones plus an intensity (0.7-1.3, scales trash/fight fire and heat) and a
+  profanity flag (fine +$0.05M, media −0.5), so a typed answer can never beat the best button answer: the sim sees the same tone effects.
+- Built-in reader (plain GitHub Pages, and the fallback anywhere): word lists per tone, who is named (their star, your rival, their team), caps/exclamation heat, first-person vs team language,
+  a fight needs a named target plus real heat (otherwise trash talk).
+- Artifact: `sample` capability (declared `{sample: {}}`): Claude (quick tier, no cache) returns {tone, intensity, profane, reaction, headline} for the typed answer; the answer is sent as DATA,
+  the reply is validated (unknown tone → built-in reader), and any failure (not granted, rate limited, invalid JSON) falls back to the built-in reader. Nothing is ever sent unless the viewer
+  types an answer and presses Say it.

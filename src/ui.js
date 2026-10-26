@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v45';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v46';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -1008,13 +1008,37 @@
   }
 
   // ------------------------------------------------------------ the press conference
+  // Claude in the artifact: the same page also runs on plain GitHub Pages, where there is no window.claude and the built-in reader does the job
+  let samplePromise = null;
+  const getSample = () => (samplePromise || (samplePromise = (async () => { try { return window.claude && window.claude.use ? await window.claude.use('sample') : null; } catch (e) { return null; } })()));
+  const SAMPLE_MSG = { not_granted: 'Claude is switched off for this page, so the built-in reader read you.', rate_limited: 'Claude is busy right now, so the built-in reader read you.', sampling_disabled: 'Claude is unavailable here, so the built-in reader read you.' };
   function screenPress() {
-    const Dc = DEC(), v = Dc.view(S), t = S.league.teams[S.teamId], pd = S.dec.pending;
-    const pick = (key) => { try { const r = Dc.choose(S, key); if (!(S.dec.pending && S.dec.pending.id === 'press')) { S.flash = r.text; saveSnap(); } save(); go(); } catch (e) { console.error(e); } };
+    const Dc = DEC(), v = Dc.view(S), t = S.league.teams[S.teamId], pd = S.dec.pending, q = pd.ctx.qs[pd.step];
+    const finish = (r) => { if (!(S.dec.pending && S.dec.pending.id === 'press')) { S.flash = r.text; saveSnap(); } save(); go(); };
+    const pick = (key) => { try { finish(Dc.choose(S, key)); } catch (e) { console.error(e); } };
+    // your own words: read by Claude when this page runs inside Claude, by the built-in reader everywhere else; either way they come out as one of the six tones
+    const ta = h('textarea', { class: 'pressbox', rows: 3, maxlength: 240, placeholder: 'Or say it your own way… (up to 240 characters)' }), count = h('span', { class: 'small muted' }, '0 / 240'), note = h('div', { class: 'small muted pressnote' }, '');
+    const go2 = h('button', { class: 'primary', disabled: true }, 'Say it');
+    ta.oninput = () => { count.textContent = ta.value.length + ' / 240'; go2.disabled = !ta.value.trim(); };
+    getSample().then((sm) => { if (sm) note.textContent = '✨ The reporters in this room are Claude: they will react to exactly what you type.'; else note.textContent = 'The reporters read your answer for tone: trash talk, humility, jokes, heat.'; });
+    go2.onclick = async () => {
+      const text = ta.value.trim(); if (!text) return; go2.disabled = true; ta.disabled = true; note.textContent = 'The reporters are reacting…';
+      const c = pd.ctx.c, local = NBA.Press.readTyped(text, c, q); let res = null;
+      const sm = await getSample();
+      if (sm) {
+        try { res = NBA.Press.checkClaude(await sm.json(NBA.Press.claudePrompt(text, c, q, pd.ctx.why), { modelTier: 'quick', cache: false }), local); }
+        catch (e) { note.textContent = SAMPLE_MSG[e && e.code] || 'Claude could not read that one, so the built-in reader did.'; }
+      }
+      if (!res) res = local;
+      // the built-in reader is the safety net: if Claude calls a flat answer a fight or the other way round by a wide margin the sim still follows the tone Claude picked (it read the words), but profanity the reader saw is never lost
+      if (local.profane && !res.profane) res.profane = true;
+      try { finish(Dc.choose(S, 'typed', Object.assign({ text }, res))); } catch (e) { console.error(e); ta.disabled = false; go2.disabled = false; note.textContent = 'That one did not go through. Try again.'; }
+    };
     return h('div', null, h('h1', null, 'Press conference'), h('p', { class: 'muted' }, t.name + ' · ' + v.why),
-      pd.log.length ? h('div', { class: 'jlog' }, pd.log.map((x) => h('div', { class: 'jmsg' }, '🎤 ' + x.text))) : null,
+      pd.log.length ? h('div', { class: 'jlog' }, pd.log.map((x) => h('div', { class: 'jmsg' }, x.text.charAt(0) === '\uD83D' ? x.text : '🎤 ' + x.text))) : null,
       h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, 'Question ' + (v.step + 1) + ' of ' + v.total), h('h2', { style: 'margin:8px 0' }, '“' + v.question + '”')),
       h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' + (o.spicy ? ' spicy' : '') }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.line), h('div', { style: 'margin-top:8px' }, h('button', { class: o.spicy ? '' : 'primary', onclick: () => pick(o.key) }, 'Say it'))))),
+      h('div', { class: 'card' }, h('b', null, 'Say it in your own words'), ta, h('div', { class: 'row', style: 'margin-top:8px' }, go2, count), note),
       autoDecBar());
   }
 

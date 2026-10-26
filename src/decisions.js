@@ -391,7 +391,18 @@
       return { why: ctx.why, kind: ctx.kind, opp: ctx.opp, step: pd.step, total: ctx.qs.length, topic: q.topic, question: q.text, options: q.opts.map((o) => ({ key: o.key, label: o.label, line: o.line, spicy: o.spicy })) };
     },
     choose(st, ctx, key, arg, pd) {
-      const q = ctx.qs[pd.step], o = q.opts.find((x) => x.key === key); if (!o) throw new Error('bad answer');
+      const q = ctx.qs[pd.step];
+      if (key === 'typed') {
+        // your own words, already read (by the built-in reader or by Claude): the tone it came out as decides the effects, exactly like a button answer
+        const a = arg || {}, tn = NBA.Press.TONES[a.tone] ? a.tone : 'deflect', words = String(a.text || '').slice(0, 240);
+        ctx.picks.push({ tone: tn, topic: q.topic, text: words, intensity: Math.max(0.7, Math.min(1.3, +a.intensity || 1)), profane: !!a.profane });
+        (ctx.headlines = ctx.headlines || []).push(String(a.headline || '').slice(0, 90));
+        const react = '\uD83D\uDDE3 \u201C' + words + '\u201D \u2192 ' + String(a.reaction || '').slice(0, 260);
+        if (pd.step + 1 < ctx.qs.length) return { done: false, tone: 'neutral', text: react };
+        const r0 = NBA.Game.resolvePress(st, ctx);
+        return { done: true, tone: r0.tone, text: r0.text, journal: r0.journal };
+      }
+      const o = q.opts.find((x) => x.key === key); if (!o) throw new Error('bad answer');
       ctx.picks.push({ tone: key, topic: q.topic });
       if (pd.step + 1 < ctx.qs.length) return { done: false, tone: 'neutral', text: o.line };
       const r = NBA.Game.resolvePress(st, ctx);
