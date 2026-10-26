@@ -30,7 +30,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   await page.click('text=Get scouted');
   await page.waitForSelector('text=Choose my college', { timeout: 15000 });
   const szS = await page.evaluate(() => ({ ht: window.__NBA_UI.state.player.ht, wt: window.__NBA_UI.state.player.wt, ws: window.__NBA_UI.state.player.ws, line: (document.body.innerText.match(/C · [^\n]*lb[^\n]*/) || [''])[0] }));
-  const okSz = sz0.sliders === 3 && szS.ht === 86 && szS.wt === Math.round(249 + 2.5 * (86 - 82.8)) + 10 && szS.ws === 86 + 5 + 3 && /7'2"/.test(szS.line) && /7'10" wingspan/.test(szS.line);
+  const okSz = sz0.sliders === 3 && szS.ht === 86 && szS.wt === Math.round(249 + 2.5 * (86 - 82.8)) + 10 && szS.ws === 86 + 4 + 3 && /7'2"/.test(szS.line) && /7'9" wingspan/.test(szS.line);
   console.log('SIZE scouting', okSz ? 'OK' : 'MISMATCH', JSON.stringify(szS)); if (!okSz) errors.push('SIZE scouting ' + JSON.stringify(szS));
   await shot('02-scouting');
   await page.click('text=Choose my college');

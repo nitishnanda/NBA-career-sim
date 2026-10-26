@@ -398,14 +398,14 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   const ABBR = { Hawks: 'ATL', Celtics: 'BOS', Nets: 'BKN', Hornets: 'CHA', Bulls: 'CHI', Cavaliers: 'CLE', Mavericks: 'DAL', Nuggets: 'DEN', Pistons: 'DET', Warriors: 'GSW', Rockets: 'HOU', Pacers: 'IND', Clippers: 'LAC', Lakers: 'LAL', Grizzlies: 'MEM', Heat: 'MIA', Bucks: 'MIL', Timberwolves: 'MIN', Pelicans: 'NOP', Knicks: 'NYK', Thunder: 'OKC', Magic: 'ORL', '76ers': 'PHI', Suns: 'PHX', 'Trail Blazers': 'POR', Blazers: 'POR', Kings: 'SAC', Spurs: 'SAS', Raptors: 'TOR', Jazz: 'UTA', Wizards: 'WAS' };
   // Heights and weights by position (scripts/real-sizes.py: NBA players since 2005, 40+ games at 18+ mpg, n 210-252 a position): mean height in inches,
   // sd, 2nd-98th percentile; mean weight in lb and the sd of weight at a given height (it rises ~2.5 lb an inch within a position)
-  // arm: how far the wingspan runs over the height, mean and sd in inches. NOT measured here (the bball-reference files have no wingspans and the combine tables
-  // could not be fetched): a rough public rule of thumb, about +4.5 on average and a little more for bigs, with a ~2 inch spread
+  // arm / asd: how far wingspan runs over LISTED height, mean and sd in inches, measured on the NBA draft combine (Kaggle file, 2000-2026): 1,146 players matched to
+  // an NBA career (combine heights are barefoot, listed heights run 0.87 inch above them; wingspan - listed height is what the game shows)
   const SIZE = {
-    PG: { ht: 74.4, sd: 2.19, lo: 70, hi: 79, wt: 191, rsd: 11.5, arm: 4.0, asd: 2.0 },
-    SG: { ht: 76.9, sd: 1.51, lo: 73, hi: 80, wt: 204, rsd: 12.6, arm: 4.3, asd: 2.0 },
-    SF: { ht: 79.0, sd: 1.42, lo: 77, hi: 82, wt: 217, rsd: 13.3, arm: 4.6, asd: 2.0 },
-    PF: { ht: 80.8, sd: 1.62, lo: 78, hi: 84, wt: 234, rsd: 15.0, arm: 5.0, asd: 2.0 },
-    C: { ht: 82.8, sd: 1.69, lo: 79, hi: 86, wt: 249, rsd: 19.2, arm: 5.4, asd: 2.0 },
+    PG: { ht: 74.4, sd: 2.19, lo: 70, hi: 79, wt: 191, rsd: 11.5, arm: 3.5, asd: 2.1 },
+    SG: { ht: 76.9, sd: 1.51, lo: 73, hi: 80, wt: 204, rsd: 12.6, arm: 3.9, asd: 2.1 },
+    SF: { ht: 79.0, sd: 1.42, lo: 77, hi: 82, wt: 217, rsd: 13.3, arm: 3.7, asd: 2.3 },
+    PF: { ht: 80.8, sd: 1.62, lo: 78, hi: 84, wt: 234, rsd: 15.0, arm: 4.3, asd: 2.2 },
+    C: { ht: 82.8, sd: 1.69, lo: 79, hi: 86, wt: 249, rsd: 19.2, arm: 4.4, asd: 2.3 },
   };
 
   NBA.data = { SIZE, TEAM_COLORS, ABBR, ARENAS, ATTRS, ATTR_LABELS, POSITIONS, ARCHETYPES, TEAMS, REGIONS, STATE_ABBR, COLLEGES, FIRST, LAST };
@@ -524,14 +524,14 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   const SZ_SLOPE = 2.5;   // lb per inch within a position
   const SZ_H = { reb: 2, rimP: 7, inside: 1.5, ath: -2.5, handling: -2.5, passing: -1, three: -1.5, perD: -1 };   // rating points per sd of height above the position's mean
   const SZ_W = { inside: 3, reb: 2, rimP: 1, ath: -0.5 };
-  const SZ_L = { rimP: 3, perD: 2, reb: 1, inside: 0.5 };   // ... per sd of wingspan beyond what his height predicts (a guess: no real wingspans here to calibrate on, so kept small)                                 // ... per sd of weight above what his height predicts
+  const SZ_L = { rimP: 12, perD: 3, reb: 3, inside: 2 };   // ... per sd of wingspan beyond what his height predicts (real draft-combine players: per +1 sd of length, +0.39 rebounds and +0.17 blocks per 36, height and weight held fixed)
   const wtAt = (pos, ht) => Math.round(D.SIZE[pos].wt + SZ_SLOPE * (ht - D.SIZE[pos].ht));
   function rollSize(p, o) {
     const s = D.SIZE[p.pos] || D.SIZE.SF;
     p.ht = o.ht != null ? o.ht : clamp(Math.round(s.ht + s.sd * randn()), s.lo, s.hi);
     p.wt = o.wt != null ? o.wt : Math.round(clamp(wtAt(p.pos, p.ht) + s.rsd * randn(), wtAt(p.pos, p.ht) - 2.2 * s.rsd, wtAt(p.pos, p.ht) + 2.2 * s.rsd));
     if (o.sizeFx === false) p.sizeFx = false;
-    else p.ws = o.ws != null ? o.ws : Math.round(clamp(p.ht + s.arm + s.asd * randn(), p.ht - 1, p.ht + s.arm + 2.4 * s.asd));   // real-roster players have none: their real wingspans are not in the data
+    else p.ws = o.ws != null ? o.ws : Math.round(clamp(p.ht + s.arm + s.asd * randn(), p.ht - 1, p.ht + s.arm + 2.2 * s.asd));   // real-roster players have none: their real wingspans are not in the data
   }
   const randomSize = (pos) => { const p = { pos }; rollSize(p, {}); return { pos, ht: p.ht, wt: p.wt, ws: p.ws }; };   // a whole new body for the create screen's Random option
   const wsAt = (pos, ht) => Math.round(ht + D.SIZE[pos].arm);
@@ -2365,7 +2365,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v38';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v38b';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
