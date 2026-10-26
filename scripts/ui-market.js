@@ -92,16 +92,31 @@ let PG = null;
   await page.click('text=Offseason decisions');
   // ---- 2. free agency: an expired contract becomes a market of pitches, clubs can say no
   await page.evaluate(() => { const S = window.__NBA_UI.state; S.contract.left = 0; S.decision = null; window.__NBA_UI.go(); });
-  await page.waitForSelector('text=pitch to other clubs');
-  const fa0 = await page.evaluate(() => ({ cards: document.querySelectorAll('button').length, pitch: Array.from(document.querySelectorAll('button')).filter((b) => /Pitch yourself/.test(b.textContent)).length, vibes: document.querySelectorAll('.vibe').length, own: /want you back|letting you walk/.test(document.body.innerText) }));
-  const okF0 = fa0.pitch >= 6 && fa0.vibes >= 6 && fa0.own; console.log('FA market', okF0 ? 'OK' : 'MISMATCH', JSON.stringify(fa0)); if (!okF0) errors.push('FA market ' + JSON.stringify(fa0));
+  await page.waitForSelector('text=negotiate with other clubs');
+  const fa0 = await page.evaluate(() => ({ neg: Array.from(document.querySelectorAll('button')).filter((b) => /^Negotiate$/.test(b.textContent)).length, vibes: document.querySelectorAll('.vibe').length, own: /want you back|letting you walk/.test(document.body.innerText) }));
+  const okF0 = fa0.neg >= 6 && fa0.vibes >= 6 && fa0.own; console.log('FA market', okF0 ? 'OK' : 'MISMATCH', JSON.stringify(fa0)); if (!okF0) errors.push('FA market ' + JSON.stringify(fa0));
   await shot('21-free-agency');
-  for (let k = 0; k < 12; k++) { const b = await page.$('button:has-text("Pitch yourself")'); if (!b) break; await b.click(); await page.waitForTimeout(50); }
-  const fa1 = await page.evaluate(() => ({ rejected: document.querySelectorAll('.small.bad').length, sign: Array.from(document.querySelectorAll('button')).filter((b) => /^Sign$/.test(b.textContent)).length, pitchLeft: Array.from(document.querySelectorAll('button')).filter((b) => /Pitch yourself/.test(b.textContent)).length }));
-  const okF1 = fa1.pitchLeft === 0 && fa1.rejected + fa1.sign >= 6; console.log('FA pitches answered', okF1 ? 'OK' : 'MISMATCH', JSON.stringify(fa1)); if (!okF1) errors.push('FA pitches ' + JSON.stringify(fa1));
-  await shot('22-free-agency-pitched');
+  const sweep = await page.evaluate(() => { const S = window.__NBA_UI.state, G = window.NBA.Game, d = S.decision; return Object.values(d.neg).map((c) => ({ own: c.own, desp: +c.desp.toFixed(2), alts: +c.alts.toFixed(2), fair: c.fair, p100: Math.round(G.negOdds(S, c.teamId, { salary: c.fair, years: c.pref, role: c.offered }).p * 100), p115: Math.round(G.negOdds(S, c.teamId, { salary: Math.min(c.maxSal, c.fair * 1.15), years: c.pref, role: c.offered }).p * 100), p130: Math.round(G.negOdds(S, c.teamId, { salary: Math.min(c.maxSal, c.fair * 1.3), years: c.pref, role: c.offered }).p * 100) })); });
+  console.log('NEG sweep', JSON.stringify(sweep));
+  // the dial: asking for more lowers the odds, asking for the minimum raises them
+  await page.click('button:text-is("Negotiate") >> nth=1'); await page.waitForSelector('.negdial');
+  const pct = () => page.evaluate(() => parseInt(document.querySelector('.negpct').textContent, 10));
+  const setSal = async (v) => { await page.evaluate((v) => { const i = document.querySelector('.negform input[type=number]'); i.value = v; i.dispatchEvent(new Event('input')); }, v); };
+  const bounds = await page.evaluate(() => { const i = document.querySelector('.negform input[type=number]'); return { min: +i.min, max: +i.max, cur: +i.value }; });
+  await setSal(bounds.max); const pHi = await pct(); await setSal(bounds.min); const pLo = await pct();
+  await page.selectOption('.negform select >> nth=1', 'Franchise player'); const pRole = await pct(); await page.selectOption('.negform select >> nth=1', 'Role player'); const pRole2 = await pct();
+  const okD = pHi < pLo && pHi <= 40 && pRole <= pRole2 && /They would go up to about/.test(await page.evaluate(() => document.querySelector('.negform').innerText));
+  console.log('NEGOTIATION dial', okD ? 'OK' : 'MISMATCH', JSON.stringify({ pHi, pLo, pRole, pRole2 })); if (!okD) errors.push('NEG dial ' + JSON.stringify({ pHi, pLo, pRole, pRole2 })); await shot('22-negotiation');
+  // an absurd ask gets turned down or countered; a modest one gets a deal (counters are accepted)
+  await setSal(bounds.max); await page.click('button:has-text("Make the offer")'); await page.waitForTimeout(100);
+  const rej = await page.evaluate(() => ({ t: document.body.innerText.match(/(laughed|broke down|counter)[^\n]*/), closed: /Talks over|laughed off|broke down/.test(document.body.innerText), counter: /Accept counter/.test(document.body.innerText), signed: window.__NBA_UI.state.stage !== 'decision' }));
+  console.log('NEGOTIATION absurd ask', JSON.stringify(rej)); if (rej.signed) errors.push('NEG absurd ask signed');
+  if (rej.counter) { await page.click('button:has-text("Decline and keep haggling")'); await page.waitForTimeout(50); }
+  const g = await page.evaluate(() => { const S = window.__NBA_UI.state, d = S.decision, ids = Object.keys(d.neg).filter((k) => !d.neg[k].closed && !d.neg[k].own); return { ids, n: d.neg[ids[0]] && d.neg[ids[0]].attempts }; });
+  const sg = await page.evaluate(() => { const S = window.__NBA_UI.state, G = window.NBA.Game, d = S.decision, id = Object.keys(d.neg).find((k) => !d.neg[k].closed && !d.neg[k].own), c = d.neg[id]; let r = null; for (let i = 0; i < 3 && !(r && r.ok); i++) { if (c.counter) { r = G.acceptCounter(S, +id); break; } r = G.negotiate(S, +id, { salary: c.minSal, years: 1, role: 'Role player' }); } return { ok: !!(r && r.ok), contract: S.contract, stage: S.stage, journal: S.dec.journal.slice(-1)[0].text }; });
+  const okS = sg.ok && sg.contract.role && /Negotiated a deal/.test(sg.journal); console.log('NEGOTIATION signed', okS ? 'OK' : 'MISMATCH', JSON.stringify(sg)); if (!okS) errors.push('NEG signed ' + JSON.stringify(sg));
   // ---- late career: a 34-year-old is asked how he wants to play the late years; a loyalty deal and ring-chase discounts show up in the market
-  await page.evaluate(() => { const S = window.__NBA_UI.state; S.player.age = 34; S.dec.season = {}; S.player.tr = Object.assign({}, S.player.tr, { stay: 1 }); S.decision = null; S.dec.pending = null; window.__NBA_UI.go(); });
+  await page.evaluate(() => { const S = window.__NBA_UI.state; S.player.age = 34; S.stage = 'decision'; S.contract.left = 0; S.dec.season = {}; S.player.tr = Object.assign({}, S.player.tr, { stay: 1 }); S.decision = null; S.dec.pending = null; window.__NBA_UI.go(); });
   await page.waitForSelector('text=How do you want to play the late years');
   const lt = await page.evaluate(() => ({ opts: document.querySelectorAll('.wkcard').length, loyal: /Loyalty deal/.test(document.body.innerText), ring: /ring chase/.test(document.body.innerText), tour: /farewell season/i.test(document.body.innerText), age: window.__NBA_UI.state.player.age }));
   const okL = lt.opts >= 4 && lt.loyal; console.log('LATE CAREER card', okL ? 'OK' : 'MISMATCH', JSON.stringify(lt)); if (!okL) errors.push('LATE ' + JSON.stringify(lt)); await shot('26-late-career');
@@ -109,8 +124,7 @@ let PG = null;
   const lt2 = await page.evaluate(() => { const S = window.__NBA_UI.state; return { depth: S.dec.season.depth, mins: S.dec.season.minsMult, journal: S.dec.journal.slice(-1)[0].text }; });
   const okL2 = lt2.depth === 1.6 && lt2.mins === 0.95 && /smaller role/.test(lt2.journal); console.log('LATE CAREER stance applied', okL2 ? 'OK' : 'MISMATCH', JSON.stringify(lt2)); if (!okL2) errors.push('LATE stance ' + JSON.stringify(lt2));
   // ---- 3. nobody wants you: every club says no, your own is letting you walk: the career ends
-  await page.evaluate(() => { const S = window.__NBA_UI.state; S.decision = window.NBA.Game.decisionOptions(S); S.decision.resign = null; S.decision.market.forEach((m) => { m.yes = false; }); window.__NBA_UI.render(); });
-  for (let k = 0; k < 12; k++) { const b = await page.$('button:has-text("Pitch yourself")'); if (!b) break; await b.click(); await page.waitForTimeout(50); }
+  await page.evaluate(() => { const S = window.__NBA_UI.state; S.decision = window.NBA.Game.decisionOptions(S); S.decision.resign = null; S.decision.market.forEach((m) => { m.pitched = 'no'; m.reason = 'They went in another direction.'; }); Object.values(S.decision.neg).forEach((c) => { c.closed = 'broke'; }); window.__NBA_UI.render(); });
   await page.waitForSelector('text=no team wants you');
   await shot('23-nobody-wants-you');
   await page.click('button:has-text("Retire from basketball")'); await page.waitForSelector('text=retires');
@@ -120,7 +134,7 @@ let PG = null;
   const cb0 = await page.evaluate(() => ({ age: window.__NBA_UI.state.player.age, hof: !!window.__NBA_UI.state.hof, opts: document.querySelectorAll('.row select option').length }));
   await page.selectOption('.row select', '2'); await shot('28-comeback-card');
   await page.click('button:has-text("Come out of retirement")'); await page.click('button:has-text("Tap again to confirm")');
-  await page.waitForSelector('text=pitch to other clubs, text=Offseason: what now', { timeout: 15000 }).catch(() => {});
+  await page.waitForSelector('text=negotiate with other clubs, text=Offseason: what now', { timeout: 15000 }).catch(() => {});
   const cb1 = await page.evaluate(() => { const S = window.__NBA_UI.state; return { retired: S.retired, stage: S.stage, n: S.comebacks, age: S.player.age, last: S.dec.journal.slice(-1)[0].text }; });
   const okCb = !cb1.retired && cb1.stage === 'decision' && cb1.n === 1 && cb1.age === cb0.age + 2 && /Came out of retirement/.test(cb1.last); console.log('COMEBACK', okCb ? 'OK' : 'MISMATCH', JSON.stringify({ cb0, cb1 })); if (!okCb) errors.push('COMEBACK ' + JSON.stringify({ cb0, cb1 }));
   await page.evaluate(() => { const S = window.__NBA_UI.state; S.stage = 'pro_ready'; S.player.age = 36; S.decision = null; S.dec.season = {}; S.dec.flags.media = 0; window.__NBA_UI.go(); });

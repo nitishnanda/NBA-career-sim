@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v47';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v48';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -844,6 +844,39 @@
       h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { S.stage = 'decision'; S.decision = G.decisionOptions(S); go(); } }, 'Offseason decisions →')));
   }
 
+
+  // contract negotiation: name your money, years and role; the dial shows the odds live, the club answers when you submit
+  let negOpen = null;
+  function negCard(d, o, kind, doneFn) {
+    const c = d.neg && d.neg[o.teamId]; if (!c) return null;
+    const ask = { salary: Math.min(c.maxSal, Math.max(c.minSal, o.salary)), years: Math.min(c.pref, c.maxYears), role: c.offered };
+    const open = negOpen === o.teamId;
+    const head = h('div', { class: 'row' }, h('div', null, h('b', null, o.name), h('div', { class: 'small muted' }, (o.label || '') + ' · they see you as a ' + c.offered.toLowerCase() + ' · opening offer ' + money(c.fair) + ' / yr'), c.read.length ? h('div', { class: 'small vibe' }, c.read.join(' ')) : null, c.msg ? h('div', { class: 'small ' + (c.closed ? 'bad' : '') }, c.msg) : null), h('span', { class: 'spacer' }),
+      c.closed ? h('span', { class: 'badge' }, 'Talks over') : h('button', { onclick: () => { negOpen = open ? null : o.teamId; render(); } }, open ? 'Close' : 'Negotiate'));
+    if (!open || c.closed) return h('div', { class: 'card' + (c.closed ? ' off' : '') }, head);
+    // the dial
+    const R = 60, LEN = Math.PI * R, arcD = 'M10 70 A60 60 0 0 1 130 70';
+    const NS = 'http://www.w3.org/2000/svg', el = (t, a) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
+    const svg = el('svg', { viewBox: '0 0 140 84', class: 'negdial' }), track = el('path', { d: arcD, fill: 'none', stroke: 'rgba(255,255,255,.12)', 'stroke-width': 12, 'stroke-linecap': 'round' }), fill = el('path', { d: arcD, fill: 'none', 'stroke-width': 12, 'stroke-linecap': 'round' }), txt = el('text', { x: 70, y: 66, 'text-anchor': 'middle', class: 'negpct' });
+    svg.append(track, fill, txt);
+    const why = h('div', { class: 'small muted' });
+    const sal = h('input', { type: 'number', min: c.minSal, max: c.maxSal, step: 0.1, value: ask.salary }), rng = h('input', { type: 'range', min: c.minSal, max: c.maxSal, step: 0.1, value: ask.salary });
+    const yrs = h('select', null, Array.from({ length: c.maxYears }, (_, i) => h('option', { value: i + 1, selected: i + 1 === ask.years }, (i + 1) + ' year' + (i ? 's' : ''))));
+    const rl = h('select', null, G.ROLES.slice().reverse().map((r) => h('option', { value: r, selected: r === ask.role }, r)));
+    const upd = () => {
+      ask.salary = Math.min(c.maxSal, Math.max(c.minSal, +sal.value || c.minSal)); ask.years = +yrs.value; ask.role = rl.value;
+      const r = G.negOdds(S, o.teamId, ask), p = r.p;
+      fill.setAttribute('stroke', 'hsl(' + Math.round(p * 120) + ',70%,55%)'); fill.setAttribute('stroke-dasharray', (p * LEN).toFixed(1) + ' ' + LEN.toFixed(1)); txt.textContent = Math.round(p * 100) + '%';
+      why.textContent = 'They would go up to about ' + money(r.ceil) + ' for these terms. ' + r.parts.filter((x) => Math.abs(x.v) >= 0.02).map((x) => x.label + ' ' + (x.v > 0 ? '+' : '−') + Math.round(Math.abs(x.v) * 100) + '%').join(' · ');
+    };
+    sal.oninput = () => { rng.value = sal.value; upd(); }; rng.oninput = () => { sal.value = rng.value; upd(); }; yrs.onchange = upd; rl.onchange = upd; upd();
+    const body = c.counter
+      ? h('div', null, h('div', { class: 'callout' }, c.msg), h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { try { doneFn(G.acceptCounter(S, o.teamId)); } catch (e) { console.error(e); } } }, 'Accept counter'), h('button', { onclick: () => { try { G.declineCounter(S, o.teamId); save(); render(); } catch (e) { console.error(e); } } }, 'Decline and keep haggling')))
+      : h('div', { class: 'negbox' }, svg, h('div', { class: 'negform' }, h('label', { class: 'small muted' }, 'Salary ($M / yr)'), h('div', { class: 'row' }, sal, rng), h('div', { class: 'row' }, h('div', null, h('label', { class: 'small muted' }, 'Years'), yrs), h('div', null, h('label', { class: 'small muted' }, 'Role'), rl)), why,
+        h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { try { const res = G.negotiate(S, o.teamId, ask); if (res.ok) doneFn(res); else { save(); render(); } } catch (e) { console.error(e); } } }, 'Make the offer'))));
+    return h('div', { class: 'card' }, head, body);
+  }
+
   function screenDecision() {
     const d = S.decision || (S.decision = G.decisionOptions(S));
     const done = (res) => { if (S.dec && S.dec.pending && S.dec.pending.id === 'late') DEC().autoResolve(S); S.farewellOverride = false; S.decision = null; alloc = {}; S.flash = res && res.text; go(); };
@@ -872,12 +905,12 @@
       if (d.waived) out.push(h('div', { class: 'callout' }, d.waived));
       if (d.market) {
         // free agency is a pitch, not a menu: clubs can say no
-        const pitchCard = (m) => m.pitched === 'offer' ? mkOffer(Object.assign({}, m, { name: m.name, tag: m.ring ? 'ring' : null, label: m.label + ' · they made you an offer' + (m.ring ? ' · ring chase (a discount to play for a title)' : '') + (m.vouch ? ' · someone you trained with spoke up for you' : '') }), 'switch')
+        const pitchCard = (m) => d.neg && d.neg[m.teamId] ? negCard(d, Object.assign({}, m, { name: m.name }), 'switch', done) : m.pitched === 'offer' ? mkOffer(Object.assign({}, m, { name: m.name, tag: m.ring ? 'ring' : null, label: m.label + ' · they made you an offer' + (m.ring ? ' · ring chase (a discount to play for a title)' : '') + (m.vouch ? ' · someone you trained with spoke up for you' : '') }), 'switch')
           : h('div', { class: 'card' + (m.pitched === 'no' ? ' off' : '') }, h('div', { class: 'row' }, logo(m.nick, 36), h('div', null, h('b', null, m.name), h('div', { class: 'small muted' }, m.label + ' · you would be a ' + m.role),
             m.pitched === 'no' ? h('div', { class: 'small bad' }, '✖ Turned you down. ' + m.reason) : h('div', { class: 'small vibe' }, m.vibe)), h('span', { class: 'spacer' }),
-            m.pitched ? h('span', { class: 'badge' }, 'Rejected') : h('button', { onclick: () => { try { G.pitch(S, m.teamId); save(); render(); } catch (e) { console.error(e); } } }, 'Pitch yourself')));
-        out.push(h('h3', null, 'Your club'), d.resign ? [h('p', { class: 'small muted' }, d.resignText), mkOffer(d.resign, 'resign'), d.resign.loyal ? mkOffer(Object.assign({}, d.resign, { salary: d.resign.loyal.salary, maxYears: d.resign.loyal.years, label: 'Loyalty deal: you take less so the team can build around you', tag: 'loyal' }), 'resign') : null] : h('div', { class: 'card off' }, d.resignText), h('h3', null, 'Free agency · pitch to other clubs'),
-          h('p', { class: 'small muted' }, 'You can pitch to as many teams as you like. A club says yes or no based on your value, their cap room, who they already have at your position and how they see you. Nobody tells you the odds.'), d.market.map(pitchCard));
+            m.pitched ? h('span', { class: 'badge' }, 'Rejected') : null));
+        out.push(h('h3', null, 'Your club'), d.resign ? [h('p', { class: 'small muted' }, d.resignText), mkOffer(d.resign, 'resign'), d.neg && d.neg[d.resign.teamId] ? negCard(d, d.resign, 'resign', done) : null, d.resign.loyal ? mkOffer(Object.assign({}, d.resign, { salary: d.resign.loyal.salary, maxYears: d.resign.loyal.years, label: 'Loyalty deal: you take less so the team can build around you', tag: 'loyal' }), 'resign') : null] : [h('div', { class: 'card off' }, d.resignText), d.neg && d.neg[S.teamId] ? negCard(d, { teamId: S.teamId, name: d.team, label: '', salary: d.neg[S.teamId].fair }, 'resign', done) : null], h('h3', null, 'Free agency · negotiate with other clubs'),
+          h('p', { class: 'small muted' }, 'Negotiate with as many clubs as you like. Pick the money, years and role you want and the dial shows your chances. Desperate clubs (no one at your position, bad record, cap room) will stretch for you; clubs with other options will not. Ask for too much and they walk.'), d.market.map(pitchCard));
         if (!d.resign && d.market.every((m) => m.pitched === 'no')) out.push(h('div', { class: 'callout' }, 'Every club turned you down and nobody is calling. This is where the road ends: no team wants you.'), h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { G.retire(S); S.decision = null; go(); } }, 'Retire from basketball')));
       } else {
         out.push(h('h3', null, 'Your contract expired · stay'), mkOffer(d.resign, 'resign'), h('h3', null, 'Test free agency · switch teams'), d.offers.length ? d.offers.map((o) => mkOffer(o, 'switch')) : h('p', { class: 'muted' }, 'No other team made an offer.'));

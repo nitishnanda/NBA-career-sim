@@ -198,9 +198,9 @@ let PG_DBG = null;
     const tr = i === 2 ? await page.$('button:has-text("Request trade")') : null; if (i === 2) await shot('08b-trade-options');
     let btn = tr || (await page.$('button:has-text("Stay")')) || (await page.$('button:has-text("Re-sign")'));
     if (!btn) {   // your club let you walk: pitch around the league and take the first offer (or retire when nobody wants you)
-      for (let k = 0; k < 12; k++) { const pb = await page.$('button:has-text("Pitch yourself")'); if (!pb) break; await pb.click(); await page.waitForTimeout(30); }
-      btn = await page.$('button:text-is("Sign")');
-      if (!btn) { await page.click('text=Retire from basketball'); await page.waitForSelector('text=retires'); break; }
+      const signed = await page.evaluate(() => { const S = window.__NBA_UI.state, G = window.NBA.Game, d = S.decision; for (const id of Object.keys(d.neg || {})) { const c = d.neg[id]; if (c.closed) continue; let r = G.negotiate(S, +id, { salary: c.minSal, years: 1, role: 'Role player' }); if (r.counter) r = G.acceptCounter(S, +id); if (r.ok) { S.decision = null; window.__NBA_UI.go(); return true; } } return false; });
+      if (signed) { await trainLoop(); continue; }
+      btn = null; if (!btn) { await page.click('text=Retire from basketball'); await page.waitForSelector('text=retires'); break; }
     }
     await btn.click();
     await trainLoop();
