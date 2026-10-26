@@ -578,3 +578,5 @@ the height: rim protection +3, perimeter defence +2, rebounding +1, inside +0.5;
 wingspan (shown as height and weight only): their real wingspans are not in the data and are not invented.
 - Create screen: Random (a whole new body for the position, with Re-roll) or Choose myself (height, weight and wingspan sliders; switching starts from the
   current roll). The UI test checks Re-roll changes the body, the sliders reach the player and the scouting report, and a random roll becomes the player's body (5/5 positions).
+- Checks: realism 90% (v37 90%), gen MVPs per gen 1.71 with size on vs 1.80 with size off on the same 900 picks (real 1.86; runs vary +-0.2, so the gap is noise),
+  4+ MVPs 13% (14%); star wins (2 seeds) 55.9 / 51.0 / 47.7 / 44.0 (55.1 / 51.5 / 49.2 / 43.8). Desktop and phone UI tests pass.
