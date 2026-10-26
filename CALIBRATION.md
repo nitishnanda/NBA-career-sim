@@ -718,3 +718,7 @@ Feedback from play: draft night went by too fast to take in your own pick, and s
 - Sim vs real, mean rating by minutes: <12 6.13/6.14, 12-20 6.41/6.42, 20-28 6.75/6.77, 28-34 7.33/7.25, 34+ 7.87/7.71 (sim/real). At the same points, sim stars rate +0.1 (11-20 pts) to +0.35 (26+ pts)
   above the real sample: sim star careers have more rebounds/assists/blocks and fewer missed shots than the 18 real 26+ point games (too few to retune the box-score model on).
 - Personal fouls: sim base raised 1.9 → 2.35 (real 25+ minute players 2.4-2.7 a game). Autopilot baseline unchanged (peak OVR 76.68, 13.02 ppg).
+
+## v48 — rating model re-checked on 1,812 more rated rows
+Rows 2–2400 of the Sofascore Players sheet (rated rows only, `data/sofascore-players.csv`; the sheet was only ever read). Model A on that set: bias −0.002, RMSE 0.262 (by minutes: bias within ±0.07 everywhere). By points tier for 25+ min players: 16–20 pts −0.04, 21–25 +0.03, 26+ +0.12, so the formula slightly flatters 26+ scorers but not enough to refit.
+Box-score gap vs real (25+ min, same points tier): sim stars average ~+1.7–2.8 reb, +2 ast, +0.25–0.4 stl/blk. Those averages come from the season-level cohort fits (career shape, awards), so I left them alone. Retuning per-game box scores would break realism (90%) for a rating gap of ≤0.15.
