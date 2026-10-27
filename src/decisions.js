@@ -382,6 +382,70 @@
   });
 
 
+
+  // ================================================================ workout invitations
+  // Other players reach out in the offseason: a teammate who wants a summer partner, a star who has noticed you, a veteran with a skill to hand down, a kid who wants to learn from you, a rival who wants you in his gym.
+  // Each one is a yes or a no; the second yes costs you (nobody can train with everyone), and not everyone is who they seem.
+  const INV_TYPES = { star: { label: 'Star', gain: 2.6 }, vet: { label: 'Skill specialist', gain: 2.0 }, mate: { label: 'Teammate', gain: 1.2 }, young: { label: 'Young player', gain: 0 }, rival: { label: 'Your rival', gain: 1.8 } };
+  function inviteSkill(st, q) {
+    const p = st.player, w = D.ARCHETYPES[p.arch].weights, wmax = Math.max.apply(null, ATTRS.map((a) => w[a])), fit = (a) => 0.5 + w[a] / wmax;
+    const sc = (a) => (q.attrs[a] - 0.5 * p.attrs[a]) * fit(a);
+    return ATTRS.filter((a) => a !== 'dur' && a !== 'ath').sort((a, b) => sc(b) - sc(a))[0];
+  }
+  function invites(st) {
+    const d = state(st), L = st.league;
+    if (d.invites && d.invites.year === L.year) return d.invites;
+    const p = st.player, me = ovr(p), rnd = rng(st, 'invites|' + L.year), all = [], list = [], used = new Set(), aw = st.career.awards || {};
+    L.teams.forEach((t) => NBA.rosterOf(L, t).forEach((q) => { if (q.id !== 'user') all.push({ q, t }); }));
+    all.sort((x, y) => ovr(y.q) - ovr(x.q));
+    const add = (x, type, pr) => {
+      if (!x || used.has(x.q.id) || rnd() >= pr) return;
+      used.add(x.q.id);
+      const sk = type === 'young' ? null : inviteSkill(st, x.q);
+      list.push({ id: x.q.id, name: x.q.name, age: x.q.age, pos: x.q.pos, team: x.t.nick, teamId: x.t.id, ovr: Math.round(ovr(x.q)), type, skill: sk, his: sk ? Math.round(x.q.attrs[sk]) : null, yours: sk ? Math.round(p.attrs[sk]) : null, gain: INV_TYPES[type].gain, state: null });
+    };
+    const rel = (q) => relOf(st, q.id), mates = all.filter((x) => x.t.id === st.teamId && Math.abs(ovr(x.q) - me) <= 8);
+    const acc = Math.min(1, 0.1 * ((aw['All-Star'] || 0) + 2 * (aw['All-NBA'] || 0) + 3 * (aw.MVP || 0)));
+    const stars = all.slice(0, 10).filter((x) => x.t.id !== st.teamId && me >= ovr(x.q) - 10);
+    const vets = all.filter((x) => x.q.age >= 31 && ovr(x.q) >= 60 && ovr(x.q) < 78 && ATTRS.some((a) => a !== 'dur' && a !== 'ath' && x.q.attrs[a] >= 76 && x.q.attrs[a] - p.attrs[a] >= 8));
+    const kids = all.filter((x) => x.q.age <= 22 && (x.q.yearsPro || 0) <= 2 && ovr(x.q) <= me - 4 && ovr(x.q) >= me - 24);
+    const shf = (a) => a.slice().sort(() => rnd() - 0.5);
+    const rv = d.rival && L.players[d.rival.id]; if (rv && rv.teamId != null) add({ q: rv, t: L.teams[rv.teamId] }, 'rival', 0.5);
+    shf(stars).slice(0, 3).forEach((x) => add(x, 'star', clamp(0.1 + 0.04 * (me - ovr(x.q) + 10) + 0.12 * rel(x.q) + acc * 0.4, 0.05, 0.7)));
+    shf(vets).slice(0, 2).forEach((x) => add(x, 'vet', 0.4 + 0.1 * rel(x.q)));
+    shf(mates).slice(0, 2).forEach((x) => add(x, 'mate', 0.5 + 0.1 * rel(x.q)));
+    if (me >= 68) shf(kids).slice(0, 2).forEach((x) => add(x, 'young', 0.4));
+    d.invites = { year: L.year, list: list.slice(0, 4), taken: 0 };
+    return d.invites;
+  }
+  const INV_YES = { star: 'They said they like how you carry yourself, and the gym is yours at 6 AM.', vet: 'They have been waiting for someone to ask about it for years.', mate: 'Summer runs with your own teammate: the room gets tighter.', young: 'The kid took notes on everything. It felt good.', rival: 'You trained in his gym. It was weird and it was good.' };
+  function answerInvite(st, id, accept) {
+    const d = state(st), inv = d.invites, it = inv && inv.list.find((x) => x.id === id);
+    if (!it || it.state) throw new Error('no such invite');
+    const p = st.player, yr = st.league.year;
+    if (!accept) {
+      it.state = 'no'; apply(st, [{ k: 'rel', id: it.id, name: it.name, d: it.type === 'star' ? -0.3 : -0.2 }]);
+      return { text: 'You said no to ' + it.name + '.' };
+    }
+    inv.taken++; const first = inv.taken === 1, eff = [];
+    const gain = it.gain * (0.85 + 0.3 * p.work) * (first ? 1 : 0.6);
+    if (it.skill) eff.push({ k: 'attr', a: it.skill, d: gain });
+    if (it.type === 'young') eff.push({ k: 'attr', a: 'iq', d: 0.4 }, { k: 'meter', f: 'locker', d: 1 }, { k: 'meter', f: 'media', d: 0.5 }, { k: 'flag', f: 'legacy', v: (d.flags.legacy || 0) + 1 });
+    eff.push({ k: 'rel', id: it.id, name: it.name, d: it.type === 'young' ? 0.6 : 1 });
+    if (it.type === 'mate') eff.push({ k: 'season', v: { depth: 1 } });
+    let extra = '';
+    const r = rng(st, 'invrisk|' + id + '|' + yr)();
+    if (!first) { eff.push({ k: 'season', v: { extraMiss: 4 } }); extra = ' Two summers of work in one is a lot: it wore you down.'; }
+    else if (r < 0.07) { eff.push({ k: 'season', v: { extraMiss: 6 } }); extra = ' You tweaked something in the gym and it will cost you a few games.'; }
+    if (it.type === 'rival' && r > 0.7) { eff.push({ k: 'season', v: { form: -0.006 } }); extra += ' He studied your game the whole time: expect him to know your moves.'; }
+    apply(st, eff);
+    it.state = 'yes';
+    const got = eff[0] && eff[0].k === 'attr' && eff[0].a === it.skill ? eff[0].got : null;
+    const text = it.name + ' (' + it.team + ') ' + (it.skill ? 'and you worked on ' + SKILL_WORDS[it.skill] + (got != null ? ' (' + D.ATTR_LABELS[it.skill] + ' +' + got + ')' : '') : 'and you spent the summer showing him how you do it') + '. ' + INV_YES[it.type] + extra;
+    log(st, { kind: 'invite', title: 'Workout invite', tone: 'good', text });
+    return { text };
+  }
+
   // ================================================================ decision 8: the press conference
   register({
     id: 'press', title: 'Press conference', trigger: 'press',
@@ -411,6 +475,6 @@
     auto(st, ctx, pd) { const q = ctx.qs[pd.step]; return { key: (q.opts.find((o) => o.key === 'deflect') || q.opts.find((o) => !o.spicy) || q.opts[0]).key }; },
   });
 
-  Object.assign(NBA, { Decisions: { carry, register, state, rng, vibe, apply, offer, view, choose, autoResolve, takeSeason, log, relOf, TIERS, SKILL_WORDS, campMentors, standing } });
+  Object.assign(NBA, { Decisions: { invites, answerInvite, INV_TYPES, carry, register, state, rng, vibe, apply, offer, view, choose, autoResolve, takeSeason, log, relOf, TIERS, SKILL_WORDS, campMentors, standing } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

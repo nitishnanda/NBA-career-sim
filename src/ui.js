@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v55';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v56';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -473,8 +473,16 @@
   // the trade deadline stops the games: the front office has something to say (or nothing, and the season carries on)
   // (when the front office has nothing to say the games simply carry on)
   const holdAt = () => {
-    const it = S.matchLog && S.matchLog[S.matchIdx || 0]; if (!it) return false;
+    if (!S.matchLog) return false;
     const Dc = NBA.Decisions, pend = (id) => S.dec && S.dec.pending && S.dec.pending.id === id;
+    // the press room after a game that mattered: it is asked about the game that was just played
+    const prev = S.matchLog[(S.matchIdx || 0) - 1];
+    if (prev && prev.k === 'g' && prev.pp && !prev.ppd && !prev.dnp) {
+      if (!pend('press')) Dc.offer(S, 'press');
+      if (pend('press')) { if (S.autoDec) { Dc.autoResolve(S); prev.ppd = 1; save(); return holdAt(); } return true; }
+      prev.ppd = 1;
+    }
+    const it = S.matchLog[S.matchIdx || 0]; if (!it) return false;
     if (it.k === 'hdr' && it.dl && !S.dlDone) {
       if (!S.dlChecked) { S.dlChecked = true; Dc.offer(S, 'deadline'); save(); }
       if (pend('deadline')) { if (S.autoDec) { Dc.autoResolve(S); S.dlDone = true; S.matchIdx++; save(); return false; } return true; }
@@ -922,7 +930,21 @@
       return h('div', null, out);
     }
     if (d.farewell && S.farewellOverride) out.push(h('div', { class: 'callout' }, 'You said this was your farewell. If you sign or stay, the fans, the media and the room will all notice, and it will cost you.'));
-    if (S.dec && S.dec.pending && S.dec.pending.id === 'late' && !d.mustRetire) { const v = DEC().view(S);
+
+    if (!d.mustRetire && !S.autoPlay) {
+      const inv = DEC().invites(S);
+      if (inv.list.length) {
+        const answer = (id, yes) => () => { try { DEC().answerInvite(S, id, yes); save(); render(); } catch (e) { console.error(e); } };
+        const TL = { star: 'A star has noticed you', vet: 'A veteran has something to hand down', mate: 'Your teammate wants a summer partner', young: 'A young player wants to learn from you', rival: 'Your rival wants you in his gym' };
+        out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🏋️ Workout invites'),
+          h('p', { class: 'small muted' }, 'Other players want to work out with you this summer. Each yes is a summer of real work (and a bond), but the second one wears you down, and nobody is only ever being nice.'),
+          h('div', { class: 'wkgrid' }, inv.list.map((m) => h('div', { class: 'wkcard mcard' + (m.state === 'yes' ? ' done t3' : m.state === 'no' ? ' done t0' : '') },
+            h('div', { class: 'row' }, logo(m.team, 40), h('div', null, h('b', null, m.name), h('div', { class: 'small muted' }, m.pos + ' · ' + m.age + ' · ' + m.team + ' · ' + m.ovr + ' OVR'))),
+            h('div', { class: 'small', style: 'margin:8px 0' }, h('b', null, TL[m.type]), m.skill ? h('div', null, 'Wants to work on ' + DEC().SKILL_WORDS[m.skill] + ' (' + m.his + ' vs your ' + m.yours + ')') : h('div', null, 'You would be the teacher: it earns respect in the room.')),
+            m.state ? h('div', { class: 'wkres' }, m.state === 'yes' ? 'You said yes' : 'You passed') : h('div', { class: 'row' }, h('button', { class: 'primary', onclick: answer(m.id, true) }, 'Work out together'), h('button', { onclick: answer(m.id, false) }, 'Pass'))))),
+          inv.taken >= 2 ? h('p', { class: 'small bad' }, 'You are running on fumes: the second workout cost you.') : null));
+      }
+    }    if (S.dec && S.dec.pending && S.dec.pending.id === 'late' && !d.mustRetire) { const v = DEC().view(S);
       out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, v.title), h('p', { class: 'small muted' }, v.text), S.dec.pending.log.length ? h('div', { class: 'jlog' }, S.dec.pending.log.map((x) => h('div', { class: 'jmsg ' + x.tone }, x.text))) : null,
         h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { onclick: () => { try { DEC().choose(S, o.key); save(); render(); } catch (e) { console.error(e); } } }, 'Choose'))))))); }
     if (d.mustRetire) out.push(h('div', { class: 'callout' }, d.farewell ? 'Your farewell season is over. The league gives you a standing ovation, and it is time to hang them up.' : 'No team has an offer for you and your body says it is time. This is the end of the road.'));
@@ -1081,12 +1103,12 @@
     const r = S.decResult, sents = String(r.text || '').split(/(?<=[.!?"])\s+(?=[A-Z])/).filter(Boolean);
     return h('div', null, h('h1', null, r.title), r.sub ? h('p', { class: 'muted' }, r.sub) : null,
       h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, r.cap || 'What happened'), sents.map((x) => h('p', { class: 'jmsg ' + (r.tone || ''), style: 'margin:8px 0' }, x))),
-      h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { S.decResult = null; stopAuto(); advanceOne(); save(); go(); } }, 'Play the game →')));
+      h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { const r0 = S.decResult; S.decResult = null; stopAuto(); if (!(r0 && r0.post)) advanceOne(); save(); go(); } }, S.decResult && S.decResult.post ? 'Back to the season →' : 'Play the game →')));
   }
   function screenPress() {
     const Dc = DEC(), v = Dc.view(S), t = S.league.teams[S.teamId], pd = S.dec.pending, q = pd.ctx.qs[pd.step];
-    const gi = S.matchLog && S.matchLog[pd.ctx.idx], gno = gi && gi.k === 'g' ? 'Before game ' + gi.n + ' of the season' + (gi.o ? ' · vs the ' + gi.o : '') : pd.ctx.why;
-    const finish = (r) => { if (!(S.dec.pending && S.dec.pending.id === 'press')) { S.decResult = { title: 'Press conference', sub: t.name + ' · ' + gno, text: r.text, tone: r.tone === 'good' ? 'good' : r.tone === 'bad' ? 'bad' : '', cap: 'The reaction' }; saveSnap(); } save(); go(); };
+    const gi = S.matchLog && S.matchLog[pd.ctx.idx], post = pd.ctx.kind === 'post', gno = post && gi ? 'Final: ' + (gi.w ? 'W' : 'L') + ' ' + gi.f + '-' + gi.a + ' ' + (gi.h ? 'vs' : 'at') + ' the ' + gi.o : gi && gi.k === 'g' ? 'Before game ' + gi.n + ' of the season' + (gi.o ? ' · vs the ' + gi.o : '') : pd.ctx.why;
+    const finish = (r) => { if (!(S.dec.pending && S.dec.pending.id === 'press')) { S.decResult = { title: 'Press conference', sub: t.name + ' · ' + gno, text: r.text, tone: r.tone === 'good' ? 'good' : r.tone === 'bad' ? 'bad' : '', cap: 'The reaction', post }; saveSnap(); } save(); go(); };
     const pick = (key) => { try { finish(Dc.choose(S, key)); } catch (e) { console.error(e); } };
     // your own words: read by Claude when this page runs inside Claude, by the built-in reader everywhere else; either way they come out as one of the six tones
     const ta = h('textarea', { class: 'pressbox', rows: 3, maxlength: 240, placeholder: 'Or say it your own way… (up to 240 characters)' }), count = h('span', { class: 'small muted' }, '0 / 240'), note = h('div', { class: 'small muted pressnote' }, '');

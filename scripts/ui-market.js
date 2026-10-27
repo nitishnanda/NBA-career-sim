@@ -27,9 +27,18 @@ let PG = null;
   const okPc = pc0.opts >= 3 && pc0.lines === pc0.opts && pc0.q.length > 15; console.log('PRESS screen', okPc ? 'OK' : 'MISMATCH', JSON.stringify(pc0)); if (!okPc) errors.push('PRESS ' + JSON.stringify(pc0)); await shot('27-press');
   for (let k = 0; k < 4 && (await page.$('.wkcard button')); k++) await page.click('.wkcard button >> nth=0');
   const rs = await page.evaluate(() => ({ card: !!document.querySelector('.card.suspense .jmsg'), cont: /Play the game/i.test(document.body.innerText), game: /Before game 1/i.test(document.body.innerText) })); console.log('PRESS result page', rs.card && rs.cont && rs.game ? 'OK' : 'MISMATCH', JSON.stringify(rs)); if (!(rs.card && rs.cont && rs.game)) errors.push('PRESS result page'); await shot('27b-press-result');
-  await page.click('button:has-text("Play the game")');
+  await page.click('button:text-matches("Play the game|Back to the season", "i")');
   const pc1 = await page.evaluate(() => { const S = window.__NBA_UI.state; return { pd: !!S.matchLog[0].pd, meters: Object.keys(S.dec.flags).filter((k) => /media|locker/.test(k)).length }; });
   const okPc1 = pc1.pd && pc1.meters === 2; console.log('PRESS answered', okPc1 ? 'OK' : 'MISMATCH', JSON.stringify(pc1)); if (!okPc1) errors.push('PRESS answered ' + JSON.stringify(pc1));
+  // the press room after a game: park the season just after a flagged game, answer, and put everything back
+  { const saved = await page.evaluate(() => { const S = window.__NBA_UI.state, i = S.matchLog.findIndex((x) => x.k === 'g' && x.pp && !x.po); if (i < 0) return null; const keep = { idx: S.matchIdx, pending: S.dec.pending }; S.matchIdx = i + 1; S.dec.pending = null; window.__NBA_UI.go(); return Object.assign(keep, { i }); });
+    if (!saved) { console.log('POST press: no flagged game'); errors.push('POST none'); } else {
+      await page.waitForSelector('h1:has-text("Press conference")'); const pq = await page.evaluate(() => ({ sub: document.querySelector('h1 + p').textContent, q: document.querySelector('.card.suspense h2').textContent, opts: document.querySelectorAll('.wkcard').length }));
+      for (let k = 0; k < 4 && (await page.$('.wkcard button')); k++) await page.click('.wkcard button >> nth=0');
+      const back = await page.$('button:has-text("Back to the season")'); const okPp = /After game/.test(pq.sub) && /Final: [WL] \d+-\d+/.test(pq.sub) && pq.opts >= 3 && !!back;
+      console.log('POST press', okPp ? 'OK' : 'MISMATCH', JSON.stringify(pq)); if (!okPp) errors.push('POST press ' + JSON.stringify(pq)); await shot('27c-post-press');
+      if (back) await back.click();
+      await page.evaluate((sv) => { const S = window.__NBA_UI.state; S.matchLog[sv.i].ppd = 0; S.matchIdx = sv.idx; S.dec.pending = sv.pending; window.__NBA_UI.go(); }, saved); } }
   await page.waitForSelector('text=Sim next game');
   const arm = () => page.evaluate(() => {
     const S = window.__NBA_UI.state, G = window.NBA.Game; if (!S.matchLog || S.dlDone) return null; window.__NBA_UI.saveSnap();
@@ -50,9 +59,9 @@ let PG = null;
         const c = await page.evaluate(() => ({ opts: document.querySelectorAll('.wkcard').length, vibes: document.querySelectorAll('.wkcard .vibe').length, numbers: /%/.test(document.querySelector('#app').innerText) }));
         const ok = c.opts === 4 && c.vibes === 4 && !c.numbers; console.log('CLUTCH options', ok ? 'OK' : 'MISMATCH', JSON.stringify(c)); if (!ok) errors.push('CLUTCH ' + JSON.stringify(c)); await shot('24-clutch');
       }
-      await page.click('.wkcard button >> nth=0'); await page.waitForSelector('button:has-text("Play the game")'); await page.click('button:has-text("Play the game")'); await page.waitForTimeout(100); await arm(); return 'clutch';
+      await page.click('.wkcard button >> nth=0'); await page.waitForSelector('button:text-matches("Play the game|Back to the season", "i")'); await page.click('button:text-matches("Play the game|Back to the season", "i")'); await page.waitForTimeout(100); await arm(); return 'clutch';
     }
-    if (/Press conference/.test(h1)) { for (let k = 0; k < 4 && (await page.$('.wkcard button')); k++) await page.click('.wkcard button >> nth=0'); await page.click('button:has-text("Play the game")'); await arm(); return 'press'; }
+    if (/Press conference/.test(h1)) { for (let k = 0; k < 4 && (await page.$('.wkcard button')); k++) await page.click('.wkcard button >> nth=0'); await page.click('button:text-matches("Play the game|Back to the season", "i")'); await arm(); return 'press'; }
     return /Trade deadline/.test(h1) ? 'deadline' : /^(First Round|Conference|NBA Finals)/i.test(h1) ? 'series' : null;
   };
   await page.click('button:has-text("Instant")'); await simOn();
@@ -98,6 +107,9 @@ let PG = null;
   const fa0 = await page.evaluate(() => ({ neg: Array.from(document.querySelectorAll('button')).filter((b) => /^Negotiate$/.test(b.textContent)).length, vibes: document.querySelectorAll('.vibe').length, own: /want you back|letting you walk/.test(document.body.innerText) }));
   const okF0 = fa0.neg >= 6 && fa0.vibes >= 6 && fa0.own; console.log('FA market', okF0 ? 'OK' : 'MISMATCH', JSON.stringify(fa0)); if (!okF0) errors.push('FA market ' + JSON.stringify(fa0));
   await shot('21-free-agency');
+  { const iv = await page.evaluate(() => { const S = window.__NBA_UI.state, inv = window.NBA.Decisions.invites(S); return { n: inv.list.length, shown: /Workout invites/i.test(document.body.innerText), btns: Array.from(document.querySelectorAll('button')).filter((b) => /Work out together/.test(b.textContent)).length }; });
+    const okI = iv.n === 0 || (iv.shown && iv.btns === iv.n); console.log('INVITES card', okI ? 'OK' : 'MISMATCH', JSON.stringify(iv)); if (!okI) errors.push('INVITES ' + JSON.stringify(iv));
+    if (iv.n) { await page.click('button:has-text("Work out together") >> nth=0'); await page.waitForSelector('text=You said yes'); const j = await page.evaluate(() => window.__NBA_UI.state.dec.journal.slice(-1)[0]); const okJ = j && j.kind === 'invite'; console.log('INVITES accepted', okJ ? 'OK' : 'MISMATCH', JSON.stringify(j && j.text.slice(0, 90))); if (!okJ) errors.push('INVITES accept'); } }
   const sweep = await page.evaluate(() => { const S = window.__NBA_UI.state, G = window.NBA.Game, d = S.decision; return Object.values(d.neg).map((c) => ({ own: c.own, desp: +c.desp.toFixed(2), alts: +c.alts.toFixed(2), fair: c.fair, p100: Math.round(G.negOdds(S, c.teamId, { salary: c.fair, years: c.pref, role: c.offered }).p * 100), p115: Math.round(G.negOdds(S, c.teamId, { salary: Math.min(c.maxSal, c.fair * 1.15), years: c.pref, role: c.offered }).p * 100), p130: Math.round(G.negOdds(S, c.teamId, { salary: Math.min(c.maxSal, c.fair * 1.3), years: c.pref, role: c.offered }).p * 100) })); });
   console.log('NEG sweep', JSON.stringify(sweep));
   // the dial: asking for more lowers the odds, asking for the minimum raises them

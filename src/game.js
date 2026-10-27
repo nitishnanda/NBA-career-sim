@@ -1,7 +1,7 @@
 (function (g) {
   'use strict';
   const NBA = g.NBA;
-  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
+  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
   const D = NBA.data;
   const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
   const ATTRS = D.ATTRS;
@@ -630,6 +630,13 @@
       if (st.finalYear) { const seen = new Set(); regs.forEach((x) => { if (!x.h && !seen.has(x.o)) { seen.add(x.o); x.tg = (x.tg || []).concat(['Farewell tribute']); x.tribute = 1; } }); regs.filter((x) => x.tribute).map((x) => [rnd(), x]).sort((a, b) => a[0] - b[0]).slice(0, 4).forEach((x) => go(x[1], 'Farewell tour stop')); }
       // playoffs: every series after the first round, any with a rival, and every Game 7 series
       items.forEach((x) => { if (x.k === 'hdr' && x.ps != null) { const ot = Lg.teams.find((q) => q.name === x.opp); x.pc = (x.rnd !== 'First Round' || x.g7 || (rv && ot && rv.teamId === ot.id)) ? 1 : 0; } }); }
+
+    // after the game: a press conference about what just happened. Up to three regular-season nights that stand out (a monster game, a bad one, a close one, a blowout),
+    // and the game that ends every series or play-in game (own random stream: nothing else moves)
+    { const rnd = mulberry(shotSeed(st, 9500)), cap = st.finalYear ? 4 : 3, picks = [];
+      const score = (x) => (x.pt >= 40 ? 3 : 0) + (x.tg && x.tg.includes('Triple-double') ? 2 : 0) + (x.pt <= 8 && x.m >= 20 ? 2.5 : 0) + (Math.abs(x.f - x.a) <= 3 ? 1 : 0) + (Math.abs(x.f - x.a) >= 22 ? 1.2 : 0) + rnd();
+      items.filter((x) => x.k === 'g' && !x.po && !x.dnp && x.n >= 8).map((x) => [score(x), x]).sort((a, b) => b[0] - a[0]).forEach(([s, x]) => { if (picks.length < cap && s >= 1.5 && picks.every((y) => Math.abs(y.n - x.n) >= 12)) { x.pp = 1; picks.push(x); } });
+      items.forEach((x, i) => { if (x.k === 'g' && x.po && !x.dnp) { const nx = items[i + 1]; if (!nx || nx.k === 'hdr' || nx.rnd !== x.rnd) { x.pp = 1; x.last = 1; } } }); }
     return items;
   }
 
@@ -768,7 +775,36 @@
     if (it.k === 'hdr' && it.ps != null && it.pc && st.poPlans && st.poPlans[it.ps] !== undefined && !(st.poPress && st.poPress[it.ps] !== undefined)) return it;
     return null;
   }
+  // the press room after a game: the game that was just played (the one before the current slot) is asked about
+  function postTarget(st) { const it = (st.matchLog || [])[(st.matchIdx || 0) - 1]; return it && it.k === 'g' && it.pp && !it.ppd && !it.dnp ? it : null; }
+  const POST_BRUSH = ['I am going to keep that one to myself.', 'Not much to say on that one. Next question.', 'I will let other people talk about that. I am here to play.'];
+  function postOpen(st, it) {
+    const P = NBA.Press, L = st.league, rnd = NBA.Decisions.rng(st, 'ppress|' + L.year + '|' + (it.po ? 'p' : 'r') + it.n + (it.rnd || '') + (it.pi ? 'i' : '')), bank = NBA.PostPress || [];
+    const t = L.teams[st.teamId], opp = L.teams.find((x) => x.nick === it.o), star = opp ? NBA.rosterOf(L, opp)[0] : null, margin = Math.abs(it.f - it.a);
+    const c = { pts: it.pt, reb: it.rb, ast: it.as, opp: it.o, score: it.f + '-' + it.a, margin, team: t.nick, round: it.rnd || '', oppStar: star ? star.name : null, oppStarOvr: star ? ovr(star) : 70, winning: !!it.w, hot: false, slump: false, rivalHere: false, rival: null, me: st.player.name, pos: st.player.pos };
+    const td = it.tg && it.tg.includes('Triple-double'), big = it.pt >= 40 || td;
+    const f = { bigNight: big, goodNight: it.pt >= 30 && !big, badNight: (it.pt <= 8 && it.m >= 20) || it.r < 5.5, tripleDouble: !!td, win: !!it.w, loss: !it.w, closeWin: it.w && margin <= 5, closeLoss: !it.w && margin <= 5, blowoutWin: it.w && margin >= 18, blowoutLoss: !it.w && margin >= 18,
+      clincher: !!(it.last && it.w && it.po && !it.pi && it.rnd !== 'NBA Finals'), champ: !!(it.last && it.w && it.rnd === 'NBA Finals'), elim: !!(it.last && !it.w && it.po && !it.pi), g7win: !!(it.g7 && it.w), g7loss: !!(it.g7 && !it.w), pinWin: !!(it.pi && it.w), pinLoss: !!(it.pi && !it.w), always: true };
+    const W = { bigNight: 6, badNight: 6, clincher: 6, elim: 6, g7win: 7, g7loss: 7, champ: 9, pinWin: 6, pinLoss: 6, tripleDouble: 4, goodNight: 4, closeWin: 3, closeLoss: 3, blowoutWin: 3, blowoutLoss: 3, win: 2, loss: 2, always: 1 };
+    const used = new Set(), out = [], n = it.po ? 3 : 2;
+    for (let k = 0; k < n; k++) {
+      const pool = bank.map((r, i) => ({ r, i })).filter((x) => f[x.r[0]] && !used.has(x.r[0]) && !out.some((o) => o.i === x.i));
+      if (!pool.length) break;
+      let r = rnd() * pool.reduce((a, x) => a + (W[x.r[0]] || 1), 0), pk = pool[pool.length - 1];
+      for (let i = 0; i < pool.length; i++) { r -= W[pool[i].r[0]] || 1; if (r <= 0) { pk = pool[i]; break; } }
+      used.add(pk.r[0]); out.push({ i: pk.i, row: pk.r });
+    }
+    if (!out.length) return null;
+    const IDX = { humble: 3, confident: 4, joke: 5, deflect: 6, trash: 7, fight: 8 }, T = P.TONES;
+    const qs = out.map(({ i, row }) => {
+      const spicy = ['trash', 'fight'].filter((k) => row[IDX[k]]), calm = ['humble', 'confident', 'joke', 'deflect'].sort(() => rnd() - 0.5).slice(0, spicy.length ? 2 : 3);
+      return { i, topic: 'post:' + row[0], heat: row[1], text: P.FILL(row[2], c), opts: calm.concat(spicy).map((k) => ({ key: k, label: T[k].label, line: P.FILL('\u201C' + (row[IDX[k]] || POST_BRUSH[Math.floor(rnd() * POST_BRUSH.length)]) + '\u201D', c), spicy: k === 'trash' || k === 'fight' })) };
+    });
+    const why = it.pi ? 'After the play-in game' : it.po ? 'After ' + (it.rnd || 'the playoff') + ' game ' + it.n : 'After game ' + it.n;
+    return { kind: 'post', idx: (st.matchIdx || 0) - 1, si: null, why, opp: it.o, qs, picks: [], c, headlines: [] };
+  }
   function pressOpen(st) {
+    const pt = postTarget(st); if (pt) return postOpen(st, pt);
     const it = pressTarget(st); if (!it) return null;
     const P = NBA.Press, L = st.league, rnd = NBA.Decisions.rng(st, 'press|' + L.year + '|' + (it.k === 'g' ? it.n : 's' + it.ps));
     const n = st.finalYear || it.k === 'hdr' ? 3 : 2, pk = P.pickQuestions(st, it, n, rnd);
@@ -780,15 +816,15 @@
   // what the answers did: the game (or series) you are about to play, the locker room, the media, and sometimes a fine or a suspension
   function resolvePress(st, ctx) {
     const Dc = NBA.Decisions, T = NBA.Press.TONES, p = st.player, L = st.league, c = ctx.c, rnd = Dc.rng(st, 'pressr|' + L.year + '|' + (ctx.kind === 'game' ? ctx.idx : 's' + ctx.si));
-    let F = 0, H = 0, Lk = 0, M = 0, Hy = 0, susp = false, fine = 0; const notes = [];
+    let F = 0, H = 0, Lk = 0, M = 0, Hy = 0, susp = false, fine = 0; const notes = [], post = ctx.kind === 'post';
     ctx.picks.forEach((pk) => {
       const tn = T[pk.tone], k = pk.intensity || 1; let f = tn.fire * (pk.tone === 'trash' || pk.tone === 'fight' ? k : 1), h = tn.heat * (pk.tone === 'trash' || pk.tone === 'fight' ? k : 1), lk = tn.locker, m = tn.media;
       if (pk.profane) { fine = Math.max(fine, 0.05); m -= 0.5; notes.push('The league did not love your language.'); }
       if (pk.tone === 'trash') {
-        if (rnd() < clamp(0.55 + 0.012 * (ovr(p) - c.oppStarOvr) + (c.winning ? 0.04 : 0) + (c.hot ? 0.03 : 0) - (c.slump ? 0.05 : 0), 0.2, 0.85)) { m += 0.5; notes.push('The trash talk fired you up.'); }
-        else { f = -0.7; m -= 1.2; h *= 1.5; notes.push('The trash talk backfired: it fired them up, not you.'); }
+        if (rnd() < clamp(0.55 + 0.012 * (ovr(p) - c.oppStarOvr) + (c.winning ? 0.04 : 0) + (c.hot ? 0.03 : 0) - (c.slump ? 0.05 : 0), 0.2, 0.85)) { m += 0.5; notes.push(post ? 'Your words made the rounds and the fans loved it.' : 'The trash talk fired you up.'); }
+        else { f = -0.7; m -= 1.2; h *= 1.5; notes.push(post ? 'The trash talk backfired: the other locker room pinned it to the wall.' : 'The trash talk backfired: it fired them up, not you.'); }
       } else if (pk.tone === 'fight') {
-        if (rnd() < clamp(0.45 + 0.01 * (ovr(p) - c.oppStarOvr), 0.2, 0.7)) { notes.push('It got heated, and you came out of it on fire.'); if (rnd() < 0.2) { fine = 0.05; notes.push('The league still fined you.'); } }
+        if (rnd() < clamp(0.45 + 0.01 * (ovr(p) - c.oppStarOvr), 0.2, 0.7)) { notes.push(post ? 'It got heated, and it was all anyone talked about.' : 'It got heated, and you came out of it on fire.'); if (rnd() < 0.2) { fine = 0.05; notes.push('The league still fined you.'); } }
         else { f = -0.2; lk -= 1; m -= 1.5; fine = 0.1; susp = ctx.kind === 'game' && rnd() < 0.6; notes.push(susp ? 'It went too far: you were fined and suspended for the next game.' : 'It went too far: you were fined.'); }
       }
       F += f; H += h; Lk += lk; M += m; Hy += tn.hype;
@@ -796,10 +832,14 @@
     const net = F - 0.35 * H;
     const eff = [{ k: 'meter', f: 'media', d: M + 0.4 * Hy }, { k: 'meter', f: 'locker', d: Lk }];
     Dc.apply(st, eff);
-    Dc.state(st).flags.asked = (Dc.state(st).flags.asked || []).concat(ctx.qs.map((q) => q.i)).slice(-90);   // no question twice for a long while
+    if (!post) Dc.state(st).flags.asked = (Dc.state(st).flags.asked || []).concat(ctx.qs.map((q) => q.i)).slice(-90);   // no question twice for a long while
     if (fine) st.earnings = Math.max(0, st.earnings - fine);
     let line = null;
-    if (ctx.kind === 'game') {
+    if (post) {
+      const it = st.matchLog[ctx.idx]; if (it) it.ppd = 1;
+      if (susp) { const nx = st.matchLog.slice(ctx.idx + 1).find((x) => x.k === 'g' && !x.po); if (nx) { ['m', 'pt', 'rb', 'or', 'as', 'st', 'bk', 'to', 'pf', 'r', 'fgm', 'fga', 'tpm', 'tpa', 'ftm', 'fta', 'sh', 'pm'].forEach((k) => { delete nx[k]; }); nx.tg = []; nx.dnp = 'Suspended'; nx.cl = 0; nx.pc = 0; nx.pp = 0; recomputeFromLog(st); } }
+      line = net > 0.2 ? 'The press room liked what it heard.' : net < -0.2 ? 'That did not go over well in the press room.' : 'You said your piece and left.';
+    } else if (ctx.kind === 'game') {
       const it = st.matchLog[ctx.idx], s0 = clamp(0.05 * net, -0.15, 0.18);
       it.pd = 1; it.tg = (it.tg || []).slice();
       let d = Math.round(it.pt * s0); d = clamp(d, -6, 7);
@@ -820,7 +860,7 @@
     const big = fine || ctx.picks.some((pk) => pk.tone === 'trash' || pk.tone === 'fight');
     const head = (ctx.headlines || []).filter(Boolean)[0], quote = ctx.picks.find((pk) => pk.text && (pk.tone === 'trash' || pk.tone === 'fight'));
     if (head) notes.unshift('Headline: "' + head + '".');
-    return { text: ([...new Set(notes)].concat([line]).join(' ')), tone: net > 0.2 ? 'good' : net < -0.2 || susp ? 'bad' : 'neutral', journal: big ? { tone: net > 0.2 && !susp ? 'good' : 'bad', text: (ctx.kind === 'game' ? ctx.why + ' vs the ' + ctx.opp : ctx.why) + ': ' + (quote ? 'You said "' + quote.text.slice(0, 90) + (quote.text.length > 90 ? '…' : '') + '". ' : '') + notes.join(' ') } : null };
+    return { text: ([...new Set(notes)].concat([line]).join(' ')), tone: net > 0.2 ? 'good' : net < -0.2 || susp ? 'bad' : 'neutral', journal: big ? { tone: net > 0.2 && !susp ? 'good' : 'bad', text: (ctx.kind === 'game' || post ? ctx.why + ' vs the ' + ctx.opp : ctx.why) + ': ' + (quote ? 'You said "' + quote.text.slice(0, 90) + (quote.text.length > 90 ? '…' : '') + '". ' : '') + notes.join(' ') } : null };
   }
 
   // ---- decisions made while the games play: a playoff plan per series, and the clutch moments
@@ -1365,6 +1405,6 @@
     return st;
   }
 
-  Object.assign(NBA, { Game: { announceFarewell, canComeback, comeback, pressTarget, pressOpen, resolvePress, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { Game: { announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
