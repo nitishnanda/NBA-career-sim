@@ -734,3 +734,6 @@ Answers: every one of the 224 questions now has its own hand-written humble / co
 
 ## v51 — decision results on their own page
 Press and clutch answers now show their outcome on the decision's page ("Before game N of the season · vs the X", Continue button) instead of a banner a game later on the season page; repeated notes in one press result are collapsed.
+
+## v52 — decisions play the game; DPOY ladder matches the vote
+Press and clutch results now end in "Play the game →", which plays the game the decision belongs to, so the choice and the game it changed are no longer a click apart. The live DPOY ladder used its own weights (2.2 stl + 2 blk) while the final vote uses 4 blk + 3.5 stl + 0.12 × best defensive rating + 0.12 × (wins − 41) (+ noise): it now uses the vote formula, and says the vote has some randomness.

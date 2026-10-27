@@ -26,14 +26,14 @@ let PG = null;
   const pc0 = await page.evaluate(() => ({ q: document.querySelector('.card.suspense h2').textContent, opts: document.querySelectorAll('.wkcard').length, lines: Array.from(document.querySelectorAll('.wkcard .small')).filter((e) => /^["\u201C]/.test(e.textContent)).length, why: document.querySelector('h1 + p').textContent }));
   const okPc = pc0.opts >= 3 && pc0.lines === pc0.opts && pc0.q.length > 15; console.log('PRESS screen', okPc ? 'OK' : 'MISMATCH', JSON.stringify(pc0)); if (!okPc) errors.push('PRESS ' + JSON.stringify(pc0)); await shot('27-press');
   for (let k = 0; k < 4 && (await page.$('.wkcard button')); k++) await page.click('.wkcard button >> nth=0');
-  const rs = await page.evaluate(() => ({ card: !!document.querySelector('.card.suspense .jmsg'), cont: /Continue to the game/i.test(document.body.innerText), game: /Before game 1/i.test(document.body.innerText) })); console.log('PRESS result page', rs.card && rs.cont && rs.game ? 'OK' : 'MISMATCH', JSON.stringify(rs)); if (!(rs.card && rs.cont && rs.game)) errors.push('PRESS result page'); await shot('27b-press-result');
-  await page.click('button:has-text("Continue to the game")');
+  const rs = await page.evaluate(() => ({ card: !!document.querySelector('.card.suspense .jmsg'), cont: /Play the game/i.test(document.body.innerText), game: /Before game 1/i.test(document.body.innerText) })); console.log('PRESS result page', rs.card && rs.cont && rs.game ? 'OK' : 'MISMATCH', JSON.stringify(rs)); if (!(rs.card && rs.cont && rs.game)) errors.push('PRESS result page'); await shot('27b-press-result');
+  await page.click('button:has-text("Play the game")');
   const pc1 = await page.evaluate(() => { const S = window.__NBA_UI.state; return { pd: !!S.matchLog[0].pd, meters: Object.keys(S.dec.flags).filter((k) => /media|locker/.test(k)).length }; });
   const okPc1 = pc1.pd && pc1.meters === 2; console.log('PRESS answered', okPc1 ? 'OK' : 'MISMATCH', JSON.stringify(pc1)); if (!okPc1) errors.push('PRESS answered ' + JSON.stringify(pc1));
   await page.waitForSelector('text=Sim next game');
   const arm = () => page.evaluate(() => {
     const S = window.__NBA_UI.state, G = window.NBA.Game; if (!S.matchLog || S.dlDone) return null; window.__NBA_UI.saveSnap();
-    if (S.dec.pending && S.dec.pending.id === 'deadline') return null;
+    if (S.dec.pending) return null;
     const opts = G.tradeOffers(S, 29).filter((o) => o.ok).slice(0, 3);
     S.dlChecked = true; S.dec.flags.tradeReq = S.league.year;
     S.dec.pending = { id: 'deadline', ctx: { kind: 'request', text: 'The team found suitors for your trade request.', options: opts }, step: 0, log: [] };
@@ -50,9 +50,9 @@ let PG = null;
         const c = await page.evaluate(() => ({ opts: document.querySelectorAll('.wkcard').length, vibes: document.querySelectorAll('.wkcard .vibe').length, numbers: /%/.test(document.querySelector('#app').innerText) }));
         const ok = c.opts === 4 && c.vibes === 4 && !c.numbers; console.log('CLUTCH options', ok ? 'OK' : 'MISMATCH', JSON.stringify(c)); if (!ok) errors.push('CLUTCH ' + JSON.stringify(c)); await shot('24-clutch');
       }
-      await page.click('.wkcard button >> nth=0'); await page.waitForSelector('button:has-text("Continue to the game")'); await page.click('button:has-text("Continue to the game")'); await page.waitForTimeout(100); await arm(); return 'clutch';
+      await page.click('.wkcard button >> nth=0'); await page.waitForSelector('button:has-text("Play the game")'); await page.click('button:has-text("Play the game")'); await page.waitForTimeout(100); await arm(); return 'clutch';
     }
-    if (/Press conference/.test(h1)) { for (let k = 0; k < 4 && (await page.$('.wkcard button')); k++) await page.click('.wkcard button >> nth=0'); await page.click('button:has-text("Continue to the game")'); await arm(); return 'press'; }
+    if (/Press conference/.test(h1)) { for (let k = 0; k < 4 && (await page.$('.wkcard button')); k++) await page.click('.wkcard button >> nth=0'); await page.click('button:has-text("Play the game")'); await arm(); return 'press'; }
     return /Trade deadline/.test(h1) ? 'deadline' : /^(First Round|Conference|NBA Finals)/i.test(h1) ? 'series' : null;
   };
   await page.click('button:has-text("Instant")'); await simOn();
