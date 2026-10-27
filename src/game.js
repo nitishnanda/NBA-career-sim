@@ -1,7 +1,7 @@
 (function (g) {
   'use strict';
   const NBA = g.NBA;
-  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
+  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
   const D = NBA.data;
   const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
   const ATTRS = D.ATTRS;
@@ -618,13 +618,13 @@
       items.forEach((x) => { if (x.k === 'g' && x.po && x.n === 7 && !x.dnp) { x.cl = 1; x.g7 = 1; } }); }
     // the games the media cares about: a press conference before each (own random stream)
     { const rnd = mulberry(shotSeed(st, 9300)), D = NBA.Decisions.state(st), Lg = st.league, regs = items.filter((x) => x.k === 'g' && !x.po && !x.dnp), byNick = (n) => Lg.teams.find((x) => x.nick === n);
-      const mark = (x, why) => { if (x && !x.pc && !x.cl) { x.pc = 1; x.pcWhy = why; return true; } return false; }, cap = st.finalYear ? 8 : 5; let n = 0;
-      const go = (x, why) => { if (n < cap && mark(x, why)) n++; };
+      const mark = (x, why) => { if (x && !x.pc && !x.cl) { x.pc = 1; x.pcWhy = why; return true; } return false; }, cap = st.finalYear ? 6 : 4, marked = []; let n = 0;
+      const go = (x, why) => { if (n < cap && x && marked.every((y) => Math.abs(y.n - x.n) >= 10) && mark(x, why)) { n++; marked.push(x); return true; } return false; };   // never two press conferences within ten games of each other
       go(regs[0], 'Opening night');
       const rv = D.rival && Lg.players[D.rival.id], rvT = rv && Lg.teams[rv.teamId]; if (rvT) regs.filter((x) => x.o === rvT.nick).slice(0, 2).forEach((x) => go(x, 'Rivalry game: ' + rv.name));
       const tr = (st.trades || []).slice(-1)[0], oldT = tr && tr.year >= Lg.year - 1 ? Lg.teams.find((x) => x.name === tr.from) : null; if (oldT) go(regs.find((x) => x.o === oldT.nick), 'Revenge game against your old team');
       const big = regs.filter((x) => { const ot = byNick(x.o), s0 = ot && NBA.rosterOf(Lg, ot)[0]; return ot && (ot.wins >= 56 || (s0 && ovr(s0) >= 92)); }).map((x) => [rnd(), x]).sort((a, b) => a[0] - b[0]).slice(0, 2); big.forEach((x) => go(x[1], 'A marquee matchup'));
-      let gap = 0; items.forEach((x, i) => { if (x.k === 'g' && !x.po) { if (x.dnp) gap++; else { if (gap >= 5) go(x, 'First game back from injury'), x.back = 1; gap = 0; } } });
+      let gap = 0; items.forEach((x, i) => { if (x.k === 'g' && !x.po) { if (x.dnp) gap++; else { if (gap >= 5 && go(x, 'First game back from injury')) x.back = 1; gap = 0; } } });
       if (st.finalYear) { const seen = new Set(); regs.forEach((x) => { if (!x.h && !seen.has(x.o)) { seen.add(x.o); x.tg = (x.tg || []).concat(['Farewell tribute']); x.tribute = 1; } }); regs.filter((x) => x.tribute).map((x) => [rnd(), x]).sort((a, b) => a[0] - b[0]).slice(0, 4).forEach((x) => go(x[1], 'Farewell tour stop')); }
       // playoffs: every series after the first round, any with a rival, and every Game 7 series
       items.forEach((x) => { if (x.k === 'hdr' && x.ps != null) { const ot = Lg.teams.find((q) => q.name === x.opp); x.pc = (x.rnd !== 'First Round' || x.g7 || (rv && ot && rv.teamId === ot.id)) ? 1 : 0; } }); }

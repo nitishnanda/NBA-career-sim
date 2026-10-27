@@ -728,3 +728,6 @@ Expiring deals (own club and every market club) can be negotiated: you pick sala
 
 ## v49 — create-screen realism guard
 Size sliders were already clamped to the real NBA range per position; the screen now also explains height/wingspan/weight in plain words and shows a rarity bar for the whole body (joint 3-dof chi-square tail of the height, weight-for-height and wingspan z-scores: realistic / unusual / very rare / basically unrealistic, with "1 in N") plus a notice when a slider is at the edge of the real range.
+
+## v50 — press conference fixes
+Answers: every one of the 224 questions now has its own hand-written humble / confident / joke / deflect answer (and trash / fight where there is someone to aim at) in `src/presslines.js`, same order as the bank; `scripts/press-check.js` checks the alignment. The generic deflect line is now a universal brush-off. Spacing: at most 4 press conferences a season (6 in a farewell year), never within 10 games of each other, so opening night is no longer followed by a string of rivalry/revenge/marquee pressers.

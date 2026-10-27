@@ -2178,6 +2178,238 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 })(typeof window !== 'undefined' ? window : globalThis);
 
 (function (g) {
+  // Hand-written answers, one row per question in the bank (same order as the Q() calls in press.js): [humble, confident, joke, deflect, trash, fight].
+  // Each is an answer to THAT question. An empty deflect falls back to a generic evasive line; trash and fight exist only where the question has someone to aim at.
+  const NBA = (g.NBA = g.NBA || {});
+  NBA.PressLines = [
+[ "We stick to the game plan and trust each other. The {opp} are a good team and we respect that.", "We have the better plan and we are going to execute it. I like our chances.", "The plan is to not get cooked. Beyond that I am following the coaches, they are smarter than me.", "", "", "" ],
+[ "Honestly it is less about me and more about us being sharper on both ends. We know what we did wrong.", "We know what went wrong last time, and it will not happen again. I will make sure of that.", "What has to change? My haircut. Everything else was fine, I think.", "", "", "" ],
+[ "We watch a lot of film, we lean on the staff, and we make sure everyone knows their job against {oppStar} and the rest.", "I prepare the same way against everyone. I am ready for {oppStar} and I am ready for the {opp}.", "I stare at film until I see {oppStar} in my sleep. Very healthy, my therapist says.", "", "", "" ],
+[ "Every game tells you something, but this one is on the schedule like the rest. We just want to play well.", "A measuring stick? Sure. Then I like how I measure up.", "I measure myself with a tape. Six-eight on a good day. Still working on the rest.", "", "", "" ],
+[ "They are well-coached and they play hard. Our staff has given us a great look at them.", "They have some things they like to run and I think we have the answers.", "Mostly I notice how long they take to get back on defense. And the uniforms are nice.", "", "", "" ],
+[ "It is a great challenge. He is one of the best, and playing against the best makes you better.", "I love it. You want these matchups. Bring it on.", "Honestly? Stressful. Great hair though, I will give him that.", "", "", "" ],
+[ "It takes all five of us. Nobody stops a guy like that alone, so we will do it together.", "Can I? I will take that challenge. You will see tonight.", "I can try. Worst case I make a great highlight for his reel.", "", "Stop him? I will do more than that. He is not ready.", "Say that to his face and not to the cameras. I will be right out there." ],
+[ "I am happy for him. But my job is helping this team win, not chasing his shadow.", "It motivates me, sure. I have got my own case to make and tonight is a good night to make it.", "MVP chatter? I thought they only did that for people who do not play defense.", "", "Let them chat. I will be the one he has to deal with on the floor.", "" ],
+[ "I do not worry about what people say. I just keep working and let my teammates lift me up.", "Overrated? I will let the box score do the rating tonight.", "Overrated is a big word for someone who has not seen me up close yet.", "", "He said overrated? We will see how he feels at the final buzzer.", "Say it to my face. I am right here." ],
+[ "I do not respond to that. I respect him and I just want to win as a team.", "I heard it. I will answer with how I play tonight.", "An example of what? I will be happy to be a good one.", "", "He can talk. We will see who is the example by midnight.", "Make an example? Come try it. I will be right here." ],
+[ "That is not for me to say. We are both just trying to help our teams win.", "Right now? I am the one who is confident on that. I will prove it on the court.", "Right now it is whoever is not on his phone. We will check.", "", "Better? Let us see how he feels when the game is over.", "" ],
+[ "That is not fair, but I understand why people say it. I just keep showing up and working with my guys.", "I have never ducked anyone. Ever. You will see that tonight.", "Ducking is for ponds. I am more of a rim guy.", "", "Duck? He is the one dodging my number. Tonight he will not be able to.", "Duck him? I am right here. Walk up and say it." ],
+[ "It matters, sure. But every game matters to us, so we approach it with the same mindset.", "Yes, a statement game. We are going to show them where we are.", "A statement game? My statement is: please clap.", "", "", "" ],
+[ "I think we just need to execute better and trust one another. We will get there together.", "Nothing is missing. We are about to show it.", "Our tallest player. Apart from that, nothing.", "", "", "" ],
+[ "That is the danger in this league. We respect everyone. We will not look past anyone.", "Not here. We play every team like it is the finals.", "Overlooking? Impossible. My eyes have not been that good in years.", "", "", "" ],
+[ "We treat every team the same. If we do our jobs, the result will take care of itself.", "I expect us to win. That is the goal every night.", "Dominate? I will settle for not tripping on the way out of the tunnel.", "", "", "" ],
+[ "It matters a lot. The fans have been great to us and we feed off that.", "I love playing in front of {city}. They bring the energy and I will bring the rest.", "Matter? My free throws only look good because of them.", "", "", "" ],
+[ "You block it out and lean on your teammates. We are all in this together.", "I love it. A loud building gets me going.", "I just pretend they are cheering for me. It works until the boos get specific.", "", "", "" ],
+[ "I do not mind it. It is part of the job and it keeps me focused.", "I love it. Their noise only makes me play better.", "Do I enjoy it? They have creative signs. I will give them that.", "", "Let them yell. I will be quieter after every bucket.", "" ],
+[ "I want us to grow together, stay healthy, and compete every night. The rest will come.", "My expectations are high. We are built to win, and I want to win big this year.", "To get through the season without my agent calling me. That is a win.", "", "", "" ],
+[ "A good year is about growth as a group. If we get better every week I will be happy.", "A good year means a deep playoff run. That is what we are building to.", "A good year is one where I do not have to explain a turnover to my mom.", "", "", "" ],
+[ "I worked on a lot, with a lot of help from trainers and teammates. Still plenty to learn.", "I worked on everything and I feel faster, stronger, and ready. You will see it.", "I now own a very nice blender. Basketball-wise, I am still figuring it out.", "", "", "" ],
+[ "He is a great player, and I respect him. It is more about the team than the two of us.", "It is not personal, but I do not back down. I would like to win.", "Personal? We are not even friends on the same video game.", "", "It is personal if he makes it personal. I will answer on the floor.", "It is personal. Say it to my face, {rival}." ],
+[ "I do not worry about labels. I respect {rival} and I just try to help my team win.", "Not a rival? Fine. Then he will not mind when I light him up.", "I do not think of him as a rival either. We just happen to be competitive about everything.", "", "He can say that now. The scoreboard will tell a different story.", "Say it to my face and see if you still feel that way." ],
+[ "He is a great player. I credit my teammates for getting us ready each time.", "It does not bother me. I am the one who is going to change that.", "That is a nice way to say he has had good days. I am due for one.", "", "I let him have his moments. That is changing tonight.", "He has had it? Not for long." ],
+[ "He is up there for sure. The league is full of great players, and I try to learn from each.", "No. I think I am the best one I have faced, but he is in the conversation.", "I am afraid the answer is my reflection after a nap.", "", "Best? Not even close to what I am bringing.", "" ],
+[ "I am not looking for a settling-of-scores moment. I just want to win as a team.", "I am ready. I have always been ready. Let us see who wants it more.", "Settle this? With a coin flip, maybe. I will call heads.", "", "I am ready. He is not. We will find out tonight.", "Ready? I have been ready since he opened his mouth." ],
+[ "I do not read too much into that. I respect him, but my focus is my team.", "He can laugh. Let us see who is laughing at the end.", "I am glad my name is getting good podcast content. I hope there are no ads.", "", "Laugh now. I am the one who will be smiling afterward.", "Laugh to my face, {rival}. Right here." ],
+[ "I respect his game, his work ethic, how he leads. The rest I do not need to say.", "I respect his skill. What I hate is losing to him.", "I respect his shoes. I hate his shoes more.", "", "I respect what he is. I hate how he talks.", "" ],
+[ "I do not think of it that way. It is a game against a good team and we will play like it.", "A grudge match? Sure. And I intend to win it.", "A grudge match? I thought we were just going to eat afterward.", "", "Grudge? Call it what you want, I am going to win it.", "You want a grudge match? You got it." ],
+[ "It was a team win. My teammates deserve the credit and I think that carries over.", "Of course it changes things. He knows I can beat him.", "He should know. I will remind him by waving at the scoreboard.", "", "", "" ],
+[ "It stings, but it is a long season. We will use it as fuel as a team.", "It sits badly. I am here to change that, tonight.", "It sits right next to my cold pizza. I keep it in the fridge for fuel.", "", "I will not forget it, and he should not either.", "" ],
+[ "Credit to my teammates. They find me in the right spots and I just do my job.", "I am seeing the floor well, I am confident, and I am going to keep it going.", "I changed my socks. I will not tell you which ones.", "", "", "" ],
+[ "It feels great but I know it is my teammates putting me in good spots. They deserve it.", "It does feel that way. I am locked in.", "Anyone can stop me. My knee tells me when I turn on a ball screen. But yes, I feel great.", "", "", "" ],
+[ "It feels effortless because my teammates are setting me up. I just finish.", "That is the work paying off. I will keep making them.", "I am saving my bad shots for the summer league.", "", "", "" ],
+[ "Streaks end. I will not worry about when. I will just keep working with my team.", "It can last as long as I keep working. Watch me.", "I do not know. I have not looked at the calendar.", "", "People said that when I started. Look where it got us.", "" ],
+[ "Honestly, a bit of both. The team is playing better, and that makes my job easier.", "I am in a groove, and the team is playing great. It is both.", "A groove. We are on the same playlist for once.", "", "", "" ],
+[ "It has been a tough stretch and I am looking at my own game first. My teammates are helping a lot.", "It is a small stretch. I know who I am and the shots will fall.", "Only my jump shot and the ball. Both are in therapy.", "", "", "" ],
+[ "They can say what they want. I will work with my teammates and keep my head down.", "A slump? No. I am one good game from being on the cover of everything.", "I am not in a slump. I am just resting my numbers.", "", "Critics should be quiet. They will see tonight.", "" ],
+[ "Nothing physically. It is a mental thing, and I have great teammates to lean on.", "My body is fine. My mind is right. The shots will fall.", "Both. My body and my mind want a vacation, but the schedule has no mercy.", "", "", "" ],
+[ "I read some of it, but I know my teammates and coaches have my back. We keep going.", "I do not read it. I do not need to. The next game will tell the story.", "I read it twice. It was well written. I disagree with it.", "", "A columnist who has never played has a take? Cute. I will see him at the buzzer.", "" ],
+[ "You trust your teammates, keep your routine, and keep working. The shot will come back.", "You keep shooting. I know it turns, and when it does, watch out.", "You wait for the basketball gods to forget you. They forget fast.", "", "", "" ],
+[ "It is all the guys. Everybody is locked in and playing for each other.", "We know we are good, we are confident, and we want to keep it rolling.", "The secret is pregame chicken. Do not tell anyone.", "", "", "" ],
+[ "It might be. The guys are playing for each other, and that is how you get it done.", "It is. And we are not done getting better.", "Best? If you count the postgame dinners, absolutely.", "", "", "" ],
+[ "It is tough, but we are together. We talk, we support each other, and we keep working.", "The room is fine. We know how good we are and the wins will come.", "It is quiet. A lot of people are staring at their shoes.", "", "", "" ],
+[ "I do not think panic helps. We have to trust each other and keep working.", "No panic. We are going to turn it around.", "I am panicking only about my fantasy team.", "", "", "" ],
+[ "We need to trust each other and own our mistakes. I will look at my game first.", "We need a win and we are going to get one. The group is solid.", "A shake-up? I vote for a new snack table.", "", "", "" ],
+[ "The team is great. We have a good thing going and I credit my teammates.", "I think so. We are contenders and I want to prove it.", "I am contender-adjacent. Like a cousin of one.", "", "", "" ],
+[ "We have better chemistry. Everyone knows their role and wants to win together.", "We are deeper, we are tighter, and we are hungrier.", "Me. I am a year older and I think that is the difference.", "", "", "" ],
+[ "We believe in ourselves, so I do not care what outsiders say. The group knows.", "Yes. We are better than that. Watch us.", "Credit? I thought we had a gift card.", "", "People will talk. We will answer on the floor.", "" ],
+[ "We have a lot of work to do, and we are all looking in the mirror. It starts with me.", "Nothing is wrong that cannot be fixed. We are better than our record.", "What is going wrong? I will need a bigger whiteboard.", "", "", "" ],
+[ "Yes. Everyone in here is committed and we will get through this together.", "I do. I know what is in this room.", "I believe in us. I also believe in pregame naps.", "", "", "" ],
+[ "That is not my department. I focus on my job and trust the front office with theirs.", "I trust them. I just want to win and I will do my part.", "I would like a bigger locker. Beyond that, no complaints.", "", "", "" ],
+[ "It is a great roster and I am grateful for the guys around me.", "It is. We have the pieces and I want to see it through.", "The best roster? We do have a really good snack table.", "", "", "" ],
+[ "Pressure is a privilege. We handle it by leaning on each other.", "Absolutely. We want that pressure. That is why we play.", "Pressure? I have been under pressure since the ninth grade, at a school cafeteria.", "", "", "" ],
+[ "We can be better at communication. When we talk, we are great.", "Closing games. We will fix it, and then we are going to be scary.", "Our team needs to be better at not throwing the ball into the third row.", "", "", "" ],
+[ "We are a team that shares the ball, plays hard, and trusts each other.", "We are tough, confident, and we love to win. That is who we are.", "We are the team that nobody wants to sit next to on a long flight.", "", "", "" ],
+[ "The chemistry is great. We are a tight group and I love these guys.", "It is great. We are confident and the bond is real.", "It is great. We only fight over music, and I always lose.", "", "", "" ],
+[ "He is a great coach and I am grateful for what he has taught me.", "He is a coach who pushes me and I want to win for him.", "He is a great coach. He is also scary when I miss a rotation.", "", "", "" ],
+[ "I trust the system and my coaches. It is a team thing, not about me.", "The system works. I am good with it, and I know I can do my part.", "I have not read it in full. It is a lot of pages.", "", "", "" ],
+[ "Everybody has a voice. Our vets keep it real and I try to support whoever is talking.", "I try to be one of them. When it matters, I speak up.", "The loudest voice is the guy who loses at cards. Nobody beats him at excuses.", "", "", "" ],
+[ "He makes everything easier. He sets me up and covers for me, and I am grateful.", "He is a star. When we are both going, nobody can stop us.", "He is making me look good. I will take it.", "", "", "" ],
+[ "We read each other well. It is about trust, spacing, and knowing where the other will be.", "Great. We play off each other and we want the same thing: wins.", "Very well. We communicate with eye contact and mild screaming.", "", "", "" ],
+[ "We both lead in different ways. This is not about one person.", "I lead by example, and I am not afraid to speak up. {mate} knows that.", "The leader is whoever finds the Wi-Fi password first.", "", "", "" ],
+[ "There are enough shots if we play the right way. We are not worried about that.", "There are plenty. Good players find a way to share.", "Shots? I take them where I find them. Let us not tell the coach.", "", "", "" ],
+[ "A great guy. He is funny, he is kind, and he is a true teammate.", "He is a competitor off the court, too. It makes us better.", "He is a very serious man who laughs at his own jokes. We love him.", "", "", "" ],
+[ "I tell him to keep learning, work hard, and ask questions. It is a long season.", "Be confident. You belong here. Play your game.", "I tell him the food is free but the film sessions are not.", "", "", "" ],
+[ "He has handled it great. The grind is real, and he is a pro already.", "He is tough. He will be fine. He has got what it takes.", "He has slept through three flights. So, well.", "", "", "" ],
+[ "A lot. He has seen everything, and his advice is gold. I listen every day.", "I learn how to win. He knows what matters.", "How to nap on a plane. That is the real secret.", "", "", "" ],
+[ "It is our team. I would never frame it as one of us. We share it.", "It is a team we both lead, and I am happy to be one of the guys.", "It is the coach's team. We just rent it.", "", "", "" ],
+[ "A lot of guys. Every night somebody does the small things that do not show in the stats.", "I know who it is, and I am going to say he is my guy. People will see.", "The trainer. He does everything and nobody claps for him.", "", "", "" ],
+[ "Something happens on the bench every night. I am not telling. What happens on the bench stays on the bench.", "The funniest thing was my teammates losing a bet. I will not name names.", "I tried to leap over a seat and kept the seat. Lesson learned.", "", "", "" ],
+[ "A little bit, yeah. But it is just a number. I want to be the best version of me.", "It follows me, and I am going to make it a good number. Watch.", "It follows me like a stray dog. I have started feeding it.", "", "", "" ],
+[ "The speed, the size, the preparation. It is a different game, but I am learning from the vets.", "It is faster and stronger, and I am adjusting quickly. I am loving it.", "The meals are better. The sleep is worse.", "", "", "" ],
+[ "I do not worry about that. I work and I let the work speak for itself.", "They will see. I am going to make that pick look smart.", "I reached for a donut this morning too. I do not regret it.", "", "People can have opinions. I will have the stats.", "" ],
+[ "Pace and physicality. I lean on my vets and my coaches to learn.", "Everything is faster. I am adjusting, and I am confident I can handle it.", "Finding the arena. I got lost twice.", "", "", "" ],
+[ "A little, honestly. But my focus is on helping my team win.", "Yes, it is on my mind. I want it. I am going to work for it.", "I think about it. My mom thinks about it more.", "", "", "" ],
+[ "Quite a few vets. They have been patient and generous with their time.", "A lot of guys. I took the best of it and made it mine.", "My mom. She texts me notes after every game. She is a hard grader.", "", "", "" ],
+[ "I do belong. I work hard and I have good teammates. I am only at the start.", "I do. I feel at home here. I want more.", "Age is just a number. Mine is on my jersey, and I keep forgetting it.", "", "", "" ],
+[ "I will do whatever the team needs. I am not worried about being the face of anything.", "Yes. I want that. I want the responsibility.", "My face is not ready. Honestly my face is not the best part.", "", "", "" ],
+[ "I feel pretty good. I work with the training staff and take care of my body.", "I feel great. Age is just a number to me.", "My body feels amazing. My knees disagree, but they are not in the interview.", "", "", "" ],
+[ "I do not think about it that way. I just want to help the team and play as well as I can.", "No. I am playing the best basketball of my life.", "Is {age} too old? Ask my knees. They say yes. I do not listen.", "", "Too old? Watch me. Some of these kids will learn.", "" ],
+[ "I will take it year by year. I am thankful for every day I can play.", "As long as I can help a team win. I am not done.", "Until my knees file a complaint.", "", "", "" ],
+[ "My love for the game, my teammates, and my family. That is what keeps me going.", "I love to win. That is it. That is the whole thing.", "Spite. Mostly spite. And snacks.", "", "", "" ],
+[ "They push me to keep working. I respect them and they make the league better.", "No pressure. I have been here a long time. I know how to handle it.", "Pressure? They keep asking me about my phone settings. That is the pressure.", "", "They are fast. I am smart. We will see who is better at the end.", "" ],
+[ "Take care of your body, listen to the vets, and stay humble. It is a marathon.", "Work harder than anyone, eat right, sleep, and never take a day for granted.", "Stretch. Seriously. And ice. Mostly ice. I smell like ice.", "", "", "" ],
+[ "I just work hard, take care of myself, and keep learning. My teammates keep me going.", "Preparation, discipline, and the will to win. It adds up.", "Naps. I take lots of naps.", "", "", "" ],
+[ "It is emotional, but it is also joyful. I am thankful to everyone who helped me.", "I am enjoying every minute. But I want to win, and I will compete until the end.", "I am feeling good. I just cried at a commercial this morning.", "", "", "" ],
+[ "The guys. The locker room, the bus rides, the little moments with my teammates.", "The competition. There is nothing like it. I will miss the fight.", "The free meals. I will have to start cooking.", "", "", "" ],
+[ "It means a lot. I am humbled. I want to thank every fan and every arena.", "It is great. I will give them a performance worth the tribute.", "It means a lot. I have a lot of gift baskets now.", "", "", "" ],
+[ "It is final. I want to enjoy this year and then be at peace.", "Never say never. But I know what is in my heart right now.", "I said that to my mom. She did not believe me either.", "", "", "" ],
+[ "As someone who gave everything and respected the game. And a good teammate.", "As a winner. Someone who played hard every night.", "As a guy who could shoot. And who had a great haircut.", "", "", "" ],
+[ "Both, really. I want to win, and I want to enjoy my teammates.", "We are going for it. I did not come back to ride a bench.", "A little of both. Mostly the ride, I will admit. The snacks are better in the playoffs.", "", "", "" ],
+[ "There have been a lot. It is hard to pick. Mostly it is my teammates and the memories.", "Winning that game. It is the one I always go back to.", "The time I fell asleep on the bus and woke up in another city.", "", "", "" ],
+[ "I do not think so. Everyone has been great and we all want to win together.", "It is no distraction. It fuels us.", "A distraction? The only distraction is the gift baskets.", "", "", "" ],
+[ "There have been so many. They made me better and I respect every one of them.", "Honestly? Not many. But the ones who did made me work.", "My own shoelaces. They are the most consistent opponent I have had.", "", "", "" ],
+[ "There are many young players who will carry it. I am excited to watch them.", "There are a few. They know who they are. They will do great.", "My kids. They carry my bags. That is plenty of torch.", "", "", "" ],
+[ "I love it here. I would love to stay and finish what we started.", "I want to be here. I want to win with these guys, so we will see.", "I like it here. They have my favorite stretch of road.", "", "", "" ],
+[ "I will see what happens. I am focused on this season and my teammates.", "I will see what is best for me and my family. I want to win, so that matters.", "Test free agency? I do not even test a sandwich before I eat it.", "", "", "" ],
+[ "I just want to be fair. I trust my agent and the team to figure it out.", "I know what I am worth. The numbers will say it.", "I am worried about whether the parking is validated.", "", "", "" ],
+[ "I am not going to get into that. I am focused on this team and this season.", "I will say this: I want what is best for my career. I will leave it there.", "I asked for a trade? I asked for a better chair. Totally different.", "", "I said what I needed to say to the right people. Not to the press.", "That is between me and the team. Do not push it." ],
+[ "Right now I am a member of this team and I am focused on winning.", "I want to win, and I will play to win wherever I am.", "I want to be here. At least until the next question.", "", "", "" ],
+[ "I love our fans. I hear them. I want to win for them, and I will keep working.", "I understand why they are upset. I want to win, and I will show them.", "To the fans: I am sorry. And I really do like your signs.", "", "", "" ],
+[ "A little. I want to earn it every night. I am grateful for the trust.", "It does not change anything. I am the same player. I want to win.", "I signed it with a very expensive pen. That is about it.", "", "", "" ],
+[ "I do not feel it. I just try to do my job and help us win.", "I know what I bring. I do not worry about it.", "Overpaid? I have a very expensive snack bill, so no.", "", "People can talk. I earn it every night.", "" ],
+[ "That is a question for the front office. I do my job and trust them.", "The cap is the cap. We work with what we have. I want to win.", "The cap is like my diet. It sounds simple and then it is not.", "", "", "" ],
+[ "I would love to see a lot of teams. But I like where I am.", "Any team that wants to win. I like to win.", "Anywhere warm with great food. And a gym nearby.", "", "", "" ],
+[ "It is a nice conversation, but I just want us to win. That is the real award.", "I care. I want it. I am going to make a case every night.", "Care? I have a spot picked on the mantle. The mantle does not know yet.", "", "", "" ],
+[ "There are a lot of great players. I will not pick one. I like what my teammates do.", "I know who it is. I look in the mirror. I am joking. A little.", "I do not vote. I just ask for snacks.", "", "", "" ],
+[ "A little. Fans love their favorites, and that is fine. Great players make it every year.", "If you are good enough, you get in. I do not worry about it.", "It is a popularity contest. I have been practicing my smile.", "", "", "" ],
+[ "It matters, but a team win matters more. My teammates make my numbers possible.", "They matter to me. I want them all. But I want a ring more.", "I like the trophies. They look nice on my shelf. The shelf is lonely.", "", "", "" ],
+[ "I do not say that. I let others say it. I try to do my part.", "I think so. I will say it. I work for it every day.", "Best player in the league? I will have to check with my mom.", "", "I think the answer is clear. Ask the other guys.", "" ],
+[ "I do not worry about labels. I work with my team and I just try to win.", "Superstar or not, you can call me what you want. The tape tells the truth.", "I am a superstar in my own kitchen. That is enough.", "", "Analysts do not play. I will let the scoreboard talk.", "" ],
+[ "A title. That is all that matters. Everything else is extra.", "All of them, honestly. I want it all.", "The Most Improved Snack Award. I am in the running.", "", "", "" ],
+[ "I am blessed to compete with such great players. I just try to help my team.", "At the top. I do not mind saying that.", "Top of the position, bottom of the parking lot. Where I belong.", "", "", "" ],
+[ "We talk about rest, film, and unity. It is a new season, and the intensity is different.", "I get ready by staying locked in and being myself. This is where I want to be.", "I take two naps and a long shower. That is the secret.", "", "", "" ],
+[ "A tough one. We have a plan, and I trust my teammates to do their jobs.", "A fight, and I like our chances. We are built for this.", "A lot of hard screens and loud arenas. I like loud arenas.", "", "", "" ],
+[ "I hear it. I do not like it. I will keep working with my team.", "That bothers me. I am going to answer it.", "My playoff play has been criticized? I have been told my cooking is worse.", "", "People who say that are not paying attention. Watch.", "" ],
+[ "Trust. And defense. And rebounding. And execution. It is a lot of things.", "Heart. Whoever wants it more will win it.", "Whoever has the bigger snack table, probably.", "", "", "" ],
+[ "I will not respond to that. We will play, and we will see who is better.", "They can say that. We will answer where it counts.", "They are entitled to their opinion. I am entitled to mine and a ring.", "", "Say what you want. We will see on the court.", "Come say it to my face." ],
+[ "Not really. The game is the same. The intensity is higher and every possession counts.", "I step up. I am a different player in the playoffs. Watch.", "I play the same, but with more screaming.", "", "", "" ],
+[ "It means everything. Everyone worked so hard to get here. I am thankful.", "It means we are one step from the goal. We are not done.", "It means I do not get to take the summer off. Sad.", "", "", "" ],
+[ "I do not care about picks. We believe in ourselves, and that is what matters.", "They will see. We came here to win.", "I picked a team too, and I am out of the pool. Thanks, {opp}.", "", "They can pick whoever they want. They are going to be wrong.", "" ],
+[ "I am not going to guarantee anything. We will give everything we have.", "A guarantee? You bet. We are winning it.", "A guarantee? I can guarantee I will be tired.", "", "I guarantee this: they are not ready for us.", "I guarantee it. Say it again and I will say it louder." ],
+[ "A little, yes. It is a Game 7. But I trust my teammates and my preparation.", "Nervous? No. This is what I live for.", "Nervous? I have been up since 4. I am on my third breakfast.", "", "", "" ],
+[ "It is a coin flip. It comes down to who plays the best that night, as a team.", "We do. We have the best player in the building.", "Whoever has the better playlist in the bus.", "", "", "" ],
+[ "I will say nothing. I respect them and I am ready for a war.", "I will see them on the floor. We are going to win.", "I will say good luck. They are going to need it.", "", "See you at the buzzer. You will not like the score.", "Winner takes all? Fine. Let us go right now." ],
+[ "It feels great. I am thankful to my teammates and the medical staff for the support.", "I feel strong. I am ready to go, and I want to show it.", "It feels great. I missed the bus ride. That is a lie. I missed nothing about the bus.", "", "", "" ],
+[ "No. I listened to the doctors, and I am confident in my body.", "I am ready. I am not rushing. I know my body.", "I am not rushing. If I were, I would have forgotten my shoes.", "", "", "" ],
+[ "I worked on my body, my game, and I got a lot of rest. I watched film and cheered the guys on.", "I trained every day. I came back stronger.", "I learned how to cook one thing. It is toast. It is very good toast.", "", "", "" ],
+[ "I get both sides. The league wants to protect players, and fans want to see stars. It is hard.", "I think it can. Fans pay to see us play. But rest matters too.", "Load management? I was told it is for boxes. I do not know.", "", "", "" ],
+[ "Ice, sleep, and food. And a lot of treatment from the staff. It is a team effort.", "I treat my body like a temple. I get right and move on.", "I do not recover. I just forget.", "", "", "" ],
+[ "It is long, but that is the job. We are grateful for the chance.", "It is long. It is also the thing that makes a champion.", "It is long. My suitcase has a mortgage.", "", "", "" ],
+[ "It is in the back of my mind, but my focus is on the team. It is just a number.", "It is, and I want it. It is a big one.", "Is it on my mind? I have a calendar. Do not tell my agent.", "", "", "" ],
+[ "A lot. It would mean all the sacrifices were worth it. I am thankful.", "It would be a statement, a legacy thing. I want to get there and keep going.", "It would mean a lot of cake from my mom.", "", "", "" ],
+[ "I do not chase records. I just want to win as a team.", "I will say it quietly: a lot of them. I am coming.", "The record for most naps in a season. I think I am close.", "", "", "" ],
+[ "It is a mix of emotions. I loved my time there, and I am thankful. But it is a new chapter.", "I am excited. It is a good chance to show what I can do.", "It feels weird. I keep going to the wrong bench.", "", "", "" ],
+[ "I just want to win. Nothing to prove, only a game to play.", "I do. I always do. I will let my play do the talking.", "I have to prove I know where the new locker room is.", "", "They let me go. They will see tonight what they gave up.", "They know what they did. Let us see how they feel at the end." ],
+[ "I do not say that. They did what was best for them, and I am grateful for it.", "They did. I am going to show them.", "That is a mistake? I have a lot of respect for their management. They are very hard to get on the phone.", "", "I will let them answer that when they see the film.", "" ],
+[ "A lot of the people. My old teammates and staff were great. I love them.", "Honestly? The fans. And the memories. But I am looking forward.", "The cafeteria. I miss the cafeteria.", "", "", "" ],
+[ "I let it go. It is part of being on the road. I am here to play basketball.", "Boo away. I am going to enjoy this.", "I thought they were saying Boo-urns. I am thrilled someone knows my name.", "", "Keep booing. See how you feel when I score again.", "Boo me again. I will wait right here." ],
+[ "I follow what the league does and I trust them to protect the game. Whatever they choose, I will adapt.", "Whatever the rules are, I will make them work for me.", "As long as they do not ban my celebrations, I am good.", "", "", "" ],
+[ "Officials have a tough job. I try to focus on what I can control and play my game.", "I do not let it matter. I play through it.", "A lot. They are the only people who talk to me during the game.", "", "", "" ],
+[ "I like to relax with a movie, call my family, and rest. The road is long.", "I stay locked in. I stay in the room, hit the weights, and get my sleep.", "I find the best room service in each city. I am a professional eater.", "", "", "" ],
+[ "A little. I try not to. My family and teammates keep me grounded.", "I do not read it. I do not need the noise. I have my own opinion of me.", "I do. I make a lot of typos. It is a nightmare.", "", "", "" ],
+[ "Music, stretching, a few shots. It is a routine I have built over years.", "I get locked in. Same thing every game. It keeps me focused and ready.", "I stretch, I eat a banana, and I yell at nothing. Works every time.", "", "", "" ],
+[ "There have been a lot of great defenders. I learn from every one of them.", "I will not name one. I score on all of them.", "My old high school coach. He guarded me in practice, and I never got a bucket.", "", "", "" ],
+[ "I would be a coach, I think. Or a chef. Probably both, honestly.", "I would be a competitor in something. Probably golf. Or chess. Whatever lets me win.", "A chef. I make a great sandwich. Do not tell the dietitian.", "", "", "" ],
+[ "I think the league is in great hands. There are a lot of talented players coming up.", "I think we are in the golden era. We are not done.", "I am a young superstar. Just check my knees. Oh, wait.", "", "That is a take from someone who has not been watching. Check the tape.", "" ],
+[ "I try to be present in my community. I appreciate the support, so I give back.", "I want to make a real difference. I will keep working with local kids and schools.", "I donated my old shoes. They had good miles. Terrible smell.", "", "", "" ],
+[ "I do not hate anyone. Every team is good, and I enjoy competing.", "I like the ones that bring a challenge. The more they bring, the more I like it.", "Any team that wins the tip-off. I hate losing the tip-off.", "", "", "" ],
+[ "It is faster and more skilled. I love it. The league keeps getting better.", "It is evolving, and I am evolving with it. Never fall behind.", "Everybody shoots threes now. I used to get yelled at for it.", "", "", "" ],
+[ "I do not like to name names. Everybody in this league has to work for it.", "I will let the numbers do that. There are a few I could name.", "I am not allowed to say. My agent has the list.", "", "I could name a few. I would just rather beat them.", "" ],
+[ "I miss it, but I am enjoying where I am now. School made me who I am.", "It was great, and it got me here. I am focused on winning now.", "Life is good. I do not miss the 8 AM classes.", "", "", "" ],
+[ "Always. I am always working on something. A shot is never perfect.", "I have got a few new things. I am not telling. You will see.", "A shot that goes in. It is a work in progress.", "", "", "" ],
+[ "I take the shots the team needs. The offense runs through everyone. My teammates trust me and I trust them.", "I shoot when I am open. I am a good shooter. I will keep shooting.", "I shoot too much? I have a very good reason. It is called making it.", "", "People who say that do not watch the game. Ask my teammates.", "" ],
+[ "I do not play for that. A win comes first. If the scoring comes, great.", "I want it all, but a title comes first. It is possible to do both.", "Scoring titles are great. Parking spots are better. I want one.", "", "", "" ],
+[ "I do not count. I take what the game gives me. I just want to help us win.", "A lot. I am on fire. Watch.", "Zero. I am going to be a passer tonight. For the first time in my life.", "", "", "" ],
+[ "I make plays for my teammates, I move without the ball, and I stay patient.", "I counter. I have a lot of tools. They cannot take away everything.", "I step back. And then I step back again. They never catch me.", "", "", "" ],
+[ "I take the same shot in practice I take in games. It is about repetition and rhythm.", "I put up 500 a day. It is about confidence. I trust it.", "I talk to the ball. It listens. Sometimes.", "", "", "" ],
+[ "There are a lot of tough covers. I will not name one. It is a team challenge.", "I like the challenge. I will defend anyone, any night.", "My dad, in the driveway. He holds the record.", "", "", "" ],
+[ "A little, but I know what I do helps my team win. That matters more.", "I know my value. I do not need a headline. I want a win.", "I get a lot of headlines. They just say my name wrong.", "", "", "" ],
+[ "It is a team effort. We have a plan, and I will do my part to stop him.", "Yes. I am going to make his night hard. I love that kind of challenge.", "I can try. I will wave my arms a lot.", "", "I will shut him down. He will not like it.", "" ],
+[ "It is not a goal. If the team needs me to fill the stat sheet, I do it. If not, I do not.", "It is real. I want to do everything on the court, and I am capable.", "The triple-double chase is real. Right now I am just chasing the bus.", "", "", "" ],
+[ "A little, yes. I have a great training staff that helps me. It is part of the job.", "No. I love it. I want the ball in my hands in any situation.", "I am tired just talking about it. Anyway.", "", "", "" ],
+[ "Both ends matter. It is a team game, and you need both.", "Defense wins games. But I love to score, too. Both.", "The end where the ball goes in. Because the ball goes in. Or not.", "", "", "" ],
+[ "Take care of the body and use leverage. I learn from the vets inside.", "I embrace it. I like physical basketball. Bring it on.", "I eat a lot. That is how I deal with it. And ice baths.", "", "", "" ],
+[ "I do not think so. The game changes, but strong bigs will always matter.", "No. Big men will be back. We are not dead. I am proof.", "Dead? I feel great. Do not bury me in the paint yet.", "", "", "" ],
+[ "I stay calm and read the floor. I trust my teammates and my instincts.", "I know exactly what to do. I have done it a thousand times. I want the ball.", "I close my eyes and hope. Just kidding. I do not close my eyes.", "", "", "" ],
+[ "It is a perimeter game now, but the game is always changing. I love it.", "It is fine. I can play in any style. I will adapt.", "Yes. And I still do not own a decent pair of long-range shoes.", "", "", "" ],
+[ "I just try to be myself and work hard. I am grateful, but I try not to think about it.", "I carry it with confidence. I want to be great and I know I can be.", "I carry it in a very small backpack. It weighs too much.", "", "", "" ],
+[ "It pushes me, but I do not need to hear it. I just focus on today.", "It pushes me. I want to be the best. I will not hide from that.", "Greatest ever? I have a ways to go. I would like a nap first.", "", "", "" ],
+[ "Yes, every game matters. We approach it like a playoff game.", "Yes. We treat each one like a must-win. That is where we are.", "Every game feels like a playoff game. My heart rate agrees.", "", "", "" ],
+[ "I will not call it a failure. It is a challenge. We want to do better.", "Failure? No. But we aim higher. We want to be better.", "A failure is not putting on pants for an interview. Playing in the play-in is fine.", "", "", "" ],
+[ "We stay together, take it one game at a time, and focus on what we can control.", "I keep telling them: we are good. We win these games.", "I tell them to stop checking the standings. I check them every five minutes.", "", "", "" ],
+[ "It means a lot. The fans are amazing, and I feed off their energy.", "It fuels me. I will give them everything.", "It means my ears get a workout. I like it.", "", "", "" ],
+[ "I get it. Fans want wins. I will keep working and earn their trust.", "I will answer with my play. They will cheer.", "I take it as encouragement. I booed a few meals myself.", "", "Every fan has a right. I will answer on the floor.", "" ],
+[ "I tune it out. It is part of the job. My teammates keep me focused.", "No. It fuels me. I like it when they chant my name.", "It is a compliment. Nobody chants for a bad player.", "", "They can chant all night. I have a scoreboard.", "" ],
+[ "I like a lot of them. I enjoy the history of the older ones.", "The ones where the crowd is hostile. I like a challenge.", "Anywhere with a great arena food court. I am a food guy.", "", "", "" ],
+[ "It means everything. I am proud of where I come from, and I try to make them proud.", "I want them to see what is possible. I carry them with me.", "My hometown knows I am a legend. I am the only one in my group chat.", "", "", "" ],
+[ "My parents, my coaches, and a few players I watched on TV. They showed me how to work.", "A couple of the greats. I wanted to be them. Now I want to be better.", "My older cousin. He had a trampoline.", "", "", "" ],
+[ "They told me they were proud. They always do. They also said I turned it over too much.", "They told me to keep going. That is all I need.", "My mom said I need a haircut. That is the review that matters.", "", "", "" ],
+[ "To stay patient and to trust the work. Everything else follows.", "To be confident. The rest follows.", "How to draw up a play. On a napkin. Some of them worked.", "", "", "" ],
+[ "I will not say that. Our locker room is tight. We have a great coach.", "No. We are fine. We are focused on winning.", "The only tension is about who gets the front seat on the bus.", "", "", "" ],
+[ "They work really hard. Film, scouting, late nights. The fans do not see how much work it is.", "They put in more hours than we do. They deserve a lot of credit.", "They bring a lot of snacks. That is the secret.", "", "", "" ],
+[ "I do not think it is a distraction. We are focused on our job.", "No. We love our coach. We play for him.", "The only seat that is hot is the one by the AC.", "", "", "" ],
+[ "We do not focus on what others say. We believe in each other and we work hard.", "Because we are good. We are going to show it.", "Do not believe us. Watch us. It is more fun.", "", "", "" ],
+[ "There is, but we are working on closing it. We believe in this group.", "There is no gap. We are right there. We will prove it.", "A gap? There is a gap in my teeth. Beyond that, we are even.", "", "", "" ],
+[ "I think we can. It takes everybody and a bit of luck. We have confidence.", "We can beat anyone. I mean that. Anyone.", "We can beat them if the refs let us. I joke. But we can.", "", "", "" ],
+[ "We stay together, work hard, and focus on getting a little better each day.", "Win the next game. Then win the next one. That is the plan.", "Plan A is to win. Plan B is to see Plan A.", "", "", "" ],
+[ "I just want to win. Whatever happens, I will give everything I have for this team.", "I am ready for whatever. But I think this team is better than that.", "I have never rebuilt a thing in my life. I do not even assemble my own furniture.", "", "", "" ],
+[ "I am not going to talk about that. I trust the front office and I focus on playing.", "I will say we want to win, and the team knows it. That is it.", "The front office is great. They gave me a great locker. Beyond that, no comment.", "", "I am not going to publicly say what I think. I will tell them in private.", "That is a conversation for them and me. Not you." ],
+[ "I would not say it was only the refs. We have to do our job and not rely on that.", "Some of them were bad. We play through it and win anyway.", "It was a tough night. I now own a collection of whistles.", "", "I saw the calls. Everyone saw the calls. I will let the league handle it.", "" ],
+[ "I respect the officials. It is a hard job, and we all make mistakes.", "I will say this: nobody wants to talk about that. I will not either.", "No comment. My wallet cannot afford a comment.", "", "", "" ],
+[ "I think it helped the game. It is a tool, and it makes things more fair.", "It has helped. It means they get the call right. I like that.", "Replay helped. I have seen myself miss a lot of shots. In slow motion.", "", "", "" ],
+[ "I will do what the team needs. I trust the medical staff, and I listen to my body.", "I play through it. I am built for it. I am ready.", "I rest in the offseason. And in the car. And at lunch.", "", "", "" ],
+[ "It tells me a lot. I listen. I stretch and I work with the trainers.", "It tells me I am old and I am great. Both are true.", "It says: please do not do that again. I do it anyway.", "", "", "" ],
+[ "It is getting there. I work with the staff every day. I am being careful.", "I am almost all the way back. A little more and I will be better than before.", "About 80 percent of my game. The other 20 is hope.", "", "", "" ],
+[ "I do not think about it much. I want to be remembered as someone who gave everything.", "I know what I want to be remembered as: a winner.", "I want to be remembered as the guy who made the best turnovers.", "", "", "" ],
+[ "Sleep. A long, long sleep. And then spend time with my family.", "I will relax and then probably build something. Competition does not leave you.", "Learn how to cook. Something other than toast.", "", "", "" ],
+[ "A title is a big part. But I do not think it defines a career. I am proud of what I have done.", "I want one. I am working for it. I believe I will get one.", "No, my career is defined by the trophy I won in the third grade. Spelling bee.", "", "People who say that have never been in the arena. I will get mine.", "" ],
+[ "That we were good teammates and good people. And hopefully a ring.", "A title. And the numbers. And the respect.", "An A+ in cooking. And a lifetime parking spot.", "", "", "" ],
+[ "I do not rank myself. There are a lot of great players. I will not pick.", "I am on the list. You can ask anyone. I am on top of mine.", "I am on the list of five best players in my house. It is a small house.", "", "I think the answer is obvious. If I am not on someone's list, they are not looking.", "" ],
+[ "My dad. He taught me everything. One more game, and we would play on the same team.", "I would pick the guys who taught me. And I would win.", "Anybody who will pass me the ball. Anybody.", "", "", "" ],
+[ "A little of everything. It depends on the mood. It is how I get focused.", "Things with a heavy bass. I like to be loud.", "Do not judge me. It is entirely sea shanties.", "", "", "" ],
+[ "Be yourself. That is it. It is simple and hard.", "Work harder than the other guy. It is simple.", "Never trust gas station sushi. Excellent advice.", "", "", "" ],
+[ "I do cook. Pasta is my thing. My teammates ask for seconds.", "I do. I make a great steak. It is my thing.", "I do. It is called takeout. I am an excellent plater.", "", "", "" ],
+[ "A lot of guys are funny. We keep it light. It is a team thing.", "I am. Do not tell the others. I am the funniest. It is a fact.", "The funniest guy on this team is the equipment manager. He is hilarious and underpaid.", "", "", "" ],
+[ "I tripped over my own feet at the free-throw line. I still hear about it.", "I do not have embarrassing moments. Just learning moments.", "I tried to dunk in college, and the ball hit the front rim and the coach hit the floor.", "", "", "" ],
+[ "A comedy. I need a laugh. I try to rest my brain after games.", "A sports documentary. I like to study. It is research.", "I binged a baking show. I am an expert now. Do not ask me to bake.", "", "", "" ],
+[ "I keep it light. Chicken, rice, and a little pasta. The same every game.", "I eat a lot. I like to be fueled. Carbs.", "Two bananas and a prayer.", "", "", "" ],
+[ "I worked at a grocery store. I bagged things. I was bad at it.", "I washed cars. I took pride in it. Shiny cars.", "I was a lifeguard. Nobody drowned. Well, not on my watch.", "", "", "" ],
+[ "There are a lot of good ones. I respect everyone. I will not pick.", "I see a couple who are going to be great. They know who they are.", "The guy who got drafted last. Free agent of the year.", "", "", "" ],
+[ "A little, but I am focused on my game. I do not worry about other guys.", "No. I know what I can do, and I am on my own path. I will catch up.", "Not at all. My locker is bigger than theirs.", "", "Let them have it. We will talk when the playoffs come.", "" ],
+[ "My shooting, my decision-making, and my body. I have worked on all three.", "I got stronger and smarter. I am a different player. You will see.", "My hairline. And my shot. In that order.", "", "", "" ],
+[ "I hope so. I just work and let the results show it.", "I am. I will be one of the best. That is what I am working for.", "I am a next-generation star. I am also a current-generation nap enjoyer.", "", "", "" ],
+[ "I trust my whole team. We all defend together. It is a team thing.", "I would take on {oppStar} myself. Others help. We are fine.", "The one who has the longest reach. And the sharpest elbows.", "", "", "" ],
+[ "We share it by trusting each other. We are good at reading the floor together.", "We are a great fit. We both want to win.", "We share it like siblings. We both pretend it is ours.", "", "", "" ],
+[ "I respect everyone. He has taught a lot of guys. We learn from him every day.", "He is not done. He can still play. We will see.", "He has been around so long, he remembers when they had two-point lines.", "", "", "" ],
+[ "Yes. Experience helps. I have seen a lot, and I try to share it.", "It helps a lot. I know what to expect, and I know how to win.", "Experience means I know where the good snacks are in the arena.", "", "", "" ],
+[ "Every possession matters. You can feel it. It is a different level.", "It is war. I like it. It is when I do my best work.", "More screaming. More coffee. Slightly less sleep.", "", "", "" ],
+[ "I do my routine. I eat well, watch some film, and talk to my family.", "I sleep. I am ready. This is why we play.", "I stare at the ceiling for four hours. It is a ritual.", "", "", "" ],
+[ "We stay in the moment, trust our work, and enjoy the ride. We have not won anything yet.", "We stay hungry. We are close, but not there. We will stay calm and finish.", "I am calm. My hands are shaking. That is just my signature.", "", "", "" ],
+[ "I do not think a loss defines a career. It teaches you. I am grateful for the chance.", "No. It makes you want it more. I am working for a ring.", "A Finals loss? I still have a gym membership and a ring finger. I am fine.", "", "", "" ],
+  ];
+})(typeof window !== 'undefined' ? window : globalThis);
+
+(function (g) {
   'use strict';
   const NBA = g.NBA;
   const { ovr, clamp } = NBA;
@@ -2458,7 +2690,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     humble: ['"It is not about me. Our guys have been great and I just try to help them."', '"I have a great group around me. Whatever I do is because of them."', '"I just try to do my job and let the team lead the way."'],
     confident: ['"I am ready. I put the work in and I trust it."', '"I like where we are. I like where I am. Let\'s go."', '"I always feel I can get it done. Tonight is no different."'],
     joke: ['"Ask me after I eat. Then I will be funnier and you will be more disappointed."', '"My mom says I am a star. So that is the review that matters."', '"I would answer, but my agent told me not to say anything good."'],
-    deflect: ['"One game at a time. That is all there is to say."', '"We will see what happens tomorrow."', '"I just focus on what is in front of me."'],
+    deflect: ['"I am going to keep that one to myself."', '"Not much to say on that one. Next question."', '"I will let other people talk about that. I am here to play."'],
     trash: ['"{oppStar} can say what he wants. I will see him on the floor."', '"They talk a lot. I will let the game do the talking, and the game is going to be loud."', '"Tell them to bring a bigger plan. They will need it."'],
     fight: ['"Say it to my face. I am standing right here."', '"You want smoke? You can have it. Right now."', '"I do not care who he is. Come say it again."'],
   };
@@ -2522,13 +2754,18 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   }
   // the answers on offer: the calm ones always, trash talk when the question has any bite (or a rival is there), the fight only when it is truly provocative
   function answerOptions(q, c, rnd) {
+    const row = (NBA.PressLines || [])[q.i];
     const keys = ['humble', 'confident', 'joke', 'deflect'];
-    const heat = q.heat + (c.rivalHere ? 1 : 0);
-    if (heat >= 1 && (c.oppStar || c.rival)) keys.push('trash'); if (heat >= 2 && (c.oppStar || c.rival)) keys.push('fight');
-    // three calm ones plus the spicy ones: not every question offers every tone
-    const calm = keys.filter((k) => k !== 'trash' && k !== 'fight'), spicy = keys.filter((k) => k === 'trash' || k === 'fight');
-    const calmPick = calm.sort(() => rnd() - 0.5).slice(0, spicy.length ? 2 : 3);
-    return calmPick.concat(spicy).map((k) => ({ key: k, label: TONES[k].label, line: FILL(pickLine(k, q.topic, Math.floor(rnd() * 97)), c), spicy: k === 'trash' || k === 'fight' }));
+    let spicy = [];
+    if (row) { if (row[4]) spicy.push('trash'); if (row[5]) spicy.push('fight'); }
+    else { const heat = q.heat + (c.rivalHere ? 1 : 0); if (heat >= 1 && (c.oppStar || c.rival)) spicy.push('trash'); if (heat >= 2 && (c.oppStar || c.rival)) spicy.push('fight'); }
+    // three calm answers (two when there is a spicy one to offer): not every question offers every tone
+    const calm = keys.slice().sort(() => rnd() - 0.5).slice(0, spicy.length ? 2 : 3);
+    const IDX = { humble: 0, confident: 1, joke: 2, deflect: 3, trash: 4, fight: 5 };
+    return calm.concat(spicy).map((k) => {
+      const own = row && row[IDX[k]], raw = own || pickLine(k, q.topic, Math.floor(rnd() * 97)), line = FILL(own ? '\u201C' + own + '\u201D' : raw, c);
+      return { key: k, label: TONES[k].label, line, spicy: k === 'trash' || k === 'fight' };
+    });
   }
 
 
@@ -2608,7 +2845,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 (function (g) {
   'use strict';
   const NBA = g.NBA;
-  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
+  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
   const D = NBA.data;
   const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
   const ATTRS = D.ATTRS;
@@ -3225,13 +3462,13 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       items.forEach((x) => { if (x.k === 'g' && x.po && x.n === 7 && !x.dnp) { x.cl = 1; x.g7 = 1; } }); }
     // the games the media cares about: a press conference before each (own random stream)
     { const rnd = mulberry(shotSeed(st, 9300)), D = NBA.Decisions.state(st), Lg = st.league, regs = items.filter((x) => x.k === 'g' && !x.po && !x.dnp), byNick = (n) => Lg.teams.find((x) => x.nick === n);
-      const mark = (x, why) => { if (x && !x.pc && !x.cl) { x.pc = 1; x.pcWhy = why; return true; } return false; }, cap = st.finalYear ? 8 : 5; let n = 0;
-      const go = (x, why) => { if (n < cap && mark(x, why)) n++; };
+      const mark = (x, why) => { if (x && !x.pc && !x.cl) { x.pc = 1; x.pcWhy = why; return true; } return false; }, cap = st.finalYear ? 6 : 4, marked = []; let n = 0;
+      const go = (x, why) => { if (n < cap && x && marked.every((y) => Math.abs(y.n - x.n) >= 10) && mark(x, why)) { n++; marked.push(x); return true; } return false; };   // never two press conferences within ten games of each other
       go(regs[0], 'Opening night');
       const rv = D.rival && Lg.players[D.rival.id], rvT = rv && Lg.teams[rv.teamId]; if (rvT) regs.filter((x) => x.o === rvT.nick).slice(0, 2).forEach((x) => go(x, 'Rivalry game: ' + rv.name));
       const tr = (st.trades || []).slice(-1)[0], oldT = tr && tr.year >= Lg.year - 1 ? Lg.teams.find((x) => x.name === tr.from) : null; if (oldT) go(regs.find((x) => x.o === oldT.nick), 'Revenge game against your old team');
       const big = regs.filter((x) => { const ot = byNick(x.o), s0 = ot && NBA.rosterOf(Lg, ot)[0]; return ot && (ot.wins >= 56 || (s0 && ovr(s0) >= 92)); }).map((x) => [rnd(), x]).sort((a, b) => a[0] - b[0]).slice(0, 2); big.forEach((x) => go(x[1], 'A marquee matchup'));
-      let gap = 0; items.forEach((x, i) => { if (x.k === 'g' && !x.po) { if (x.dnp) gap++; else { if (gap >= 5) go(x, 'First game back from injury'), x.back = 1; gap = 0; } } });
+      let gap = 0; items.forEach((x, i) => { if (x.k === 'g' && !x.po) { if (x.dnp) gap++; else { if (gap >= 5 && go(x, 'First game back from injury')) x.back = 1; gap = 0; } } });
       if (st.finalYear) { const seen = new Set(); regs.forEach((x) => { if (!x.h && !seen.has(x.o)) { seen.add(x.o); x.tg = (x.tg || []).concat(['Farewell tribute']); x.tribute = 1; } }); regs.filter((x) => x.tribute).map((x) => [rnd(), x]).sort((a, b) => a[0] - b[0]).slice(0, 4).forEach((x) => go(x[1], 'Farewell tour stop')); }
       // playoffs: every series after the first round, any with a rival, and every Game 7 series
       items.forEach((x) => { if (x.k === 'hdr' && x.ps != null) { const ot = Lg.teams.find((q) => q.name === x.opp); x.pc = (x.rnd !== 'First Round' || x.g7 || (rv && ot && rv.teamId === ot.id)) ? 1 : 0; } }); }
@@ -3978,7 +4215,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v49';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v50';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)

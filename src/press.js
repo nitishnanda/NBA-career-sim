@@ -279,7 +279,7 @@
     humble: ['"It is not about me. Our guys have been great and I just try to help them."', '"I have a great group around me. Whatever I do is because of them."', '"I just try to do my job and let the team lead the way."'],
     confident: ['"I am ready. I put the work in and I trust it."', '"I like where we are. I like where I am. Let\'s go."', '"I always feel I can get it done. Tonight is no different."'],
     joke: ['"Ask me after I eat. Then I will be funnier and you will be more disappointed."', '"My mom says I am a star. So that is the review that matters."', '"I would answer, but my agent told me not to say anything good."'],
-    deflect: ['"One game at a time. That is all there is to say."', '"We will see what happens tomorrow."', '"I just focus on what is in front of me."'],
+    deflect: ['"I am going to keep that one to myself."', '"Not much to say on that one. Next question."', '"I will let other people talk about that. I am here to play."'],
     trash: ['"{oppStar} can say what he wants. I will see him on the floor."', '"They talk a lot. I will let the game do the talking, and the game is going to be loud."', '"Tell them to bring a bigger plan. They will need it."'],
     fight: ['"Say it to my face. I am standing right here."', '"You want smoke? You can have it. Right now."', '"I do not care who he is. Come say it again."'],
   };
@@ -343,13 +343,18 @@
   }
   // the answers on offer: the calm ones always, trash talk when the question has any bite (or a rival is there), the fight only when it is truly provocative
   function answerOptions(q, c, rnd) {
+    const row = (NBA.PressLines || [])[q.i];
     const keys = ['humble', 'confident', 'joke', 'deflect'];
-    const heat = q.heat + (c.rivalHere ? 1 : 0);
-    if (heat >= 1 && (c.oppStar || c.rival)) keys.push('trash'); if (heat >= 2 && (c.oppStar || c.rival)) keys.push('fight');
-    // three calm ones plus the spicy ones: not every question offers every tone
-    const calm = keys.filter((k) => k !== 'trash' && k !== 'fight'), spicy = keys.filter((k) => k === 'trash' || k === 'fight');
-    const calmPick = calm.sort(() => rnd() - 0.5).slice(0, spicy.length ? 2 : 3);
-    return calmPick.concat(spicy).map((k) => ({ key: k, label: TONES[k].label, line: FILL(pickLine(k, q.topic, Math.floor(rnd() * 97)), c), spicy: k === 'trash' || k === 'fight' }));
+    let spicy = [];
+    if (row) { if (row[4]) spicy.push('trash'); if (row[5]) spicy.push('fight'); }
+    else { const heat = q.heat + (c.rivalHere ? 1 : 0); if (heat >= 1 && (c.oppStar || c.rival)) spicy.push('trash'); if (heat >= 2 && (c.oppStar || c.rival)) spicy.push('fight'); }
+    // three calm answers (two when there is a spicy one to offer): not every question offers every tone
+    const calm = keys.slice().sort(() => rnd() - 0.5).slice(0, spicy.length ? 2 : 3);
+    const IDX = { humble: 0, confident: 1, joke: 2, deflect: 3, trash: 4, fight: 5 };
+    return calm.concat(spicy).map((k) => {
+      const own = row && row[IDX[k]], raw = own || pickLine(k, q.topic, Math.floor(rnd() * 97)), line = FILL(own ? '\u201C' + own + '\u201D' : raw, c);
+      return { key: k, label: TONES[k].label, line, spicy: k === 'trash' || k === 'fight' };
+    });
   }
 
 

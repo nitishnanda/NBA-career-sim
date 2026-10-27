@@ -23,7 +23,7 @@ let PG = null;
   await page.click('text=/Tip off the .* season/');
   // the opener is a hyped game: the press room comes first. Three kinds of answer, each with the words you would say; a trash-talk option appears when a question has bite
   await page.waitForSelector('h1:has-text("Press conference")');
-  const pc0 = await page.evaluate(() => ({ q: document.querySelector('.card.suspense h2').textContent, opts: document.querySelectorAll('.wkcard').length, lines: Array.from(document.querySelectorAll('.wkcard .small')).filter((e) => /^"/.test(e.textContent)).length, why: document.querySelector('h1 + p').textContent }));
+  const pc0 = await page.evaluate(() => ({ q: document.querySelector('.card.suspense h2').textContent, opts: document.querySelectorAll('.wkcard').length, lines: Array.from(document.querySelectorAll('.wkcard .small')).filter((e) => /^["\u201C]/.test(e.textContent)).length, why: document.querySelector('h1 + p').textContent }));
   const okPc = pc0.opts >= 3 && pc0.lines === pc0.opts && pc0.q.length > 15; console.log('PRESS screen', okPc ? 'OK' : 'MISMATCH', JSON.stringify(pc0)); if (!okPc) errors.push('PRESS ' + JSON.stringify(pc0)); await shot('27-press');
   for (let k = 0; k < 4 && (await page.$('h1:has-text("Press conference")')); k++) await page.click('.wkcard button >> nth=0');
   const pc1 = await page.evaluate(() => { const S = window.__NBA_UI.state; return { pd: !!S.matchLog[0].pd, meters: Object.keys(S.dec.flags).filter((k) => /media|locker/.test(k)).length }; });
