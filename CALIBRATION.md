@@ -743,3 +743,6 @@ In-season award ladders are now media predictions: four fictional outlets (numbe
 
 ## v54 — real outlets, honest answer labels
 Award ballots are filed by ESPN, The Athletic, Sports Illustrated, Bleacher Report and Yahoo Sports (simulated, private build). Press answer buttons are now labelled by stance (Stay humble, Show confidence, Make a joke, Brush it off, Talk some trash, Get in his face) instead of promising content ("Credit your teammates") the written answer might not contain.
+
+## v55 — the play-in tournament, playable
+The league already ran a play-in (7v8, 9v10, loser of 7v8 v winner of 9v10 for the 8 seed) behind the scenes; now it is structured (`playin` on the season snapshot) and the user's own games in it are real games in the match log: a Play-In header with the stakes, box score and rating like any game, one-game "series" in the recap, and "Lost in the Play-In to X" when it ends the season. Play-in games count in the postseason bucket (the real NBA counts them as regular season) but do not count as making the playoffs. Play-in series are not planned, pressed or numbered as playoff rounds (plans and press stay keyed to real rounds). The league tab shows both conferences' play-in results once the regular season is over. League results are unchanged: the same random draws, only recorded.

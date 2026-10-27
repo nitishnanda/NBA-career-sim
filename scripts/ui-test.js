@@ -187,7 +187,7 @@ let PG_DBG = null;
       });
       console.log('LEAK CHECK', JSON.stringify(chk));
       await page.click('nav button:has-text("Season")');
-      await page.click('button:has-text("Instant")'); await page.click('button:has-text("Sim to All-Star")'); await page.click('button:has-text("Sim to playoffs")'); if (await dlFix()) await page.click('button:has-text("Sim to playoffs")'); while (await page.$('button:has-text("Sim next playoff game")')) await page.click('button:has-text("Sim next playoff game")'); await page.click('button:has-text("Season recap")'); }
+      await page.click('button:has-text("Instant")'); await page.click('button:has-text("Sim to All-Star")'); await page.click('button:has-text("Sim to playoffs")'); if (await dlFix()) await page.click('button:has-text("Sim to playoffs")'); while (await page.$('button:has-text("Sim next playoff game")')) await page.click('button:has-text("Sim next playoff game")'); await page.click('nav button:has-text("Around the league")'); await page.waitForSelector('text=Standings'); { const pi = await page.evaluate(() => ({ panel: /Play-In Tournament/i.test(document.body.innerText), games: (document.body.innerText.match(/For the 8 seed/gi) || []).length })); console.log('PLAY-IN panel', pi.panel && pi.games >= 2 ? 'OK' : 'MISMATCH', JSON.stringify(pi)); if (!(pi.panel && pi.games >= 2)) throw new Error('play-in panel missing'); } await page.click('nav button:has-text("Season")'); await page.click('button:has-text("Season recap")'); }
     else { const sk = await page.$('button:has-text("Skip to recap")'); if (sk) await sk.click(); else await page.click('button:has-text("Season recap")'); }
     await page.waitForSelector('text=Offseason decisions');
     if (i === 0) await shot('07-recap');

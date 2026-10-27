@@ -197,10 +197,15 @@
     const seeds = {};
     ['E', 'W'].forEach((c) => {
       const s = confs[c].slice().sort((x, y) => y.wins - x.wins || rand() - 0.5);
-      // play-in
-      const pi = (hi, lo) => { const r = playGame(hi.power, lo.power, true) ? [hi, lo] : [lo, hi]; out.playin.push({ w: r[0].name, l: r[1].name }); return r; };
-      const g78 = pi(s[6], s[7]), g910 = pi(s[8], s[9]);
-      const g8 = pi(g78[1], g910[0]);
+      // play-in: 7 v 8 (winner is the 7 seed), 9 v 10 (loser is out), then the loser of 7 v 8 hosts the winner of 9 v 10 for the 8 seed
+      const pi = (hi, lo, label, stake) => {
+        const r = playGame(hi.power, lo.power, true) ? [hi, lo] : [lo, hi];
+        out.playin.push({ conf: c, label, stake, hi: hi.name, lo: lo.name, hiSeed: s.indexOf(hi) + 1, loSeed: s.indexOf(lo) + 1, w: r[0].name, l: r[1].name });
+        if (userTeamId != null && (hi.id === userTeamId || lo.id === userTeamId)) { const won = r[0].id === userTeamId, opp = hi.id === userTeamId ? lo : hi; out.userSeries.push({ round: 'Play-In', playin: true, label, stake, opp: opp.name, home: hi.id === userTeamId, w: won ? 1 : 0, l: won ? 0 : 1, games: 1, won }); }
+        return r;
+      };
+      const g78 = pi(s[6], s[7], '7 vs 8', 'The winner is the ' + c + ' 7 seed; the loser gets a second chance'), g910 = pi(s[8], s[9], '9 vs 10', 'Win or go home');
+      const g8 = pi(g78[1], g910[0], 'For the 8 seed', 'Win or go home');
       seeds[c] = s.slice(0, 6).concat([g78[0], g8[0]]);
     });
     if (userTeamId != null) out.userMade = ['E', 'W'].some((c) => seeds[c].some((t) => t.id === userTeamId));
