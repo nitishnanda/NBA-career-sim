@@ -834,9 +834,9 @@
     const t = L.teams[st.teamId], opp = L.teams.find((x) => x.nick === it.o), star = opp ? NBA.rosterOf(L, opp)[0] : null, margin = Math.abs(it.f - it.a);
     const c = { pts: it.pt, reb: it.rb, ast: it.as, opp: it.o, score: it.f + '-' + it.a, margin, team: t.nick, round: it.rnd || '', oppStar: star ? star.name : null, oppStarOvr: star ? ovr(star) : 70, winning: !!it.w, hot: false, slump: false, rivalHere: false, rival: null, me: st.player.name, pos: st.player.pos };
     const td = it.tg && it.tg.includes('Triple-double'), big = it.pt >= 40 || td;
-    const f = { bigNight: big, goodNight: it.pt >= 30 && !big, badNight: (it.pt <= 8 && it.m >= 20) || it.r < 5.5, tripleDouble: !!td, win: !!it.w, loss: !it.w, closeWin: it.w && margin <= 5, closeLoss: !it.w && margin <= 5, blowoutWin: it.w && margin >= 18, blowoutLoss: !it.w && margin >= 18,
+    const f = { bigNight: big && !!it.w, bigNightLoss: (it.pt >= 30 || td) && !it.w, goodNight: it.pt >= 30 && !big && !!it.w, badNight: (it.pt <= 8 && it.m >= 20) || it.r < 5.5, tripleDouble: !!td, win: !!it.w, loss: !it.w, closeWin: it.w && margin <= 5, closeLoss: !it.w && margin <= 5, blowoutWin: it.w && margin >= 18, blowoutLoss: !it.w && margin >= 18,
       clincher: !!(it.last && it.w && it.po && !it.pi && it.rnd !== 'NBA Finals'), champ: !!(it.last && it.w && it.rnd === 'NBA Finals'), elim: !!(it.last && !it.w && it.po && !it.pi), g7win: !!(it.g7 && it.w), g7loss: !!(it.g7 && !it.w), pinWin: !!(it.pi && it.w), pinLoss: !!(it.pi && !it.w), always: true };
-    const W = { bigNight: 6, badNight: 6, clincher: 6, elim: 6, g7win: 7, g7loss: 7, champ: 9, pinWin: 6, pinLoss: 6, tripleDouble: 4, goodNight: 4, closeWin: 3, closeLoss: 3, blowoutWin: 3, blowoutLoss: 3, win: 2, loss: 2, always: 1 };
+    const W = { bigNight: 6, bigNightLoss: 6, badNight: 6, clincher: 6, elim: 6, g7win: 7, g7loss: 7, champ: 9, pinWin: 6, pinLoss: 6, tripleDouble: 4, goodNight: 4, closeWin: 3, closeLoss: 3, blowoutWin: 3, blowoutLoss: 3, win: 2, loss: 2, always: 1 };
     const used = new Set(), out = [], n = it.po ? 3 : 2;
     for (let k = 0; k < n; k++) {
       const pool = bank.map((r, i) => ({ r, i })).filter((x) => f[x.r[0]] && !used.has(x.r[0]) && !out.some((o) => o.i === x.i));

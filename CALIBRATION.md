@@ -758,3 +758,6 @@ Team rosters in the league tab showed the projected full-season line (and a rati
 
 ## v59 — camp and invites are one thing
 The separate workout-invites card on the offseason page is gone: invitations now arrive inside the preseason camp. Camp has room for three training partners; you can ask people yourself (three asks) and say yes or no to the players who invite you (a teammate, a star, a veteran, a young player, your rival). Each extra partner gets less out of you (x1, x0.75, x0.5) and wears you down more (a couple of games for the second, a few more for the third). Autopilot careers ask at most two people and never see invites, so baseline stats are unchanged.
+
+## v60 — post-game wording, award voting after the regular season
+Post-game: a big personal night only gets the celebratory questions ("can you bottle that up and repeat it?") when the team won; a big night in a loss gets its own three questions about what the points mean in a loss. Awards: once the regular season is over the award panel says the ballots are in and shows the final vote shares (the mid-season ladder of media ballots only runs until then).

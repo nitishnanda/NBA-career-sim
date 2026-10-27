@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v59';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v60';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -817,7 +817,8 @@
     } else leadCards = leaders ? keys.map(([k, name, unit]) => h('div', { class: 'well' }, h('div', { class: 'small caps muted' }, name + ' · ' + unit), (leaders[k] || []).slice(0, 5).map((x, i) => h('div', { class: 'rank-row' + (x.isUser ? ' me' : '') }, h('span', { class: 'n' }, i + 1), h('span', null, plink(x.id, x.name), h('em', null, ' ' + ab(x.team))), h('b', null, x.v.toFixed(1)))))) : [h('p', { class: 'muted' }, 'Leaders show up once a season has been played.')];
     const raceKeys = [['mvp', 'MVP'], ['dpoy', 'DPOY'], ['roy', 'ROY'], ['mip', 'MIP']];
     let raceBody;
-    if (live) {
+    const votesIn = !!inSeason && items.some((x, i) => x.k === 'hdr' && /Regular season complete/.test(x.text) && idx > i);   // the regular season is over: the ballots are in and being counted
+    if (live && !votesIn) {
       const pace = (nick) => { const r = rows.find((t) => t.nick === nick); return r && r.gp ? (r.wins / r.gp) * 82 : 41; }, rec = (nick) => { const r = rows.find((t) => t.nick === nick); return r ? r.wins + '-' + r.losses : ''; };
       const prod = (c) => c.perf;
       const idxOf = (c) => (leagueRace === 'dpoy' ? 4 * c.blk + 3.5 * c.stl + 0.12 * (c.da || 70) + 0.12 * (c.pace - 41) : leagueRace === 'mvp' ? 0.318 * c.perf + 0.294 * c.pace + 0.068 * c.pts : c.perf + 0.1 * (c.pace - 41));
@@ -853,7 +854,7 @@
       else {
         const list = (race[leagueRace] || []).slice().sort((a, b) => b.s - a.s);
         const ex = list.map((x) => Math.exp(x.s / 7)), tot2 = ex.reduce((a, b) => a + b, 0) || 1;
-        raceBody = list.length ? list.map((x, i) => h('div', { class: 'race' + (x.isUser ? ' me' : '') }, h('div', { class: 'row' }, h('span', { class: 'n' }, i + 1), h('b', null, plink(x.id, x.name)), h('em', null, ab(x.team)), h('span', { class: 'spacer' }), h('b', null, Math.round(100 * ex[i] / tot2) + '%')), h('div', { class: 'bar2' }, h('i', { style: 'width:' + Math.round(100 * ex[i] / tot2) + '%' })), h('div', { class: 'small muted' }, x.pts.toFixed(1) + ' pts · ' + x.reb.toFixed(1) + ' reb · ' + x.ast.toFixed(1) + ' ast' + (leagueRace === 'dpoy' ? ' · ' + x.stl.toFixed(1) + ' stl · ' + x.blk.toFixed(1) + ' blk' : '') + ' · ' + x.wins + ' team wins'))) : h('p', { class: 'muted' }, 'No candidates this year.');
+        raceBody = list.length ? [votesIn ? h('p', { class: 'small muted' }, 'The regular season is over: the ballots are in and being counted. These are the final vote shares.') : null].concat(list.map((x, i) => h('div', { class: 'race' + (x.isUser ? ' me' : '') }, h('div', { class: 'row' }, h('span', { class: 'n' }, i + 1), h('b', null, plink(x.id, x.name)), h('em', null, ab(x.team)), h('span', { class: 'spacer' }), h('b', null, Math.round(100 * ex[i] / tot2) + '%')), h('div', { class: 'bar2' }, h('i', { style: 'width:' + Math.round(100 * ex[i] / tot2) + '%' })), h('div', { class: 'small muted' }, x.pts.toFixed(1) + ' pts · ' + x.reb.toFixed(1) + ' reb · ' + x.ast.toFixed(1) + ' ast' + (leagueRace === 'dpoy' ? ' · ' + x.stl.toFixed(1) + ' stl · ' + x.blk.toFixed(1) + ' blk' : '') + ' · ' + x.wins + ' team wins')))) : h('p', { class: 'muted' }, 'No candidates this year.');
         if (list.length && !list.some((x) => x.isUser)) { const rr = S.proSeasons[S.proSeasons.length - 1]; raceBody = [raceBody, h('p', { class: 'small muted', style: 'margin-top:8px' }, rr && rr.gp < 65 ? 'You were not in this race: you played ' + rr.gp + ' games and 65 are needed to qualify.' : 'You were not in this race.')]; }
       }
     }
@@ -867,7 +868,7 @@
       h('div', { class: 'dlg' },
         h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '☷'), h('h2', null, 'Standings'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, label)),
           h('div', { class: 'grid2 conf' }, h('div', null, h('h3', null, 'Eastern conference'), confTable(rows, 'E', mine)), h('div', null, h('h3', null, 'Western conference'), confTable(rows, 'W', mine))), h('p', { class: 'small muted' }, 'Top 6 clinch a playoff spot, 7-10 go to the play-in.')),
-        h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '★'), h('h2', null, live ? 'Award ladder' : 'Award race'), h('span', { class: 'spacer' }), h('div', { class: 'seg2 tight' }, raceKeys.map(([k, n]) => h('button', { class: leagueRace === k ? 'on' : '', onclick: () => { leagueRace = k; render(); } }, n)))), raceBody)),
+        h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '★'), h('h2', null, live && !votesIn ? 'Award ladder' : votesIn ? 'Award voting' : 'Award race'), h('span', { class: 'spacer' }), h('div', { class: 'seg2 tight' }, raceKeys.map(([k, n]) => h('button', { class: leagueRace === k ? 'on' : '', onclick: () => { leagueRace = k; render(); } }, n)))), raceBody)),
       piPanel,
       h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '▲'), h('h2', null, 'Stat leaders · top 5'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, snap ? snap.label : 'Last season')), h('div', { class: 'grid3' }, leadCards)),
       (L.moves && L.moves.length ? h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '⇄'), h('h2', null, 'Transactions'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, 'Trades and free agency')), h('div', { class: 'jlist' }, L.moves.slice(-14).reverse().map((m) => h('div', { class: 'jrow' }, h('span', { class: 'jyr' }, m.phase === 'deadline' ? 'Deadline ' + m.year : m.phase === 'freeagency' ? 'FA ' + (m.year + 1) : 'Summer ' + (m.year + 1)), h('div', { class: 'small' }, m.text))))) : null));
