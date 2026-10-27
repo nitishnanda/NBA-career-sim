@@ -108,6 +108,7 @@ let PG = null;
   const okF0 = fa0.neg >= 6 && fa0.vibes >= 6 && fa0.own; console.log('FA market', okF0 ? 'OK' : 'MISMATCH', JSON.stringify(fa0)); if (!okF0) errors.push('FA market ' + JSON.stringify(fa0));
   await shot('21-free-agency');
 
+  await page.waitForFunction(() => window.__NBA_UI.state.decision && window.__NBA_UI.state.decision.neg);
   const sweep = await page.evaluate(() => { const S = window.__NBA_UI.state, G = window.NBA.Game, d = S.decision; return Object.values(d.neg).map((c) => ({ own: c.own, desp: +c.desp.toFixed(2), alts: +c.alts.toFixed(2), fair: c.fair, p100: Math.round(G.negOdds(S, c.teamId, { salary: c.fair, years: c.pref, role: c.offered }).p * 100), p115: Math.round(G.negOdds(S, c.teamId, { salary: Math.min(c.maxSal, c.fair * 1.15), years: c.pref, role: c.offered }).p * 100), p130: Math.round(G.negOdds(S, c.teamId, { salary: Math.min(c.maxSal, c.fair * 1.3), years: c.pref, role: c.offered }).p * 100) })); });
   console.log('NEG sweep', JSON.stringify(sweep));
   // the dial: asking for more lowers the odds, asking for the minimum raises them
