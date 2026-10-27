@@ -111,6 +111,7 @@
     if (rookie) s += slot && slot <= 3 ? 1.2 : slot && slot <= 10 ? 0.7 : slot && slot <= 20 ? 0.25 : 0;
     s += 0.4 * (m.pos === p.pos ? 1 : 0) + 0.45 * Math.min(2, relOf(st, m.id));
     if (m.age >= 34) s += 0.3;                                                    // veterans like handing it down
+    if (p.age >= 30 && !st.autoPlay) s += Math.min(0.8, 0.1 * (p.age - 28));                      // nobody turns down a veteran with a résumé out of hand
     return s;
   }
   function campMentors(st) {
@@ -154,7 +155,21 @@
     vet: ['"Come on over, I\'ll show you what took me ten years to learn."', '"Finally someone asks. Let\'s go."'],
     mate: ['"Sure, I was going to lift anyway."'],
   };
-  const lineFor = (st, m, tab, i) => { const a = tab[m.tier]; return a[Math.abs(hashStr(m.id + '|' + st.league.year + '|' + i)) % a.length]; };
+  // a veteran or a decorated player is not told to "prove yourself, kid": the same mentors answer with respect
+  const NO_ELDER = {
+    star: ['"It is an honor you asked. I just cannot do it this summer."', '"Honestly, I should be the one asking you. My summer is booked, sorry."', '"Respect. Next summer, maybe."'],
+    allstar: ['"You are a legend to me, but I am locked in on my own stuff this summer."', '"Respect. The timing is just bad this year."'],
+    vet: ['"I would feel strange teaching you anything. Not this summer."', '"My knees need the summer, and you do not need me."'],
+    mate: ['"Man I need a real break, hit me next summer."'],
+  };
+  const YES_ELDER = {
+    star: ['"It is an honor. Honestly, I should be learning from you."', '"Always wanted to work with you. Be in the gym at 6."'],
+    allstar: ['"You have been doing this longer than I have. Let us trade some ideas."', '"Of course. Come on over."'],
+    vet: ['"Always wanted to work with you. Let us go."', '"Two old heads in a gym. I love it."'],
+    mate: ['"Sure, I was going to lift anyway."'],
+  };
+  const isElder = (st) => { const p = st.player, a = st.career.awards || {}; return p.age >= 30 || (p.yearsPro || 0) >= 9 || (a['All-Star'] || 0) + 2 * (a['All-NBA'] || 0) + 3 * (a.MVP || 0) + 2 * (a.Championships || 0) >= 6; };
+  const lineFor = (st, m, tab, i) => { const elder = isElder(st), a = (elder ? (tab === NO_LINES ? NO_ELDER : tab === YES_LINES ? YES_ELDER : tab) : tab)[m.tier]; return a[Math.abs(hashStr(m.id + '|' + st.league.year + '|' + i)) % a.length]; };
 
   // The summer is a camp with room for up to three training partners. You can ask people (three asks: big names teach the most and say no the most), and other players invite you too
   // (a teammate, a star who has noticed you, a veteran, a young player, your rival). Every partner after the first gets less out of you and wears you down more.

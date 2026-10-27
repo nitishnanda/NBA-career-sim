@@ -1118,6 +1118,9 @@
   function marketPct(st) {
     const p = st.player;
     let v = ovr(p) - (p.age >= 33 ? 1.2 * (p.age - 32) : 0);
+    // what he just did on the floor counts as much as his rating: a 26-point season at 36 is not a player nobody wants
+    const last = st.proSeasons && st.proSeasons[st.proSeasons.length - 1];
+    if (last && last.gp >= 50 && last.perfRank) { const pv = 84 - 0.18 * last.perfRank - (p.age > 33 ? 0.5 * (p.age - 33) : 0); if (pv > v) v = pv; }
     const raw = marketCurve(v);
     const yrs = p.yearsPro;
     const maxPct = yrs >= 10 ? 0.35 : yrs >= 7 ? 0.3 : 0.25;

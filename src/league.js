@@ -168,7 +168,8 @@
   function lineFromExp(p, e, gp, form) {
     const sh = 1 + T.formSd * randn();
     const ind = () => 1 + 0.035 * randn();
-    const l = { gp, mins: e.mins, pts: e.pts * sh * ind(), reb: e.reb * sh * ind(), ast: e.ast * sh * ind(), stl: e.stl * sh * ind(), blk: e.blk * sh * ind(), tov: e.tov, ts: e.ts, usg: e.usg };
+    const soft = (x) => (x <= 30 ? x : 30 + 0.75 * (x - 30));   // no one holds 33-36 a night for a decade: the very top is trimmed (nothing at or below 30 moves)
+    const l = { gp, mins: e.mins, pts: soft(e.pts * sh * ind()), reb: e.reb * sh * ind(), ast: e.ast * sh * ind(), stl: e.stl * sh * ind(), blk: e.blk * sh * ind(), tov: e.tov, ts: e.ts, usg: e.usg };
     l.perf = perfOf(l);
     return l;
   }
@@ -400,7 +401,7 @@
         const p = e.p, r1 = (v) => Math.round(v * 10);
         if (!p.hist && (p.yearsPro || 0) >= 1) {   // first time on record: the seasons before this save are rebuilt from his present line, flagged as estimates
           const back = [], n = Math.min(4, p.yearsPro), up = p.age <= 26, old = p.age >= 30, idn = typeof p.id === 'number' ? p.id : 7;
-          for (let k = n; k >= 1; k--) { const f = clamp(up ? 1 - 0.07 * k : old ? 1 + 0.03 * k : 1 - 0.02 * k, 0.5, 1.25), gpk = 58 + ((idn * 37 + k * 13) % 23);
+          for (let k = n; k >= 1; k--) { const wob = 1 + 0.09 * Math.sin(idn * 12.9898 + k * 78.233), f = clamp((up ? 1 - 0.1 * k : old ? 1 + 0.04 * k : 1 - 0.03 * k) * wob, 0.45, 1.3), gpk = 52 + ((idn * 37 + k * 13) % 29);
             back.push([L.year - k, p.age - k, -1, gpk, r1(e.l.pts * f), r1(e.l.reb * f), r1(e.l.ast * f), r1(e.l.stl * f), r1(e.l.blk * f), Math.round(ovr(p) - (up ? 2.2 : old ? -1.2 : 0.5) * k), 1]); }
           p.hist = back;
         }
