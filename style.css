@@ -291,3 +291,5 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 .negbox { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; margin-top: 10px; } .negdial { width: 190px; flex: 0 0 auto; } .negpct { fill: var(--text, #fff); font-size: 26px; font-weight: 700; } .negform { flex: 1 1 260px; display: grid; gap: 8px; } .negform input[type=number] { width: 100px; } .negform input[type=range] { flex: 1; }
 
 .szwarn { margin-top: 8px; padding: 8px 10px; border-radius: 10px; border-left: 3px solid #5fd58f; background: var(--well); } .szwarn.warm { border-color: #f2c14e; } .szwarn.bad { border-color: #ff8b6b; }
+
+.plink { background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; letter-spacing: inherit; text-transform: none; } .plink:hover { color: var(--accent, #fff); text-decoration-style: solid; }

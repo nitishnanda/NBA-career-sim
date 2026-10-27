@@ -373,10 +373,10 @@
     awards.allDefTeams = [0, 1].map((i) => allDef.slice(i * 5, i * 5 + 5).map((x) => x.e.id));
     const rankOf = (k, id) => { const i = lead(k).findIndex((e) => e.id === id); return i < 0 ? null : i + 1; };
     const leaders = {};
-    ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k) => (leaders[k] = lead(k).slice(0, 5).map((e) => ({ name: e.p.name, team: e.t.nick, v: e.l[k], isUser: !!e.isUser }))));
+    ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k) => (leaders[k] = lead(k).slice(0, 5).map((e) => ({ id: e.isUser ? 'user' : e.id, name: e.p.name, team: e.t.nick, v: e.l[k], isUser: !!e.isUser }))));
     L.lastLeaders = leaders;
     const leadersOthers = {};
-    ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k) => (leadersOthers[k] = lead(k).filter((e) => !e.isUser).slice(0, 7).map((e) => ({ name: e.p.name, team: e.t.nick, v: e.l[k] }))));
+    ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k) => (leadersOthers[k] = lead(k).filter((e) => !e.isUser).slice(0, 7).map((e) => ({ id: e.id, name: e.p.name, team: e.t.nick, v: e.l[k] }))));
     const league = {
       n30: qual.filter((e) => e.l.pts >= 30).length, n25: qual.filter((e) => e.l.pts >= 25).length,
       topScorers: scoring.slice(0, 5).map((e) => ({ name: e.p.name, ppg: e.l.pts })),
@@ -393,6 +393,24 @@
     // history record
     L.history.push({ year: L.year, champion: playoffs.champion.name, mvp: awards.mvp && awards.mvp.name, dpoy: awards.dpoy && awards.dpoy.name, roy: awards.roy && awards.roy.name, scoring: awards.scoring && (awards.scoring.name + ' ' + awards.scoring.ppg.toFixed(1)) });
     if (L.history.length > 60) L.history.shift();
+    // every league player's own career page: a compact line per season (year, age, team, gp, pts, reb, ast, stl, blk, ovr; the per-game numbers x10) and his awards
+    { const pos = (arr, id) => arr.some((x) => x.e.id === id), champId = playoffs.champion.id;
+      entries.forEach((e) => {
+        if (e.isUser || !e.p || e.l.gp < 15) return;
+        const p = e.p, r1 = (v) => Math.round(v * 10);
+        if (!p.hist && (p.yearsPro || 0) >= 1) {   // first time on record: the seasons before this save are rebuilt from his present line, flagged as estimates
+          const back = [], n = Math.min(4, p.yearsPro), up = p.age <= 26, old = p.age >= 30, idn = typeof p.id === 'number' ? p.id : 7;
+          for (let k = n; k >= 1; k--) { const f = clamp(up ? 1 - 0.07 * k : old ? 1 + 0.03 * k : 1 - 0.02 * k, 0.5, 1.25), gpk = 58 + ((idn * 37 + k * 13) % 23);
+            back.push([L.year - k, p.age - k, -1, gpk, r1(e.l.pts * f), r1(e.l.reb * f), r1(e.l.ast * f), r1(e.l.stl * f), r1(e.l.blk * f), Math.round(ovr(p) - (up ? 2.2 : old ? -1.2 : 0.5) * k), 1]); }
+          p.hist = back;
+        }
+        p.hist = (p.hist || []).concat([[L.year, p.age, e.t.id, Math.round(e.l.gp), r1(e.l.pts), r1(e.l.reb), r1(e.l.ast), r1(e.l.stl), r1(e.l.blk), Math.round(ovr(p))]]).slice(-16);
+        const a = (p.awd = p.awd || {}), add = (k) => { a[k] = (a[k] || 0) + 1; };
+        if (awards.mvp && awards.mvp.id === e.id) add('MVP'); if (awards.dpoy && awards.dpoy.id === e.id) add('DPOY'); if (awards.roy && awards.roy.id === e.id) add('ROY'); if (awards.mip && awards.mip.id === e.id) add('MIP');
+        if (awards.scoring && awards.scoring.id === e.id) add('Scoring titles');
+        if (awards.allStar.includes(e.id)) add('All-Star'); if (awards.allNBA.includes(e.id)) add('All-NBA'); if (awards.allDef.includes(e.id)) add('All-Defense');
+        if (e.t.id === champId && e.l.gp >= 30) add('Champion');
+      }); }
     return res;
   }
 

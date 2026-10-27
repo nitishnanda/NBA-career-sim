@@ -1,7 +1,7 @@
 (function (g) {
   'use strict';
   const NBA = g.NBA;
-  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
+  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
   const D = NBA.data;
   const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
   const ATTRS = D.ATTRS;
@@ -623,13 +623,16 @@
       const mark = (x, why) => { if (x && !x.pc && !x.cl) { x.pc = 1; x.pcWhy = why; return true; } return false; }, cap = st.finalYear ? 6 : 4, marked = []; let n = 0;
       const go = (x, why) => { if (n < cap && x && marked.every((y) => Math.abs(y.n - x.n) >= 10) && mark(x, why)) { n++; marked.push(x); return true; } return false; };   // never two press conferences within ten games of each other
       go(regs[0], 'Opening night');
+      // a rematch with last season's Finals opponent (or any playoff opponent) is a story: the first meeting gets a press conference
+      const lastRec = st.proSeasons[st.proSeasons.length - 1], lastOpps = ((lastRec && lastRec.perSeries) || []).filter((x) => x.round !== 'Play-In').sort((a, b) => (b.round === 'NBA Finals') - (a.round === 'NBA Finals'));
+      lastOpps.slice(0, 2).forEach((x) => { const ot = Lg.teams.find((q) => q.name === x.opp); if (ot) go(regs.find((y) => y.o === ot.nick), x.round === 'NBA Finals' ? 'Finals rematch against the ' + ot.nick : 'Rematch of last year\'s ' + x.round + ' against the ' + ot.nick); });
       const rv = D.rival && Lg.players[D.rival.id], rvT = rv && Lg.teams[rv.teamId]; if (rvT) regs.filter((x) => x.o === rvT.nick).slice(0, 2).forEach((x) => go(x, 'Rivalry game: ' + rv.name));
       const tr = (st.trades || []).slice(-1)[0], oldT = tr && tr.year >= Lg.year - 1 ? Lg.teams.find((x) => x.name === tr.from) : null; if (oldT) go(regs.find((x) => x.o === oldT.nick), 'Revenge game against your old team');
       const big = regs.filter((x) => { const ot = byNick(x.o), s0 = ot && NBA.rosterOf(Lg, ot)[0]; return ot && (ot.wins >= 56 || (s0 && ovr(s0) >= 92)); }).map((x) => [rnd(), x]).sort((a, b) => a[0] - b[0]).slice(0, 2); big.forEach((x) => go(x[1], 'A marquee matchup'));
       let gap = 0; items.forEach((x, i) => { if (x.k === 'g' && !x.po) { if (x.dnp) gap++; else { if (gap >= 5 && go(x, 'First game back from injury')) x.back = 1; gap = 0; } } });
       if (st.finalYear) { const seen = new Set(); regs.forEach((x) => { if (!x.h && !seen.has(x.o)) { seen.add(x.o); x.tg = (x.tg || []).concat(['Farewell tribute']); x.tribute = 1; } }); regs.filter((x) => x.tribute).map((x) => [rnd(), x]).sort((a, b) => a[0] - b[0]).slice(0, 4).forEach((x) => go(x[1], 'Farewell tour stop')); }
       // playoffs: every series after the first round, any with a rival, and every Game 7 series
-      items.forEach((x) => { if (x.k === 'hdr' && x.ps != null) { const ot = Lg.teams.find((q) => q.name === x.opp); x.pc = (x.rnd !== 'First Round' || x.g7 || (rv && ot && rv.teamId === ot.id)) ? 1 : 0; } }); }
+      items.forEach((x) => { if (x.k === 'hdr' && x.ps != null) { const ot = Lg.teams.find((q) => q.name === x.opp); x.pc = (x.rnd !== 'First Round' || x.g7 || (rv && ot && rv.teamId === ot.id) || lastOpps.some((q) => q.opp === x.opp)) ? 1 : 0; } }); }
 
     // after the game: a press conference about what just happened. Up to three regular-season nights that stand out (a monster game, a bad one, a close one, a blowout),
     // and the game that ends every series or play-in game (own random stream: nothing else moves)
@@ -778,6 +781,54 @@
   // the press room after a game: the game that was just played (the one before the current slot) is asked about
   function postTarget(st) { const it = (st.matchLog || [])[(st.matchIdx || 0) - 1]; return it && it.k === 'g' && it.pp && !it.ppd && !it.dnp ? it : null; }
   const POST_BRUSH = ['I am going to keep that one to myself.', 'Not much to say on that one. Next question.', 'I will let other people talk about that. I am here to play.'];
+  // a hand-written question row [cond, heat, question, humble, confident, joke, deflect, trash, fight] turned into a question with its options
+  function rowQuestion(i, row, c, rnd, topic) {
+    const P = NBA.Press, T = P.TONES, IDX = { humble: 3, confident: 4, joke: 5, deflect: 6, trash: 7, fight: 8 };
+    const spicy = ['trash', 'fight'].filter((k) => row[IDX[k]]), calm = ['humble', 'confident', 'joke', 'deflect'].sort(() => rnd() - 0.5).slice(0, spicy.length ? 2 : 3);
+    return { i, topic, heat: row[1], text: P.FILL(row[2], c), opts: calm.concat(spicy).map((k) => ({ key: k, label: T[k].label, line: P.FILL('\u201C' + (row[IDX[k]] || POST_BRUSH[Math.floor(rnd() * POST_BRUSH.length)]) + '\u201D', c), spicy: k === 'trash' || k === 'fight' })) };
+  }
+  // your own story: what the career so far gives the press room to ask about (a Finals rematch, last year's series, an earlier game this season, your rookie year, an injury)
+  function memoryCtx(st, it, last) {
+    const L = st.league, p = st.player, ps = st.proSeasons || [], f = {}, s = {};
+    const opp = it.k === 'hdr' ? L.teams.find((x) => x.name === it.opp) : L.teams.find((x) => x.nick === it.o); if (!opp) return { f, s };
+    const sr = last && (last.perSeries || []).find((x) => x.opp === opp.name && x.round !== 'Play-In');
+    if (sr) { const won = /^W/.test(sr.result), fin = sr.round === 'NBA Finals'; s.round = sr.round; s.res = sr.result.replace(/^[WL] /, ''); if (fin) { f[won ? 'finalsRematchW' : 'finalsRematchL'] = true; } else f[won ? 'poRematchW' : 'poRematchL'] = true; }
+    if (last) {
+      if ((last.awards || []).includes('NBA Champion')) f.champDef = true;
+      if ((last.perSeries || []).some((x) => x.round === 'NBA Finals' && /^L/.test(x.result))) f.finalsLostLast = true;
+      if ((last.awards || []).includes('MVP')) f.mvpLast = true;
+      const fr = (last.perSeries || []).find((x) => /^L/.test(x.result) && x.round !== 'NBA Finals' && x.round !== 'Play-In'); if (fr && fr.round === 'First Round') { f.earlyExit = true; s.round = s.round || fr.round; }
+      if (last.injury && last.gp < 64) { f.injuredLast = true; s.missed = 82 - last.gp; }
+    }
+    if (ps.length && p.yearsPro >= 2 && p.yearsPro <= 8 && ps[0]) { f.rookieMemory = true; s.rkPts = (Math.round(ps[0].pts * 10) / 10).toFixed(1); s.rkTeam = /Trail Blazers$/.test(ps[0].team) ? 'Trail Blazers' : ps[0].team.split(' ').slice(-1)[0]; }
+    if (p.yearsPro >= 6 && !st.career.titles) { f.titleDrought = true; s.years = p.yearsPro; }
+    const earlier = (st.matchLog || []).slice(0, st.matchIdx || 0).filter((x) => x.k === 'g' && !x.po && !x.dnp);
+    const meets = earlier.filter((x) => x.o === opp.nick), lm = meets[meets.length - 1];
+    if (lm) {
+      s.mPts = lm.pt; s.mScore = Math.abs(lm.f - lm.a);
+      if (lm.pt >= 35) f.meetBig = true; else if (lm.pt <= 10 && lm.m >= 15) f.meetBad = true;
+      if (!lm.w && lm.a - lm.f >= 15) f.meetLostBig = true; if (lm.w && lm.f - lm.a >= 15) f.meetWonBig = true;
+      const away = meets.filter((x) => !x.h && x.pt >= 35).pop(); if (away && !it.h && it.k === 'g') { f.lastVisit = true; s.vPts = away.pt; }
+    }
+    const hi = earlier.reduce((b, x) => (!b || x.pt > b.pt ? x : b), null); if (hi && hi.pt >= 45) { f.hiThisYear = true; s.hiPts = hi.pt; s.hiOpp = hi.o; }
+    return { f, s };
+  }
+  const MEM_AMBIENT = new Set(['rookieMemory', 'titleDrought', 'injuredLast', 'earlyExit', 'champDef', 'mvpLast', 'finalsLostLast', 'hiThisYear']);
+  const MEM_W = { finalsRematchW: 40, finalsRematchL: 40, poRematchW: 22, poRematchL: 22, champDef: 8, finalsLostLast: 10, mvpLast: 7, meetBig: 9, meetBad: 9, meetLostBig: 9, meetWonBig: 6, lastVisit: 6, hiThisYear: 5, injuredLast: 6, earlyExit: 6, rookieMemory: 4, titleDrought: 5 };
+  // up to `n` questions from the career's own story: a rematch always gets asked, the rest ride the weights; none that were asked recently
+  function memoryQuestions(st, it, c, rnd, n, last) {
+    const bank = NBA.MemPress || [], mc = memoryCtx(st, it, last), asked = (NBA.Decisions.state(st).flags.asked || []).slice(-60), out = [], used = new Set();
+    Object.assign(c, mc.s);
+    const amb = rnd() < 0.3;   // the background stories (rookie year, a drought, last year's injury) are asked now and then; a rematch or an earlier meeting always is
+    for (let k = 0; k < n; k++) {
+      const pool = bank.map((row, i) => ({ row, i })).filter((x) => mc.f[x.row[0]] && !used.has(x.row[0]) && asked.indexOf(1000 + x.i) < 0 && (!MEM_AMBIENT.has(x.row[0]) || amb));
+      if (!pool.length) break;
+      let r = rnd() * pool.reduce((a, x) => a + (MEM_W[x.row[0]] || 3), 0), pk = pool[pool.length - 1];
+      for (let i = 0; i < pool.length; i++) { r -= MEM_W[pool[i].row[0]] || 3; if (r <= 0) { pk = pool[i]; break; } }
+      used.add(pk.row[0]); out.push(rowQuestion(1000 + pk.i, pk.row, c, rnd, 'mem:' + pk.row[0]));
+    }
+    return out;
+  }
   function postOpen(st, it) {
     const P = NBA.Press, L = st.league, rnd = NBA.Decisions.rng(st, 'ppress|' + L.year + '|' + (it.po ? 'p' : 'r') + it.n + (it.rnd || '') + (it.pi ? 'i' : '')), bank = NBA.PostPress || [];
     const t = L.teams[st.teamId], opp = L.teams.find((x) => x.nick === it.o), star = opp ? NBA.rosterOf(L, opp)[0] : null, margin = Math.abs(it.f - it.a);
@@ -795,11 +846,7 @@
       used.add(pk.r[0]); out.push({ i: pk.i, row: pk.r });
     }
     if (!out.length) return null;
-    const IDX = { humble: 3, confident: 4, joke: 5, deflect: 6, trash: 7, fight: 8 }, T = P.TONES;
-    const qs = out.map(({ i, row }) => {
-      const spicy = ['trash', 'fight'].filter((k) => row[IDX[k]]), calm = ['humble', 'confident', 'joke', 'deflect'].sort(() => rnd() - 0.5).slice(0, spicy.length ? 2 : 3);
-      return { i, topic: 'post:' + row[0], heat: row[1], text: P.FILL(row[2], c), opts: calm.concat(spicy).map((k) => ({ key: k, label: T[k].label, line: P.FILL('\u201C' + (row[IDX[k]] || POST_BRUSH[Math.floor(rnd() * POST_BRUSH.length)]) + '\u201D', c), spicy: k === 'trash' || k === 'fight' })) };
-    });
+    const qs = out.map(({ i, row }) => rowQuestion(i, row, c, rnd, 'post:' + row[0]));
     const why = it.pi ? 'After the play-in game' : it.po ? 'After ' + (it.rnd || 'the playoff') + ' game ' + it.n : 'After game ' + it.n;
     return { kind: 'post', idx: (st.matchIdx || 0) - 1, si: null, why, opp: it.o, qs, picks: [], c, headlines: [] };
   }
@@ -809,7 +856,9 @@
     const P = NBA.Press, L = st.league, rnd = NBA.Decisions.rng(st, 'press|' + L.year + '|' + (it.k === 'g' ? it.n : 's' + it.ps));
     const n = st.finalYear || it.k === 'hdr' ? 3 : 2, pk = P.pickQuestions(st, it, n, rnd);
     if (!pk.questions.length) return null;
-    const qs = pk.questions.map((q) => ({ i: q.i, topic: q.topic, heat: q.heat, text: q.text, opts: P.answerOptions(q, pk.c, rnd) }));
+    const ps = st.proSeasons || [], memQs = memoryQuestions(st, it, pk.c, rnd, it.k === 'hdr' ? 2 : 1, ps[ps.length - 2]);
+    const base = pk.questions.slice(0, Math.max(1, n - memQs.length)).map((q) => ({ i: q.i, topic: q.topic, heat: q.heat, text: q.text, opts: P.answerOptions(q, pk.c, rnd) }));
+    const qs = memQs.concat(base);
     const why = it.k === 'g' ? it.pcWhy || 'A big game' : (it.rnd || 'Playoff series') + ' vs the ' + it.opp;
     return { kind: it.k === 'g' ? 'game' : 'series', idx: st.matchIdx, si: it.ps, why, opp: it.k === 'g' ? it.o : it.opp, qs, picks: [], c: { oppStarOvr: pk.c.oppStarOvr, winning: pk.c.winning, hot: pk.c.hot, slump: pk.c.slump, oppStar: pk.c.oppStar, rivalHere: pk.c.rivalHere, rival: pk.c.rival, opp: pk.c.opp, team: pk.c.team, me: st.player.name, pos: st.player.pos }, headlines: [] };
   }
@@ -1222,7 +1271,7 @@
     tol += add('Desperation', 0.32 * c.desp) + add('Other options', -0.22 * c.alts) + add('Interest in you', 0.35 * (c.interest - 0.5)) + add('Cap room', 0.18 * (c.space - 0.4));
     const yd = ask.years - c.pref; tol += add('Years', yd > 0 ? -0.035 * yd : Math.min(0.02, -0.01 * yd));
     const step = ROLES.indexOf(ask.role) - ROLES.indexOf(c.offered); tol += add('Role', step > 0 ? -0.11 * step - (step >= 2 ? 0.08 : 0) : Math.min(0.05, -0.025 * step));
-    const ceil = Math.min(c.maxSal, c.fair * (1 + tol)), p = c.closed ? 0 : clamp(sig((ceil - ask.salary) / (0.065 * c.fair)), 0.01, 0.99);
+    const ceil = c.fair * (1 + tol), p = c.closed ? 0 : clamp(sig((ceil - ask.salary) / (0.065 * c.fair)), 0.01, 0.99);   // (not capped at the max contract: a club that offered the max is not 50-50 on it)
     return { p, ceil: r1(ceil), parts, step };
   }
   function checkAsk(c, ask) {
@@ -1242,7 +1291,7 @@
     c.attempts++;
     if (roll < o.p) return sign(st, c, ask);
     if (o.p >= 0.15 && c.attempts < 3) {
-      const counter = { salary: r1(Math.max(c.minSal, Math.min(ask.salary, o.ceil * 0.985))), years: Math.min(ask.years, c.pref + 1), role: o.step > 0 ? c.offered : ask.role };
+      const counter = { salary: r1(Math.max(c.minSal, Math.min(ask.salary, c.maxSal, o.ceil * 0.985))), years: Math.min(ask.years, c.pref + 1), role: o.step > 0 ? c.offered : ask.role };
       c.counter = counter; c.msg = 'The ' + nick + ' came back with a counter: ' + counter.years + ' year' + (counter.years > 1 ? 's' : '') + ' at $' + counter.salary + 'M as a ' + counter.role.toLowerCase() + '.';
       return { ok: false, counter };
     }

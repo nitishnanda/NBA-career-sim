@@ -297,6 +297,8 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 
 .szwarn { margin-top: 8px; padding: 8px 10px; border-radius: 10px; border-left: 3px solid #5fd58f; background: var(--well); } .szwarn.warm { border-color: #f2c14e; } .szwarn.bad { border-color: #ff8b6b; }
 
+.plink { background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; letter-spacing: inherit; text-transform: none; } .plink:hover { color: var(--accent, #fff); text-decoration-style: solid; }
+
 </style>
 <header id="top"><div class="brand"><span class="logo">🏀</span><div><b>NBA CAREER SIM</b><small>PRO CIRCUIT</small></div></div><nav id="nav"></nav><div id="who"></div></header>
 <main id="app"></main>
@@ -1267,10 +1269,10 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     awards.allDefTeams = [0, 1].map((i) => allDef.slice(i * 5, i * 5 + 5).map((x) => x.e.id));
     const rankOf = (k, id) => { const i = lead(k).findIndex((e) => e.id === id); return i < 0 ? null : i + 1; };
     const leaders = {};
-    ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k) => (leaders[k] = lead(k).slice(0, 5).map((e) => ({ name: e.p.name, team: e.t.nick, v: e.l[k], isUser: !!e.isUser }))));
+    ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k) => (leaders[k] = lead(k).slice(0, 5).map((e) => ({ id: e.isUser ? 'user' : e.id, name: e.p.name, team: e.t.nick, v: e.l[k], isUser: !!e.isUser }))));
     L.lastLeaders = leaders;
     const leadersOthers = {};
-    ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k) => (leadersOthers[k] = lead(k).filter((e) => !e.isUser).slice(0, 7).map((e) => ({ name: e.p.name, team: e.t.nick, v: e.l[k] }))));
+    ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k) => (leadersOthers[k] = lead(k).filter((e) => !e.isUser).slice(0, 7).map((e) => ({ id: e.id, name: e.p.name, team: e.t.nick, v: e.l[k] }))));
     const league = {
       n30: qual.filter((e) => e.l.pts >= 30).length, n25: qual.filter((e) => e.l.pts >= 25).length,
       topScorers: scoring.slice(0, 5).map((e) => ({ name: e.p.name, ppg: e.l.pts })),
@@ -1287,6 +1289,24 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     // history record
     L.history.push({ year: L.year, champion: playoffs.champion.name, mvp: awards.mvp && awards.mvp.name, dpoy: awards.dpoy && awards.dpoy.name, roy: awards.roy && awards.roy.name, scoring: awards.scoring && (awards.scoring.name + ' ' + awards.scoring.ppg.toFixed(1)) });
     if (L.history.length > 60) L.history.shift();
+    // every league player's own career page: a compact line per season (year, age, team, gp, pts, reb, ast, stl, blk, ovr; the per-game numbers x10) and his awards
+    { const pos = (arr, id) => arr.some((x) => x.e.id === id), champId = playoffs.champion.id;
+      entries.forEach((e) => {
+        if (e.isUser || !e.p || e.l.gp < 15) return;
+        const p = e.p, r1 = (v) => Math.round(v * 10);
+        if (!p.hist && (p.yearsPro || 0) >= 1) {   // first time on record: the seasons before this save are rebuilt from his present line, flagged as estimates
+          const back = [], n = Math.min(4, p.yearsPro), up = p.age <= 26, old = p.age >= 30, idn = typeof p.id === 'number' ? p.id : 7;
+          for (let k = n; k >= 1; k--) { const f = clamp(up ? 1 - 0.07 * k : old ? 1 + 0.03 * k : 1 - 0.02 * k, 0.5, 1.25), gpk = 58 + ((idn * 37 + k * 13) % 23);
+            back.push([L.year - k, p.age - k, -1, gpk, r1(e.l.pts * f), r1(e.l.reb * f), r1(e.l.ast * f), r1(e.l.stl * f), r1(e.l.blk * f), Math.round(ovr(p) - (up ? 2.2 : old ? -1.2 : 0.5) * k), 1]); }
+          p.hist = back;
+        }
+        p.hist = (p.hist || []).concat([[L.year, p.age, e.t.id, Math.round(e.l.gp), r1(e.l.pts), r1(e.l.reb), r1(e.l.ast), r1(e.l.stl), r1(e.l.blk), Math.round(ovr(p))]]).slice(-16);
+        const a = (p.awd = p.awd || {}), add = (k) => { a[k] = (a[k] || 0) + 1; };
+        if (awards.mvp && awards.mvp.id === e.id) add('MVP'); if (awards.dpoy && awards.dpoy.id === e.id) add('DPOY'); if (awards.roy && awards.roy.id === e.id) add('ROY'); if (awards.mip && awards.mip.id === e.id) add('MIP');
+        if (awards.scoring && awards.scoring.id === e.id) add('Scoring titles');
+        if (awards.allStar.includes(e.id)) add('All-Star'); if (awards.allNBA.includes(e.id)) add('All-NBA'); if (awards.allDef.includes(e.id)) add('All-Defense');
+        if (e.t.id === champId && e.l.gp >= 30) add('Champion');
+      }); }
     return res;
   }
 
@@ -2530,6 +2550,36 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 })(typeof window !== 'undefined' ? window : globalThis);
 
 (function (g) {
+  // Press-conference questions that draw on your own story: a Finals rematch, last year's series, an earlier game this season, your rookie year, an injury, a title drought.
+  // [condition, heat, question, humble, confident, joke, deflect, trash, fight]  (same layout as the post-game bank). Slots: {opp} {oppStar} {round} {res} {mPts} {mScore} {hiPts} {hiOpp} {vPts} {rkPts} {rkTeam} {missed} {years} {team}.
+  const NBA = (g.NBA = g.NBA || {});
+  NBA.MemPress = [
+    ['finalsRematchW', 0, 'This is a Finals rematch: you beat the {opp} for the title last year. Does that history matter tonight?', 'It was a great run, but that was last year. It is a new season and they are going to come at us hard.', 'It matters to them more than to us. We know we can beat them.', 'History is great. I just hope the trophy still shines the way I left it.', '', '', ''],
+    ['finalsRematchW', 1, 'The {opp} are still talking about last June. What do you take from beating them in the Finals?', 'We were lucky and good. I respect them, and I know they are better than a series could show.', 'I take that we are the champions. They know it, and I know it.', 'I take a very good parade. The parade was great.', '', 'They can talk about it all they want. The banner is hanging in our building.', ''],
+    ['finalsRematchL', 0, 'The {opp} beat you in the Finals last year. Does tonight feel like unfinished business?', 'It still hurts. I will not pretend it does not. But tonight is a regular-season game, and we want to play well.', 'Absolutely. We did not forget what happened. Tonight is about getting a little back.', 'Unfinished business? I left a very nice sweater in their locker room. I am here for that.', '', '', ''],
+    ['finalsRematchL', 1, 'You lost to the {opp} in the Finals, {res}. Do you still think about that series?', 'Every day. You learn from it and you carry it with you. It makes you better.', 'Of course. It is the fuel. I want that trophy more than anything.', 'Only during every waking hour. Otherwise, never.', '', 'I think about it, and so should they. We are not done with them.', ''],
+    ['poRematchW', 0, 'You knocked the {opp} out in the {round} last year. Do they come in with something to prove?', 'I am sure they do. They are a proud team and we respect that. We expect their best.', 'They should. We are not going to give them anything.', 'I hope so. Motivated opponents make better highlights.', '', '', ''],
+    ['poRematchW', 1, 'It has been a year since you beat the {opp} in the {round}. Is there bad blood?', 'No bad blood on our end. It was a hard series, and we respect them.', 'They might feel some. We are just focused on winning.', 'The only blood is from my paper cut. It was a tough day.', '', 'If they are still angry, we will see them out there. Same result as last year, I expect.', ''],
+    ['poRematchL', 0, 'The {opp} beat you in the {round} last year. Are you looking for payback?', 'It is not about payback. It is about learning from what happened and getting better.', 'Yes. I am not going to hide that. I have been waiting for this one.', 'Payback? I would settle for a participation trophy and some fair officiating.', '', '', ''],
+    ['poRematchL', 1, 'You lost {res} to the {opp} in the {round} last year. How much does that series sit with you?', 'It sits with me. It is a reminder that we have more work to do.', 'It sits with me and drives me. I have not forgotten and neither have my teammates.', 'It sits with me like a very big sandwich I should not have eaten. I feel it.', '', 'They know what they did. They also know it will not happen again.', ''],
+    ['meetBig', 0, 'You scored {mPts} on the {opp} the last time you met. Do you expect them to game-plan for you tonight?', 'They will, and they should. I will lean on my teammates to make the most of what they give us.', 'They can game-plan all they want. I am going to find something.', 'I expect them to do some things. Perhaps a lot of double-teams. I will say hello.', '', '', ''],
+    ['meetBad', 0, 'The {opp} held you to {mPts} the last time. What have you changed?', 'I watched the film. A few things I did were not good, and I am working on them.', 'Nothing. I will be better. One game does not decide it.', 'I changed my socks. Everything else stayed the same. It is a delicate system.', '', '', ''],
+    ['meetLostBig', 0, 'The {opp} beat you {mScore} the last time you met. Are you ready to answer that?', 'We were not good that night. We have to be better, and I believe we will be.', 'Yes. I am ready, and the team is ready. That one was on us.', 'I have already forgotten about it. I have also not been able to sleep.', '', '', ''],
+    ['meetWonBig', 0, 'You beat the {opp} by {mScore} the last time. Do you expect a different team tonight?', 'I expect a much different team. They are good, and they will bring more.', 'I expect them to be angry. I am ready for that. We will be fine.', 'I expect them to bring more players. It would be a nice gesture.', '', '', ''],
+    ['champDef', 0, 'You are the defending champions. Does everyone bring their best against you?', 'They do, and it is a compliment. We have to bring our best every night to stay up there.', 'Everyone wants the champions. We like that. We want the target.', 'Everyone brings their best against us. We brought our best against them all last year, so it is only fair.', '', '', ''],
+    ['finalsLostLast', 0, 'Last season ended with a Finals loss. How much of that is still with you?', 'It is still with me. I do not think that ever fully goes away. I use it.', 'All of it. It motivates me every single day.', 'About 40 percent. I would say the other 60 is hunger and pizza.', '', '', ''],
+    ['mvpLast', 0, 'You are the reigning MVP. Do you feel a target on your back?', 'There is a target on all of us. I am just trying to help this team win.', 'Yeah, and I like it. Come get me.', 'The target is on my back, and I also have a bullseye on my shirt. Fashion choice.', '', '', ''],
+    ['rookieMemory', 0, 'Back in your rookie year with the {rkTeam} you averaged {rkPts} points. Does it feel like a lifetime ago?', 'It feels like yesterday and like a lifetime. I have had a lot of help getting here.', 'It does. I was a kid then. Now I know who I am.', 'I averaged what? I remember eating a lot. That is my main memory.', '', '', ''],
+    ['rookieMemory', 0, 'Which memory from your rookie season with the {rkTeam} sticks with you the most?', 'The vets who showed me the ropes. I will always be grateful to them.', 'My first big game. That is when I knew I belonged here.', 'The hotel breakfast buffet. Changed my life.', '', '', ''],
+    ['injuredLast', 0, 'You missed {missed} games last season with an injury. How different do you feel this year?', 'I feel good. The medical staff and my teammates helped me get right. I am thankful.', 'I feel stronger than ever. I am back, and I want everything.', 'I feel like a new man. A bit older, but new.', '', '', ''],
+    ['earlyExit', 0, 'Last season ended in the {round}. What is different about this team?', 'We learned from it. We have grown as a group, and I think it is showing.', 'We are better, and more ready. We are not going out like that again.', 'Mostly the playlist. The vibes were off last year.', '', '', ''],
+    ['hiThisYear', 0, 'You put up {hiPts} points on the {hiOpp} earlier this season. Is that the standard you set for yourself?', 'That night was about my teammates getting me good looks. I do not set a number.', 'I know what I can do. That night showed it, and I want to show it again.', 'That was a one-time thing. Like my haircut that month.', '', '', ''],
+    ['lastVisit', 0, 'You scored {vPts} the last time you were in this building. Do you like playing here?', 'It is a great atmosphere. I have good memories here, and we want to make more.', 'I love it here. Every time I come in, I feel good about my game.', 'The building is great. Their popcorn is excellent. That is the secret.', '', '', ''],
+    ['titleDrought', 0, 'You have played {years} seasons without a ring. Does that eat at you?', 'It does. I am not going to pretend otherwise. I keep working and I believe it will come.', 'Every day. It is why I am here. I am going to get one.', 'It eats at me. And so does lunch, so I eat a lot of lunches.', '', '', ''],
+  ];
+})(typeof window !== 'undefined' ? window : globalThis);
+
+(function (g) {
   'use strict';
   const NBA = g.NBA;
   const { ovr, clamp } = NBA;
@@ -2965,7 +3015,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 (function (g) {
   'use strict';
   const NBA = g.NBA;
-  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
+  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
   const D = NBA.data;
   const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
   const ATTRS = D.ATTRS;
@@ -3587,13 +3637,16 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       const mark = (x, why) => { if (x && !x.pc && !x.cl) { x.pc = 1; x.pcWhy = why; return true; } return false; }, cap = st.finalYear ? 6 : 4, marked = []; let n = 0;
       const go = (x, why) => { if (n < cap && x && marked.every((y) => Math.abs(y.n - x.n) >= 10) && mark(x, why)) { n++; marked.push(x); return true; } return false; };   // never two press conferences within ten games of each other
       go(regs[0], 'Opening night');
+      // a rematch with last season's Finals opponent (or any playoff opponent) is a story: the first meeting gets a press conference
+      const lastRec = st.proSeasons[st.proSeasons.length - 1], lastOpps = ((lastRec && lastRec.perSeries) || []).filter((x) => x.round !== 'Play-In').sort((a, b) => (b.round === 'NBA Finals') - (a.round === 'NBA Finals'));
+      lastOpps.slice(0, 2).forEach((x) => { const ot = Lg.teams.find((q) => q.name === x.opp); if (ot) go(regs.find((y) => y.o === ot.nick), x.round === 'NBA Finals' ? 'Finals rematch against the ' + ot.nick : 'Rematch of last year\'s ' + x.round + ' against the ' + ot.nick); });
       const rv = D.rival && Lg.players[D.rival.id], rvT = rv && Lg.teams[rv.teamId]; if (rvT) regs.filter((x) => x.o === rvT.nick).slice(0, 2).forEach((x) => go(x, 'Rivalry game: ' + rv.name));
       const tr = (st.trades || []).slice(-1)[0], oldT = tr && tr.year >= Lg.year - 1 ? Lg.teams.find((x) => x.name === tr.from) : null; if (oldT) go(regs.find((x) => x.o === oldT.nick), 'Revenge game against your old team');
       const big = regs.filter((x) => { const ot = byNick(x.o), s0 = ot && NBA.rosterOf(Lg, ot)[0]; return ot && (ot.wins >= 56 || (s0 && ovr(s0) >= 92)); }).map((x) => [rnd(), x]).sort((a, b) => a[0] - b[0]).slice(0, 2); big.forEach((x) => go(x[1], 'A marquee matchup'));
       let gap = 0; items.forEach((x, i) => { if (x.k === 'g' && !x.po) { if (x.dnp) gap++; else { if (gap >= 5 && go(x, 'First game back from injury')) x.back = 1; gap = 0; } } });
       if (st.finalYear) { const seen = new Set(); regs.forEach((x) => { if (!x.h && !seen.has(x.o)) { seen.add(x.o); x.tg = (x.tg || []).concat(['Farewell tribute']); x.tribute = 1; } }); regs.filter((x) => x.tribute).map((x) => [rnd(), x]).sort((a, b) => a[0] - b[0]).slice(0, 4).forEach((x) => go(x[1], 'Farewell tour stop')); }
       // playoffs: every series after the first round, any with a rival, and every Game 7 series
-      items.forEach((x) => { if (x.k === 'hdr' && x.ps != null) { const ot = Lg.teams.find((q) => q.name === x.opp); x.pc = (x.rnd !== 'First Round' || x.g7 || (rv && ot && rv.teamId === ot.id)) ? 1 : 0; } }); }
+      items.forEach((x) => { if (x.k === 'hdr' && x.ps != null) { const ot = Lg.teams.find((q) => q.name === x.opp); x.pc = (x.rnd !== 'First Round' || x.g7 || (rv && ot && rv.teamId === ot.id) || lastOpps.some((q) => q.opp === x.opp)) ? 1 : 0; } }); }
 
     // after the game: a press conference about what just happened. Up to three regular-season nights that stand out (a monster game, a bad one, a close one, a blowout),
     // and the game that ends every series or play-in game (own random stream: nothing else moves)
@@ -3742,6 +3795,54 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   // the press room after a game: the game that was just played (the one before the current slot) is asked about
   function postTarget(st) { const it = (st.matchLog || [])[(st.matchIdx || 0) - 1]; return it && it.k === 'g' && it.pp && !it.ppd && !it.dnp ? it : null; }
   const POST_BRUSH = ['I am going to keep that one to myself.', 'Not much to say on that one. Next question.', 'I will let other people talk about that. I am here to play.'];
+  // a hand-written question row [cond, heat, question, humble, confident, joke, deflect, trash, fight] turned into a question with its options
+  function rowQuestion(i, row, c, rnd, topic) {
+    const P = NBA.Press, T = P.TONES, IDX = { humble: 3, confident: 4, joke: 5, deflect: 6, trash: 7, fight: 8 };
+    const spicy = ['trash', 'fight'].filter((k) => row[IDX[k]]), calm = ['humble', 'confident', 'joke', 'deflect'].sort(() => rnd() - 0.5).slice(0, spicy.length ? 2 : 3);
+    return { i, topic, heat: row[1], text: P.FILL(row[2], c), opts: calm.concat(spicy).map((k) => ({ key: k, label: T[k].label, line: P.FILL('\u201C' + (row[IDX[k]] || POST_BRUSH[Math.floor(rnd() * POST_BRUSH.length)]) + '\u201D', c), spicy: k === 'trash' || k === 'fight' })) };
+  }
+  // your own story: what the career so far gives the press room to ask about (a Finals rematch, last year's series, an earlier game this season, your rookie year, an injury)
+  function memoryCtx(st, it, last) {
+    const L = st.league, p = st.player, ps = st.proSeasons || [], f = {}, s = {};
+    const opp = it.k === 'hdr' ? L.teams.find((x) => x.name === it.opp) : L.teams.find((x) => x.nick === it.o); if (!opp) return { f, s };
+    const sr = last && (last.perSeries || []).find((x) => x.opp === opp.name && x.round !== 'Play-In');
+    if (sr) { const won = /^W/.test(sr.result), fin = sr.round === 'NBA Finals'; s.round = sr.round; s.res = sr.result.replace(/^[WL] /, ''); if (fin) { f[won ? 'finalsRematchW' : 'finalsRematchL'] = true; } else f[won ? 'poRematchW' : 'poRematchL'] = true; }
+    if (last) {
+      if ((last.awards || []).includes('NBA Champion')) f.champDef = true;
+      if ((last.perSeries || []).some((x) => x.round === 'NBA Finals' && /^L/.test(x.result))) f.finalsLostLast = true;
+      if ((last.awards || []).includes('MVP')) f.mvpLast = true;
+      const fr = (last.perSeries || []).find((x) => /^L/.test(x.result) && x.round !== 'NBA Finals' && x.round !== 'Play-In'); if (fr && fr.round === 'First Round') { f.earlyExit = true; s.round = s.round || fr.round; }
+      if (last.injury && last.gp < 64) { f.injuredLast = true; s.missed = 82 - last.gp; }
+    }
+    if (ps.length && p.yearsPro >= 2 && p.yearsPro <= 8 && ps[0]) { f.rookieMemory = true; s.rkPts = (Math.round(ps[0].pts * 10) / 10).toFixed(1); s.rkTeam = /Trail Blazers$/.test(ps[0].team) ? 'Trail Blazers' : ps[0].team.split(' ').slice(-1)[0]; }
+    if (p.yearsPro >= 6 && !st.career.titles) { f.titleDrought = true; s.years = p.yearsPro; }
+    const earlier = (st.matchLog || []).slice(0, st.matchIdx || 0).filter((x) => x.k === 'g' && !x.po && !x.dnp);
+    const meets = earlier.filter((x) => x.o === opp.nick), lm = meets[meets.length - 1];
+    if (lm) {
+      s.mPts = lm.pt; s.mScore = Math.abs(lm.f - lm.a);
+      if (lm.pt >= 35) f.meetBig = true; else if (lm.pt <= 10 && lm.m >= 15) f.meetBad = true;
+      if (!lm.w && lm.a - lm.f >= 15) f.meetLostBig = true; if (lm.w && lm.f - lm.a >= 15) f.meetWonBig = true;
+      const away = meets.filter((x) => !x.h && x.pt >= 35).pop(); if (away && !it.h && it.k === 'g') { f.lastVisit = true; s.vPts = away.pt; }
+    }
+    const hi = earlier.reduce((b, x) => (!b || x.pt > b.pt ? x : b), null); if (hi && hi.pt >= 45) { f.hiThisYear = true; s.hiPts = hi.pt; s.hiOpp = hi.o; }
+    return { f, s };
+  }
+  const MEM_AMBIENT = new Set(['rookieMemory', 'titleDrought', 'injuredLast', 'earlyExit', 'champDef', 'mvpLast', 'finalsLostLast', 'hiThisYear']);
+  const MEM_W = { finalsRematchW: 40, finalsRematchL: 40, poRematchW: 22, poRematchL: 22, champDef: 8, finalsLostLast: 10, mvpLast: 7, meetBig: 9, meetBad: 9, meetLostBig: 9, meetWonBig: 6, lastVisit: 6, hiThisYear: 5, injuredLast: 6, earlyExit: 6, rookieMemory: 4, titleDrought: 5 };
+  // up to `n` questions from the career's own story: a rematch always gets asked, the rest ride the weights; none that were asked recently
+  function memoryQuestions(st, it, c, rnd, n, last) {
+    const bank = NBA.MemPress || [], mc = memoryCtx(st, it, last), asked = (NBA.Decisions.state(st).flags.asked || []).slice(-60), out = [], used = new Set();
+    Object.assign(c, mc.s);
+    const amb = rnd() < 0.3;   // the background stories (rookie year, a drought, last year's injury) are asked now and then; a rematch or an earlier meeting always is
+    for (let k = 0; k < n; k++) {
+      const pool = bank.map((row, i) => ({ row, i })).filter((x) => mc.f[x.row[0]] && !used.has(x.row[0]) && asked.indexOf(1000 + x.i) < 0 && (!MEM_AMBIENT.has(x.row[0]) || amb));
+      if (!pool.length) break;
+      let r = rnd() * pool.reduce((a, x) => a + (MEM_W[x.row[0]] || 3), 0), pk = pool[pool.length - 1];
+      for (let i = 0; i < pool.length; i++) { r -= MEM_W[pool[i].row[0]] || 3; if (r <= 0) { pk = pool[i]; break; } }
+      used.add(pk.row[0]); out.push(rowQuestion(1000 + pk.i, pk.row, c, rnd, 'mem:' + pk.row[0]));
+    }
+    return out;
+  }
   function postOpen(st, it) {
     const P = NBA.Press, L = st.league, rnd = NBA.Decisions.rng(st, 'ppress|' + L.year + '|' + (it.po ? 'p' : 'r') + it.n + (it.rnd || '') + (it.pi ? 'i' : '')), bank = NBA.PostPress || [];
     const t = L.teams[st.teamId], opp = L.teams.find((x) => x.nick === it.o), star = opp ? NBA.rosterOf(L, opp)[0] : null, margin = Math.abs(it.f - it.a);
@@ -3759,11 +3860,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       used.add(pk.r[0]); out.push({ i: pk.i, row: pk.r });
     }
     if (!out.length) return null;
-    const IDX = { humble: 3, confident: 4, joke: 5, deflect: 6, trash: 7, fight: 8 }, T = P.TONES;
-    const qs = out.map(({ i, row }) => {
-      const spicy = ['trash', 'fight'].filter((k) => row[IDX[k]]), calm = ['humble', 'confident', 'joke', 'deflect'].sort(() => rnd() - 0.5).slice(0, spicy.length ? 2 : 3);
-      return { i, topic: 'post:' + row[0], heat: row[1], text: P.FILL(row[2], c), opts: calm.concat(spicy).map((k) => ({ key: k, label: T[k].label, line: P.FILL('\u201C' + (row[IDX[k]] || POST_BRUSH[Math.floor(rnd() * POST_BRUSH.length)]) + '\u201D', c), spicy: k === 'trash' || k === 'fight' })) };
-    });
+    const qs = out.map(({ i, row }) => rowQuestion(i, row, c, rnd, 'post:' + row[0]));
     const why = it.pi ? 'After the play-in game' : it.po ? 'After ' + (it.rnd || 'the playoff') + ' game ' + it.n : 'After game ' + it.n;
     return { kind: 'post', idx: (st.matchIdx || 0) - 1, si: null, why, opp: it.o, qs, picks: [], c, headlines: [] };
   }
@@ -3773,7 +3870,9 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const P = NBA.Press, L = st.league, rnd = NBA.Decisions.rng(st, 'press|' + L.year + '|' + (it.k === 'g' ? it.n : 's' + it.ps));
     const n = st.finalYear || it.k === 'hdr' ? 3 : 2, pk = P.pickQuestions(st, it, n, rnd);
     if (!pk.questions.length) return null;
-    const qs = pk.questions.map((q) => ({ i: q.i, topic: q.topic, heat: q.heat, text: q.text, opts: P.answerOptions(q, pk.c, rnd) }));
+    const ps = st.proSeasons || [], memQs = memoryQuestions(st, it, pk.c, rnd, it.k === 'hdr' ? 2 : 1, ps[ps.length - 2]);
+    const base = pk.questions.slice(0, Math.max(1, n - memQs.length)).map((q) => ({ i: q.i, topic: q.topic, heat: q.heat, text: q.text, opts: P.answerOptions(q, pk.c, rnd) }));
+    const qs = memQs.concat(base);
     const why = it.k === 'g' ? it.pcWhy || 'A big game' : (it.rnd || 'Playoff series') + ' vs the ' + it.opp;
     return { kind: it.k === 'g' ? 'game' : 'series', idx: st.matchIdx, si: it.ps, why, opp: it.k === 'g' ? it.o : it.opp, qs, picks: [], c: { oppStarOvr: pk.c.oppStarOvr, winning: pk.c.winning, hot: pk.c.hot, slump: pk.c.slump, oppStar: pk.c.oppStar, rivalHere: pk.c.rivalHere, rival: pk.c.rival, opp: pk.c.opp, team: pk.c.team, me: st.player.name, pos: st.player.pos }, headlines: [] };
   }
@@ -4186,7 +4285,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     tol += add('Desperation', 0.32 * c.desp) + add('Other options', -0.22 * c.alts) + add('Interest in you', 0.35 * (c.interest - 0.5)) + add('Cap room', 0.18 * (c.space - 0.4));
     const yd = ask.years - c.pref; tol += add('Years', yd > 0 ? -0.035 * yd : Math.min(0.02, -0.01 * yd));
     const step = ROLES.indexOf(ask.role) - ROLES.indexOf(c.offered); tol += add('Role', step > 0 ? -0.11 * step - (step >= 2 ? 0.08 : 0) : Math.min(0.05, -0.025 * step));
-    const ceil = Math.min(c.maxSal, c.fair * (1 + tol)), p = c.closed ? 0 : clamp(sig((ceil - ask.salary) / (0.065 * c.fair)), 0.01, 0.99);
+    const ceil = c.fair * (1 + tol), p = c.closed ? 0 : clamp(sig((ceil - ask.salary) / (0.065 * c.fair)), 0.01, 0.99);   // (not capped at the max contract: a club that offered the max is not 50-50 on it)
     return { p, ceil: r1(ceil), parts, step };
   }
   function checkAsk(c, ask) {
@@ -4206,7 +4305,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     c.attempts++;
     if (roll < o.p) return sign(st, c, ask);
     if (o.p >= 0.15 && c.attempts < 3) {
-      const counter = { salary: r1(Math.max(c.minSal, Math.min(ask.salary, o.ceil * 0.985))), years: Math.min(ask.years, c.pref + 1), role: o.step > 0 ? c.offered : ask.role };
+      const counter = { salary: r1(Math.max(c.minSal, Math.min(ask.salary, c.maxSal, o.ceil * 0.985))), years: Math.min(ask.years, c.pref + 1), role: o.step > 0 ? c.offered : ask.role };
       c.counter = counter; c.msg = 'The ' + nick + ' came back with a counter: ' + counter.years + ' year' + (counter.years > 1 ? 's' : '') + ' at $' + counter.salary + 'M as a ' + counter.role.toLowerCase() + '.';
       return { ok: false, counter };
     }
@@ -4377,7 +4476,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v56';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v57';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -5042,6 +5141,28 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const wrap = h('div', { class: 'dash mt-' + mTab }, h('div', { class: 'dtop' }, hero, quick, mtabs, telemetry), playoffPanel, h('div', { class: 'dmid' }, stream, averages, defense), planPanel);
     return wrap;
   }
+  // click any player's name for his career page: who he is, his awards and every season on record (the record starts with this save)
+  function plink(id, name) {
+    if (id == null || id === 'user' || !S || !S.league || !S.league.players[id]) return name;
+    return h('button', { class: 'plink', onclick: (e) => { e.stopPropagation(); showPlayer(id); } }, name);
+  }
+  function showPlayer(id) {
+    const L = S.league, q = L.players[id]; if (!q) return;
+    const t = L.teams[q.teamId], hist = (q.hist || []).slice().reverse(), aw = q.awd || {};
+    const tm = (tid) => (L.teams[tid] ? L.teams[tid].nick : '');
+    const tot = hist.reduce((a, r) => { a.gp += r[3]; ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k, i) => { a[k] += r[4 + i] * r[3]; }); return a; }, { gp: 0, pts: 0, reb: 0, ast: 0, stl: 0, blk: 0 });
+    const avg = (k) => (tot.gp ? (tot[k] / tot.gp / 10).toFixed(1) : '–');
+    const pills = Object.keys(aw).sort((a, b) => aw[b] - aw[a]).map((k) => h('span', { class: 'badge' }, (aw[k] > 1 ? aw[k] + '× ' : '') + k));
+    const body = h('div', null,
+      h('div', { class: 'row', style: 'margin:8px 0' }, t ? logo(t.nick, 44) : null, h('div', null, h('b', null, q.pos + ' · age ' + q.age + (t ? ' · ' + t.name : '')), h('div', { class: 'small muted' }, Math.round(NBA.ovr(q)) + ' OVR' + (sizeTxt(q) ? ' · ' + sizeTxt(q) : '') + ' · ' + (q.yearsPro || 0) + ' year' + (q.yearsPro === 1 ? '' : 's') + ' pro' + (q.draftSlot ? ' · drafted #' + q.draftSlot : '')))),
+      pills.length ? h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px;margin:8px 0' }, pills) : h('p', { class: 'small muted' }, 'No awards on record yet.'),
+      hist.length ? h('div', { class: 'scroll' }, h('table', { class: 'st' }, h('thead', null, h('tr', null, ['Season', 'Age', 'Team', 'GP', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'OVR'].map((x, i) => h('th', { class: i < 3 ? 'l' : '' }, x)))),
+        h('tbody', null, hist.map((r) => h('tr', null, h('td', { class: 'l' }, NBA.seasonLabel(r[0]) + (r[10] ? ' ~' : '')), h('td', { class: 'l' }, r[1]), h('td', { class: 'l' }, r[10] ? '—' : tm(r[2])), h('td', null, r[3]), h('td', null, (r[4] / 10).toFixed(1)), h('td', null, (r[5] / 10).toFixed(1)), h('td', null, (r[6] / 10).toFixed(1)), h('td', null, (r[7] / 10).toFixed(1)), h('td', null, (r[8] / 10).toFixed(1)), h('td', null, r[9])))),
+          h('tfoot', null, h('tr', { class: 'me' }, h('td', { class: 'l', colspan: 3 }, 'On record'), h('td', null, tot.gp), h('td', null, avg('pts')), h('td', null, avg('reb')), h('td', null, avg('ast')), h('td', null, avg('stl')), h('td', null, avg('blk')), h('td', null, ''))))) : h('p', { class: 'muted' }, 'No seasons on record yet.'),
+      hist.some((r) => r[10]) ? h('p', { class: 'small muted' }, '~ Seasons before this save are estimates rebuilt from his current game; real records start with this save.') : null,
+      h('h3', null, 'Ratings'), attrBars(q));
+    showModal(q.name, body);
+  }
   function showModal(title, body) {
     const m = document.getElementById('modal'); m.classList.remove('hidden');
     m.replaceChildren(h('div', { class: 'box' }, h('div', { class: 'row' }, h('h2', { style: 'margin:0' }, title), h('span', { class: 'spacer' }), h('button', { onclick: () => m.classList.add('hidden') }, 'Close ✕')), body));
@@ -5060,7 +5181,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   const rosterRole = (r) => (r.me ? 'You' : r.mins >= 24 ? 'Starter' : r.mins >= 14 ? 'Rotation' : 'Bench');
   function rosterTable(rows) {
     return h('div', { class: 'scroll' }, h('table', { class: 'st roster' }, h('thead', null, h('tr', null, ['Player', 'Role', 'OVR', 'GP', 'MPG', 'PPG', 'RPG', 'APG', 'STL', 'BLK', 'RTG'].map((x, i) => h('th', { class: i < 2 ? 'l' : '' }, x)))),
-      h('tbody', null, rows.map((r) => h('tr', { class: r.me ? 'me' : '' }, h('td', { class: 'l' }, h('b', null, r.name), h('div', { class: 'small muted' }, r.pos + ' · age ' + r.age + (r.sz ? ' · ' + r.sz : ''))), h('td', { class: 'l muted' }, rosterRole(r)), h('td', null, r.ovr), h('td', null, r.gp), h('td', null, r.mins ? r.mins.toFixed(1) : '–'), h('td', null, r.line.pts.toFixed(1)), h('td', null, r.line.reb.toFixed(1)), h('td', null, r.line.ast.toFixed(1)), h('td', null, r.line.stl.toFixed(1)), h('td', null, r.line.blk.toFixed(1)), h('td', null, r.rating ? ratingBadge(r.rating, 1) : '–'))))));
+      h('tbody', null, rows.map((r) => h('tr', { class: r.me ? 'me' : '' }, h('td', { class: 'l' }, h('b', null, r.me ? r.name : plink(r.id, r.name)), h('div', { class: 'small muted' }, r.pos + ' · age ' + r.age + (r.sz ? ' · ' + r.sz : ''))), h('td', { class: 'l muted' }, rosterRole(r)), h('td', null, r.ovr), h('td', null, r.gp), h('td', null, r.mins ? r.mins.toFixed(1) : '–'), h('td', null, r.line.pts.toFixed(1)), h('td', null, r.line.reb.toFixed(1)), h('td', null, r.line.ast.toFixed(1)), h('td', null, r.line.stl.toFixed(1)), h('td', null, r.line.blk.toFixed(1)), h('td', null, r.rating ? ratingBadge(r.rating, 1) : '–'))))));
   }
   // season-by-season results of a team (this year is hidden until the season has been played out)
   function histPanel(t, hideYear) {
@@ -5101,7 +5222,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const rows = Object.values(L.players).filter((q) => q.teamId === t.id).map((q) => {
       const id = q.id, l = L.lines[id]; if (!l) return null;
       const line = { pts: bridge(l.pts, id * 3 + 1), reb: bridge(l.reb, id * 3 + 2), ast: bridge(l.ast, id * 3 + 3), stl: l.stl, blk: l.blk, tov: l.tov, ts: l.ts };
-      return { name: q.name, pos: q.pos, sz: sizeTxt(q), age: q.age, ovr: Math.round(NBA.ovr(q)), mins: l.mins, gp: Math.round(l.gp * prog), line, rating: rate(line, l.mins) };
+      return { id: q.id, name: q.name, pos: q.pos, sz: sizeTxt(q), age: q.age, ovr: Math.round(NBA.ovr(q)), mins: l.mins, gp: Math.round(l.gp * prog), line, rating: rate(line, l.mins) };
     }).filter(Boolean);
     // you: games so far this season (or last season when the season is over)
     const shown = items.slice(0, idx), { t: T, av: A, g: gl } = seasonTotals(shown), last = S.proSeasons[S.proSeasons.length - 1];
@@ -5129,7 +5250,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
         h('div', { class: 'kpis', style: 'margin:0' }, tile('hot', 'Record', wins + '-' + losses, (t.conf === 'W' ? 'Western' : 'Eastern') + ' Conf.'), tile('', 'Teammate OVR', avgOvr ? avgOvr.toFixed(0) : '–', 'avg of the top 8'), h('div', { class: 'kpi ink' }, h('div', { class: 'k-lbl' }, 'Teammate rating'), avgRate ? ratingBadge(avgRate, 2) : h('div', { class: 'k-val' }, '–'), h('div', { class: 'k-sub' }, 'minutes-weighted')), tile('', 'Your scoring share', me && teamPts ? Math.round(100 * me.line.pts / teamPts) + '%' : '–', best ? 'Best teammate: ' + best.name.split(' ').slice(-1)[0] + ' (' + best.ovr + ')' : ' '))),
       h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '☰'), h('h2', null, 'Roster'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, rows.length + ' players')),
         h('div', { class: 'scroll' }, h('table', { class: 'st roster' }, h('thead', null, h('tr', null, ['Player', 'Role', 'OVR', 'GP', 'MPG', 'PPG', 'RPG', 'APG', 'STL', 'BLK', 'RTG'].map((x, i) => h('th', { class: i < 2 ? 'l' : '' }, x)))),
-          h('tbody', null, rows.map((r) => h('tr', { class: r.me ? 'me' : '' }, h('td', { class: 'l' }, h('b', null, r.name), h('div', { class: 'small muted' }, r.pos + ' · age ' + r.age + (r.sz ? ' · ' + r.sz : ''))), h('td', { class: 'l muted' }, role(r)), h('td', null, r.ovr), h('td', null, r.gp), h('td', null, r.mins ? r.mins.toFixed(1) : '–'), h('td', null, r.line.pts.toFixed(1)), h('td', null, r.line.reb.toFixed(1)), h('td', null, r.line.ast.toFixed(1)), h('td', null, r.line.stl.toFixed(1)), h('td', null, r.line.blk.toFixed(1)), h('td', null, r.rating ? ratingBadge(r.rating, 1) : '–')))))),
+          h('tbody', null, rows.map((r) => h('tr', { class: r.me ? 'me' : '' }, h('td', { class: 'l' }, h('b', null, r.me ? r.name : plink(r.id, r.name)), h('div', { class: 'small muted' }, r.pos + ' · age ' + r.age + (r.sz ? ' · ' + r.sz : ''))), h('td', { class: 'l muted' }, role(r)), h('td', null, r.ovr), h('td', null, r.gp), h('td', null, r.mins ? r.mins.toFixed(1) : '–'), h('td', null, r.line.pts.toFixed(1)), h('td', null, r.line.reb.toFixed(1)), h('td', null, r.line.ast.toFixed(1)), h('td', null, r.line.stl.toFixed(1)), h('td', null, r.line.blk.toFixed(1)), h('td', null, r.rating ? ratingBadge(r.rating, 1) : '–')))))),
         h('p', { class: 'small muted', style: 'margin-top:10px' }, 'Teammate ratings are the match rating of their average line. Yours is the real average of your games.')),
       h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '◷'), h('h2', null, 'Recent results'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, wins + '-' + losses)), recentResults(inSeason ? items.slice(0, idx) : items)),
       histPanel(t, inSeason ? L.year : null));
@@ -5161,12 +5282,12 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     let leadCards;
     if (live) {
       leadCards = N < 10 ? [h('p', { class: 'muted' }, 'Leaders appear after 10 games.')] : keys.map(([k, name, unit], ki) => {
-        const list = (snap.leadersO[k] || []).map((x, i) => ({ name: x.name, team: x.team, v2: bridge(x.v, ki * 9 + i) }));
-        list.push({ name: S.player.name, team: userNick, v2: userAvg[k], isUser: true });
+        const list = (snap.leadersO[k] || []).map((x, i) => ({ id: x.id, name: x.name, team: x.team, v2: bridge(x.v, ki * 9 + i) }));
+        list.push({ id: 'user', name: S.player.name, team: userNick, v2: userAvg[k], isUser: true });
         list.sort((a, b) => b.v2 - a.v2);
-        return h('div', { class: 'well' }, h('div', { class: 'small caps muted' }, name + ' · ' + unit), list.slice(0, 5).map((x, i) => h('div', { class: 'rank-row' + (x.isUser ? ' me' : '') }, h('span', { class: 'n' }, i + 1), h('span', null, x.name, h('em', null, ' ' + ab(x.team))), h('b', null, x.v2.toFixed(1)))), list.slice(0, 5).some((x) => x.isUser) ? null : h('div', { class: 'small muted', style: 'margin-top:6px' }, 'You: ' + userAvg[k].toFixed(1)));
+        return h('div', { class: 'well' }, h('div', { class: 'small caps muted' }, name + ' · ' + unit), list.slice(0, 5).map((x, i) => h('div', { class: 'rank-row' + (x.isUser ? ' me' : '') }, h('span', { class: 'n' }, i + 1), h('span', null, plink(x.id, x.name), h('em', null, ' ' + ab(x.team))), h('b', null, x.v2.toFixed(1)))), list.slice(0, 5).some((x) => x.isUser) ? null : h('div', { class: 'small muted', style: 'margin-top:6px' }, 'You: ' + userAvg[k].toFixed(1)));
       });
-    } else leadCards = leaders ? keys.map(([k, name, unit]) => h('div', { class: 'well' }, h('div', { class: 'small caps muted' }, name + ' · ' + unit), (leaders[k] || []).slice(0, 5).map((x, i) => h('div', { class: 'rank-row' + (x.isUser ? ' me' : '') }, h('span', { class: 'n' }, i + 1), h('span', null, x.name, h('em', null, ' ' + ab(x.team))), h('b', null, x.v.toFixed(1)))))) : [h('p', { class: 'muted' }, 'Leaders show up once a season has been played.')];
+    } else leadCards = leaders ? keys.map(([k, name, unit]) => h('div', { class: 'well' }, h('div', { class: 'small caps muted' }, name + ' · ' + unit), (leaders[k] || []).slice(0, 5).map((x, i) => h('div', { class: 'rank-row' + (x.isUser ? ' me' : '') }, h('span', { class: 'n' }, i + 1), h('span', null, plink(x.id, x.name), h('em', null, ' ' + ab(x.team))), h('b', null, x.v.toFixed(1)))))) : [h('p', { class: 'muted' }, 'Leaders show up once a season has been played.')];
     const raceKeys = [['mvp', 'MVP'], ['dpoy', 'DPOY'], ['roy', 'ROY'], ['mip', 'MIP']];
     let raceBody;
     if (live) {
@@ -5175,13 +5296,13 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       const idxOf = (c) => (leagueRace === 'dpoy' ? 4 * c.blk + 3.5 * c.stl + 0.12 * (c.da || 70) + 0.12 * (c.pace - 41) : leagueRace === 'mvp' ? 0.318 * c.perf + 0.294 * c.pace + 0.068 * c.pts : c.perf + 0.1 * (c.pace - 41));
       if (N < 15) raceBody = h('p', { class: 'muted' }, 'The ladder opens after 15 games.');
       else {
-        const list = ((snap.raceO || {})[leagueRace] || []).map((x, i) => { const c = { name: x.name, team: x.team, pts: bridge(x.pts, 60 + i), reb: bridge(x.reb, 70 + i), ast: bridge(x.ast, 80 + i), stl: bridge(x.stl, 90 + i), blk: bridge(x.blk, 100 + i), perf: bridge(x.perf || 0, 110 + i), da: x.da }; c.pace = pace(x.team); return c; });
+        const list = ((snap.raceO || {})[leagueRace] || []).map((x, i) => { const c = { id: x.id, name: x.name, team: x.team, pts: bridge(x.pts, 60 + i), reb: bridge(x.reb, 70 + i), ast: bridge(x.ast, 80 + i), stl: bridge(x.stl, 90 + i), blk: bridge(x.blk, 100 + i), perf: bridge(x.perf || 0, 110 + i), da: x.da }; c.pace = pace(x.team); return c; });
         const missed = items.slice(0, idx).filter((x) => x.k === 'g' && !x.po && x.dnp).length, uPace = pace(userNick);
         const gpOk = missed <= 17, winsOk = true;  // same eligibility as the final vote: 65+ games played (there is no minimum for team wins)
         const elig = (leagueRace === 'mvp' || leagueRace === 'dpoy' || (leagueRace === 'roy' && S.pre && S.pre.rookie)) && gpOk && winsOk;
         const uTov = tot.av.to, uTs = tot.t.fga ? tot.av.pt / (2 * (tot.av.fga + 0.44 * tot.av.fta)) : 0.55;
         const uPerf = NBA.perfOf({ pts: userAvg.pts, reb: userAvg.reb, ast: userAvg.ast, stl: userAvg.stl, blk: userAvg.blk, tov: uTov, ts: uTs });
-        if (elig) list.push({ name: S.player.name, team: userNick, pts: userAvg.pts, reb: userAvg.reb, ast: userAvg.ast, stl: userAvg.stl, blk: userAvg.blk, perf: uPerf, recent: S.player.mvpRecent || 0, pace: uPace, isUser: true, da: Math.max(S.player.attrs.rimP, S.player.attrs.perD) });
+        if (elig) list.push({ id: 'user', name: S.player.name, team: userNick, pts: userAvg.pts, reb: userAvg.reb, ast: userAvg.ast, stl: userAvg.stl, blk: userAvg.blk, perf: uPerf, recent: S.player.mvpRecent || 0, pace: uPace, isUser: true, da: Math.max(S.player.attrs.rimP, S.player.attrs.perD) });
         list.forEach((c) => (c.ix = idxOf(c))); list.sort((a, b) => b.ix - a.ix);
         // what the media says: four made-up outlets with their own habits (numbers, winning, highlights, fan buzz) each file a ballot; the consensus adds them up (these are opinions, not the vote)
         const pool = list.slice(0, 10), zs = (f) => { const v = pool.map(f), m = v.reduce((p, q) => p + q, 0) / (v.length || 1), sd = Math.sqrt(v.reduce((p, q) => p + (q - m) * (q - m), 0) / (v.length || 1)) || 1; return v.map((x) => (x - m) / sd); };
@@ -5191,10 +5312,10 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
         const ballots = OUT.map((o) => ({ name: o[0], lens: o[1], rank: pool.map((c, i) => ({ c, s: o[2] * zi[i] + o[3] * zt[i] + o[4] * zb[i] + o[5] * hn(o[0] + c.name + nb + leagueRace) })).sort((x, y) => y.s - x.s).map((x) => x.c) }));
         const pts = new Map(), firsts = new Map(); ballots.forEach((bl) => bl.rank.slice(0, 5).forEach((c, i) => { pts.set(c, (pts.get(c) || 0) + 5 - i); if (!i) firsts.set(c, (firsts.get(c) || 0) + 1); }));
         const cons = Array.from(pts.keys()).sort((x, y) => pts.get(y) - pts.get(x) || y.ix - x.ix).slice(0, 5), mx = Math.max(1, ...cons.map((c) => pts.get(c)));
-        const nm = (c) => (c.isUser ? h('b', null, c.name) : c.name);
+        const nm = (c) => (c.isUser ? h('b', null, c.name) : plink(c.id, c.name));
         raceBody = [h('p', { class: 'small muted' }, 'What the media says as of game ' + N + '. Simulated ballots from five outlets, each with its own habits, and the consensus adds them up: opinions, not the vote.' + (leagueRace === 'dpoy' ? ' Voters weigh blocks and steals, defensive ratings and team record.' : '')),
           h('div', { class: 'cap2', style: 'margin:6px 0' }, 'Consensus'),
-          cons.map((x, i) => h('div', { class: 'race' + (x.isUser ? ' me' : '') }, h('div', { class: 'row' }, h('span', { class: 'n' }, i + 1), h('b', null, x.name), h('em', null, ab(x.team)), h('span', { class: 'spacer' }), h('span', { class: 'small muted' }, rec(x.team))), h('div', { class: 'bar2' }, h('i', { style: 'width:' + Math.round(100 * pts.get(x) / mx) + '%' })), h('div', { class: 'small muted' }, (firsts.get(x) ? 'Picked first by ' + firsts.get(x) + ' of ' + OUT.length + ' outlets · ' : 'On ' + ballots.filter((bl) => bl.rank.slice(0, 5).includes(x)).length + ' of ' + OUT.length + ' ballots · ') + x.pts.toFixed(1) + ' pts · ' + x.reb.toFixed(1) + ' reb · ' + x.ast.toFixed(1) + ' ast' + (leagueRace === 'dpoy' ? ' · ' + x.stl.toFixed(1) + ' stl · ' + x.blk.toFixed(1) + ' blk' : '')))),
+          cons.map((x, i) => h('div', { class: 'race' + (x.isUser ? ' me' : '') }, h('div', { class: 'row' }, h('span', { class: 'n' }, i + 1), h('b', null, plink(x.id, x.name)), h('em', null, ab(x.team)), h('span', { class: 'spacer' }), h('span', { class: 'small muted' }, rec(x.team))), h('div', { class: 'bar2' }, h('i', { style: 'width:' + Math.round(100 * pts.get(x) / mx) + '%' })), h('div', { class: 'small muted' }, (firsts.get(x) ? 'Picked first by ' + firsts.get(x) + ' of ' + OUT.length + ' outlets · ' : 'On ' + ballots.filter((bl) => bl.rank.slice(0, 5).includes(x)).length + ' of ' + OUT.length + ' ballots · ') + x.pts.toFixed(1) + ' pts · ' + x.reb.toFixed(1) + ' reb · ' + x.ast.toFixed(1) + ' ast' + (leagueRace === 'dpoy' ? ' · ' + x.stl.toFixed(1) + ' stl · ' + x.blk.toFixed(1) + ' blk' : '')))),
           h('div', { class: 'cap2', style: 'margin:12px 0 6px' }, 'The ballots'),
           ballots.map((bl) => h('div', { class: 'small', style: 'margin:4px 0' }, h('b', null, bl.name), h('span', { class: 'muted' }, ' (' + bl.lens + '): '), bl.rank.slice(0, 3).map((c, i) => [i ? ' › ' : '', nm(c)]))),
           cons.some((x) => x.isUser) ? null : h('p', { class: 'small muted', style: 'margin-top:8px' }, elig ? 'The media does not have you in the top 5 for now.' : !gpOk ? 'You have missed ' + missed + ' games: 65 played are needed to qualify.' : 'Not eligible for this award.')];
@@ -5205,7 +5326,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       else {
         const list = (race[leagueRace] || []).slice().sort((a, b) => b.s - a.s);
         const ex = list.map((x) => Math.exp(x.s / 7)), tot2 = ex.reduce((a, b) => a + b, 0) || 1;
-        raceBody = list.length ? list.map((x, i) => h('div', { class: 'race' + (x.isUser ? ' me' : '') }, h('div', { class: 'row' }, h('span', { class: 'n' }, i + 1), h('b', null, x.name), h('em', null, ab(x.team)), h('span', { class: 'spacer' }), h('b', null, Math.round(100 * ex[i] / tot2) + '%')), h('div', { class: 'bar2' }, h('i', { style: 'width:' + Math.round(100 * ex[i] / tot2) + '%' })), h('div', { class: 'small muted' }, x.pts.toFixed(1) + ' pts · ' + x.reb.toFixed(1) + ' reb · ' + x.ast.toFixed(1) + ' ast' + (leagueRace === 'dpoy' ? ' · ' + x.stl.toFixed(1) + ' stl · ' + x.blk.toFixed(1) + ' blk' : '') + ' · ' + x.wins + ' team wins'))) : h('p', { class: 'muted' }, 'No candidates this year.');
+        raceBody = list.length ? list.map((x, i) => h('div', { class: 'race' + (x.isUser ? ' me' : '') }, h('div', { class: 'row' }, h('span', { class: 'n' }, i + 1), h('b', null, plink(x.id, x.name)), h('em', null, ab(x.team)), h('span', { class: 'spacer' }), h('b', null, Math.round(100 * ex[i] / tot2) + '%')), h('div', { class: 'bar2' }, h('i', { style: 'width:' + Math.round(100 * ex[i] / tot2) + '%' })), h('div', { class: 'small muted' }, x.pts.toFixed(1) + ' pts · ' + x.reb.toFixed(1) + ' reb · ' + x.ast.toFixed(1) + ' ast' + (leagueRace === 'dpoy' ? ' · ' + x.stl.toFixed(1) + ' stl · ' + x.blk.toFixed(1) + ' blk' : '') + ' · ' + x.wins + ' team wins'))) : h('p', { class: 'muted' }, 'No candidates this year.');
         if (list.length && !list.some((x) => x.isUser)) { const rr = S.proSeasons[S.proSeasons.length - 1]; raceBody = [raceBody, h('p', { class: 'small muted', style: 'margin-top:8px' }, rr && rr.gp < 65 ? 'You were not in this race: you played ' + rr.gp + ' games and 65 are needed to qualify.' : 'You were not in this race.')]; }
       }
     }
@@ -5281,7 +5402,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       ask.salary = Math.min(c.maxSal, Math.max(c.minSal, +sal.value || c.minSal)); ask.years = +yrs.value; ask.role = rl.value;
       const r = G.negOdds(S, o.teamId, ask), p = r.p;
       fill.setAttribute('stroke', 'hsl(' + Math.round(p * 120) + ',70%,55%)'); fill.setAttribute('stroke-dasharray', (p * LEN).toFixed(1) + ' ' + LEN.toFixed(1)); txt.textContent = Math.round(p * 100) + '%';
-      why.textContent = 'They would go up to about ' + money(r.ceil) + ' for these terms. ' + r.parts.filter((x) => Math.abs(x.v) >= 0.02).map((x) => x.label + ' ' + (x.v > 0 ? '+' : '−') + Math.round(Math.abs(x.v) * 100) + '%').join(' · ');
+      why.textContent = 'They would go up to about ' + money(Math.min(r.ceil, c.maxSal)) + ' for these terms. ' + r.parts.filter((x) => Math.abs(x.v) >= 0.02).map((x) => x.label + ' ' + (x.v > 0 ? '+' : '−') + Math.round(Math.abs(x.v) * 100) + '%').join(' · ');
     };
     sal.oninput = () => { rng.value = sal.value; upd(); }; rng.oninput = () => { sal.value = rng.value; upd(); }; yrs.onchange = upd; rl.onchange = upd; upd();
     const body = c.counter
@@ -5297,7 +5418,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const out = [h('h1', null, 'Offseason: what now?'), h('p', { class: 'muted' }, 'Age ' + d.age + ' · OVR ' + d.ovr + ' · ' + d.team + ' · market value ~' + money(d.marketSalary) + ' (cap ' + money(d.cap) + ')')];
     { const dd = S.dec, rv = dd && dd.rival, rq = rv && S.league.players[rv.id];
       if (rv && rq) { const tm = S.league.teams[rq.teamId], g = (S.matchLog || []).filter((x) => x.k === 'g' && !x.po && !x.dnp && tm && x.o === tm.nick), w = g.filter((x) => x.w).length;
-        out.push(h('div', { class: 'card' }, h('div', { class: 'row' }, tm ? logo(tm.nick, 36) : null, h('div', null, h('b', null, '🔥 Your rival: ' + rv.name), h('div', { class: 'small muted' }, (tm ? tm.name + ' · ' : '') + Math.round(NBA.ovr(rq)) + ' OVR · rivals since ' + rv.since + (g.length ? ' · you went ' + w + '-' + (g.length - w) + ' against his team this year' : '')))))); } }
+        out.push(h('div', { class: 'card' }, h('div', { class: 'row' }, tm ? logo(tm.nick, 36) : null, h('div', null, h('b', null, '🔥 Your rival: ', plink(rv.id, rv.name)), h('div', { class: 'small muted' }, (tm ? tm.name + ' · ' : '') + Math.round(NBA.ovr(rq)) + ' OVR · rivals since ' + rv.since + (g.length ? ' · you went ' + w + '-' + (g.length - w) + ' against his team this year' : '')))))); } }
     if (d.farewell && !d.mustRetire && !S.farewellOverride) {
       out.push(h('div', { class: 'callout' }, 'Your farewell season is over. You told the world this was the last one.'),
         h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { G.retire(S); S.decision = null; go(); } }, 'Retire, as promised'), confirmBtn('Play another year anyway', 'danger', () => { S.farewellOverride = true; render(); })),
@@ -5314,7 +5435,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
         out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🏋️ Workout invites'),
           h('p', { class: 'small muted' }, 'Other players want to work out with you this summer. Each yes is a summer of real work (and a bond), but the second one wears you down, and nobody is only ever being nice.'),
           h('div', { class: 'wkgrid' }, inv.list.map((m) => h('div', { class: 'wkcard mcard' + (m.state === 'yes' ? ' done t3' : m.state === 'no' ? ' done t0' : '') },
-            h('div', { class: 'row' }, logo(m.team, 40), h('div', null, h('b', null, m.name), h('div', { class: 'small muted' }, m.pos + ' · ' + m.age + ' · ' + m.team + ' · ' + m.ovr + ' OVR'))),
+            h('div', { class: 'row' }, logo(m.team, 40), h('div', null, h('b', null, plink(m.id, m.name)), h('div', { class: 'small muted' }, m.pos + ' · ' + m.age + ' · ' + m.team + ' · ' + m.ovr + ' OVR'))),
             h('div', { class: 'small', style: 'margin:8px 0' }, h('b', null, TL[m.type]), m.skill ? h('div', null, 'Wants to work on ' + DEC().SKILL_WORDS[m.skill] + ' (' + m.his + ' vs your ' + m.yours + ')') : h('div', null, 'You would be the teacher: it earns respect in the room.')),
             m.state ? h('div', { class: 'wkres' }, m.state === 'yes' ? 'You said yes' : 'You passed') : h('div', { class: 'row' }, h('button', { class: 'primary', onclick: answer(m.id, true) }, 'Work out together'), h('button', { onclick: answer(m.id, false) }, 'Pass'))))),
           inv.taken >= 2 ? h('p', { class: 'small bad' }, 'You are running on fumes: the second workout cost you.') : null));
@@ -5345,7 +5466,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       }
     } else if (!d.mustRetire) {
       out.push(h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('b', null, 'Stay with the ' + d.team), h('div', { class: 'small muted' }, 'Contract: ' + money(d.contract.salary) + ' · ' + d.contract.left + ' more year(s)')), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => done(G.decide(S, 'stay')) }, 'Stay'))),
-        h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('b', null, d.requested ? 'Trade request on file' : 'Ask for a trade'), h('div', { class: 'small muted' }, d.requested ? 'The front office is shopping you. They will report back at the deadline.' : 'File a request and let them shop you through the season. A request that goes nowhere costs you chemistry.')), h('span', { class: 'spacer' }), d.requested ? null : confirmBtn('File a request', '', () => done(G.decide(S, 'request'))))), h('h3', null, 'Demand a trade (pick a destination)'), d.tradeOptions.map((o) => h('div', { class: 'card' + (o.ok ? '' : ' off') }, h('div', { class: 'row' }, h('div', null, withLogo(o.name.split(' ').slice(-1)[0] === 'Blazers' ? 'Trail Blazers' : (D.TEAMS.find((x) => x.id === o.teamId) || {}).nick, 22, o.name), h('div', { class: 'small muted' }, o.label + ' (' + o.wins + ' wins last year) · you would be a ' + o.role), o.partner ? h('div', { class: 'small' }, 'They send back: ', h('b', null, o.partner.name), ' · ' + o.partner.pos + ' · age ' + o.partner.age + ' · ' + o.partner.ovr + ' OVR') : null, o.ok ? null : h('div', { class: 'small bad' }, '✖ ' + o.reason)), h('span', { class: 'spacer' }), o.ok ? h('button', { onclick: () => done(G.decide(S, 'trade', { teamId: o.teamId })) }, 'Request trade') : h('span', { class: 'badge' }, 'Rejected')))), h('p', { class: 'small muted' }, 'A trade is a swap: your club has to be willing to move you and get a comparable player back, and the other side has to agree. Franchise players on winning teams are not traded on request.'));
+        h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('b', null, d.requested ? 'Trade request on file' : 'Ask for a trade'), h('div', { class: 'small muted' }, d.requested ? 'The front office is shopping you. They will report back at the deadline.' : 'File a request and let them shop you through the season. A request that goes nowhere costs you chemistry.')), h('span', { class: 'spacer' }), d.requested ? null : confirmBtn('File a request', '', () => done(G.decide(S, 'request'))))), h('h3', null, 'Demand a trade (pick a destination)'), d.tradeOptions.map((o) => h('div', { class: 'card' + (o.ok ? '' : ' off') }, h('div', { class: 'row' }, h('div', null, withLogo(o.name.split(' ').slice(-1)[0] === 'Blazers' ? 'Trail Blazers' : (D.TEAMS.find((x) => x.id === o.teamId) || {}).nick, 22, o.name), h('div', { class: 'small muted' }, o.label + ' (' + o.wins + ' wins last year) · you would be a ' + o.role), o.partner ? h('div', { class: 'small' }, 'They send back: ', h('b', null, plink(o.partner.id, o.partner.name)), ' · ' + o.partner.pos + ' · age ' + o.partner.age + ' · ' + o.partner.ovr + ' OVR') : null, o.ok ? null : h('div', { class: 'small bad' }, '✖ ' + o.reason)), h('span', { class: 'spacer' }), o.ok ? h('button', { onclick: () => done(G.decide(S, 'trade', { teamId: o.teamId })) }, 'Request trade') : h('span', { class: 'badge' }, 'Rejected')))), h('p', { class: 'small muted' }, 'A trade is a swap: your club has to be willing to move you and get a comparable player back, and the other side has to agree. Franchise players on winning teams are not traded on request.'));
     }
     out.push(h('div', { class: 'row', style: 'margin-top:14px' }, confirmBtn('Retire from basketball', 'danger', () => { G.retire(S); S.decision = null; go(); })));
     return h('div', null, out);
@@ -5554,7 +5675,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const ask = (m) => { try { Dc.choose(S, 'ask', m.id); save(); render(); } catch (e) { console.error(e); } };
     const finish = (key, arg) => { try { Dc.choose(S, key, arg); S.stage = 'pro_ready'; go(); } catch (e) { console.error(e); } };
     const card = (m) => h('div', { class: 'wkcard mcard' + (m.asked === 'yes' ? ' done t3' : m.asked === 'no' ? ' done t0' : '') },
-      h('div', { class: 'row' }, logo(m.team, 44), h('div', null, h('b', null, m.name), h('div', { class: 'small muted' }, m.tierLabel + ' · ' + m.pos + ' · ' + m.age + ' · ' + m.team + ' · ' + m.ovr + ' OVR'))),
+      h('div', { class: 'row' }, logo(m.team, 44), h('div', null, h('b', null, plink(m.id, m.name)), h('div', { class: 'small muted' }, m.tierLabel + ' · ' + m.pos + ' · ' + m.age + ' · ' + m.team + ' · ' + m.ovr + ' OVR'))),
       h('div', { class: 'small', style: 'margin:8px 0' }, 'Teaches ' + m.skillLabel + ' (' + m.his + ' vs your ' + m.yours + ')'),
       m.asked ? h('div', { class: 'wkres' }, m.asked === 'yes' ? 'Said yes' : 'Turned you down') : h('div', { class: 'row' }, h('span', { class: 'vibe' }, m.vibe), h('span', { class: 'spacer' }), h('button', { disabled: v.asks <= 0 || done, onclick: () => ask(m) }, 'Ask')));
     return h('div', null, h('h1', null, 'Preseason camp · ' + NBA.seasonLabel(L.year)),
