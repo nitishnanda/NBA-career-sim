@@ -1077,7 +1077,8 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   function lineFromExp(p, e, gp, form) {
     const sh = 1 + T.formSd * randn();
     const ind = () => 1 + 0.035 * randn();
-    const l = { gp, mins: e.mins, pts: e.pts * sh * ind(), reb: e.reb * sh * ind(), ast: e.ast * sh * ind(), stl: e.stl * sh * ind(), blk: e.blk * sh * ind(), tov: e.tov, ts: e.ts, usg: e.usg };
+    const soft = (x) => (x <= 30 ? x : 30 + 0.75 * (x - 30));   // no one holds 33-36 a night for a decade: the very top is trimmed (nothing at or below 30 moves)
+    const l = { gp, mins: e.mins, pts: soft(e.pts * sh * ind()), reb: e.reb * sh * ind(), ast: e.ast * sh * ind(), stl: e.stl * sh * ind(), blk: e.blk * sh * ind(), tov: e.tov, ts: e.ts, usg: e.usg };
     l.perf = perfOf(l);
     return l;
   }
@@ -1309,7 +1310,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
         const p = e.p, r1 = (v) => Math.round(v * 10);
         if (!p.hist && (p.yearsPro || 0) >= 1) {   // first time on record: the seasons before this save are rebuilt from his present line, flagged as estimates
           const back = [], n = Math.min(4, p.yearsPro), up = p.age <= 26, old = p.age >= 30, idn = typeof p.id === 'number' ? p.id : 7;
-          for (let k = n; k >= 1; k--) { const f = clamp(up ? 1 - 0.07 * k : old ? 1 + 0.03 * k : 1 - 0.02 * k, 0.5, 1.25), gpk = 58 + ((idn * 37 + k * 13) % 23);
+          for (let k = n; k >= 1; k--) { const wob = 1 + 0.09 * Math.sin(idn * 12.9898 + k * 78.233), f = clamp((up ? 1 - 0.1 * k : old ? 1 + 0.04 * k : 1 - 0.03 * k) * wob, 0.45, 1.3), gpk = 52 + ((idn * 37 + k * 13) % 29);
             back.push([L.year - k, p.age - k, -1, gpk, r1(e.l.pts * f), r1(e.l.reb * f), r1(e.l.ast * f), r1(e.l.stl * f), r1(e.l.blk * f), Math.round(ovr(p) - (up ? 2.2 : old ? -1.2 : 0.5) * k), 1]); }
           p.hist = back;
         }
@@ -1911,6 +1912,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     if (rookie) s += slot && slot <= 3 ? 1.2 : slot && slot <= 10 ? 0.7 : slot && slot <= 20 ? 0.25 : 0;
     s += 0.4 * (m.pos === p.pos ? 1 : 0) + 0.45 * Math.min(2, relOf(st, m.id));
     if (m.age >= 34) s += 0.3;                                                    // veterans like handing it down
+    if (p.age >= 30 && !st.autoPlay) s += Math.min(0.8, 0.1 * (p.age - 28));                      // nobody turns down a veteran with a résumé out of hand
     return s;
   }
   function campMentors(st) {
@@ -1954,7 +1956,21 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     vet: ['"Come on over, I\'ll show you what took me ten years to learn."', '"Finally someone asks. Let\'s go."'],
     mate: ['"Sure, I was going to lift anyway."'],
   };
-  const lineFor = (st, m, tab, i) => { const a = tab[m.tier]; return a[Math.abs(hashStr(m.id + '|' + st.league.year + '|' + i)) % a.length]; };
+  // a veteran or a decorated player is not told to "prove yourself, kid": the same mentors answer with respect
+  const NO_ELDER = {
+    star: ['"It is an honor you asked. I just cannot do it this summer."', '"Honestly, I should be the one asking you. My summer is booked, sorry."', '"Respect. Next summer, maybe."'],
+    allstar: ['"You are a legend to me, but I am locked in on my own stuff this summer."', '"Respect. The timing is just bad this year."'],
+    vet: ['"I would feel strange teaching you anything. Not this summer."', '"My knees need the summer, and you do not need me."'],
+    mate: ['"Man I need a real break, hit me next summer."'],
+  };
+  const YES_ELDER = {
+    star: ['"It is an honor. Honestly, I should be learning from you."', '"Always wanted to work with you. Be in the gym at 6."'],
+    allstar: ['"You have been doing this longer than I have. Let us trade some ideas."', '"Of course. Come on over."'],
+    vet: ['"Always wanted to work with you. Let us go."', '"Two old heads in a gym. I love it."'],
+    mate: ['"Sure, I was going to lift anyway."'],
+  };
+  const isElder = (st) => { const p = st.player, a = st.career.awards || {}; return p.age >= 30 || (p.yearsPro || 0) >= 9 || (a['All-Star'] || 0) + 2 * (a['All-NBA'] || 0) + 3 * (a.MVP || 0) + 2 * (a.Championships || 0) >= 6; };
+  const lineFor = (st, m, tab, i) => { const elder = isElder(st), a = (elder ? (tab === NO_LINES ? NO_ELDER : tab === YES_LINES ? YES_ELDER : tab) : tab)[m.tier]; return a[Math.abs(hashStr(m.id + '|' + st.league.year + '|' + i)) % a.length]; };
 
   // The summer is a camp with room for up to three training partners. You can ask people (three asks: big names teach the most and say no the most), and other players invite you too
   // (a teammate, a star who has noticed you, a veteran, a young player, your rival). Every partner after the first gets less out of you and wears you down more.
@@ -4159,6 +4175,9 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   function marketPct(st) {
     const p = st.player;
     let v = ovr(p) - (p.age >= 33 ? 1.2 * (p.age - 32) : 0);
+    // what he just did on the floor counts as much as his rating: a 26-point season at 36 is not a player nobody wants
+    const last = st.proSeasons && st.proSeasons[st.proSeasons.length - 1];
+    if (last && last.gp >= 50 && last.perfRank) { const pv = 84 - 0.18 * last.perfRank - (p.age > 33 ? 0.5 * (p.age - 33) : 0); if (pv > v) v = pv; }
     const raw = marketCurve(v);
     const yrs = p.yearsPro;
     const maxPct = yrs >= 10 ? 0.35 : yrs >= 7 ? 0.3 : 0.25;
@@ -4503,7 +4522,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v60';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v61';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
