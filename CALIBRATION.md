@@ -725,3 +725,6 @@ Box-score gap vs real (25+ min, same points tier): sim stars average ~+1.7–2.8
 
 ## v48 — contract negotiation
 Expiring deals (own club and every market club) can be negotiated: you pick salary, years and role, a live dial shows the odds, and the answer is rolled (seeded per team/year/attempt) when you submit. Ceiling = fair offer × (1 + 8% + 32% desperation − 22% other options + 35%×(interest−0.5) + 18%×(cap room−0.4) − years beyond the club's preference − roles above what they see for you); odds = logistic around that ceiling. Counter-offers up to 3 rounds; absurd asks end the talks. Role has a small on-court effect (Franchise +3% minutes, Role player −5%). Trades never reopen a contract: the new club inherits it. Autopilot careers are untouched.
+
+## v49 — create-screen realism guard
+Size sliders were already clamped to the real NBA range per position; the screen now also explains height/wingspan/weight in plain words and shows a rarity bar for the whole body (joint 3-dof chi-square tail of the height, weight-for-height and wingspan z-scores: realistic / unusual / very rare / basically unrealistic, with "1 in N") plus a notice when a slider is at the edge of the real range.

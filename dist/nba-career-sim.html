@@ -295,6 +295,8 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 
 .negbox { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; margin-top: 10px; } .negdial { width: 190px; flex: 0 0 auto; } .negpct { fill: var(--text, #fff); font-size: 26px; font-weight: 700; } .negform { flex: 1 1 260px; display: grid; gap: 8px; } .negform input[type=number] { width: 100px; } .negform input[type=range] { flex: 1; }
 
+.szwarn { margin-top: 8px; padding: 8px 10px; border-radius: 10px; border-left: 3px solid #5fd58f; background: var(--well); } .szwarn.warm { border-color: #f2c14e; } .szwarn.bad { border-color: #ff8b6b; }
+
 </style>
 <header id="top"><div class="brand"><span class="logo">🏀</span><div><b>NBA CAREER SIM</b><small>PRO CIRCUIT</small></div></div><nav id="nav"></nav><div id="who"></div></header>
 <main id="app"></main>
@@ -3976,7 +3978,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v48';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v49';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -4051,7 +4053,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     return draft.roll;
   }
   function sizeCard() {
-    const sz = D.SIZE[draft.pos], manual = draft.sizeMode === 'manual', note = h('div', { class: 'small muted' }), fx = h('div', { class: 'small' });
+    const sz = D.SIZE[draft.pos], manual = draft.sizeMode === 'manual', note = h('div', { class: 'small muted' }), fx = h('div', { class: 'small' }), warn = h('div', { class: 'szwarn small' });
     const val = () => h('b', { class: 'szv' });
     const v = { ht: val(), wt: val(), ws: val() };
     const show = () => {
@@ -4059,6 +4061,16 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       v.ht.textContent = NBA.fmtHt(m.ht); v.wt.textContent = m.wt + ' lb'; v.ws.textContent = NBA.fmtHt(m.ws);
       const pc = Math.round(100 * cdf(z.h));
       note.textContent = (pc >= 45 && pc <= 55 ? 'Right at the average height for a ' + draft.pos : (pc > 50 ? 'Taller than ' + pc : 'Shorter than ' + (100 - pc)) + '% of NBA ' + draft.pos + 's') + (z.w > 0.8 ? ', built heavy' : z.w < -0.8 ? ', built lean' : '') + (z.l > 0.8 ? ', with long arms.' : z.l < -0.8 ? ', with short arms.' : '.');
+      // how unusual is the whole body? raw z-scores (the displayed z is capped), joint tail of a 3-dof chi-square
+      const zh = (m.ht - sz.ht) / sz.sd, zw = (m.wt - NBA.wtAt(draft.pos, m.ht)) / sz.rsd, zl = (m.ws - m.ht - sz.arm) / sz.asd, x = zh * zh + zw * zw + zl * zl;
+      const erfc = (t) => { const a = Math.abs(t), k = 1 / (1 + 0.3275911 * a), y = k * (0.254829592 + k * (-0.284496736 + k * (1.421413741 + k * (-1.453152027 + k * 1.061405429)))) * Math.exp(-a * a); return t >= 0 ? y : 2 - y; };
+      const tail = Math.max(1e-4, erfc(Math.sqrt(x / 2)) + Math.sqrt((2 * x) / Math.PI) * Math.exp(-x / 2)), one = Math.round(1 / tail);
+      const lim = [];
+      if (manual) { if (m.ht <= sz.lo) lim.push('shortest'); if (m.ht >= sz.hi) lim.push('tallest'); if ((draft.wd || 0) <= Math.round(-2 * sz.rsd)) lim.push('lightest'); if ((draft.wd || 0) >= Math.round(2 * sz.rsd)) lim.push('heaviest'); if ((draft.wsd || 0) >= 5) lim.push('longest-armed'); if ((draft.wsd || 0) <= -(armOf(draft.pos) + 1)) lim.push('shortest-armed'); }
+      warn.className = 'szwarn small ' + (tail < 0.02 ? 'bad' : tail < 0.1 ? 'warm' : 'ok');
+      warn.textContent = (tail < 0.005 ? '🚫 Basically unrealistic: only about 1 in ' + one + ' NBA ' + draft.pos + 's would have this exact combination of height, weight and arms. Pull one of the sliders back if you want a believable player.'
+        : tail < 0.02 ? '⚠️ Very rare: about 1 in ' + one + ' NBA ' + draft.pos + 's look like this. It is possible, but scouts would call you a freak of nature.'
+        : tail < 0.1 ? 'Unusual but real: about 1 in ' + one + ' NBA ' + draft.pos + 's has a build like this.' : '✅ A realistic ' + draft.pos + ' body: plenty of NBA players look like this.') + (lim.length ? ' You are at the limit of the real NBA range (the ' + lim.join(', ') + ' ' + draft.pos + 's the league has had), so the sliders stop there.' : '');
       const up = [], dn = [];
       if (z.h > 0.6) { up.push('rebounding', 'rim protection'); dn.push('ball handling'); } else if (z.h < -0.6) { up.push('ball handling', 'quickness'); dn.push('rebounding', 'rim protection'); }
       if (z.w > 0.8) { up.push('strength inside'); dn.push('quickness'); } else if (z.w < -0.8) { up.push('quickness'); dn.push('strength inside'); }
@@ -4075,7 +4087,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const body = manual
       ? [slider('Height', sz.lo, sz.hi, mySize().ht, (x) => { draft.ht = x; }, 'Height', v.ht), slider('Weight', Math.round(-2 * sz.rsd), Math.round(2 * sz.rsd), draft.wd || 0, (x) => { draft.wd = x; }, 'Weight', v.wt), slider('Wingspan', -(armOf(draft.pos) + 1), 5, draft.wsd || 0, (x) => { draft.wsd = x; }, 'Wingspan', v.ws)]
       : [readout('Height', v.ht), readout('Weight', v.wt), readout('Wingspan', v.ws), h('div', { class: 'row', style: 'margin:6px 0' }, h('button', { class: 'tiny', onclick: () => { draft.roll = NBA.randomSize(draft.pos); render(); } }, '🎲 Re-roll'))];
-    return h('div', { class: 'szcard' }, h('h3', null, 'Height, weight & wingspan'), mode, ...body, note, fx);
+    return h('div', { class: 'szcard' }, h('h3', null, 'Height, weight & wingspan'), h('p', { class: 'small muted' }, 'New to this? Height is the listed height in shoes (6\'6\" = 78 inches). Wingspan is fingertip to fingertip: NBA players usually measure about 4 inches wider than they are tall, so a long wingspan is a plus. Weight is judged against players of your height. The sliders only go as far as real NBA players at your position, and the bar below tells you how rare your combination is.'), mode, ...body, note, warn, fx);
   }
   function screenCreate() {
     const regions = D.REGIONS;

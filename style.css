@@ -289,3 +289,5 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 .pressbox { width: 100%; box-sizing: border-box; margin-top: 8px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--well); color: inherit; font: inherit; resize: vertical; } .pressnote { margin-top: 8px; }
 
 .negbox { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; margin-top: 10px; } .negdial { width: 190px; flex: 0 0 auto; } .negpct { fill: var(--text, #fff); font-size: 26px; font-weight: 700; } .negform { flex: 1 1 260px; display: grid; gap: 8px; } .negform input[type=number] { width: 100px; } .negform input[type=range] { flex: 1; }
+
+.szwarn { margin-top: 8px; padding: 8px 10px; border-radius: 10px; border-left: 3px solid #5fd58f; background: var(--well); } .szwarn.warm { border-color: #f2c14e; } .szwarn.bad { border-color: #ff8b6b; }
