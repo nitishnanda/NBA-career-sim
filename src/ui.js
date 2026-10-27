@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v58';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v59';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -954,20 +954,7 @@
     }
     if (d.farewell && S.farewellOverride) out.push(h('div', { class: 'callout' }, 'You said this was your farewell. If you sign or stay, the fans, the media and the room will all notice, and it will cost you.'));
 
-    if (!d.mustRetire && !S.autoPlay) {
-      const inv = DEC().invites(S);
-      if (inv.list.length) {
-        const answer = (id, yes) => () => { try { DEC().answerInvite(S, id, yes); save(); render(); } catch (e) { console.error(e); } };
-        const TL = { star: 'A star has noticed you', vet: 'A veteran has something to hand down', mate: 'Your teammate wants a summer partner', young: 'A young player wants to learn from you', rival: 'Your rival wants you in his gym' };
-        out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🏋️ Workout invites'),
-          h('p', { class: 'small muted' }, 'Other players want to work out with you this summer. Each yes is a summer of real work (and a bond), but the second one wears you down, and nobody is only ever being nice.'),
-          h('div', { class: 'wkgrid' }, inv.list.map((m) => h('div', { class: 'wkcard mcard' + (m.state === 'yes' ? ' done t3' : m.state === 'no' ? ' done t0' : '') },
-            h('div', { class: 'row' }, logo(m.team, 40), h('div', null, h('b', null, plink(m.id, m.name)), h('div', { class: 'small muted' }, m.pos + ' · ' + m.age + ' · ' + m.team + ' · ' + m.ovr + ' OVR'))),
-            h('div', { class: 'small', style: 'margin:8px 0' }, h('b', null, TL[m.type]), m.skill ? h('div', null, 'Wants to work on ' + DEC().SKILL_WORDS[m.skill] + ' (' + m.his + ' vs your ' + m.yours + ')') : h('div', null, 'You would be the teacher: it earns respect in the room.')),
-            m.state ? h('div', { class: 'wkres' }, m.state === 'yes' ? 'You said yes' : 'You passed') : h('div', { class: 'row' }, h('button', { class: 'primary', onclick: answer(m.id, true) }, 'Work out together'), h('button', { onclick: answer(m.id, false) }, 'Pass'))))),
-          inv.taken >= 2 ? h('p', { class: 'small bad' }, 'You are running on fumes: the second workout cost you.') : null));
-      }
-    }    if (S.dec && S.dec.pending && S.dec.pending.id === 'late' && !d.mustRetire) { const v = DEC().view(S);
+    if (S.dec && S.dec.pending && S.dec.pending.id === 'late' && !d.mustRetire) { const v = DEC().view(S);
       out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, v.title), h('p', { class: 'small muted' }, v.text), S.dec.pending.log.length ? h('div', { class: 'jlog' }, S.dec.pending.log.map((x) => h('div', { class: 'jmsg ' + x.tone }, x.text))) : null,
         h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { onclick: () => { try { DEC().choose(S, o.key); save(); render(); } catch (e) { console.error(e); } } }, 'Choose'))))))); }
     if (d.mustRetire) out.push(h('div', { class: 'callout' }, d.farewell ? 'Your farewell season is over. The league gives you a standing ovation, and it is time to hang them up.' : 'No team has an offer for you and your body says it is time. This is the end of the road.'));
@@ -1197,20 +1184,27 @@
   }
   function screenCamp() {
     const Dc = DEC(); if (!S.dec || !S.dec.pending || S.dec.pending.id !== 'camp') { S.stage = 'pro_ready'; return screenProReady(); }
-    const v = Dc.view(S), p = S.player, L = S.league;
-    const done = !!v.taken, noAsks = v.asks <= 0, forced = noAsks && !done;
-    const ask = (m) => { try { Dc.choose(S, 'ask', m.id); save(); render(); } catch (e) { console.error(e); } };
+    const v = Dc.view(S), L = S.league;
+    const n = v.partners.length, full = n >= v.slots, noAsks = v.asks <= 0;
+    const act = (key, arg) => () => { try { Dc.choose(S, key, arg); save(); render(); } catch (e) { console.error(e); } };
     const finish = (key, arg) => { try { Dc.choose(S, key, arg); S.stage = 'pro_ready'; go(); } catch (e) { console.error(e); } };
     const card = (m) => h('div', { class: 'wkcard mcard' + (m.asked === 'yes' ? ' done t3' : m.asked === 'no' ? ' done t0' : '') },
       h('div', { class: 'row' }, logo(m.team, 44), h('div', null, h('b', null, plink(m.id, m.name)), h('div', { class: 'small muted' }, m.tierLabel + ' · ' + m.pos + ' · ' + m.age + ' · ' + m.team + ' · ' + m.ovr + ' OVR'))),
       h('div', { class: 'small', style: 'margin:8px 0' }, 'Teaches ' + m.skillLabel + ' (' + m.his + ' vs your ' + m.yours + ')'),
-      m.asked ? h('div', { class: 'wkres' }, m.asked === 'yes' ? 'Said yes' : 'Turned you down') : h('div', { class: 'row' }, h('span', { class: 'vibe' }, m.vibe), h('span', { class: 'spacer' }), h('button', { disabled: v.asks <= 0 || done, onclick: () => ask(m) }, 'Ask')));
+      m.asked ? h('div', { class: 'wkres' }, m.asked === 'yes' ? 'Said yes' : 'Turned you down') : h('div', { class: 'row' }, h('span', { class: 'vibe' }, m.vibe), h('span', { class: 'spacer' }), h('button', { disabled: noAsks || full, onclick: act('ask', m.id) }, 'Ask')));
+    const TL = { star: 'A star has noticed you', vet: 'A veteran has something to hand down', mate: 'Your teammate wants a summer partner', young: 'A young player wants to learn from you', rival: 'Your rival wants you in his gym' };
+    const icard = (m) => h('div', { class: 'wkcard mcard inv' + (m.state === 'yes' ? ' done t3' : m.state === 'no' ? ' done t0' : '') },
+      h('div', { class: 'row' }, logo(m.team, 44), h('div', null, h('b', null, plink(m.id, m.name)), h('div', { class: 'small muted' }, m.pos + ' · ' + m.age + ' · ' + m.team + ' · ' + m.ovr + ' OVR'))),
+      h('div', { class: 'small', style: 'margin:8px 0' }, h('b', null, TL[m.type]), m.skill ? h('div', null, 'Wants to work on ' + m.skillLabel + ' (' + m.his + ' vs your ' + m.yours + ')') : h('div', null, 'You would be the teacher: it earns respect in the room.')),
+      m.state ? h('div', { class: 'wkres' }, m.state === 'yes' ? 'You said yes' : 'You passed') : h('div', { class: 'row' }, h('button', { class: 'primary', disabled: full, onclick: act('accept', m.id) }, 'Train together'), h('button', { onclick: act('decline', m.id) }, 'Pass')));
+    const left = v.invites.filter((x) => !x.state).length;
     return h('div', null, h('h1', null, 'Preseason camp · ' + NBA.seasonLabel(L.year)),
-      h('p', { class: 'muted' }, 'Who do you want to train with this summer? You can ask ' + v.asks + ' more ' + (v.asks === 1 ? 'person' : 'people') + '. Big names teach the most and say no the most, and every no costs you summer time. Anyone you worked with before is more likely to say yes.'),
-      h('div', { class: 'card' }, h('div', { class: 'row' }, h('h2', { style: 'margin:0' }, done ? 'Camp is set' : v.asks + ' of 2 asks left'), h('span', { class: 'spacer' }), done ? h('button', { class: 'primary', onclick: () => finish('solo') }, 'Start the season →') : null),
+      h('p', { class: 'muted' }, 'Who do you want to train with this summer? Camp has room for ' + v.slots + ' partners. Ask people yourself (' + v.asks + ' ask' + (v.asks === 1 ? '' : 's') + ' left: big names teach the most and say no the most, and every no costs you summer time), or say yes to the players who invite you. Each extra partner gets less out of you and wears you down more.'),
+      h('div', { class: 'card' }, h('div', { class: 'row' }, h('h2', { style: 'margin:0' }, n ? n + ' of ' + v.slots + ' partners set' : 'No partners yet · ' + v.asks + ' asks left'), h('span', { class: 'spacer' }), n ? h('button', { class: 'primary', onclick: () => finish('solo') }, 'Start the season →') : null),
         v.log.length ? h('div', { class: 'jlog' }, v.log.map((x) => h('div', { class: 'jmsg ' + x.tone }, x.text))) : null,
-        h('div', { class: 'wkgrid' }, v.mentors.map(card))),
-      done ? null : h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, forced ? 'No mentor this summer: work on your own game' : 'Or work on your own game'),
+        v.invites.length ? h('div', null, h('h3', null, '📨 Players who want to train with you' + (left ? '' : ' · all answered')), h('div', { class: 'wkgrid' }, v.invites.map(icard))) : null,
+        h('h3', null, 'Ask someone yourself'), h('div', { class: 'wkgrid' }, v.mentors.map(card))),
+      n ? null : h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, noAsks && !left ? 'No partner this summer: work on your own game' : 'Or work on your own game'),
         h('p', { class: 'small muted' }, v.soloGain > 0 ? 'Guaranteed, but small: about +' + v.soloGain.toFixed(1) + ' on one skill. Each no from a mentor takes some of that away.' : 'Nobody wanted to work with you, and the summer is gone.'),
         h('div', { class: 'row', style: 'flex-wrap:wrap' }, v.soloGain > 0 ? v.solo.map((a) => h('button', { onclick: () => finish('solo', a.key) }, a.label + ' (' + a.v + ')')) : null, h('button', { onclick: () => finish('rest') }, v.soloGain > 0 ? 'Take the summer off' : 'Continue →'))));
   }

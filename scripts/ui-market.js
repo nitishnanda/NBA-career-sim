@@ -107,9 +107,7 @@ let PG = null;
   const fa0 = await page.evaluate(() => ({ neg: Array.from(document.querySelectorAll('button')).filter((b) => /^Negotiate$/.test(b.textContent)).length, vibes: document.querySelectorAll('.vibe').length, own: /want you back|letting you walk/.test(document.body.innerText) }));
   const okF0 = fa0.neg >= 6 && fa0.vibes >= 6 && fa0.own; console.log('FA market', okF0 ? 'OK' : 'MISMATCH', JSON.stringify(fa0)); if (!okF0) errors.push('FA market ' + JSON.stringify(fa0));
   await shot('21-free-agency');
-  { const iv = await page.evaluate(() => { const S = window.__NBA_UI.state, inv = window.NBA.Decisions.invites(S); return { n: inv.list.length, shown: /Workout invites/i.test(document.body.innerText), btns: Array.from(document.querySelectorAll('button')).filter((b) => /Work out together/.test(b.textContent)).length }; });
-    const okI = iv.n === 0 || (iv.shown && iv.btns === iv.n); console.log('INVITES card', okI ? 'OK' : 'MISMATCH', JSON.stringify(iv)); if (!okI) errors.push('INVITES ' + JSON.stringify(iv));
-    if (iv.n) { await page.click('button:has-text("Work out together") >> nth=0'); await page.waitForSelector('text=You said yes'); const j = await page.evaluate(() => window.__NBA_UI.state.dec.journal.slice(-1)[0]); const okJ = j && j.kind === 'invite'; console.log('INVITES accepted', okJ ? 'OK' : 'MISMATCH', JSON.stringify(j && j.text.slice(0, 90))); if (!okJ) errors.push('INVITES accept'); } }
+
   const sweep = await page.evaluate(() => { const S = window.__NBA_UI.state, G = window.NBA.Game, d = S.decision; return Object.values(d.neg).map((c) => ({ own: c.own, desp: +c.desp.toFixed(2), alts: +c.alts.toFixed(2), fair: c.fair, p100: Math.round(G.negOdds(S, c.teamId, { salary: c.fair, years: c.pref, role: c.offered }).p * 100), p115: Math.round(G.negOdds(S, c.teamId, { salary: Math.min(c.maxSal, c.fair * 1.15), years: c.pref, role: c.offered }).p * 100), p130: Math.round(G.negOdds(S, c.teamId, { salary: Math.min(c.maxSal, c.fair * 1.3), years: c.pref, role: c.offered }).p * 100) })); });
   console.log('NEG sweep', JSON.stringify(sweep));
   // the dial: asking for more lowers the odds, asking for the minimum raises them

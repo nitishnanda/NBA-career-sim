@@ -755,3 +755,6 @@ Player pages: click any player's name (leaders, award ballots, rosters, camp men
 
 ## v58 — no stats before a game is played
 Team rosters in the league tab showed the projected full-season line (and a rating) for players with 0 games played. Until a player has played, those cells now show dashes, and a 0-game player no longer counts in the team rating.
+
+## v59 — camp and invites are one thing
+The separate workout-invites card on the offseason page is gone: invitations now arrive inside the preseason camp. Camp has room for three training partners; you can ask people yourself (three asks) and say yes or no to the players who invite you (a teammate, a star, a veteran, a young player, your rival). Each extra partner gets less out of you (x1, x0.75, x0.5) and wears you down more (a couple of games for the second, a few more for the third). Autopilot careers ask at most two people and never see invites, so baseline stats are unchanged.

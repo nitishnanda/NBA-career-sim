@@ -107,20 +107,21 @@ let PG_DBG = null;
   let campN = 0;
   const campStep = async () => {
     await page.waitForSelector('h1:has-text("Preseason camp")'); campN++;
-    const c0 = await page.evaluate(() => ({ cards: document.querySelectorAll('.mcard').length, vibes: document.querySelectorAll('.mcard .vibe').length, asksLeft: (document.body.innerText.match(/(\d) of 2 asks left/i) || [])[1] }));
+    const c0 = await page.evaluate(() => ({ cards: document.querySelectorAll('.mcard:not(.inv)').length, vibes: document.querySelectorAll('.mcard .vibe').length, invites: document.querySelectorAll('.mcard.inv').length, asksLeft: (document.body.innerText.match(/(\d) asks left/i) || [])[1] }));
+    if (campN === 1 && c0.invites) { await page.click('.mcard.inv button:has-text("Train together") >> nth=0'); await page.waitForSelector('.mcard.inv.t3'); const hd = await page.evaluate(() => document.body.innerText); console.log('CAMP invite accepted', /1 of 3 partners set/i.test(hd) ? 'OK' : 'MISMATCH'); if (!/1 of 3 partners set/i.test(hd)) errors.push('CAMP invite'); }
     for (let k = 0; k < 2; k++) {
       const taken = await page.evaluate(() => !!document.querySelector('.mcard.t3'));
       if (taken) break;
-      const btns = await page.$$('.mcard button:not(.plink):not([disabled])'); if (!btns.length) break;
+      const btns = await page.$$('.mcard:not(.inv) button:not(.plink):not([disabled])'); if (!btns.length) break;
       await btns[btns.length - 1].click();   // the least famous mentor is the likeliest yes
     }
     const c1 = await page.evaluate(() => ({ said: document.querySelectorAll('.jmsg').length, yes: document.querySelectorAll('.mcard.t3').length, no: document.querySelectorAll('.mcard.t0').length }));
-    const okC = c0.cards >= 5 && c0.vibes === c0.cards && c0.asksLeft === '2' && c1.said === c1.yes + c1.no && c1.said >= 1;
+    const okC = c0.cards >= 5 && c0.vibes === c0.cards && c0.asksLeft === '3' && c1.said === c1.yes + c1.no && c1.said >= 1;
     if (campN === 1) { console.log('CAMP', okC ? 'OK' : 'MISMATCH', JSON.stringify({ c0, c1 })); if (!okC) errors.push('CAMP ' + JSON.stringify({ c0, c1 })); await shot('06a-camp'); }
     if (await page.$('button:has-text("Start the season")')) await page.click('button:has-text("Start the season")');
     else if (await page.$('.mcard.t3')) await page.click('button:has-text("Start the season")');
     else await page.click('h3:has-text("own game") ~ div button >> nth=0');
-    if (campN === 1) { const j = await page.evaluate(() => window.__NBA_UI.state.dec.journal.map((e) => e.kind).join()); if (j !== 'hs,role,camp') errors.push('CAMP journal ' + j); else console.log('CAMP journal OK (hs, role, camp)'); }
+    if (campN === 1) { const j = await page.evaluate(() => window.__NBA_UI.state.dec.journal.map((e) => e.kind).join()); if (!/^hs,role,(camp|invite)$/.test(j)) errors.push('CAMP journal ' + j); else console.log('CAMP journal OK (hs, role, camp)'); }
   };
   await trainLoop();
   await shot('06-pro-ready');

@@ -100,7 +100,7 @@
   // Who you train with. Stars get asked by everybody and say no to most; teammates and journeymen say yes more, and teach less.
   const TIERS = { star: { label: 'Superstar', gain: 3.2, ask: -0.2 }, allstar: { label: 'All-Star', gain: 2.4, ask: 0 }, vet: { label: 'Skill specialist', gain: 2.0, ask: 0.35 }, mate: { label: 'Teammate', gain: 1.5, ask: 0.7 } };
   const SKILL_WORDS = { inside: 'finishing inside', mid: 'the mid-range game', three: 'shooting threes', ft: 'free throws', handling: 'ball handling', passing: 'passing', iq: 'reading the game', reb: 'rebounding', perD: 'perimeter defense', rimP: 'rim protection', ath: 'athletic work', dur: 'staying healthy' };
-  const CAMP_ASKS = 2;
+  const CAMP_ASKS = 3;
 
   // standing: how much a mentor would want to spend a summer on you
   function standing(st, m) {
@@ -156,58 +156,69 @@
   };
   const lineFor = (st, m, tab, i) => { const a = tab[m.tier]; return a[Math.abs(hashStr(m.id + '|' + st.league.year + '|' + i)) % a.length]; };
 
+  // The summer is a camp with room for up to three training partners. You can ask people (three asks: big names teach the most and say no the most), and other players invite you too
+  // (a teammate, a star who has noticed you, a veteran, a young player, your rival). Every partner after the first gets less out of you and wears you down more.
+  const CAMP_SLOTS = 3, SLOT_F = [1, 0.75, 0.5];
   register({
     id: 'camp', title: 'Preseason camp', trigger: 'camp',
     open(st) {
-      const mentors = campMentors(st);
-      return { year: st.league.year, mentors, asks: CAMP_ASKS, rejects: 0, taken: null, solo: soloAttrs(st), asked: {} };
+      const mentors = campMentors(st), ids = new Set(mentors.map((m) => m.id));
+      const inv = (st.autoPlay || st.autoDecide ? [] : invites(st).list.filter((x) => !ids.has(x.id)));
+      return { year: st.league.year, mentors, asks: CAMP_ASKS, rejects: 0, partners: [], slots: CAMP_SLOTS, invites: inv, solo: soloAttrs(st), asked: {} };
     },
     view(st, ctx) {
-      return { asks: ctx.asks, rejects: ctx.rejects, taken: ctx.taken, solo: ctx.solo.map((a) => ({ key: a, label: D.ATTR_LABELS[a], v: Math.round(st.player.attrs[a]) })), soloGain: ctx.taken ? 0 : r1(Math.max(0, 1.2 - 0.6 * ctx.rejects)),
+      return { asks: ctx.asks, rejects: ctx.rejects, partners: ctx.partners.slice(), slots: ctx.slots, taken: ctx.partners.length ? ctx.partners[0] : null, solo: ctx.solo.map((a) => ({ key: a, label: D.ATTR_LABELS[a], v: Math.round(st.player.attrs[a]) })), soloGain: ctx.partners.length ? 0 : r1(Math.max(0, 1.2 - 0.6 * ctx.rejects)),
+        invites: ctx.invites.map((m) => ({ id: m.id, name: m.name, age: m.age, pos: m.pos, team: m.team, ovr: m.ovr, type: m.type, skill: m.skill, skillLabel: m.skill ? SKILL_WORDS[m.skill] : null, his: m.his, yours: m.yours, state: m.state })),
         mentors: ctx.mentors.map((m) => ({ id: m.id, name: m.name, age: m.age, pos: m.pos, team: m.team, teamId: m.teamId, ovr: m.ovr, tier: m.tier, tierLabel: TIERS[m.tier].label, skill: m.skill, skillLabel: SKILL_WORDS[m.skill], his: m.his, yours: m.yours, vibe: vibe(m.p), asked: ctx.asked[m.id] || null, rel: relOf(st, m.id) })) };
     },
-    // key 'ask' (arg: mentor id), 'solo' (arg: attribute), 'rest' (nothing: take the summer off)
+    // 'ask' (mentor id), 'accept' / 'decline' (an invite's player id), 'solo' (finish; arg: attribute for solo work), 'rest' (finish, take the summer off)
     choose(st, ctx, key, arg, pd) {
-      const p = st.player, T0 = TIERS;
+      const p = st.player, T0 = TIERS, idx = ctx.partners.length, f = SLOT_F[Math.min(idx, SLOT_F.length - 1)];
+      const wear = (n) => (n === 1 ? [{ k: 'season', v: { extraMiss: 2 } }] : n >= 2 ? [{ k: 'season', v: { extraMiss: 5 } }] : []);
       if (key === 'ask') {
         const m = ctx.mentors.find((x) => x.id === arg);
-        if (!m || ctx.asked[m.id] || ctx.asks <= 0 || ctx.taken) throw new Error('cannot ask');
+        if (!m || ctx.asked[m.id] || ctx.asks <= 0 || idx >= ctx.slots) throw new Error('cannot ask');
         ctx.asks--;
         const roll = rng(st, 'ask|' + m.id + '|' + ctx.year)();
         if (roll < m.p) {
-          ctx.asked[m.id] = 'yes'; ctx.taken = m.id;
-          const gain = T0[m.tier].gain * (0.85 + 0.3 * p.work), eff = [{ k: 'attr', a: m.skill, d: gain }, { k: 'rel', id: m.id, name: m.name, d: 1 }];
+          ctx.asked[m.id] = 'yes'; ctx.partners.push(m.id);
+          const gain = T0[m.tier].gain * (0.85 + 0.3 * p.work) * f, eff = [{ k: 'attr', a: m.skill, d: gain }, { k: 'rel', id: m.id, name: m.name, d: 1 }].concat(wear(idx));
           if (m.tier === 'mate') eff.push({ k: 'season', v: { depth: 1.2 } });
           if (m.tier === 'star') eff.push({ k: 'flag', f: 'trained:' + m.id, v: m.name });
           const att = eff[0];
-          const text = m.name + ' said yes. ' + lineFor(st, m, YES_LINES, 0) + ' You worked on ' + SKILL_WORDS[m.skill] + ' all summer.';
-          return { done: false, tone: 'good', text, effects: eff, journal: { tone: 'good', text: () => 'Asked ' + m.name + ' (' + m.team + ') to train together. They said yes: a summer on ' + SKILL_WORDS[m.skill] + ' (' + D.ATTR_LABELS[m.skill] + ' +' + att.got + ').' } };
+          const text = m.name + ' said yes. ' + lineFor(st, m, YES_LINES, 0) + ' You worked on ' + SKILL_WORDS[m.skill] + ' together.' + (idx ? ' Another partner means less of you to go around, and it shows in your legs.' : '');
+          return { done: false, tone: 'good', text, effects: eff, journal: { tone: 'good', text: () => 'Asked ' + m.name + ' (' + m.team + ') to train together. They said yes: ' + SKILL_WORDS[m.skill] + ' (' + D.ATTR_LABELS[m.skill] + ' +' + att.got + ').' } };
         }
         ctx.asked[m.id] = 'no'; ctx.rejects++;
-        const eff = [{ k: 'rel', id: m.id, name: m.name, d: -0.3 }];
-        const ended = ctx.asks <= 0;
-        return { done: false, ended, tone: 'bad', text: m.name + ' passed. ' + lineFor(st, m, NO_LINES, 0), effects: eff };
+        return { done: false, tone: 'bad', text: m.name + ' passed. ' + lineFor(st, m, NO_LINES, 0), effects: [{ k: 'rel', id: m.id, name: m.name, d: -0.3 }] };
+      }
+      if (key === 'accept' || key === 'decline') {
+        const inv = ctx.invites.find((x) => x.id === arg);
+        if (!inv || inv.state) throw new Error('no such invite');
+        if (key === 'accept' && idx >= ctx.slots) throw new Error('camp is full');
+        const r = answerInvite(st, inv.id, key === 'accept', idx);
+        if (key === 'accept') ctx.partners.push(inv.id);
+        return { done: false, tone: key === 'accept' ? 'good' : 'neutral', text: r.text };
       }
       if (key === 'solo' || key === 'rest') {
-        const gain = ctx.taken ? 0 : Math.max(0, 1.2 - 0.6 * ctx.rejects), a = arg && ATTRS.includes(arg) ? arg : ctx.solo[0];
+        const gain = ctx.partners.length ? 0 : Math.max(0, 1.2 - 0.6 * ctx.rejects), a = arg && ATTRS.includes(arg) ? arg : ctx.solo[0];
         const eff = gain > 0 && key === 'solo' ? [{ k: 'attr', a, d: gain }] : [];
         const asked = Object.keys(ctx.asked).map((id) => ctx.mentors.find((x) => String(x.id) === id)).filter(Boolean);
-        const taken = ctx.taken && ctx.mentors.find((x) => x.id === ctx.taken);
-        let text = taken ? 'Camp starts. You are working with ' + taken.name + '.' : gain > 0 ? 'You worked alone on ' + SKILL_WORDS[a] + '.' : 'The rejections cost you the summer: no real work got done.';
+        const taken = ctx.partners.length;
+        const text = taken ? 'Camp starts. You trained with ' + ctx.partners.map((id) => { const q = ctx.mentors.find((x) => x.id === id) || ctx.invites.find((x) => x.id === id); return q ? q.name : ''; }).filter(Boolean).join(', ') + '.' : gain > 0 ? 'You worked alone on ' + SKILL_WORDS[a] + '.' : 'The rejections cost you the summer: no real work got done.';
         const rej = asked.filter((m) => ctx.asked[m.id] === 'no').map((m) => m.name);
         const jt = rej.length && !taken ? 'Asked ' + rej.join(' and ') + ' to train, but ' + (rej.length > 1 ? 'both turned me down' : 'it was a no') + '. ' + (gain > 0 ? 'Worked alone on ' + SKILL_WORDS[a] + ' (' + a + ' +' + r1(gain) + ').' : 'No summer to speak of.') : taken ? null : 'Worked alone all summer on ' + SKILL_WORDS[a] + '.';
-        return { done: true, tone: gain > 0 ? 'neutral' : 'bad', text: key === 'rest' ? 'You took the summer off.' : text, effects: eff, journal: jt ? { tone: gain > 0 ? 'neutral' : 'bad', text: jt } : null };
+        return { done: true, tone: gain > 0 || taken ? 'neutral' : 'bad', text: key === 'rest' && !taken ? 'You took the summer off.' : text, effects: eff, journal: jt ? { tone: gain > 0 ? 'neutral' : 'bad', text: jt } : null };
       }
       throw new Error('bad camp choice');
     },
-    // autopilot: a sensible ask for the standing (skip anyone below ~25%), then solo work on the archetype's best attribute
+    // autopilot: a sensible ask for the standing (skip anyone below ~25%), at most two tries, then solo work on the archetype's best attribute
     auto(st, ctx) {
-      if (ctx.taken || ctx.asks <= 0) return { key: 'solo', arg: ctx.solo[0] };
+      if (ctx.partners.length || ctx.asks <= 0 || Object.keys(ctx.asked).length >= 2) return { key: 'solo', arg: ctx.solo[0] };
       const best = ctx.mentors.filter((m) => !ctx.asked[m.id]).map((m) => ({ m, v: m.p * TIERS[m.tier].gain })).sort((a, b) => b.v - a.v)[0];
       return best && best.m.p >= 0.25 ? { key: 'ask', arg: best.m.id } : { key: 'solo', arg: ctx.solo[0] };
     },
   });
-
 
   // ================================================================ decision 2: the trade deadline
   // Fires once a season when the games reach the deadline. One situation at most: a club cuts you (you are doing badly), your trade request comes due, or a contender calls.
@@ -419,7 +430,7 @@
     return d.invites;
   }
   const INV_YES = { star: 'They said they like how you carry yourself, and the gym is yours at 6 AM.', vet: 'They have been waiting for someone to ask about it for years.', mate: 'Summer runs with your own teammate: the room gets tighter.', young: 'The kid took notes on everything. It felt good.', rival: 'You trained in his gym. It was weird and it was good.' };
-  function answerInvite(st, id, accept) {
+  function answerInvite(st, id, accept, idx) {
     const d = state(st), inv = d.invites, it = inv && inv.list.find((x) => x.id === id);
     if (!it || it.state) throw new Error('no such invite');
     const p = st.player, yr = st.league.year;
@@ -427,15 +438,15 @@
       it.state = 'no'; apply(st, [{ k: 'rel', id: it.id, name: it.name, d: it.type === 'star' ? -0.3 : -0.2 }]);
       return { text: 'You said no to ' + it.name + '.' };
     }
-    inv.taken++; const first = inv.taken === 1, eff = [];
-    const gain = it.gain * (0.85 + 0.3 * p.work) * (first ? 1 : 0.6);
+    idx = idx || 0; inv.taken++; const first = idx === 0, eff = [];
+    const gain = it.gain * (0.85 + 0.3 * p.work) * SLOT_F[Math.min(idx, SLOT_F.length - 1)];
     if (it.skill) eff.push({ k: 'attr', a: it.skill, d: gain });
     if (it.type === 'young') eff.push({ k: 'attr', a: 'iq', d: 0.4 }, { k: 'meter', f: 'locker', d: 1 }, { k: 'meter', f: 'media', d: 0.5 }, { k: 'flag', f: 'legacy', v: (d.flags.legacy || 0) + 1 });
     eff.push({ k: 'rel', id: it.id, name: it.name, d: it.type === 'young' ? 0.6 : 1 });
     if (it.type === 'mate') eff.push({ k: 'season', v: { depth: 1 } });
     let extra = '';
     const r = rng(st, 'invrisk|' + id + '|' + yr)();
-    if (!first) { eff.push({ k: 'season', v: { extraMiss: 4 } }); extra = ' Two summers of work in one is a lot: it wore you down.'; }
+    if (!first) { eff.push({ k: 'season', v: { extraMiss: idx === 1 ? 2 : 5 } }); extra = ' Another partner means less of you to go around, and it shows in your legs.'; }
     else if (r < 0.07) { eff.push({ k: 'season', v: { extraMiss: 6 } }); extra = ' You tweaked something in the gym and it will cost you a few games.'; }
     if (it.type === 'rival' && r > 0.7) { eff.push({ k: 'season', v: { form: -0.006 } }); extra += ' He studied your game the whole time: expect him to know your moves.'; }
     apply(st, eff);
