@@ -268,10 +268,10 @@
 
   // ---------------------------------------------------------------- how the player can answer
   const TONES = {
-    humble: { label: 'Credit your teammates', fire: 0, heat: 0, locker: 1, media: 0.5, hype: 0 },
-    confident: { label: 'Say you are ready', fire: 0.6, heat: 0, locker: 0, media: 0, hype: 1 },
-    joke: { label: 'Crack a joke', fire: 0.1, heat: 0, locker: 0.3, media: 1, hype: 0.3 },
-    deflect: { label: 'Keep it simple', fire: 0, heat: 0, locker: 0, media: -0.2, hype: 0 },
+    humble: { label: 'Stay humble', fire: 0, heat: 0, locker: 1, media: 0.5, hype: 0 },
+    confident: { label: 'Show confidence', fire: 0.6, heat: 0, locker: 0, media: 0, hype: 1 },
+    joke: { label: 'Make a joke', fire: 0.1, heat: 0, locker: 0.3, media: 1, hype: 0.3 },
+    deflect: { label: 'Brush it off', fire: 0, heat: 0, locker: 0, media: -0.2, hype: 0 },
     trash: { label: 'Talk some trash', fire: 1, heat: 1, locker: 0.2, media: 0.3, hype: 1.5 },
     fight: { label: 'Get in his face', fire: 1.6, heat: 2, locker: -0.5, media: -0.2, hype: 2 },
   };

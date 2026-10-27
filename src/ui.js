@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v53';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v54';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -804,14 +804,14 @@
         const pool = list.slice(0, 10), zs = (f) => { const v = pool.map(f), m = v.reduce((p, q) => p + q, 0) / (v.length || 1), sd = Math.sqrt(v.reduce((p, q) => p + (q - m) * (q - m), 0) / (v.length || 1)) || 1; return v.map((x) => (x - m) / sd); };
         const buzz = (c) => (leagueRace === 'dpoy' ? c.stl + c.blk : leagueRace === 'mvp' ? c.pts : c.perf), zi = zs((c) => c.ix), zt = zs((c) => c.pace), zb = zs(buzz);
         const hn = (str) => { let hv = 2166136261; for (let k = 0; k < str.length; k++) { hv ^= str.charCodeAt(k); hv = Math.imul(hv, 16777619); } return ((hv >>> 0) % 2000) / 1000 - 1; };
-        const OUT = [['Hardwood Analytics', 'the numbers', 1, 0.2, 0, 0.15], ['The Courtside Desk', 'winning', 0.45, 0.85, 0.2, 0.3], ['Rim Radio', 'the highlights', 0.5, 0.1, 0.7, 0.35], ['Fan Poll Weekly', 'fan buzz', 0.3, 0.3, 0.9, 0.6]], nb = Math.floor(N / 5);
+        const OUT = [['ESPN', 'the production', 0.8, 0.3, 0.2, 0.2], ['The Athletic', 'the analytics', 1, 0.2, 0, 0.15], ['Sports Illustrated', 'winning', 0.45, 0.85, 0.2, 0.3], ['Bleacher Report', 'the highlights', 0.5, 0.1, 0.7, 0.35], ['Yahoo Sports', 'fan buzz', 0.3, 0.3, 0.9, 0.6]], nb = Math.floor(N / 5);
         const ballots = OUT.map((o) => ({ name: o[0], lens: o[1], rank: pool.map((c, i) => ({ c, s: o[2] * zi[i] + o[3] * zt[i] + o[4] * zb[i] + o[5] * hn(o[0] + c.name + nb + leagueRace) })).sort((x, y) => y.s - x.s).map((x) => x.c) }));
         const pts = new Map(), firsts = new Map(); ballots.forEach((bl) => bl.rank.slice(0, 5).forEach((c, i) => { pts.set(c, (pts.get(c) || 0) + 5 - i); if (!i) firsts.set(c, (firsts.get(c) || 0) + 1); }));
         const cons = Array.from(pts.keys()).sort((x, y) => pts.get(y) - pts.get(x) || y.ix - x.ix).slice(0, 5), mx = Math.max(1, ...cons.map((c) => pts.get(c)));
         const nm = (c) => (c.isUser ? h('b', null, c.name) : c.name);
-        raceBody = [h('p', { class: 'small muted' }, 'What the media says as of game ' + N + '. Four outlets file their ballots and the consensus adds them up: opinions, not the vote.' + (leagueRace === 'dpoy' ? ' Voters weigh blocks and steals, defensive ratings and team record.' : '')),
+        raceBody = [h('p', { class: 'small muted' }, 'What the media says as of game ' + N + '. Simulated ballots from five outlets, each with its own habits, and the consensus adds them up: opinions, not the vote.' + (leagueRace === 'dpoy' ? ' Voters weigh blocks and steals, defensive ratings and team record.' : '')),
           h('div', { class: 'cap2', style: 'margin:6px 0' }, 'Consensus'),
-          cons.map((x, i) => h('div', { class: 'race' + (x.isUser ? ' me' : '') }, h('div', { class: 'row' }, h('span', { class: 'n' }, i + 1), h('b', null, x.name), h('em', null, ab(x.team)), h('span', { class: 'spacer' }), h('span', { class: 'small muted' }, rec(x.team))), h('div', { class: 'bar2' }, h('i', { style: 'width:' + Math.round(100 * pts.get(x) / mx) + '%' })), h('div', { class: 'small muted' }, (firsts.get(x) ? 'Picked first by ' + firsts.get(x) + ' of 4 outlets · ' : 'On ' + ballots.filter((bl) => bl.rank.slice(0, 5).includes(x)).length + ' of 4 ballots · ') + x.pts.toFixed(1) + ' pts · ' + x.reb.toFixed(1) + ' reb · ' + x.ast.toFixed(1) + ' ast' + (leagueRace === 'dpoy' ? ' · ' + x.stl.toFixed(1) + ' stl · ' + x.blk.toFixed(1) + ' blk' : '')))),
+          cons.map((x, i) => h('div', { class: 'race' + (x.isUser ? ' me' : '') }, h('div', { class: 'row' }, h('span', { class: 'n' }, i + 1), h('b', null, x.name), h('em', null, ab(x.team)), h('span', { class: 'spacer' }), h('span', { class: 'small muted' }, rec(x.team))), h('div', { class: 'bar2' }, h('i', { style: 'width:' + Math.round(100 * pts.get(x) / mx) + '%' })), h('div', { class: 'small muted' }, (firsts.get(x) ? 'Picked first by ' + firsts.get(x) + ' of ' + OUT.length + ' outlets · ' : 'On ' + ballots.filter((bl) => bl.rank.slice(0, 5).includes(x)).length + ' of ' + OUT.length + ' ballots · ') + x.pts.toFixed(1) + ' pts · ' + x.reb.toFixed(1) + ' reb · ' + x.ast.toFixed(1) + ' ast' + (leagueRace === 'dpoy' ? ' · ' + x.stl.toFixed(1) + ' stl · ' + x.blk.toFixed(1) + ' blk' : '')))),
           h('div', { class: 'cap2', style: 'margin:12px 0 6px' }, 'The ballots'),
           ballots.map((bl) => h('div', { class: 'small', style: 'margin:4px 0' }, h('b', null, bl.name), h('span', { class: 'muted' }, ' (' + bl.lens + '): '), bl.rank.slice(0, 3).map((c, i) => [i ? ' › ' : '', nm(c)]))),
           cons.some((x) => x.isUser) ? null : h('p', { class: 'small muted', style: 'margin-top:8px' }, elig ? 'The media does not have you in the top 5 for now.' : !gpOk ? 'You have missed ' + missed + ' games: 65 played are needed to qualify.' : 'Not eligible for this award.')];

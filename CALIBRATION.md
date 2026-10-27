@@ -740,3 +740,6 @@ Press and clutch results now end in "Play the game →", which plays the game th
 
 ## v53 — media award predictions; clutch result caption
 In-season award ladders are now media predictions: four fictional outlets (numbers, winning, highlights, fan buzz) each file a ballot from the same live numbers with their own weights and stable noise, and a Borda consensus is shown with how many outlets picked each player first. The clutch result card caption was reading a missing field; it now follows the result's tone.
+
+## v54 — real outlets, honest answer labels
+Award ballots are filed by ESPN, The Athletic, Sports Illustrated, Bleacher Report and Yahoo Sports (simulated, private build). Press answer buttons are now labelled by stance (Stay humble, Show confidence, Make a joke, Brush it off, Talk some trash, Get in his face) instead of promising content ("Credit your teammates") the written answer might not contain.
