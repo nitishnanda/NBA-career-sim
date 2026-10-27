@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v57';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v58';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -707,7 +707,7 @@
   const rosterRole = (r) => (r.me ? 'You' : r.mins >= 24 ? 'Starter' : r.mins >= 14 ? 'Rotation' : 'Bench');
   function rosterTable(rows) {
     return h('div', { class: 'scroll' }, h('table', { class: 'st roster' }, h('thead', null, h('tr', null, ['Player', 'Role', 'OVR', 'GP', 'MPG', 'PPG', 'RPG', 'APG', 'STL', 'BLK', 'RTG'].map((x, i) => h('th', { class: i < 2 ? 'l' : '' }, x)))),
-      h('tbody', null, rows.map((r) => h('tr', { class: r.me ? 'me' : '' }, h('td', { class: 'l' }, h('b', null, r.me ? r.name : plink(r.id, r.name)), h('div', { class: 'small muted' }, r.pos + ' · age ' + r.age + (r.sz ? ' · ' + r.sz : ''))), h('td', { class: 'l muted' }, rosterRole(r)), h('td', null, r.ovr), h('td', null, r.gp), h('td', null, r.mins ? r.mins.toFixed(1) : '–'), h('td', null, r.line.pts.toFixed(1)), h('td', null, r.line.reb.toFixed(1)), h('td', null, r.line.ast.toFixed(1)), h('td', null, r.line.stl.toFixed(1)), h('td', null, r.line.blk.toFixed(1)), h('td', null, r.rating ? ratingBadge(r.rating, 1) : '–'))))));
+      h('tbody', null, rows.map((r) => h('tr', { class: r.me ? 'me' : '' }, h('td', { class: 'l' }, h('b', null, r.me ? r.name : plink(r.id, r.name)), h('div', { class: 'small muted' }, r.pos + ' · age ' + r.age + (r.sz ? ' · ' + r.sz : ''))), h('td', { class: 'l muted' }, rosterRole(r)), h('td', null, r.ovr), h('td', null, r.gp), ...(r.gp === 0 ? ['MPG', 'PPG', 'RPG', 'APG', 'STL', 'BLK', 'RTG'].map(() => h('td', { class: 'muted' }, '–')) : [h('td', null, r.mins ? r.mins.toFixed(1) : '–'), h('td', null, r.line.pts.toFixed(1)), h('td', null, r.line.reb.toFixed(1)), h('td', null, r.line.ast.toFixed(1)), h('td', null, r.line.stl.toFixed(1)), h('td', null, r.line.blk.toFixed(1)), h('td', null, r.rating ? ratingBadge(r.rating, 1) : '–')]))))));
   }
   // season-by-season results of a team (this year is hidden until the season has been played out)
   function histPanel(t, hideYear) {
@@ -755,6 +755,7 @@
     if (t.id !== S.teamId) { /* another team: no user row */ } else if (inSeason && T.n) rows.push({ me: true, name: p.name, pos: p.pos, sz: sizeTxt(p), age: p.age, ovr: Math.round(NBA.ovr(p)), mins: A.m, gp: T.n, line: { pts: A.pt, reb: A.rb, ast: A.as, stl: A.st, blk: A.bk, tov: A.to }, rating: gl.reduce((a, g) => a + g.r, 0) / gl.length });
     else if (!inSeason && last) rows.push({ me: true, name: p.name, pos: p.pos, sz: sizeTxt(p), age: p.age, ovr: Math.round(NBA.ovr(p)), mins: last.mins, gp: last.gp, line: { pts: last.pts, reb: last.reb, ast: last.ast, stl: last.stl, blk: last.blk, tov: last.tov }, rating: last.avgRating || rate(last, last.mins) });
     else rows.push({ me: true, name: p.name, pos: p.pos, sz: sizeTxt(p), age: p.age, ovr: Math.round(NBA.ovr(p)), mins: 0, gp: 0, line: { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, tov: 0 }, rating: null });
+    if (inSeason) rows.forEach((r) => { if (r.gp === 0) r.rating = null; });   // nobody has played yet: no numbers to show
     rows.sort((a, b) => b.mins - a.mins);
     return rows;
   }

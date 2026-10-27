@@ -752,3 +752,6 @@ Post-game: up to three standout regular-season nights per season (a monster game
 
 ## v57 — player pages, story-driven press questions, dial fix
 Player pages: click any player's name (leaders, award ballots, rosters, camp mentors, invites, rival, trade partner) for his page: awards on record and a season-by-season table (league players now log a compact line per season and their awards; seasons before the save are estimates rebuilt from his current line and marked ~). Press: a pre-game question is drawn from your own career when one applies (`src/mempress.js`, 21 questions): a Finals or playoff rematch (always asked, and the first meeting now gets a press conference), the last meeting with this team, a big night earlier in the year, the defending title, an injury last year, your rookie year, a title drought; background stories come up about 30% of the time. Dial: the negotiation odds were capped at the max contract, so a club that had already offered the max sat at exactly 50% and could not move; the ceiling is no longer capped (the slider still stops at the max).
+
+## v58 — no stats before a game is played
+Team rosters in the league tab showed the projected full-season line (and a rating) for players with 0 games played. Until a player has played, those cells now show dashes, and a 0-game player no longer counts in the team rating.
