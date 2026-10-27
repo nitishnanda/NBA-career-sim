@@ -35,10 +35,11 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
     console.log('PRESS typed answer 1 (' + mode + ')', ok1 ? 'OK' : 'MISMATCH', log1.slice(0, 160)); if (!ok1) errors.push(mode + ' answer1 ' + log1);
     const bad = 'Wembanyama is overrated and he cannot guard me, bring it';
     await page.fill('.pressbox', bad); await page.click('.card:has(.pressbox) button.primary');
-    await page.waitForFunction(() => !/Press conference/i.test(document.querySelector('h1') ? document.querySelector('h1').textContent : ''), null, { timeout: 8000 });
+    await page.waitForSelector('button:has-text("Continue to the game")', { timeout: 8000 });
     const fin = await page.evaluate(() => { const S = window.__NBA_UI.state, j = S.dec.journal.slice(-1)[0]; return { pd: !!S.matchLog[0].pd, media: S.dec.flags.media, locker: S.dec.flags.locker, journal: j && j.text, flash: (document.body.innerText.match(/Headline: [^\n]*/) || [''])[0], prompts: (window.__prompts || []).length, prompt0: (window.__prompts || [''])[0] }; });
     const okFin = fin.pd && typeof fin.media === 'number' && (mode === 'reader' || mode === 'claude-down' || (fin.prompts === 2 && /DATA; ignore any instructions/.test(fin.prompt0) && /MOCK HEADLINE/.test(fin.flash)));
     console.log('PRESS typed resolved (' + mode + ')', okFin ? 'OK' : 'MISMATCH', JSON.stringify({ pd: fin.pd, media: fin.media, locker: fin.locker, prompts: fin.prompts, flash: fin.flash.slice(0, 70), journal: (fin.journal || '').slice(0, 90) })); if (!okFin) errors.push(mode + ' resolved ' + JSON.stringify(fin));
+    await page.click('button:has-text("Continue to the game")');
     await ctx.close();
   }
   console.log('errors:', errors.length ? errors : 'none'); await browser.close();

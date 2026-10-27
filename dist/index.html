@@ -3675,7 +3675,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const big = fine || ctx.picks.some((pk) => pk.tone === 'trash' || pk.tone === 'fight');
     const head = (ctx.headlines || []).filter(Boolean)[0], quote = ctx.picks.find((pk) => pk.text && (pk.tone === 'trash' || pk.tone === 'fight'));
     if (head) notes.unshift('Headline: "' + head + '".');
-    return { text: (notes.concat([line]).join(' ')), tone: net > 0.2 ? 'good' : net < -0.2 || susp ? 'bad' : 'neutral', journal: big ? { tone: net > 0.2 && !susp ? 'good' : 'bad', text: (ctx.kind === 'game' ? ctx.why + ' vs the ' + ctx.opp : ctx.why) + ': ' + (quote ? 'You said "' + quote.text.slice(0, 90) + (quote.text.length > 90 ? '…' : '') + '". ' : '') + notes.join(' ') } : null };
+    return { text: ([...new Set(notes)].concat([line]).join(' ')), tone: net > 0.2 ? 'good' : net < -0.2 || susp ? 'bad' : 'neutral', journal: big ? { tone: net > 0.2 && !susp ? 'good' : 'bad', text: (ctx.kind === 'game' ? ctx.why + ' vs the ' + ctx.opp : ctx.why) + ': ' + (quote ? 'You said "' + quote.text.slice(0, 90) + (quote.text.length > 90 ? '…' : '') + '". ' : '') + notes.join(' ') } : null };
   }
 
   // ---- decisions made while the games play: a playoff plan per series, and the clutch moments
@@ -4228,7 +4228,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v50';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v51';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -4756,6 +4756,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   // ------------------------------------------------------------ season dashboard
   function screenSeasonPlay() {
     if (!S.leagueSnap || !S.matchLog) { S.stage = 'season_recap'; save(); return screenRecap(); } // save from an older build
+    if (S.decResult) return screenDecResult();
     if (holdAt()) { const pid = S.dec.pending.id; return pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : pid === 'press' ? screenPress() : screenDeadline(); }
     const items = S.matchLog || [], idx = S.matchIdx || 0, L = S.league, p = S.player, t = L.teams[S.teamId];
     const shown = items.slice(0, idx), done = idx >= items.length;
@@ -5281,9 +5282,17 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   let samplePromise = null;
   const getSample = () => (samplePromise || (samplePromise = (async () => { try { return window.claude && window.claude.use ? await window.claude.use('sample') : null; } catch (e) { return null; } })()));
   const SAMPLE_MSG = { not_granted: 'Claude is switched off for this page, so the built-in reader read you.', rate_limited: 'Claude is busy right now, so the built-in reader read you.', sampling_disabled: 'Claude is unavailable here, so the built-in reader read you.' };
+  // what a decision did, shown right on its own page before the games carry on (the text used to land on the season page, a game later than the choice)
+  function screenDecResult() {
+    const r = S.decResult, sents = String(r.text || '').split(/(?<=[.!?"])\s+(?=[A-Z])/).filter(Boolean);
+    return h('div', null, h('h1', null, r.title), r.sub ? h('p', { class: 'muted' }, r.sub) : null,
+      h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, r.cap || 'What happened'), sents.map((x) => h('p', { class: 'jmsg ' + (r.tone || ''), style: 'margin:8px 0' }, x))),
+      h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { S.decResult = null; save(); go(); } }, 'Continue to the game →')));
+  }
   function screenPress() {
     const Dc = DEC(), v = Dc.view(S), t = S.league.teams[S.teamId], pd = S.dec.pending, q = pd.ctx.qs[pd.step];
-    const finish = (r) => { if (!(S.dec.pending && S.dec.pending.id === 'press')) { S.flash = r.text; saveSnap(); } save(); go(); };
+    const gi = S.matchLog && S.matchLog[pd.ctx.idx], gno = gi && gi.k === 'g' ? 'Before game ' + gi.n + ' of the season' + (gi.o ? ' · vs the ' + gi.o : '') : pd.ctx.why;
+    const finish = (r) => { if (!(S.dec.pending && S.dec.pending.id === 'press')) { S.decResult = { title: 'Press conference', sub: t.name + ' · ' + gno, text: r.text, tone: r.tone === 'good' ? 'good' : r.tone === 'bad' ? 'bad' : '', cap: 'The reaction' }; saveSnap(); } save(); go(); };
     const pick = (key) => { try { finish(Dc.choose(S, key)); } catch (e) { console.error(e); } };
     // your own words: read by Claude when this page runs inside Claude, by the built-in reader everywhere else; either way they come out as one of the six tones
     const ta = h('textarea', { class: 'pressbox', rows: 3, maxlength: 240, placeholder: 'Or say it your own way… (up to 240 characters)' }), count = h('span', { class: 'small muted' }, '0 / 240'), note = h('div', { class: 'small muted pressnote' }, '');
@@ -5303,7 +5312,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       if (local.profane && !res.profane) res.profane = true;
       try { finish(Dc.choose(S, 'typed', Object.assign({ text }, res))); } catch (e) { console.error(e); ta.disabled = false; go2.disabled = false; note.textContent = 'That one did not go through. Try again.'; }
     };
-    return h('div', null, h('h1', null, 'Press conference'), h('p', { class: 'muted' }, t.name + ' · ' + v.why),
+    return h('div', null, h('h1', null, 'Press conference'), h('p', { class: 'muted' }, t.name + ' · ' + v.why + (gno && gno !== v.why ? ' · ' + gno : '')),
       pd.log.length ? h('div', { class: 'jlog' }, pd.log.map((x) => h('div', { class: 'jmsg' }, x.text.charAt(0) === '\uD83D' ? x.text : '🎤 ' + x.text))) : null,
       h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, 'Question ' + (v.step + 1) + ' of ' + v.total), h('h2', { style: 'margin:8px 0' }, '“' + v.question + '”')),
       h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' + (o.spicy ? ' spicy' : '') }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.line), h('div', { style: 'margin-top:8px' }, h('button', { class: o.spicy ? '' : 'primary', onclick: () => pick(o.key) }, 'Say it'))))),
@@ -5324,7 +5333,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   }
   function screenClutch() {
     const Dc = DEC(), v = Dc.view(S), t = S.league.teams[S.teamId], rec = S.proSeasons[S.proSeasons.length - 1];
-    const pick = (key) => { try { const r = Dc.choose(S, key); S.flash = r.text; save(); go(); } catch (e) { console.error(e); } };
+    const pick = (key) => { try { const r = Dc.choose(S, key); S.decResult = { title: v.g7 ? 'Game 7' : 'Clutch time', sub: t.name + (v.home ? ' vs ' : ' at ') + 'the ' + v.opp + (v.g7 ? '' : ' · game ' + v.n), text: r.text, tone: r.wins ? 'good' : 'bad', cap: r.wins ? 'You came through' : 'It did not go your way' }; save(); go(); } catch (e) { console.error(e); } };
     return h('div', null, h('h1', null, v.g7 ? 'Game 7' : 'Clutch time'), h('p', { class: 'muted' }, t.name + (v.home ? ' vs ' : ' at ') + 'the ' + v.opp + (v.ser ? ' · ' + v.round : '')),
       h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, v.g7 ? 'Winner moves on' : 'Everything on one possession'), h('h2', { style: 'margin:6px 0' }, v.text), h('p', { class: 'small muted' }, 'The coach looks at you. What do you do?')),
       h('div', { class: 'wkgrid' }, v.opts.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: 'primary', onclick: () => pick(o.key) }, 'Do it'))))),

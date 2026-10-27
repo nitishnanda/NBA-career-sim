@@ -731,3 +731,6 @@ Size sliders were already clamped to the real NBA range per position; the screen
 
 ## v50 — press conference fixes
 Answers: every one of the 224 questions now has its own hand-written humble / confident / joke / deflect answer (and trash / fight where there is someone to aim at) in `src/presslines.js`, same order as the bank; `scripts/press-check.js` checks the alignment. The generic deflect line is now a universal brush-off. Spacing: at most 4 press conferences a season (6 in a farewell year), never within 10 games of each other, so opening night is no longer followed by a string of rivalry/revenge/marquee pressers.
+
+## v51 — decision results on their own page
+Press and clutch answers now show their outcome on the decision's page ("Before game N of the season · vs the X", Continue button) instead of a banner a game later on the season page; repeated notes in one press result are collapsed.
