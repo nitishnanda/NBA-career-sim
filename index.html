@@ -2162,6 +2162,70 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   });
 
 
+
+  // ================================================================ workout invitations
+  // Other players reach out in the offseason: a teammate who wants a summer partner, a star who has noticed you, a veteran with a skill to hand down, a kid who wants to learn from you, a rival who wants you in his gym.
+  // Each one is a yes or a no; the second yes costs you (nobody can train with everyone), and not everyone is who they seem.
+  const INV_TYPES = { star: { label: 'Star', gain: 2.6 }, vet: { label: 'Skill specialist', gain: 2.0 }, mate: { label: 'Teammate', gain: 1.2 }, young: { label: 'Young player', gain: 0 }, rival: { label: 'Your rival', gain: 1.8 } };
+  function inviteSkill(st, q) {
+    const p = st.player, w = D.ARCHETYPES[p.arch].weights, wmax = Math.max.apply(null, ATTRS.map((a) => w[a])), fit = (a) => 0.5 + w[a] / wmax;
+    const sc = (a) => (q.attrs[a] - 0.5 * p.attrs[a]) * fit(a);
+    return ATTRS.filter((a) => a !== 'dur' && a !== 'ath').sort((a, b) => sc(b) - sc(a))[0];
+  }
+  function invites(st) {
+    const d = state(st), L = st.league;
+    if (d.invites && d.invites.year === L.year) return d.invites;
+    const p = st.player, me = ovr(p), rnd = rng(st, 'invites|' + L.year), all = [], list = [], used = new Set(), aw = st.career.awards || {};
+    L.teams.forEach((t) => NBA.rosterOf(L, t).forEach((q) => { if (q.id !== 'user') all.push({ q, t }); }));
+    all.sort((x, y) => ovr(y.q) - ovr(x.q));
+    const add = (x, type, pr) => {
+      if (!x || used.has(x.q.id) || rnd() >= pr) return;
+      used.add(x.q.id);
+      const sk = type === 'young' ? null : inviteSkill(st, x.q);
+      list.push({ id: x.q.id, name: x.q.name, age: x.q.age, pos: x.q.pos, team: x.t.nick, teamId: x.t.id, ovr: Math.round(ovr(x.q)), type, skill: sk, his: sk ? Math.round(x.q.attrs[sk]) : null, yours: sk ? Math.round(p.attrs[sk]) : null, gain: INV_TYPES[type].gain, state: null });
+    };
+    const rel = (q) => relOf(st, q.id), mates = all.filter((x) => x.t.id === st.teamId && Math.abs(ovr(x.q) - me) <= 8);
+    const acc = Math.min(1, 0.1 * ((aw['All-Star'] || 0) + 2 * (aw['All-NBA'] || 0) + 3 * (aw.MVP || 0)));
+    const stars = all.slice(0, 10).filter((x) => x.t.id !== st.teamId && me >= ovr(x.q) - 10);
+    const vets = all.filter((x) => x.q.age >= 31 && ovr(x.q) >= 60 && ovr(x.q) < 78 && ATTRS.some((a) => a !== 'dur' && a !== 'ath' && x.q.attrs[a] >= 76 && x.q.attrs[a] - p.attrs[a] >= 8));
+    const kids = all.filter((x) => x.q.age <= 22 && (x.q.yearsPro || 0) <= 2 && ovr(x.q) <= me - 4 && ovr(x.q) >= me - 24);
+    const shf = (a) => a.slice().sort(() => rnd() - 0.5);
+    const rv = d.rival && L.players[d.rival.id]; if (rv && rv.teamId != null) add({ q: rv, t: L.teams[rv.teamId] }, 'rival', 0.5);
+    shf(stars).slice(0, 3).forEach((x) => add(x, 'star', clamp(0.1 + 0.04 * (me - ovr(x.q) + 10) + 0.12 * rel(x.q) + acc * 0.4, 0.05, 0.7)));
+    shf(vets).slice(0, 2).forEach((x) => add(x, 'vet', 0.4 + 0.1 * rel(x.q)));
+    shf(mates).slice(0, 2).forEach((x) => add(x, 'mate', 0.5 + 0.1 * rel(x.q)));
+    if (me >= 68) shf(kids).slice(0, 2).forEach((x) => add(x, 'young', 0.4));
+    d.invites = { year: L.year, list: list.slice(0, 4), taken: 0 };
+    return d.invites;
+  }
+  const INV_YES = { star: 'They said they like how you carry yourself, and the gym is yours at 6 AM.', vet: 'They have been waiting for someone to ask about it for years.', mate: 'Summer runs with your own teammate: the room gets tighter.', young: 'The kid took notes on everything. It felt good.', rival: 'You trained in his gym. It was weird and it was good.' };
+  function answerInvite(st, id, accept) {
+    const d = state(st), inv = d.invites, it = inv && inv.list.find((x) => x.id === id);
+    if (!it || it.state) throw new Error('no such invite');
+    const p = st.player, yr = st.league.year;
+    if (!accept) {
+      it.state = 'no'; apply(st, [{ k: 'rel', id: it.id, name: it.name, d: it.type === 'star' ? -0.3 : -0.2 }]);
+      return { text: 'You said no to ' + it.name + '.' };
+    }
+    inv.taken++; const first = inv.taken === 1, eff = [];
+    const gain = it.gain * (0.85 + 0.3 * p.work) * (first ? 1 : 0.6);
+    if (it.skill) eff.push({ k: 'attr', a: it.skill, d: gain });
+    if (it.type === 'young') eff.push({ k: 'attr', a: 'iq', d: 0.4 }, { k: 'meter', f: 'locker', d: 1 }, { k: 'meter', f: 'media', d: 0.5 }, { k: 'flag', f: 'legacy', v: (d.flags.legacy || 0) + 1 });
+    eff.push({ k: 'rel', id: it.id, name: it.name, d: it.type === 'young' ? 0.6 : 1 });
+    if (it.type === 'mate') eff.push({ k: 'season', v: { depth: 1 } });
+    let extra = '';
+    const r = rng(st, 'invrisk|' + id + '|' + yr)();
+    if (!first) { eff.push({ k: 'season', v: { extraMiss: 4 } }); extra = ' Two summers of work in one is a lot: it wore you down.'; }
+    else if (r < 0.07) { eff.push({ k: 'season', v: { extraMiss: 6 } }); extra = ' You tweaked something in the gym and it will cost you a few games.'; }
+    if (it.type === 'rival' && r > 0.7) { eff.push({ k: 'season', v: { form: -0.006 } }); extra += ' He studied your game the whole time: expect him to know your moves.'; }
+    apply(st, eff);
+    it.state = 'yes';
+    const got = eff[0] && eff[0].k === 'attr' && eff[0].a === it.skill ? eff[0].got : null;
+    const text = it.name + ' (' + it.team + ') ' + (it.skill ? 'and you worked on ' + SKILL_WORDS[it.skill] + (got != null ? ' (' + D.ATTR_LABELS[it.skill] + ' +' + got + ')' : '') : 'and you spent the summer showing him how you do it') + '. ' + INV_YES[it.type] + extra;
+    log(st, { kind: 'invite', title: 'Workout invite', tone: 'good', text });
+    return { text };
+  }
+
   // ================================================================ decision 8: the press conference
   register({
     id: 'press', title: 'Press conference', trigger: 'press',
@@ -2191,7 +2255,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     auto(st, ctx, pd) { const q = ctx.qs[pd.step]; return { key: (q.opts.find((o) => o.key === 'deflect') || q.opts.find((o) => !o.spicy) || q.opts[0]).key }; },
   });
 
-  Object.assign(NBA, { Decisions: { carry, register, state, rng, vibe, apply, offer, view, choose, autoResolve, takeSeason, log, relOf, TIERS, SKILL_WORDS, campMentors, standing } });
+  Object.assign(NBA, { Decisions: { invites, answerInvite, INV_TYPES, carry, register, state, rng, vibe, apply, offer, view, choose, autoResolve, takeSeason, log, relOf, TIERS, SKILL_WORDS, campMentors, standing } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -2424,6 +2488,57 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 [ "I do my routine. I eat well, watch some film, and talk to my family.", "I sleep. I am ready. This is why we play.", "I stare at the ceiling for four hours. It is a ritual.", "", "", "" ],
 [ "We stay in the moment, trust our work, and enjoy the ride. We have not won anything yet.", "We stay hungry. We are close, but not there. We will stay calm and finish.", "I am calm. My hands are shaking. That is just my signature.", "", "", "" ],
 [ "I do not think a loss defines a career. It teaches you. I am grateful for the chance.", "No. It makes you want it more. I am working for a ring.", "A Finals loss? I still have a gym membership and a ring finger. I am fine.", "", "", "" ],
+  ];
+})(typeof window !== 'undefined' ? window : globalThis);
+
+(function (g) {
+  // Post-game press conferences: questions about the game that was just played, each with its own six hand-written answers
+  // [condition, heat, question, humble, confident, joke, deflect, trash, fight]. Slots: {pts} {reb} {ast} {opp} {oppStar} {score} {margin} {team} {round}.
+  // An empty deflect falls back to a generic brush-off; trash and fight exist only where the question gives you someone to aim at.
+  const NBA = (g.NBA = g.NBA || {});
+  NBA.PostPress = [
+    ['bigNight', 0, '{pts} points tonight. Did you feel unstoppable out there?', 'The guys kept finding me in good spots. All I did was finish.', 'Yeah, I felt it from the first quarter. Nobody was stopping me tonight.', 'Unstoppable? I could not stop sneezing in the third quarter.', '', '', ''],
+    ['bigNight', 0, 'That was a monster game: {pts} points, {reb} rebounds, {ast} assists. What was working?', 'Credit to my teammates. The ball moved and I got the benefits.', 'Everything. When I am locked in like that, there is not a defense that can handle it.', 'The new shoes. I will be wearing them until they fall apart.', '', '', ''],
+    ['bigNight', 1, 'The {opp} had no answer for you tonight. Did they underestimate you?', 'I do not think they underestimated me. They are a good team and we just played well.', 'Maybe they did. They will not make that mistake again, but it will not matter.', 'I think they were distracted by my fashion. It is a known weapon.', '', 'If they did, they know better now. Tell {oppStar} to bring more next time.', ''],
+    ['bigNight', 0, 'Is a night like that something you can bottle up and repeat?', 'I will try. It is about the work every day, and having great teammates.', 'I plan on repeating it. This is what I work for.', 'If I could bottle it, I would sell it and retire on a boat.', '', '', ''],
+    ['goodNight', 0, 'Another big night for you. How do you stay so consistent?', 'Routine and a great staff. And I give a lot of credit to my guys for setting me up.', 'I put in the work when nobody is looking. This is what it gets you.', 'Consistency? I eat the same breakfast every day. Do not tell my chef.', '', '', ''],
+    ['badNight', 0, 'Only {pts} points tonight. What happened?', 'It was just one of those nights. I will watch the film and get better.', 'One bad night does not change who I am. I will be back.', 'I left my shot at the hotel. It is on the next flight.', '', '', ''],
+    ['badNight', 0, 'The shots were not falling tonight. Does that get in your head?', 'It happens. I stay with my teammates and keep working.', 'Not at all. I will shoot my way out of it. That is what I do.', 'My head is a very quiet place. Nothing gets in.', '', '', ''],
+    ['badNight', 1, 'Some are saying you disappeared tonight. Your response?', 'I did not have it tonight. I am not going to make excuses.', 'I will be back and louder than before. Watch.', 'I was there the whole time. Check the footage. I am the one near the bench.', '', 'People can say what they want. I will see them on the court.', ''],
+    ['badNight', 0, 'How do you bounce back from a game like this?', 'Film, sleep, and my teammates. I will be fine.', 'I bounce back by being myself. Next game will be a different story.', 'Ice cream. Lots of ice cream. And then film.', '', '', ''],
+    ['tripleDouble', 0, 'A triple-double tonight. Do you even look at the stat sheet?', 'I look at the W first. The stats are just a bonus.', 'Of course I look. I know what I am capable of.', 'I counted on my fingers. I ran out of fingers.', '', '', ''],
+    ['win', 0, 'The {team} get the win, {score}. What was the difference tonight?', 'We trusted each other and played hard on both ends. That is it.', 'We are good. When we play like we can, nobody beats us.', 'We scored more than they did. It is my favorite way to win.', '', '', ''],
+    ['win', 0, 'How big is a win like this for the group?', 'It is big. Every win builds our confidence, and the room feels it.', 'It is a statement. We are a different team than people think.', 'It is great. The pizza after a win tastes better.', '', '', ''],
+    ['win', 0, 'What did you see from the {opp} that you could take advantage of?', 'The coaches had a great game plan. We just followed it.', 'We saw gaps and we attacked them. That is the difference.', 'I saw their bench was extremely friendly. I did not take advantage of that.', '', '', ''],
+    ['loss', 0, 'A tough one tonight, {score}. What went wrong?', 'We were not good enough. I will start by looking at my own game.', 'We are better than that. It will not happen again.', 'We did not score enough. The other team scored too much. Math is hard.', '', '', ''],
+    ['loss', 0, 'How do you pick the group up after a loss like that?', 'We stay together and lean on each other. It is one game.', 'I will tell them to stay confident. We are going to be fine.', 'I will bring snacks. It is the best medicine.', '', '', ''],
+    ['loss', 1, 'The {opp} outplayed you tonight. Do you give them credit?', 'Yes, they were better tonight. We have to be better next time.', 'Credit where it is due, but we will see them again.', 'They were great. I would like to see their film. And their chef.', '', '{oppStar} had a game. We have plenty of games left, and so does he, apparently.', ''],
+    ['loss', 0, 'Is there a lesson in a loss like this?', 'There is always a lesson. We will learn it and be better for it.', 'The lesson is that we have to be sharper. And we will be.', 'The lesson is: do not lose. I have written it down.', '', '', ''],
+    ['closeWin', 0, 'You won by {margin}. How did you hold on down the stretch?', 'We trusted the coach and each other. It was a team effort.', 'We have the guys who make winning plays. That is how.', 'I closed my eyes for the last two minutes. It worked.', '', '', ''],
+    ['closeWin', 0, 'It came down to the wire. Are those the games that build a team?', 'They really do. You find out who you can count on.', 'These games show who we are. We are winners.', 'They build a team and age me about ten years each.', '', '', ''],
+    ['closeLoss', 0, 'You lost by {margin}. How much does a loss like that sting?', 'It stings. We will look at the possessions that could have changed it.', 'It stings, but we were right there. We will get them next time.', 'It stings. And so does my back. Long night.', '', '', ''],
+    ['closeLoss', 0, 'What play do you wish you could have back?', 'A few. I will watch the film and look at all of them.', 'I will not tell you which one. But I will be better next time.', 'All of them. I would like the whole night back.', '', '', ''],
+    ['closeLoss', 1, 'Some are saying the officials decided that game. Do you agree?', 'I am not going to blame the officials. We had our chances.', 'I think we all saw some calls. But we have to win anyway.', 'I saw a few of them. They were hilarious. No comment.', '', 'You saw what everybody saw. The league will hear from me.', ''],
+    ['blowoutWin', 0, 'That was never in doubt. Is that the best you have played this year?', 'It is a great win. I will not get ahead of myself. We have a lot of work.', 'It is up there. We are just getting started.', 'It was fun. I even got to sit in the fourth quarter. A dream.', '', '', ''],
+    ['blowoutWin', 0, 'You led by {margin}. Does a game like this give the team confidence?', 'It does. But we cannot get complacent. We need to stay hungry.', 'Absolutely. That is what I want to see every night.', 'It gave me confidence and a sandwich. I am satisfied.', '', '', ''],
+    ['blowoutLoss', 0, 'Down {margin}. What do you say about a game like that?', 'It was not good enough. We will own it and respond.', 'It is one game. It will not define us. We come back stronger.', 'It was a blowout. I am pretending I was not there.', '', '', ''],
+    ['blowoutLoss', 1, 'Is it time to be worried about this team?', 'It is a bad night, not a verdict. We will fix it together.', 'No. We know who we are. We will fix it.', 'I am worried about the bus ride home. It is going to be quiet.', '', '', ''],
+    ['blowoutLoss', 0, 'Did the team quit tonight?', 'No. We did not execute well and we fought. We were just outplayed.', 'No one quit. We will show that next game.', 'We quit eating, maybe. We had a long pregame.', '', '', ''],
+    ['clincher', 0, 'You are moving on to the next round. What does that feel like?', 'It feels great. We are a team that believes. Now we take a day to rest.', 'It feels great, and we want more. This is just one step.', 'It feels like a nap. I would love one. But first, more basketball.', '', '', ''],
+    ['clincher', 0, 'The {opp} series is over. What was the key to closing it out?', 'We stuck to the plan, and my teammates were incredible.', 'We were better when it mattered. That is the key.', 'The key was a very good dinner on Tuesday.', '', '', ''],
+    ['clincher', 1, 'Any message for the {opp} after the series?', 'They are a great team. I wish them well.', 'They played hard. We are moving on.', 'Thanks for the memories. And the free throws.', '', 'I told you this was not a fair fight. Good luck to them next year.', ''],
+    ['elim', 0, 'Your season is over. How are you feeling right now?', 'It hurts. I am grateful to my teammates, and we will learn from it.', 'It hurts, and I will not forget it. I will use it as fuel.', 'I feel great. I am not crying. It is just very windy in here.', '', '', ''],
+    ['elim', 0, 'What do you think about this team going forward?', 'There is a lot to like. We have to get better and stay together.', 'We have the core. We will be back stronger.', 'We have a great core. And a great snack table.', '', '', ''],
+    ['elim', 1, 'The {opp} sent you home. Do you give them credit?', 'They were better. I give them a lot of credit.', 'They earned it. We will be back and we will see them again.', 'I give them credit. I give them a lot of other things too, but not on camera.', '', '{oppStar} said it was easy. We will see about that next time.', ''],
+    ['g7win', 0, 'You survived Game 7. How do you describe that feeling?', 'I am tired and grateful. We had every one of us pull together.', 'It is why we play. I wanted that game badly, and I got it.', 'I need a new heart. Mine is worn out.', '', '', ''],
+    ['g7loss', 0, 'A Game 7 loss is as tough as it gets. What are you feeling?', 'It is a brutal one. I am proud of how we fought.', 'It hurts more than anything. But I will come back for it.', 'I feel like someone sat on my chest. It was my teammate. Kidding.', '', '', ''],
+    ['champ', 0, 'You are the champions. Can you put this into words?', 'I am so grateful to my teammates, my family, and everyone who helped. This is us.', 'This is what I wanted. All of the work and all of the pain were worth it.', 'I will try. Right now I am wearing three hats and a lot of champagne.', '', '', ''],
+    ['champ', 0, 'Where does this rank among the moments of your career?', 'It is at the top. It is a team accomplishment and I am thankful.', 'It is number one. Nothing compares to winning a title.', 'It ranks above my first haircut. Just barely.', '', '', ''],
+    ['pinWin', 0, 'You survived the play-in. How do you feel about the season now?', 'We got a second life, and we are going to use it. It is a good group.', 'We are in. Now watch what we do with it.', 'I am just glad I do not need to take the stairs home.', '', '', ''],
+    ['pinLoss', 0, 'The season is over in the play-in. Where does this team go from here?', 'It hurts. We have to learn from it and come back with more.', 'We will be back. And we will not need a play-in.', 'We have a lot of vacation time to think about it.', '', '', ''],
+    ['always', 0, 'Did the crowd make a difference tonight?', 'The fans were great. We feed off their energy.', 'I love a loud building. It helps me.', 'The crowd was fine. The hot dog guy was the real MVP.', '', '', ''],
+    ['always', 0, 'How do you feel physically after a game like that?', 'I feel good. The training staff takes great care of us.', 'I feel great. I am built for this.', 'I feel like a very expensive piece of furniture that has been dropped.', '', '', ''],
+    ['always', 0, 'What did the coach say to you in the huddle at the end?', 'He told us to trust each other. That is a lot of what he says.', 'He told me to go make a play. I like that.', 'He said something I cannot repeat. It was a motivational thing.', '', '', ''],
   ];
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -2863,7 +2978,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 (function (g) {
   'use strict';
   const NBA = g.NBA;
-  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
+  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
   const D = NBA.data;
   const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
   const ATTRS = D.ATTRS;
@@ -3492,6 +3607,13 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       if (st.finalYear) { const seen = new Set(); regs.forEach((x) => { if (!x.h && !seen.has(x.o)) { seen.add(x.o); x.tg = (x.tg || []).concat(['Farewell tribute']); x.tribute = 1; } }); regs.filter((x) => x.tribute).map((x) => [rnd(), x]).sort((a, b) => a[0] - b[0]).slice(0, 4).forEach((x) => go(x[1], 'Farewell tour stop')); }
       // playoffs: every series after the first round, any with a rival, and every Game 7 series
       items.forEach((x) => { if (x.k === 'hdr' && x.ps != null) { const ot = Lg.teams.find((q) => q.name === x.opp); x.pc = (x.rnd !== 'First Round' || x.g7 || (rv && ot && rv.teamId === ot.id)) ? 1 : 0; } }); }
+
+    // after the game: a press conference about what just happened. Up to three regular-season nights that stand out (a monster game, a bad one, a close one, a blowout),
+    // and the game that ends every series or play-in game (own random stream: nothing else moves)
+    { const rnd = mulberry(shotSeed(st, 9500)), cap = st.finalYear ? 4 : 3, picks = [];
+      const score = (x) => (x.pt >= 40 ? 3 : 0) + (x.tg && x.tg.includes('Triple-double') ? 2 : 0) + (x.pt <= 8 && x.m >= 20 ? 2.5 : 0) + (Math.abs(x.f - x.a) <= 3 ? 1 : 0) + (Math.abs(x.f - x.a) >= 22 ? 1.2 : 0) + rnd();
+      items.filter((x) => x.k === 'g' && !x.po && !x.dnp && x.n >= 8).map((x) => [score(x), x]).sort((a, b) => b[0] - a[0]).forEach(([s, x]) => { if (picks.length < cap && s >= 1.5 && picks.every((y) => Math.abs(y.n - x.n) >= 12)) { x.pp = 1; picks.push(x); } });
+      items.forEach((x, i) => { if (x.k === 'g' && x.po && !x.dnp) { const nx = items[i + 1]; if (!nx || nx.k === 'hdr' || nx.rnd !== x.rnd) { x.pp = 1; x.last = 1; } } }); }
     return items;
   }
 
@@ -3630,7 +3752,36 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     if (it.k === 'hdr' && it.ps != null && it.pc && st.poPlans && st.poPlans[it.ps] !== undefined && !(st.poPress && st.poPress[it.ps] !== undefined)) return it;
     return null;
   }
+  // the press room after a game: the game that was just played (the one before the current slot) is asked about
+  function postTarget(st) { const it = (st.matchLog || [])[(st.matchIdx || 0) - 1]; return it && it.k === 'g' && it.pp && !it.ppd && !it.dnp ? it : null; }
+  const POST_BRUSH = ['I am going to keep that one to myself.', 'Not much to say on that one. Next question.', 'I will let other people talk about that. I am here to play.'];
+  function postOpen(st, it) {
+    const P = NBA.Press, L = st.league, rnd = NBA.Decisions.rng(st, 'ppress|' + L.year + '|' + (it.po ? 'p' : 'r') + it.n + (it.rnd || '') + (it.pi ? 'i' : '')), bank = NBA.PostPress || [];
+    const t = L.teams[st.teamId], opp = L.teams.find((x) => x.nick === it.o), star = opp ? NBA.rosterOf(L, opp)[0] : null, margin = Math.abs(it.f - it.a);
+    const c = { pts: it.pt, reb: it.rb, ast: it.as, opp: it.o, score: it.f + '-' + it.a, margin, team: t.nick, round: it.rnd || '', oppStar: star ? star.name : null, oppStarOvr: star ? ovr(star) : 70, winning: !!it.w, hot: false, slump: false, rivalHere: false, rival: null, me: st.player.name, pos: st.player.pos };
+    const td = it.tg && it.tg.includes('Triple-double'), big = it.pt >= 40 || td;
+    const f = { bigNight: big, goodNight: it.pt >= 30 && !big, badNight: (it.pt <= 8 && it.m >= 20) || it.r < 5.5, tripleDouble: !!td, win: !!it.w, loss: !it.w, closeWin: it.w && margin <= 5, closeLoss: !it.w && margin <= 5, blowoutWin: it.w && margin >= 18, blowoutLoss: !it.w && margin >= 18,
+      clincher: !!(it.last && it.w && it.po && !it.pi && it.rnd !== 'NBA Finals'), champ: !!(it.last && it.w && it.rnd === 'NBA Finals'), elim: !!(it.last && !it.w && it.po && !it.pi), g7win: !!(it.g7 && it.w), g7loss: !!(it.g7 && !it.w), pinWin: !!(it.pi && it.w), pinLoss: !!(it.pi && !it.w), always: true };
+    const W = { bigNight: 6, badNight: 6, clincher: 6, elim: 6, g7win: 7, g7loss: 7, champ: 9, pinWin: 6, pinLoss: 6, tripleDouble: 4, goodNight: 4, closeWin: 3, closeLoss: 3, blowoutWin: 3, blowoutLoss: 3, win: 2, loss: 2, always: 1 };
+    const used = new Set(), out = [], n = it.po ? 3 : 2;
+    for (let k = 0; k < n; k++) {
+      const pool = bank.map((r, i) => ({ r, i })).filter((x) => f[x.r[0]] && !used.has(x.r[0]) && !out.some((o) => o.i === x.i));
+      if (!pool.length) break;
+      let r = rnd() * pool.reduce((a, x) => a + (W[x.r[0]] || 1), 0), pk = pool[pool.length - 1];
+      for (let i = 0; i < pool.length; i++) { r -= W[pool[i].r[0]] || 1; if (r <= 0) { pk = pool[i]; break; } }
+      used.add(pk.r[0]); out.push({ i: pk.i, row: pk.r });
+    }
+    if (!out.length) return null;
+    const IDX = { humble: 3, confident: 4, joke: 5, deflect: 6, trash: 7, fight: 8 }, T = P.TONES;
+    const qs = out.map(({ i, row }) => {
+      const spicy = ['trash', 'fight'].filter((k) => row[IDX[k]]), calm = ['humble', 'confident', 'joke', 'deflect'].sort(() => rnd() - 0.5).slice(0, spicy.length ? 2 : 3);
+      return { i, topic: 'post:' + row[0], heat: row[1], text: P.FILL(row[2], c), opts: calm.concat(spicy).map((k) => ({ key: k, label: T[k].label, line: P.FILL('\u201C' + (row[IDX[k]] || POST_BRUSH[Math.floor(rnd() * POST_BRUSH.length)]) + '\u201D', c), spicy: k === 'trash' || k === 'fight' })) };
+    });
+    const why = it.pi ? 'After the play-in game' : it.po ? 'After ' + (it.rnd || 'the playoff') + ' game ' + it.n : 'After game ' + it.n;
+    return { kind: 'post', idx: (st.matchIdx || 0) - 1, si: null, why, opp: it.o, qs, picks: [], c, headlines: [] };
+  }
   function pressOpen(st) {
+    const pt = postTarget(st); if (pt) return postOpen(st, pt);
     const it = pressTarget(st); if (!it) return null;
     const P = NBA.Press, L = st.league, rnd = NBA.Decisions.rng(st, 'press|' + L.year + '|' + (it.k === 'g' ? it.n : 's' + it.ps));
     const n = st.finalYear || it.k === 'hdr' ? 3 : 2, pk = P.pickQuestions(st, it, n, rnd);
@@ -3642,15 +3793,15 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   // what the answers did: the game (or series) you are about to play, the locker room, the media, and sometimes a fine or a suspension
   function resolvePress(st, ctx) {
     const Dc = NBA.Decisions, T = NBA.Press.TONES, p = st.player, L = st.league, c = ctx.c, rnd = Dc.rng(st, 'pressr|' + L.year + '|' + (ctx.kind === 'game' ? ctx.idx : 's' + ctx.si));
-    let F = 0, H = 0, Lk = 0, M = 0, Hy = 0, susp = false, fine = 0; const notes = [];
+    let F = 0, H = 0, Lk = 0, M = 0, Hy = 0, susp = false, fine = 0; const notes = [], post = ctx.kind === 'post';
     ctx.picks.forEach((pk) => {
       const tn = T[pk.tone], k = pk.intensity || 1; let f = tn.fire * (pk.tone === 'trash' || pk.tone === 'fight' ? k : 1), h = tn.heat * (pk.tone === 'trash' || pk.tone === 'fight' ? k : 1), lk = tn.locker, m = tn.media;
       if (pk.profane) { fine = Math.max(fine, 0.05); m -= 0.5; notes.push('The league did not love your language.'); }
       if (pk.tone === 'trash') {
-        if (rnd() < clamp(0.55 + 0.012 * (ovr(p) - c.oppStarOvr) + (c.winning ? 0.04 : 0) + (c.hot ? 0.03 : 0) - (c.slump ? 0.05 : 0), 0.2, 0.85)) { m += 0.5; notes.push('The trash talk fired you up.'); }
-        else { f = -0.7; m -= 1.2; h *= 1.5; notes.push('The trash talk backfired: it fired them up, not you.'); }
+        if (rnd() < clamp(0.55 + 0.012 * (ovr(p) - c.oppStarOvr) + (c.winning ? 0.04 : 0) + (c.hot ? 0.03 : 0) - (c.slump ? 0.05 : 0), 0.2, 0.85)) { m += 0.5; notes.push(post ? 'Your words made the rounds and the fans loved it.' : 'The trash talk fired you up.'); }
+        else { f = -0.7; m -= 1.2; h *= 1.5; notes.push(post ? 'The trash talk backfired: the other locker room pinned it to the wall.' : 'The trash talk backfired: it fired them up, not you.'); }
       } else if (pk.tone === 'fight') {
-        if (rnd() < clamp(0.45 + 0.01 * (ovr(p) - c.oppStarOvr), 0.2, 0.7)) { notes.push('It got heated, and you came out of it on fire.'); if (rnd() < 0.2) { fine = 0.05; notes.push('The league still fined you.'); } }
+        if (rnd() < clamp(0.45 + 0.01 * (ovr(p) - c.oppStarOvr), 0.2, 0.7)) { notes.push(post ? 'It got heated, and it was all anyone talked about.' : 'It got heated, and you came out of it on fire.'); if (rnd() < 0.2) { fine = 0.05; notes.push('The league still fined you.'); } }
         else { f = -0.2; lk -= 1; m -= 1.5; fine = 0.1; susp = ctx.kind === 'game' && rnd() < 0.6; notes.push(susp ? 'It went too far: you were fined and suspended for the next game.' : 'It went too far: you were fined.'); }
       }
       F += f; H += h; Lk += lk; M += m; Hy += tn.hype;
@@ -3658,10 +3809,14 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const net = F - 0.35 * H;
     const eff = [{ k: 'meter', f: 'media', d: M + 0.4 * Hy }, { k: 'meter', f: 'locker', d: Lk }];
     Dc.apply(st, eff);
-    Dc.state(st).flags.asked = (Dc.state(st).flags.asked || []).concat(ctx.qs.map((q) => q.i)).slice(-90);   // no question twice for a long while
+    if (!post) Dc.state(st).flags.asked = (Dc.state(st).flags.asked || []).concat(ctx.qs.map((q) => q.i)).slice(-90);   // no question twice for a long while
     if (fine) st.earnings = Math.max(0, st.earnings - fine);
     let line = null;
-    if (ctx.kind === 'game') {
+    if (post) {
+      const it = st.matchLog[ctx.idx]; if (it) it.ppd = 1;
+      if (susp) { const nx = st.matchLog.slice(ctx.idx + 1).find((x) => x.k === 'g' && !x.po); if (nx) { ['m', 'pt', 'rb', 'or', 'as', 'st', 'bk', 'to', 'pf', 'r', 'fgm', 'fga', 'tpm', 'tpa', 'ftm', 'fta', 'sh', 'pm'].forEach((k) => { delete nx[k]; }); nx.tg = []; nx.dnp = 'Suspended'; nx.cl = 0; nx.pc = 0; nx.pp = 0; recomputeFromLog(st); } }
+      line = net > 0.2 ? 'The press room liked what it heard.' : net < -0.2 ? 'That did not go over well in the press room.' : 'You said your piece and left.';
+    } else if (ctx.kind === 'game') {
       const it = st.matchLog[ctx.idx], s0 = clamp(0.05 * net, -0.15, 0.18);
       it.pd = 1; it.tg = (it.tg || []).slice();
       let d = Math.round(it.pt * s0); d = clamp(d, -6, 7);
@@ -3682,7 +3837,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const big = fine || ctx.picks.some((pk) => pk.tone === 'trash' || pk.tone === 'fight');
     const head = (ctx.headlines || []).filter(Boolean)[0], quote = ctx.picks.find((pk) => pk.text && (pk.tone === 'trash' || pk.tone === 'fight'));
     if (head) notes.unshift('Headline: "' + head + '".');
-    return { text: ([...new Set(notes)].concat([line]).join(' ')), tone: net > 0.2 ? 'good' : net < -0.2 || susp ? 'bad' : 'neutral', journal: big ? { tone: net > 0.2 && !susp ? 'good' : 'bad', text: (ctx.kind === 'game' ? ctx.why + ' vs the ' + ctx.opp : ctx.why) + ': ' + (quote ? 'You said "' + quote.text.slice(0, 90) + (quote.text.length > 90 ? '…' : '') + '". ' : '') + notes.join(' ') } : null };
+    return { text: ([...new Set(notes)].concat([line]).join(' ')), tone: net > 0.2 ? 'good' : net < -0.2 || susp ? 'bad' : 'neutral', journal: big ? { tone: net > 0.2 && !susp ? 'good' : 'bad', text: (ctx.kind === 'game' || post ? ctx.why + ' vs the ' + ctx.opp : ctx.why) + ': ' + (quote ? 'You said "' + quote.text.slice(0, 90) + (quote.text.length > 90 ? '…' : '') + '". ' : '') + notes.join(' ') } : null };
   }
 
   // ---- decisions made while the games play: a playoff plan per series, and the clutch moments
@@ -4227,7 +4382,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     return st;
   }
 
-  Object.assign(NBA, { Game: { announceFarewell, canComeback, comeback, pressTarget, pressOpen, resolvePress, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { Game: { announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -4235,7 +4390,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v55';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v56';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -4706,8 +4861,16 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   // the trade deadline stops the games: the front office has something to say (or nothing, and the season carries on)
   // (when the front office has nothing to say the games simply carry on)
   const holdAt = () => {
-    const it = S.matchLog && S.matchLog[S.matchIdx || 0]; if (!it) return false;
+    if (!S.matchLog) return false;
     const Dc = NBA.Decisions, pend = (id) => S.dec && S.dec.pending && S.dec.pending.id === id;
+    // the press room after a game that mattered: it is asked about the game that was just played
+    const prev = S.matchLog[(S.matchIdx || 0) - 1];
+    if (prev && prev.k === 'g' && prev.pp && !prev.ppd && !prev.dnp) {
+      if (!pend('press')) Dc.offer(S, 'press');
+      if (pend('press')) { if (S.autoDec) { Dc.autoResolve(S); prev.ppd = 1; save(); return holdAt(); } return true; }
+      prev.ppd = 1;
+    }
+    const it = S.matchLog[S.matchIdx || 0]; if (!it) return false;
     if (it.k === 'hdr' && it.dl && !S.dlDone) {
       if (!S.dlChecked) { S.dlChecked = true; Dc.offer(S, 'deadline'); save(); }
       if (pend('deadline')) { if (S.autoDec) { Dc.autoResolve(S); S.dlDone = true; S.matchIdx++; save(); return false; } return true; }
@@ -5155,7 +5318,21 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       return h('div', null, out);
     }
     if (d.farewell && S.farewellOverride) out.push(h('div', { class: 'callout' }, 'You said this was your farewell. If you sign or stay, the fans, the media and the room will all notice, and it will cost you.'));
-    if (S.dec && S.dec.pending && S.dec.pending.id === 'late' && !d.mustRetire) { const v = DEC().view(S);
+
+    if (!d.mustRetire && !S.autoPlay) {
+      const inv = DEC().invites(S);
+      if (inv.list.length) {
+        const answer = (id, yes) => () => { try { DEC().answerInvite(S, id, yes); save(); render(); } catch (e) { console.error(e); } };
+        const TL = { star: 'A star has noticed you', vet: 'A veteran has something to hand down', mate: 'Your teammate wants a summer partner', young: 'A young player wants to learn from you', rival: 'Your rival wants you in his gym' };
+        out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🏋️ Workout invites'),
+          h('p', { class: 'small muted' }, 'Other players want to work out with you this summer. Each yes is a summer of real work (and a bond), but the second one wears you down, and nobody is only ever being nice.'),
+          h('div', { class: 'wkgrid' }, inv.list.map((m) => h('div', { class: 'wkcard mcard' + (m.state === 'yes' ? ' done t3' : m.state === 'no' ? ' done t0' : '') },
+            h('div', { class: 'row' }, logo(m.team, 40), h('div', null, h('b', null, m.name), h('div', { class: 'small muted' }, m.pos + ' · ' + m.age + ' · ' + m.team + ' · ' + m.ovr + ' OVR'))),
+            h('div', { class: 'small', style: 'margin:8px 0' }, h('b', null, TL[m.type]), m.skill ? h('div', null, 'Wants to work on ' + DEC().SKILL_WORDS[m.skill] + ' (' + m.his + ' vs your ' + m.yours + ')') : h('div', null, 'You would be the teacher: it earns respect in the room.')),
+            m.state ? h('div', { class: 'wkres' }, m.state === 'yes' ? 'You said yes' : 'You passed') : h('div', { class: 'row' }, h('button', { class: 'primary', onclick: answer(m.id, true) }, 'Work out together'), h('button', { onclick: answer(m.id, false) }, 'Pass'))))),
+          inv.taken >= 2 ? h('p', { class: 'small bad' }, 'You are running on fumes: the second workout cost you.') : null));
+      }
+    }    if (S.dec && S.dec.pending && S.dec.pending.id === 'late' && !d.mustRetire) { const v = DEC().view(S);
       out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, v.title), h('p', { class: 'small muted' }, v.text), S.dec.pending.log.length ? h('div', { class: 'jlog' }, S.dec.pending.log.map((x) => h('div', { class: 'jmsg ' + x.tone }, x.text))) : null,
         h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { onclick: () => { try { DEC().choose(S, o.key); save(); render(); } catch (e) { console.error(e); } } }, 'Choose'))))))); }
     if (d.mustRetire) out.push(h('div', { class: 'callout' }, d.farewell ? 'Your farewell season is over. The league gives you a standing ovation, and it is time to hang them up.' : 'No team has an offer for you and your body says it is time. This is the end of the road.'));
@@ -5314,12 +5491,12 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const r = S.decResult, sents = String(r.text || '').split(/(?<=[.!?"])\s+(?=[A-Z])/).filter(Boolean);
     return h('div', null, h('h1', null, r.title), r.sub ? h('p', { class: 'muted' }, r.sub) : null,
       h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, r.cap || 'What happened'), sents.map((x) => h('p', { class: 'jmsg ' + (r.tone || ''), style: 'margin:8px 0' }, x))),
-      h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { S.decResult = null; stopAuto(); advanceOne(); save(); go(); } }, 'Play the game →')));
+      h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { const r0 = S.decResult; S.decResult = null; stopAuto(); if (!(r0 && r0.post)) advanceOne(); save(); go(); } }, S.decResult && S.decResult.post ? 'Back to the season →' : 'Play the game →')));
   }
   function screenPress() {
     const Dc = DEC(), v = Dc.view(S), t = S.league.teams[S.teamId], pd = S.dec.pending, q = pd.ctx.qs[pd.step];
-    const gi = S.matchLog && S.matchLog[pd.ctx.idx], gno = gi && gi.k === 'g' ? 'Before game ' + gi.n + ' of the season' + (gi.o ? ' · vs the ' + gi.o : '') : pd.ctx.why;
-    const finish = (r) => { if (!(S.dec.pending && S.dec.pending.id === 'press')) { S.decResult = { title: 'Press conference', sub: t.name + ' · ' + gno, text: r.text, tone: r.tone === 'good' ? 'good' : r.tone === 'bad' ? 'bad' : '', cap: 'The reaction' }; saveSnap(); } save(); go(); };
+    const gi = S.matchLog && S.matchLog[pd.ctx.idx], post = pd.ctx.kind === 'post', gno = post && gi ? 'Final: ' + (gi.w ? 'W' : 'L') + ' ' + gi.f + '-' + gi.a + ' ' + (gi.h ? 'vs' : 'at') + ' the ' + gi.o : gi && gi.k === 'g' ? 'Before game ' + gi.n + ' of the season' + (gi.o ? ' · vs the ' + gi.o : '') : pd.ctx.why;
+    const finish = (r) => { if (!(S.dec.pending && S.dec.pending.id === 'press')) { S.decResult = { title: 'Press conference', sub: t.name + ' · ' + gno, text: r.text, tone: r.tone === 'good' ? 'good' : r.tone === 'bad' ? 'bad' : '', cap: 'The reaction', post }; saveSnap(); } save(); go(); };
     const pick = (key) => { try { finish(Dc.choose(S, key)); } catch (e) { console.error(e); } };
     // your own words: read by Claude when this page runs inside Claude, by the built-in reader everywhere else; either way they come out as one of the six tones
     const ta = h('textarea', { class: 'pressbox', rows: 3, maxlength: 240, placeholder: 'Or say it your own way… (up to 240 characters)' }), count = h('span', { class: 'small muted' }, '0 / 240'), note = h('div', { class: 'small muted pressnote' }, '');
