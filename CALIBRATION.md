@@ -737,3 +737,6 @@ Press and clutch answers now show their outcome on the decision's page ("Before 
 
 ## v52 — decisions play the game; DPOY ladder matches the vote
 Press and clutch results now end in "Play the game →", which plays the game the decision belongs to, so the choice and the game it changed are no longer a click apart. The live DPOY ladder used its own weights (2.2 stl + 2 blk) while the final vote uses 4 blk + 3.5 stl + 0.12 × best defensive rating + 0.12 × (wins − 41) (+ noise): it now uses the vote formula, and says the vote has some randomness.
+
+## v53 — media award predictions; clutch result caption
+In-season award ladders are now media predictions: four fictional outlets (numbers, winning, highlights, fan buzz) each file a ballot from the same live numbers with their own weights and stable noise, and a Borda consensus is shown with how many outlets picked each player first. The clutch result card caption was reading a missing field; it now follows the result's tone.

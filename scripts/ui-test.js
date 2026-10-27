@@ -160,7 +160,7 @@ let PG_DBG = null;
       await page.click('button:has-text("Instant")');
       await page.click('button:has-text("Sim to All-Star")');
       await shot('06d-all-star'); await shotCheck('All-Star break');
-      await page.click('nav button:has-text("Around the league")'); await shot('06f-league');
+      await page.click('nav button:has-text("Around the league")'); await shot('06f-league'); { const mb = await page.evaluate(() => ({ cons: /Consensus/i.test(document.body.innerText), ballots: /The ballots/i.test(document.body.innerText), outlets: ['Hardwood Analytics', 'The Courtside Desk', 'Rim Radio', 'Fan Poll Weekly'].every((x) => document.body.innerText.includes(x)) })); console.log('MEDIA ballots', mb.cons && mb.ballots && mb.outlets ? 'OK' : 'MISMATCH', JSON.stringify(mb)); if (!(mb.cons && mb.ballots && mb.outlets)) throw new Error('media ballots missing'); }
       await page.click('.tlink >> nth=3'); await page.waitForSelector('text=Roster and stats'); await shot('06j-league-team'); await page.selectOption('.tsel', { index: 10 }); await page.waitForSelector('text=Roster and stats'); await page.click('button:has-text("← League")'); await page.waitForSelector('.tlink');
       await page.click('nav button:has-text("Team")'); await shot('06i-team');
       await page.click('nav button:has-text("Career")'); await shot('06g-career');
