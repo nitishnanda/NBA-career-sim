@@ -794,3 +794,10 @@ A long injury (any named one, or 15+ missed games in a block) now stops the seas
 - **Sign-and-trade**: when your own club wants you back (rating ≥ 64), up to three contenders with no cap room can take you with their salary at your re-sign number; your old club gets picks (two firsts / a first / a second by value). Logged in the trade list and journal, feed posts a trade.
 - **Picks in trades**: deadline and offseason trade offers mention the picks a club adds when it is getting the better player.
 - Preseason chain refactored into `preseason(st)`: promise → agent → camp; autopilot path unchanged (baseline 76.5/12.9 and 77.2/13.2). `scripts/draft-trade-check.js`.
+
+## v69 — live game sim
+- "Watch games live" switch on the sim bar. On, "Sim next game" becomes "Watch next game live"; bulk sims (Sim 10, to All-Star, to playoffs) still run as before.
+- `src/live.js` replays a logged game as a play-by-play. Nothing is re-rolled: your shots (from the stored shot chart), free throws, assists, boards, steals, blocks, turnovers and fouls land at times you were on the floor (stints scaled to your minutes), and teammates and the opponent score the remaining points. The live box and the score always end exactly on the logged line (`scripts/live-check.js`: 2,600+ games and every clutch call, win and lose).
+- Speed: Max (2 min for a full game), 4 min, 8 min, real time. "Skip 10 min" jumps the game clock; under 10 minutes left it becomes "Skip to the end". The clock can never skip past the call.
+- Clutch games (only when watching live): the game stops on the last possession at the logged situation (down 2, down 3, tied), you make the call inside the game, and the closing seconds are built from the result (the score and line match the log after `resolveClutch`). When not watching live the old pre-game clutch screen is unchanged.
+- Teammate and opponent scorers in the live view are display only (the log keeps your line, not theirs). Season stats, the baseline and autopilot are untouched.

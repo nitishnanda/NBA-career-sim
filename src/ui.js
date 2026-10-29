@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v68';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v69';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -469,7 +469,7 @@
   // autoplay engine for the season screen
   let mTab = 'box';
   let speed = '2x', playing = false, timer = null, leagueRace = 'mvp';
-  function stopAuto() { playing = false; if (timer) { clearTimeout(timer); timer = null; } }
+  function stopAuto() { bulk = false; playing = false; if (timer) { clearTimeout(timer); timer = null; } }
   // the trade deadline stops the games: the front office has something to say (or nothing, and the season carries on)
   // (when the front office has nothing to say the games simply carry on)
   const holdAt = () => {
@@ -522,6 +522,7 @@
         it.pd = 1;
       }
       if (it.cl && !it.cd) {
+        if (S.liveMode && !bulk && !S.autoDec) return false;   // watching live: the call is made inside the game
         if (!pend('clutch')) Dc.offer(S, 'clutch');
         if (!pend('clutch')) { it.cd = 1; return false; }
         if (S.autoDec) { Dc.autoResolve(S); save(); return false; }
@@ -540,8 +541,8 @@
     }
   }
   function autoplay(until) {
-    stopAuto(); const items = S.matchLog, delay = { '1x': 480, '2x': 200, inst: 0 }[speed];
-    if (!delay) { let guard = 0; while (!until() && S.matchIdx < items.length && !holdAt() && guard++ < 400) advanceOne(); save(); render(); return; }
+    stopAuto(); bulk = true; const items = S.matchLog, delay = { '1x': 480, '2x': 200, inst: 0 }[speed];
+    if (!delay) { let guard = 0; while (!until() && S.matchIdx < items.length && !holdAt() && guard++ < 400) advanceOne(); bulk = false; save(); render(); return; }
     playing = true;
     const tick = () => { if (!playing) return; if (until() || S.matchIdx >= items.length || holdAt()) { stopAuto(); save(); render(); return; } advanceOne(); save(); render(); timer = setTimeout(tick, delay); };
     tick();
@@ -549,6 +550,7 @@
 
   // ------------------------------------------------------------ season dashboard
   function screenSeasonPlay() {
+    if (LV && S.matchLog && S.stage === 'season_play') return screenLive();
     if (!S.leagueSnap || !S.matchLog) { S.stage = 'season_recap'; save(); return screenRecap(); } // save from an older build
     if (S.decResult) return screenDecResult();
     if (holdAt()) { const pid = S.dec.pending.id; return pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : pid === 'press' ? screenPress() : pid === 'injury' ? screenInjury() : screenDeadline(); }
@@ -572,14 +574,14 @@
     const ICON = { play: '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M7 4.5v15l12-7.5z" fill="currentColor"/></svg>', ff: '<svg viewBox="0 0 24 24" width="18" height="18"><path d="M3 5v14l9-7zm9 0v14l9-7z" fill="currentColor"/></svg>', pause: '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 4h4v16H6zm8 0h4v16h-4z" fill="currentColor"/></svg>' };
     const ctl = (label, fn, cls, icon) => h('button', { class: cls || '', onclick: fn }, icon ? h('span', { class: 'ic', html: ICON[icon] }) : null, label);
     const step = (n) => () => { stopAuto(); let c = 0; autoplay(() => c++ >= n); };
-    const sim1 = () => { stopAuto(); advanceOne(); save(); render(); };
+    const sim1 = () => { stopAuto(); if (S.liveMode && nextG) { startLive(); return; } advanceOne(); save(); render(); };
     const simBar = done
       ? h('div', { class: 'simbar well' }, ctl('Season recap →', () => { stopAuto(); S.stage = 'season_recap'; go(); }, 'primary big-btn'))
       : h('div', { class: 'simbar well' },
-        playing ? ctl('Pause', () => { stopAuto(); render(); }, 'primary big-btn', 'pause') : ctl(nextIsPo ? 'Sim next playoff game' : 'Sim next game', sim1, 'primary big-btn', 'play'),
+        playing ? ctl('Pause', () => { stopAuto(); render(); }, 'primary big-btn', 'pause') : ctl(S.liveMode ? (nextIsPo ? '📺 Watch next playoff game live' : '📺 Watch next game live') : nextIsPo ? 'Sim next playoff game' : 'Sim next game', sim1, 'primary big-btn', 'play'),
         !asDone && asIdx >= 0 && !nextIsPo ? ctl('Sim to All-Star', () => autoplay(() => S.matchIdx > asIdx), 'ghost', 'ff') : (regEndIdx >= 0 && idx <= regEndIdx ? ctl('Sim to playoffs', () => autoplay(() => S.matchIdx > regEndIdx), 'ghost', 'ff') : null),
         h('div', { class: 'speed' }, h('span', null, 'SPEED'), ['1x', '2x', 'inst'].map((k) => h('button', { class: speed === k ? 'on' : '', onclick: () => { speed = k; render(); } }, k === 'inst' ? 'Instant' : k))),
-        h('div', { class: 'simmini' }, ctl('Sim 10', () => { let c = 0; autoplay(() => c++ >= 10); }, 'tiny'), ctl('Skip to recap »', () => { stopAuto(); S.matchIdx = items.length; S.stage = 'season_recap'; go(); }, 'tiny'), h('label', { class: 'small muted', style: 'margin-left:10px;white-space:nowrap' }, h('input', { type: 'checkbox', checked: !S.noPress, onchange: (e) => { S.noPress = !e.target.checked; save(); } }), ' Press conferences')));
+        h('div', { class: 'simmini' }, ctl('Sim 10', () => { let c = 0; autoplay(() => c++ >= 10); }, 'tiny'), ctl('Skip to recap »', () => { stopAuto(); S.matchIdx = items.length; S.stage = 'season_recap'; go(); }, 'tiny'), h('label', { class: 'small muted', style: 'margin-left:10px;white-space:nowrap' }, h('input', { type: 'checkbox', checked: !S.noPress, onchange: (e) => { S.noPress = !e.target.checked; save(); } }), ' Press conferences'), h('label', { class: 'small muted', style: 'margin-left:10px;white-space:nowrap' }, h('input', { type: 'checkbox', checked: !!S.liveMode, onchange: (e) => { S.liveMode = e.target.checked; save(); render(); } }), ' Watch games live')));
     const schedule = nextIsPo || poG.length
       ? h('div', null, h('div', { class: 'row small caps' }, h('span', null, 'Postseason'), h('span', { class: 'spacer' }), h('span', null, (poG.length ? poG[poG.length - 1].rnd + ' · ' + poG[poG.length - 1].ser : 'Bracket set'))), h('div', { class: 'bar2' }, h('i', { style: 'width:100%' })))
       : h('div', null, h('div', { class: 'row small caps' }, h('span', null, 'Regular season schedule'), h('span', { class: 'spacer' }), h('span', null, 'Game ' + reg.length + ' / ' + regTotal + ' · ' + (100 * reg.length / Math.max(1, regTotal)).toFixed(0) + '%')),
@@ -1266,6 +1268,112 @@
       h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.risk), h('div', { style: 'margin-top:8px' }, h('button', { class: 'primary', onclick: () => pick(o.key) }, 'Choose'))))),
       autoDecBar());
   }
+  // ------------------------------------------------------------ the live game
+  // A game from the season log replayed as it happens. The result is already in the log: the play-by-play is laid out to match it (NBA.Live), the clock only reveals it.
+  // The last-possession call is made here, inside the game, only when you choose to watch live; simmed games keep the old clutch screen.
+  let LV = null, bulk = false;
+  const LIVE_SPEEDS = [[24, 'Max · 2 min'], [12, '4 min'], [6, '8 min'], [1, 'Real time']];
+  const LV_COLS = [['pt', 'PTS'], ['rb', 'REB'], ['as', 'AST'], ['st', 'STL'], ['bk', 'BLK'], ['to', 'TO'], ['pf', 'PF']];
+  function liveStop() { if (LV && LV.timer) { clearInterval(LV.timer); LV.timer = null; } }
+  function liveSkipHdrs() { const items = S.matchLog; while (items[S.matchIdx] && items[S.matchIdx].k === 'hdr' && !(items[S.matchIdx].dl && !S.dlDone) && items[S.matchIdx].ps == null) S.matchIdx++; }
+  function startLive() {
+    stopAuto(); const items = S.matchLog;
+    if (holdAt()) { render(); return; }
+    liveSkipHdrs(); if (holdAt()) { render(); return; }
+    const it = items[S.matchIdx];
+    if (!it || it.k !== 'g' || it.dnp) { advanceOne(); save(); render(); return; }
+    const idx = S.matchIdx, L = S.league, p = S.player, tm = L.teams[S.teamId], opT = L.teams.find((x) => x.nick === it.o), Dc = DEC();
+    let clutch = null;
+    if (it.cl && !it.cd) { if (!(S.dec && S.dec.pending && S.dec.pending.id === 'clutch')) Dc.offer(S, 'clutch'); if (S.dec && S.dec.pending && S.dec.pending.id === 'clutch') clutch = { text: G.clutchInfo(S).text }; else it.cd = 1; }
+    const tl = NBA.Live.build(it, { key: (S.seasonSeed || 0) + '|' + it.n + '|' + (it.po ? 1 : 0), me: p.name, nick: tm.nick, oppNick: it.o, mates: NBA.rosterOf(L, tm).filter((q) => q.id !== 'user').map((q) => q.name), opps: opT ? NBA.rosterOf(L, opT).map((q) => q.name) : [], shots: it.sh || G.shotsFor(it, p, G.shotSeed(S, idx)), clutch });
+    LV = { idx, it, tl, evs: tl.events, i: 0, t: 0, speed: S.liveSpeed || 12, state: 'play', box: NBA.Live.blank(), sc: [0, 0], per: [], pts: {}, opp: {}, feed: [], shots: [], res: null, end: tl.end, lim: tl.pause != null ? tl.pause : tl.end, timer: null, run: true, newFeed: [] };
+    render(); liveRun();
+  }
+  function liveRun() { liveStop(); if (!LV || LV.state !== 'play' || !LV.run) return; LV.timer = setInterval(() => { if (!LV || LV.state !== 'play') { liveStop(); return; } LV.t = Math.min(LV.t + 0.1 * LV.speed, LV.lim); liveFlush(); }, 100); }
+  function liveApply(e) {
+    const A = LV, p = NBA.Live.periodOf(Math.min(e.t, NBA.Live.REG + NBA.Live.OTLEN * 3)); A.per[p] = A.per[p] || [0, 0];
+    if (e.d) for (const k in e.d) A.box[k] = (A.box[k] || 0) + e.d[k];
+    if (e.tm) { A.sc[0] += e.tm; A.per[p][0] += e.tm; } if (e.op) { A.sc[1] += e.op; A.per[p][1] += e.op; }
+    if (e.who && e.whoPts) { const m = e.side === 'opp' ? A.opp : A.pts; m[e.who] = (m[e.who] || 0) + e.whoPts; }
+    if (e.shot) A.shots.push(e.shot);
+    A.newFeed.push({ e, ck: e.k === 'end' ? 'Final' : NBA.Live.clockOf(e.t, 1e9) });
+  }
+  function liveFlush() {
+    const A = LV; let n = 0; while (A.i < A.evs.length && A.evs[A.i].t <= A.t) { liveApply(A.evs[A.i++]); n++; }
+    if (A.t >= A.lim) {
+      if (A.tl.pause != null && !A.res) { A.state = 'call'; liveStop(); if (S.autoDec) { const w = S.dec.pending.ctx._win; liveDecide(Object.keys(w).sort((a, b) => w[b] - w[a])[0]); return; } render(); return; }
+      if (A.i >= A.evs.length) { A.state = 'done'; liveStop(); render(); return; }
+    }
+    if (A.refs) paintLive();
+  }
+  function liveDecide(key) {
+    const A = LV, Dc = DEC(); if (!A || A.state !== 'call') return;
+    try {
+      const r = Dc.choose(S, key), it1 = S.matchLog[A.idx], ext = NBA.Live.ending(A.tl, it1, { key, wins: !!it1.w, text: r.text });
+      A.res = { r, key, wins: !!it1.w }; A.it = it1; A.evs = A.evs.concat([{ t: A.tl.pause + 1, seq: -1, side: 'n', k: 'note', text: r.text, hl: true }], ext.events); A.evs = A.evs.slice(0, A.i).concat(A.evs.slice(A.i).sort((x, y) => x.t - y.t || x.seq - y.seq));
+      A.end = ext.end; A.lim = ext.end; A.state = 'play'; save(); render(); liveRun();
+    } catch (e) { console.error(e); }
+  }
+  function liveSkip() { const A = LV; if (!A || A.state !== 'play') return; const GE = A.tl.clutch ? NBA.Live.REG : A.tl.end; A.t = Math.min(A.lim, GE - A.t > 600 ? A.t + 600 : GE); liveFlush(); }
+  function liveFinish() { const idx = LV.idx; liveStop(); LV = null; S.matchIdx = idx + 1; liveSkipHdrs(); save(); render(); window.scrollTo(0, 0); }
+  function screenLive() {
+    const A = LV, Lv = NBA.Live, it = A.it, tl = A.tl, p = S.player, t = S.league.teams[S.teamId], Dc = DEC(), GE = tl.clutch ? Lv.REG : tl.end;
+    const nP = 4 + (tl.ot ? 1 : 0), per = (i) => (A.per[i] || [0, 0]), refs = (A.refs = { q: [], box: {}, ld: {} });
+    const mk = (cls, txt) => h('span', { class: cls || '' }, txt == null ? '' : String(txt));
+    const scoreSide = (nick, cap, key) => h('div', { class: 'lvteam' }, logo(nick, 46), h('b', null, nick), h('div', { class: 'small muted' }, cap), (refs[key] = h('div', { class: 'lvscore' }, '0')));
+    const board = h('section', { class: 'panel lvboard' }, h('div', { class: 'row chips2', style: 'justify-content:center' }, h('span', { class: 'cp' }, h('i', { class: 'live' }), A.state === 'done' ? 'FINAL' : 'LIVE'), h('span', { class: 'cp plain' }, it.po ? (it.rnd || 'Playoffs') + ' · Game ' + it.n : 'Game ' + it.n + ' · ' + it.d), h('span', { class: 'cp plain' }, it.ar || '')),
+      h('div', { class: 'lvbar' }, scoreSide(t.nick, it.h ? 'Home' : 'Away', 'us'), h('div', null, (refs.clock = h('div', { class: 'lvclock' }, '')), h('div', { class: 'small muted' }, p.name + ' · ' + p.pos)), scoreSide(it.o, it.h ? 'Away' : 'Home', 'them')));
+    const qrow = (label, idx) => { const cells = []; for (let i = 0; i < nP; i++) cells.push(h('td', null, (refs.q[idx * 10 + i] = h('span', null, '–')))); return h('tr', null, h('th', null, label), cells, h('td', null, h('b', null, (refs.q[idx * 10 + 9] = h('span', null, '0'))))); };
+    const qtab = h('table', { class: 'lvq' }, h('tr', null, h('th', null, ''), Array.from({ length: nP }, (_, i) => h('th', null, i < 4 ? 'Q' + (i + 1) : 'OT')), h('th', null, 'T')), qrow(t.nick, 0), qrow(it.o, 1));
+    const bx = (k, lbl) => h('div', null, h('b', null, (refs.box[k] = mk('', 0))), h('span', { class: 'small muted' }, lbl));
+    const box = h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '☰'), h('h2', null, p.name + ' · live box score')),
+      h('div', { class: 'lvbox' }, h('div', null, h('b', null, (refs.box.min = mk('', '0'))), h('span', { class: 'small muted' }, 'MIN')), LV_COLS.map(([k, l]) => bx(k, l))),
+      h('div', { class: 'row small muted', style: 'justify-content:space-around;margin-top:8px' }, h('span', null, 'FG ', (refs.box.fg = mk('', '0/0'))), h('span', null, '3PT ', (refs.box.tp = mk('', '0/0'))), h('span', null, 'FT ', (refs.box.ft = mk('', '0/0')))),
+      h('div', { style: 'margin-top:10px' }, qtab),
+      h('div', { class: 'lvlead small' }, h('div', null, h('b', null, t.nick + ' scoring'), (refs.ld.us = h('div', { class: 'muted' }, ''))), h('div', null, h('b', null, it.o + ' scoring'), (refs.ld.them = h('div', { class: 'muted' }, '')))));
+    const feed = h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '▶'), h('h2', null, 'Play-by-play')), (refs.feed = h('div', { class: 'lvfeed' })));
+    const court = h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '◎'), h('h2', null, 'Shots tonight')), (refs.court = h('div', { class: 'courtwrap well lvcourt' })));
+    // controls
+    const remainToEnd = GE - A.t, ctl = h('div', { class: 'simbar well lvctl' });
+    if (A.state === 'play') {
+      ctl.append(h('button', { class: 'primary', onclick: () => { A.run = !A.run; if (A.run) liveRun(); else liveStop(); render(); } }, A.run ? 'Pause' : 'Play'),
+        h('div', { class: 'speed' }, h('span', null, 'SPEED'), LIVE_SPEEDS.map(([v, l]) => h('button', { class: A.speed === v ? 'on' : '', onclick: () => { A.speed = v; S.liveSpeed = v; save(); render(); if (A.run) liveRun(); } }, l))),
+        h('button', { class: 'ghost', onclick: () => liveSkip() }, remainToEnd > 600 ? '⏩ Skip 10 min' : '⏭ Skip to the end'));
+    }
+    let panel = null;
+    if (A.state === 'call') {
+      const v = Dc.view(S);
+      panel = h('section', { class: 'panel' }, h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, tl.clutch && it.g7 ? 'Game 7 · winner moves on' : 'Everything on one possession'), h('h2', { style: 'margin:6px 0' }, v.text), h('p', { class: 'small muted' }, 'The coach looks at you. What do you do?')),
+        h('div', { class: 'wkgrid' }, v.opts.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: 'primary', onclick: () => liveDecide(o.key) }, 'Do it'))))), autoDecBar());
+    }
+    if (A.state === 'done') {
+      const fin = A.it, won = !!fin.w;
+      panel = h('section', { class: 'panel' }, h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, won ? 'Final · win' : 'Final · loss'), h('h2', { style: 'margin:6px 0' }, t.nick + ' ' + fin.f + ', ' + fin.o + ' ' + fin.a + (fin.ot ? ' (OT)' : '')), h('p', null, p.name + ': ' + fin.pt + ' pts, ' + fin.rb + ' reb, ' + fin.as + ' ast on ' + fin.fgm + '/' + fin.fga + ' shooting. Match rating ', ratingBadge(fin.r || 6, 1))),
+        h('div', { class: 'row' }, h('button', { class: 'primary big-btn', onclick: liveFinish }, 'Continue →')));
+    }
+    const out = h('div', null, board, ctl, panel, h('div', { class: 'lvgrid' }, box, feed), court);
+    setTimeout(() => { paintLive(true); }, 0);
+    return out;
+  }
+  function paintLive(full) {
+    const A = LV; if (!A || !A.refs) return; const R = A.refs, Lv = NBA.Live, b = A.box, tl = A.tl, nP = 4 + (tl.ot ? 1 : 0);
+    if (!R.us || !R.us.isConnected) return;
+    R.us.textContent = A.sc[0]; R.them.textContent = A.sc[1]; R.clock.textContent = A.state === 'done' ? 'Final' : Lv.clockOf(A.t, 1e9);
+    for (let r = 0; r < 2; r++) { let tot = 0; for (let i = 0; i < nP; i++) { const c = R.q[r * 10 + i]; if (!c) continue; const pr = A.per[i]; c.textContent = pr ? pr[r] : '–'; tot += pr ? pr[r] : 0; } R.q[r * 10 + 9].textContent = A.sc[r]; }
+    const GE = tl.clutch ? Lv.REG : tl.end, sec = Math.min(Lv.secOn(tl.win, A.t), tl.W), mins = tl.W ? tl.m * Math.min(1, sec / tl.W) : 0;
+    R.box.min.textContent = A.state === 'done' ? tl.m : Math.floor(mins) + ':' + String(Math.floor((mins % 1) * 60)).padStart(2, '0');
+    LV_COLS.forEach(([k]) => (R.box[k].textContent = b[k])); R.box.fg.textContent = b.fgm + '/' + b.fga; R.box.tp.textContent = b.tpm + '/' + b.tpa; R.box.ft.textContent = b.ftm + '/' + b.fta;
+    const lead = (m, meName) => Object.keys(m).map((k) => [k, m[k]]).concat(meName ? [[meName, b.pt]] : []).sort((x, y) => y[1] - x[1]).slice(0, 4).map((x) => x[0].split(' ').slice(-1)[0] + ' ' + x[1]).join(' · ');
+    R.ld.us.textContent = lead(A.pts, S.player.name); R.ld.them.textContent = lead(A.opp, null);
+    if (A.newFeed.length || full) {
+      const fresh = A.newFeed.splice(0); if (full) { A.feed = A.feed || []; }
+      fresh.forEach((f) => { const row = h('div', { class: 'lvrow ' + (f.e.side === 'me' ? 'me' : f.e.side === 'opp' ? 'opp' : '') + (f.e.hl ? ' hl' : '') }, h('span', { class: 'ck' }, f.ck), h('span', null, f.e.text)); A.feedRows = A.feedRows || []; A.feedRows.unshift(row); });
+      if (A.feedRows) { A.feedRows.length = Math.min(A.feedRows.length, 60); R.feed.replaceChildren(...A.feedRows.slice(0, 18)); }
+      const ZT = []; const rad = 5, arm = 4;
+      R.court.replaceChildren(svgEl('<svg viewBox="0 0 500 470" class="court">' + COURT + A.shots.map((d) => d.made ? '<circle cx="' + d.x + '" cy="' + d.y + '" r="' + rad + '" fill="#fff"/>' : '<g stroke="rgba(255,255,255,.55)" stroke-width="1.6"><line x1="' + (d.x - arm) + '" y1="' + (d.y - arm) + '" x2="' + (d.x + arm) + '" y2="' + (d.y + arm) + '"/><line x1="' + (d.x + arm) + '" y1="' + (d.y - arm) + '" x2="' + (d.x - arm) + '" y2="' + (d.y + arm) + '"/></g>').join('') + '</svg>'));
+    }
+  }
+
   function screenClutch() {
     const Dc = DEC(), v = Dc.view(S), t = S.league.teams[S.teamId], rec = S.proSeasons[S.proSeasons.length - 1];
     const pick = (key) => { try { const r = Dc.choose(S, key); S.decResult = { title: v.g7 ? 'Game 7' : 'Clutch time', sub: t.name + (v.home ? ' vs ' : ' at ') + 'the ' + v.opp + (v.g7 ? '' : ' · game ' + v.n), text: r.text, tone: r.tone === 'good' ? 'good' : 'bad', cap: r.tone === 'good' ? 'You came through' : 'It did not go your way' }; save(); go(); } catch (e) { console.error(e); } };
@@ -1344,6 +1452,6 @@
     app.append((m[st] || screenCreate)());
   }
   function boot() { S = null; draft.name = ''; render(); }
-  window.__NBA_UI = { get state() { return S; }, set state(v) { S = v; }, go, render, saveSnap };
+  window.__NBA_UI = { get state() { return S; }, set state(v) { S = v; }, get live() { return LV; }, go, render, saveSnap };
   boot();
 })();
