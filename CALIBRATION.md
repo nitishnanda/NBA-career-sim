@@ -807,3 +807,8 @@ A long injury (any named one, or 15+ missed games in a block) now stops the seas
 - **All-Star Weekend** (human careers): the break (after game 52) stops the games when you are selected (starter = top five of your conference by the selection order, reserve otherwise) or invited to an event. Rising Stars (rookies and second-years), the Three-Point Contest (top-8 shooter in the league and three ≥ 76, money-ball gamble option), the Slam Dunk Contest (top-6 athlete, ath ≥ 82, age ≤ 29; safe, ambitious or prop), and the All-Star Game (compete, cruise, showtime; East vs West, your line, MVP chance). Contests are played against the league's real best shooters and dunkers.
 - Awards from the weekend (Three-Point Contest Champion, Slam Dunk Contest Champion, All-Star Game MVP, Rising Stars MVP) go on the season record and career counts, add a point of legacy, and come back after a season replay. The weekend lifts media mood and brand a little. All-Star selection itself is unchanged (the award model); "coach decides" mode and autopilot skip the weekend.
 - Autopilot and league stats untouched. `scripts/allstar-check.js`, `scripts/ui-allstar.js`.
+
+## v71 — shot volume ceilings
+- Game: attempts above 28 are compressed (x0.4) and capped at 41; the season steer cannot push a game past 37 attempts. Max over 33k games went from 53 to 38, games of 40+ from 37 to 0 (real: 40+ is legendary).
+- Season: 3-point tries per game above 8.5 are compressed (x0.45) in the shooting line. Top 3PM seasons across 30 star careers went from 408/402/400 to 349/346/346 (the record, 402, is out of reach).
+- Autopilot baseline unchanged (76.5/12.9, 77.3/13.2); realism 87% at N=40.

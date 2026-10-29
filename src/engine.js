@@ -355,7 +355,8 @@
     const ftp = clamp(0.33 + 0.0062 * a.ft + randn() * 0.006, 0.45, 0.95);
     const ftm = fta * ftp;
     const tr = clamp(0.02 + 0.0085 * (a.three - 30), 0.02, 0.6);
-    const tpa = fga * tr;
+    let tpa = fga * tr;
+    if (tpa > 8.5) tpa = 8.5 + (tpa - 8.5) * 0.45;   // the 3-point volume ceiling: Curry's record 402 (11.2 tries a game) is a one-off, not something the sim hands out
     const tpp = clamp(0.22 + 0.0024 * a.three + randn() * 0.006, 0.2, 0.47);
     const tpm = tpa * tpp;
     const fgm = (pts - ftm - tpm) / 2;

@@ -450,6 +450,8 @@
     // shot volume is only loosely tied to the points: low-scoring nights tend to be bricky ones (points per shot varies ~25% around the season norm)
     const eff = clamp((0.55 + 0.45 * pts / Math.max(4, prof.avgPts)) * Math.exp(0.25 * randn()), 0.45, 1.7);
     let fga = Math.round(pts * prof.fgaPerPt / eff);
+    if (fga > 28) fga = Math.round(28 + (fga - 28) * 0.4);   // real nights: 40 shots is a legendary volume and 45+ almost never happens
+    fga = Math.min(fga, 41);
     let tpa = Math.round(fga * prof.tpaShare * (0.65 + 0.7 * rand()));
     let tpm = clamp(Math.round(tpa * prof.tpp + 0.8 * Math.sqrt(Math.max(0.2, tpa)) * 0.5 * randn()), 0, Math.min(tpa, Math.floor(rem / 3)));
     let rem2 = rem - 3 * tpm;
@@ -530,8 +532,8 @@
     }
     const TPM = sum('tpm'), FGM = sum('fgm'), FTM = sum('ftm');
     // a line with too few threes for a 3P% (under 0.3 a game) keeps its number of tries instead
-    if (TPM && tgt.tpp > 0.05 || tgt.tpa != null) steer(() => (TPM && tgt.tpp > 0.05 ? Math.max(TPM, TPM / tgt.tpp) : Math.max(TPM, tgt.tpa * n)), () => sum('tpa'), (b) => b.tpa + 0.5, () => true, (b) => { b.tpa++; b.fga++; }, (b) => b.tpa > b.tpm, (b) => { b.tpa--; b.fga--; });
-    if (FGM && tgt.fgp > 0.05) steer(() => Math.max(FGM + sum('tpa') - TPM, FGM / tgt.fgp), () => sum('fga'), (b) => b.fga - b.tpa + 0.5, () => true, (b) => { b.fga++; }, (b) => b.fga - b.tpa > two(b), (b) => { b.fga--; });
+    if (TPM && tgt.tpp > 0.05 || tgt.tpa != null) steer(() => (TPM && tgt.tpp > 0.05 ? Math.max(TPM, TPM / tgt.tpp) : Math.max(TPM, tgt.tpa * n)), () => sum('tpa'), (b) => b.tpa + 0.5, (b) => b.fga < 38, (b) => { b.tpa++; b.fga++; }, (b) => b.tpa > b.tpm, (b) => { b.tpa--; b.fga--; });
+    if (FGM && tgt.fgp > 0.05) steer(() => Math.max(FGM + sum('tpa') - TPM, FGM / tgt.fgp), () => sum('fga'), (b) => b.fga - b.tpa + 0.5, (b) => b.fga < 38, (b) => { b.fga++; }, (b) => b.fga - b.tpa > two(b), (b) => { b.fga--; });
     if (FTM && tgt.ftp > 0.05) steer(() => Math.max(FTM, FTM / tgt.ftp), () => sum('fta'), (b) => b.fta + 0.5, () => true, (b) => { b.fta++; }, (b) => b.fta > b.ftm, (b) => { b.fta--; });
   }
   const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
