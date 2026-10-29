@@ -817,7 +817,7 @@
   const MEM_W = { finalsRematchW: 40, finalsRematchL: 40, poRematchW: 22, poRematchL: 22, champDef: 8, finalsLostLast: 10, mvpLast: 7, meetBig: 9, meetBad: 9, meetLostBig: 9, meetWonBig: 6, lastVisit: 6, hiThisYear: 5, injuredLast: 6, earlyExit: 6, rookieMemory: 4, titleDrought: 5 };
   // up to `n` questions from the career's own story: a rematch always gets asked, the rest ride the weights; none that were asked recently
   function memoryQuestions(st, it, c, rnd, n, last) {
-    const bank = NBA.MemPress || [], mc = memoryCtx(st, it, last), asked = (NBA.Decisions.state(st).flags.asked || []).slice(-60), out = [], used = new Set();
+    const bank = NBA.MemPress || [], mc = memoryCtx(st, it, last), asked = (NBA.Decisions.state(st).flags.asked || []).slice(-120), out = [], used = new Set();
     Object.assign(c, mc.s);
     const amb = rnd() < 0.3;   // the background stories (rookie year, a drought, last year's injury) are asked now and then; a rematch or an earlier meeting always is
     for (let k = 0; k < n; k++) {
@@ -881,7 +881,7 @@
     const net = F - 0.35 * H;
     const eff = [{ k: 'meter', f: 'media', d: M + 0.4 * Hy }, { k: 'meter', f: 'locker', d: Lk }];
     Dc.apply(st, eff);
-    if (!post) Dc.state(st).flags.asked = (Dc.state(st).flags.asked || []).concat(ctx.qs.map((q) => q.i)).slice(-90);   // no question twice for a long while
+    if (!post) Dc.state(st).flags.asked = (Dc.state(st).flags.asked || []).concat(ctx.qs.map((q) => q.i)).slice(-200);   // no question twice for a long while
     if (fine) st.earnings = Math.max(0, st.earnings - fine);
     let line = null;
     if (post) {

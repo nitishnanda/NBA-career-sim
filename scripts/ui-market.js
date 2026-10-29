@@ -39,6 +39,11 @@ let PG = null;
       console.log('POST press', okPp ? 'OK' : 'MISMATCH', JSON.stringify(pq)); if (!okPp) errors.push('POST press ' + JSON.stringify(pq)); await shot('27c-post-press');
       if (back) await back.click();
       await page.evaluate((sv) => { const S = window.__NBA_UI.state; S.matchLog[sv.i].ppd = 0; S.matchIdx = sv.idx; S.dec.pending = sv.pending; window.__NBA_UI.go(); }, saved); } }
+  // press conferences switched off: a flagged game passes without a question and nothing is left pending
+  { const off = await page.evaluate(() => { const S = window.__NBA_UI.state, i = S.matchLog.findIndex((x) => x.k === 'g' && x.pp && !x.po); if (i < 0) return null; const keep = { idx: S.matchIdx, pending: S.dec.pending }; S.noPress = true; S.matchIdx = i + 1; S.dec.pending = null; window.__NBA_UI.go(); return Object.assign(keep, { i }); });
+    if (off) { await page.waitForSelector('text=Sim next game'); const r = await page.evaluate((sv) => { const S = window.__NBA_UI.state; return { h1: document.querySelector('h1') ? document.querySelector('h1').textContent : '', ppd: S.matchLog[sv.i].ppd, pending: S.dec.pending && S.dec.pending.id, box: !!document.querySelector('input[type=checkbox]') }; }, off);
+      const okOff = !/Press conference/i.test(r.h1) && r.ppd === 1 && !r.pending; console.log('PRESS off', okOff ? 'OK' : 'MISMATCH', JSON.stringify(r)); if (!okOff) errors.push('PRESS off ' + JSON.stringify(r));
+      await page.evaluate((sv) => { const S = window.__NBA_UI.state; S.noPress = false; S.matchLog[sv.i].ppd = 0; S.matchIdx = sv.idx; S.dec.pending = sv.pending; window.__NBA_UI.go(); }, off); } }
   await page.waitForSelector('text=Sim next game');
   const arm = () => page.evaluate(() => {
     const S = window.__NBA_UI.state, G = window.NBA.Game; if (!S.matchLog || S.dlDone) return null; window.__NBA_UI.saveSnap();
@@ -130,6 +135,8 @@ let PG = null;
   const okS = sg.ok && sg.contract.role && /Negotiated a deal/.test(sg.journal); console.log('NEGOTIATION signed', okS ? 'OK' : 'MISMATCH', JSON.stringify(sg)); if (!okS) errors.push('NEG signed ' + JSON.stringify(sg));
   // ---- late career: a 34-year-old is asked how he wants to play the late years; a loyalty deal and ring-chase discounts show up in the market
   await page.evaluate(() => { const S = window.__NBA_UI.state; S.player.age = 34; S.stage = 'decision'; S.contract.left = 0; S.dec.season = {}; S.player.tr = Object.assign({}, S.player.tr, { stay: 1 }); S.decision = null; S.dec.pending = null; window.__NBA_UI.go(); });
+  // the club's keep-or-let-go roll is seeded per career: walk the seed until the club keeps him, so the loyalty deal is on the table
+  for (let sd = 1; sd <= 40; sd++) { const ok = await page.evaluate((sd) => { const S = window.__NBA_UI.state; S.dec.seed = sd; S.decision = null; S.dec.pending = null; window.__NBA_UI.go(); return /Loyalty deal/i.test(document.body.innerText) && /late years/i.test(document.body.innerText); }, sd); if (ok) break; }
   await page.waitForSelector('text=How do you want to play the late years');
   const lt = await page.evaluate(() => ({ opts: document.querySelectorAll('.wkcard').length, loyal: /Loyalty deal/.test(document.body.innerText), ring: /ring chase/.test(document.body.innerText), tour: /farewell season/i.test(document.body.innerText), age: window.__NBA_UI.state.player.age }));
   const okL = lt.opts >= 4 && lt.loyal; console.log('LATE CAREER card', okL ? 'OK' : 'MISMATCH', JSON.stringify(lt)); if (!okL) errors.push('LATE ' + JSON.stringify(lt)); await shot('26-late-career');

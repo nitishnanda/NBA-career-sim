@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v61';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v62';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -475,6 +475,13 @@
   const holdAt = () => {
     if (!S.matchLog) return false;
     const Dc = NBA.Decisions, pend = (id) => S.dec && S.dec.pending && S.dec.pending.id === id;
+    if (S.noPress) {   // press conferences are switched off: nothing is asked, nothing is said (the meters stay where they are)
+      if (pend('press')) Dc.autoResolve(S);
+      const pv = S.matchLog[(S.matchIdx || 0) - 1]; if (pv && pv.pp && !pv.ppd) pv.ppd = 1;
+      const cu = S.matchLog[S.matchIdx || 0];
+      if (cu && cu.k === 'g' && cu.pc && !cu.pd && !cu.po) cu.pd = 1;
+      if (cu && cu.k === 'hdr' && cu.ps != null && cu.pc && S.poPlans && S.poPlans[cu.ps] !== undefined && !(S.poPress && S.poPress[cu.ps] !== undefined)) S.poPress = Object.assign({}, S.poPress, { [cu.ps]: null });
+    }
     // the press room after a game that mattered: it is asked about the game that was just played
     const prev = S.matchLog[(S.matchIdx || 0) - 1];
     if (prev && prev.k === 'g' && prev.pp && !prev.ppd && !prev.dnp) {
@@ -567,7 +574,7 @@
         playing ? ctl('Pause', () => { stopAuto(); render(); }, 'primary big-btn', 'pause') : ctl(nextIsPo ? 'Sim next playoff game' : 'Sim next game', sim1, 'primary big-btn', 'play'),
         !asDone && asIdx >= 0 && !nextIsPo ? ctl('Sim to All-Star', () => autoplay(() => S.matchIdx > asIdx), 'ghost', 'ff') : (regEndIdx >= 0 && idx <= regEndIdx ? ctl('Sim to playoffs', () => autoplay(() => S.matchIdx > regEndIdx), 'ghost', 'ff') : null),
         h('div', { class: 'speed' }, h('span', null, 'SPEED'), ['1x', '2x', 'inst'].map((k) => h('button', { class: speed === k ? 'on' : '', onclick: () => { speed = k; render(); } }, k === 'inst' ? 'Instant' : k))),
-        h('div', { class: 'simmini' }, ctl('Sim 10', () => { let c = 0; autoplay(() => c++ >= 10); }, 'tiny'), ctl('Skip to recap »', () => { stopAuto(); S.matchIdx = items.length; S.stage = 'season_recap'; go(); }, 'tiny')));
+        h('div', { class: 'simmini' }, ctl('Sim 10', () => { let c = 0; autoplay(() => c++ >= 10); }, 'tiny'), ctl('Skip to recap »', () => { stopAuto(); S.matchIdx = items.length; S.stage = 'season_recap'; go(); }, 'tiny'), h('label', { class: 'small muted', style: 'margin-left:10px;white-space:nowrap' }, h('input', { type: 'checkbox', checked: !S.noPress, onchange: (e) => { S.noPress = !e.target.checked; save(); } }), ' Press conferences')));
     const schedule = nextIsPo || poG.length
       ? h('div', null, h('div', { class: 'row small caps' }, h('span', null, 'Postseason'), h('span', { class: 'spacer' }), h('span', null, (poG.length ? poG[poG.length - 1].rnd + ' · ' + poG[poG.length - 1].ser : 'Bracket set'))), h('div', { class: 'bar2' }, h('i', { style: 'width:100%' })))
       : h('div', null, h('div', { class: 'row small caps' }, h('span', null, 'Regular season schedule'), h('span', { class: 'spacer' }), h('span', null, 'Game ' + reg.length + ' / ' + regTotal + ' · ' + (100 * reg.length / Math.max(1, regTotal)).toFixed(0) + '%')),
@@ -1144,6 +1151,7 @@
       h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, 'Question ' + (v.step + 1) + ' of ' + v.total), h('h2', { style: 'margin:8px 0' }, '“' + v.question + '”')),
       h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' + (o.spicy ? ' spicy' : '') }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.line), h('div', { style: 'margin-top:8px' }, h('button', { class: o.spicy ? '' : 'primary', onclick: () => pick(o.key) }, 'Say it'))))),
       h('div', { class: 'card' }, h('b', null, 'Say it in your own words'), ta, h('div', { class: 'row', style: 'margin-top:8px' }, go2, count), note),
+      h('div', { class: 'row', style: 'margin-top:10px' }, h('button', { class: 'ghost tiny', onclick: () => { S.noPress = true; try { Dc.autoResolve(S); } catch (e) { console.error(e); } save(); go(); } }, 'Skip press conferences from now on'), h('span', { class: 'small muted' }, 'You can switch them back on under the season controls.')),
       autoDecBar());
   }
 

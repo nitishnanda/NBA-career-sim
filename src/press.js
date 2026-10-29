@@ -329,7 +329,7 @@
   // pick n questions: no topic twice in one session, never one asked earlier this season, weighted towards what is going on (a rival, a farewell, an old team) over the generic
   const WEIGHT = { style: 2, bubble: 2.5, stakes: 1.6, leg: 1.5, rival: 6, farewell: 6, revenge: 6, playoffs: 4, form: 3, health: 3, awards: 2, biz: 2, game: 2, mile: 3, mate: 1.5, team: 1.4, young: 2, vet: 1.5, media: 0.7 };
   function pickQuestions(st, it, n, rnd) {
-    const c = ctxFor(st, it), asked = (NBA.Decisions.state(st).flags.asked || []).slice(-60), used = new Set(), out = [];
+    const c = ctxFor(st, it), asked = (NBA.Decisions.state(st).flags.asked || []).slice(-190), used = new Set(), out = [];
     const ok = B.map((q, i) => ({ q, i })).filter((x) => c[x.q.cond] && asked.indexOf(x.i) < 0 && (x.q.cond !== 'oppStar' || c.oppStar) && !(x.q.heat >= 2 && !(c.oppStar || c.rival)));
     for (let k = 0; k < n; k++) {
       const pool = ok.filter((x) => !used.has(x.q.topic) && !out.some((o) => o.i === x.i));
