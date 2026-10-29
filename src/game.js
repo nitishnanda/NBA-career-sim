@@ -1,7 +1,7 @@
 (function (g) {
   'use strict';
   const NBA = g.NBA;
-  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./feed.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
+  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./feed.js'); require('./legacy.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
   const D = NBA.data;
   const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
   const ATTRS = D.ATTRS;
@@ -254,6 +254,13 @@
     }
     return alloc;
   }
+  // the agent is picked once, before the first pro camp; then the preseason carries on
+  function chooseAgent(st, id) {
+    if (!NBA.Legacy.AGENTS.some((a) => a.id === id)) throw new Error('no such agent');
+    st.agent = id; st.stage = 'pro_ready'; const Dc = NBA.Decisions;
+    NBA.Decisions.log(st, { kind: 'brand', title: 'Agent', tone: 'good', text: 'Hired ' + NBA.Legacy.agentOf(st).name + ' (' + NBA.Legacy.agentOf(st).tag.toLowerCase() + ').' });
+    if (Dc.offer(st, 'camp')) st.stage = 'camp';
+  }
   function train(st, alloc) {
     const p = st.player;
     const before = {}; ATTRS.forEach((a) => (before[a] = p.attrs[a]));
@@ -271,6 +278,7 @@
     else if (next === 'pro_first') st.stage = 'pro_ready';
     else { NBA.offseason(st.league, { draft: true }); st.stage = 'pro_ready'; }
     // a pro preseason opens camp: who to train with (the autopilot answers it itself)
+    if (st.stage === 'pro_ready' && !st.autoPlay && !st.agent) { st.stage = 'agent'; return rep; }
     if (st.stage === 'pro_ready') { if (st.autoPlay) { if (st.autoDecide && NBA.Decisions.offer(st, 'camp')) NBA.Decisions.autoResolve(st); } else if (NBA.Decisions.offer(st, 'camp')) st.stage = 'camp'; }
     return rep;
   }
@@ -1343,7 +1351,7 @@
     const L = st.league, p = st.player, c = st.contract;
     const cap = capNow(L);
     const mk = marketPct(st);
-    const baseSal = mk.pct * cap;
+    const agC = !st.autoPlay && NBA.Legacy.agentOf(st), baseSal = mk.pct * cap * (agC ? agC.contract : 1);
     const out = { age: p.age, ovr: Math.round(ovr(p)), expiring: c.left <= 0, contract: c, cap: r1(cap), marketSalary: r1(baseSal), team: L.teams[st.teamId].name };
     // whether anyone still wants you: players who love the game keep finding minimum deals (Haslem, Vince), others walk away while they still could play
     const st0 = (p.tr && p.tr.stay) || 0, sty = p.age >= 31 ? NBA.tuning.stayMarket * (st0 > 0 ? st0 : 0.5 * st0) : 0, v = mk.v + sty;   // only veterans: young players get offers on talent
@@ -1352,7 +1360,8 @@
     out.mustRetire = forceRetire;
     if (st.finalYear) out.farewell = true;
     const human = !st.autoPlay, Dc = NBA.Decisions;
-    if (human) { applyInjuryFx(st); finalizeRivals(st); finalizePress(st); }
+    if (human) { applyInjuryFx(st); NBA.Legacy.brandYear(st); finalizeRivals(st); finalizePress(st); }
+    if (human) { const b = st.brand; out.brand = { score: Math.round(b ? b.score : 0), deals: b ? b.deals : [], offers: NBA.Legacy.endorseOffers(st), agent: NBA.Legacy.agentOf(st) }; }
     if (human && !Dc.state(st).pending) Dc.offer(st, 'late');
     // a club can cut a player who is doing badly (his contract is voided; the salary he was owed is still paid): he goes to the market like any other free agent
     if (human && !out.expiring && !forceRetire && c.left > 0 && p.age >= 24 && v < 63 && !protection(st) && Dc.rng(st, 'cut|' + L.year)() < (v < 58 ? 0.55 : 0.3)) {
@@ -1549,7 +1558,7 @@
       NBA.runYear(L, { draft: true }); progress(p);
       ATTRS.forEach((a) => { p.attrs[a] = clamp(p.attrs[a] - (a === 'ath' ? 1.4 : 0.6), 8, 99); });   // the rust of time away
     }
-    st.retired = false; st.hof = null; st.finalYear = false; st.farewellAnnounced = null; st.comebacks = (st.comebacks || 0) + 1;
+    st.retired = false; st.hof = null; st.after = null; st.finalYear = false; st.farewellAnnounced = null; st.comebacks = (st.comebacks || 0) + 1;
     st.contract = { salary: 0, years: 0, left: 0, type: 'veteran' }; st.legendBonus = clamp(legend / 50, 0, 4);
     Dc.apply(st, [{ k: 'meter', f: 'media', d: hadFarewell ? -2 : 1 }]);
     Dc.log(st, { kind: 'comeback', title: 'Comeback', tone: hadFarewell ? 'bad' : 'neutral', text: 'Came out of retirement at ' + p.age + ' after ' + years + ' year' + (years > 1 ? 's' : '') + ' away' + (hadFarewell ? ' (after the farewell tour: the fans are split).' : '.') });
@@ -1615,6 +1624,6 @@
     return st;
   }
 
-  Object.assign(NBA, { Game: { announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { capFor, Game: { chooseAgent, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -97,10 +97,12 @@ let PG_DBG = null;
   console.log('DRAFT trades', okTr ? 'OK' : 'MISMATCH', JSON.stringify(tr)); if (!okTr) errors.push('DRAFT trades ' + JSON.stringify(tr));
   await shot('05-draft-night');
   await page.click('text=Start my NBA career');
+  let agentDone = false;
   const trainLoop = async () => {
     await page.click('text=Auto-allocate');
     await page.click('text=Confirm & advance the offseason');
     await page.click('text=Continue →');
+    if (!agentDone) { await page.waitForSelector('h1:has-text("Pick your agent")'); await page.click('button:has-text("Hire") >> nth=1'); agentDone = true; console.log('AGENT picked'); }
     await campStep();
   };
   // preseason camp: ask the most accessible mentors until one says yes or the asks run out, then solo work; the journal has to say what happened
@@ -121,7 +123,7 @@ let PG_DBG = null;
     if (await page.$('button:has-text("Start the season")')) await page.click('button:has-text("Start the season")');
     else if (await page.$('.mcard.t3')) await page.click('button:has-text("Start the season")');
     else await page.click('h3:has-text("own game") ~ div button >> nth=0');
-    if (campN === 1) { const j = await page.evaluate(() => window.__NBA_UI.state.dec.journal.map((e) => e.kind).join()); if (!/^hs,role,(camp|invite)$/.test(j)) errors.push('CAMP journal ' + j); else console.log('CAMP journal OK (hs, role, camp)'); }
+    if (campN === 1) { const j = await page.evaluate(() => window.__NBA_UI.state.dec.journal.map((e) => e.kind).join()); if (!/^hs,role,brand,(camp|invite)$/.test(j)) errors.push('CAMP journal ' + j); else console.log('CAMP journal OK (hs, role, agent, camp)'); }
   };
   await trainLoop();
   await shot('06-pro-ready');

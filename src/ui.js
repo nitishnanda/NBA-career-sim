@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v65';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v66';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -987,6 +987,13 @@
       return h('div', null, out);
     }
     if (d.farewell && S.farewellOverride) out.push(h('div', { class: 'callout' }, 'You said this was your farewell. If you sign or stay, the fans, the media and the room will all notice, and it will cost you.'));
+    if (d.brand && (d.brand.score > 0 || d.brand.deals.length || d.brand.offers.length)) {
+      const L2 = NBA.Legacy, b = d.brand, ag = b.agent, full = b.deals.length >= 4;
+      out.push(h('div', { class: 'card bizcard' }, h('h3', { style: 'margin-top:0' }, '💼 Business'), h('p', { class: 'small muted' }, 'Brand ' + b.score + '/100' + (ag ? ' · agent ' + ag.name + ' keeps ' + Math.round(ag.fee * 100) + '%' : '')),
+        b.deals.length ? h('div', null, b.deals.map((x) => h('div', { class: 'small' }, '• ' + x.name + ' (' + x.cat.toLowerCase() + '): ' + money(x.annual) + ' a year, ' + x.years + ' left' + (x.clause === 'image' ? ' · image clause' : '')))) : h('p', { class: 'small muted' }, 'No endorsement deals yet.'),
+        b.offers.map((o) => h('div', { class: 'row', style: 'margin:6px 0' }, h('div', null, h('b', null, o.name), h('div', { class: 'small muted' }, o.cat + ' · ' + money(o.annual) + ' a year for ' + o.years + ' year' + (o.years > 1 ? 's' : '') + (o.clause === 'image' ? ' · image clause: they leave if the media turns on you' : ''))), h('span', { class: 'spacer' }),
+          o.state ? h('span', { class: 'small muted' }, o.state === 'yes' ? 'Signed' : 'Passed') : h('span', { class: 'row' }, h('button', { class: 'primary', disabled: full, onclick: () => { try { L2.answerOffer(S, o.id, true); save(); render(); } catch (e) { console.error(e); } } }, full ? 'Deals full' : 'Sign'), h('button', { onclick: () => { L2.answerOffer(S, o.id, false); save(); render(); } }, 'Pass'))))));
+    }
     { const ij = ((S.dec && S.dec.journal) || []).filter((e) => e.kind === 'injury' && e.year === S.league.year).slice(-1)[0]; if (ij) out.push(h('div', { class: 'callout' }, '🩹 ' + ij.title + ': ' + ij.text)); }
 
     if (S.dec && S.dec.pending && S.dec.pending.id === 'late' && !d.mustRetire) { const v = DEC().view(S);
@@ -1104,6 +1111,17 @@
       tr.length ? h('div', { class: 'scroll', style: 'margin-top:10px' }, h('table', { class: 'st' }, h('thead', null, h('tr', null, ['Season', 'Trade', 'You (ovr)', 'Came back'].map((x) => h('th', { class: 'l' }, x)))), h('tbody', null, tr.map((x) => h('tr', null, h('td', { class: 'l' }, x.label), h('td', { class: 'l' }, x.from + ' → ' + x.to), h('td', { class: 'l' }, 'age ' + x.age + ' · ' + x.ovr), h('td', { class: 'l' }, x.partner)))))) : h('p', { class: 'muted' }, 'You were never traded.'),
       rows.length ? h('div', { class: 'small muted', style: 'margin-top:10px' }, rows.map((x) => h('div', null, x))) : null);
   }
+  // retirement is not a cliff: a jersey, a speech, and the next chapter, each once
+  function afterCard() {
+    const L2 = NBA.Legacy, A = L2.afterlife(S), d = A.done, run = (fn, arg) => { try { fn(S, arg); save(); render(); } catch (e) { console.error(e); } };
+    const parts = [];
+    if (A.jersey) parts.push(d.jersey ? h('p', { class: 'jmsg good' }, '🎽 The ' + d.jersey.nick + ' raised #' + d.jersey.num + ' to the rafters.') : h('div', { class: 'row' }, h('div', null, h('b', null, '🎽 Jersey retirement'), h('div', { class: 'small muted' }, 'The ' + A.jersey.nick + ' want to retire your number (' + A.jersey.years + ' seasons' + (A.jersey.titles ? ', ' + A.jersey.titles + ' title' + (A.jersey.titles > 1 ? 's' : '') : '') + ').')), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => run(L2.doJersey) }, 'Attend the ceremony')));
+    if (A.hall) parts.push(d.speech ? h('p', { class: 'jmsg good' }, '🏛️ ' + L2.SPEECH[d.speech].text) : h('div', null, h('b', null, '🏛️ Hall of Fame speech'), h('div', { class: 'small muted' }, 'You are going in. What do you say?'), h('div', { class: 'row', style: 'flex-wrap:wrap' }, Object.keys(L2.SPEECH).map((k) => h('button', { title: L2.SPEECH[k].blurb, onclick: () => run(L2.doSpeech, k) }, L2.SPEECH[k].label)))));
+    parts.push(d.path ? h('div', null, h('b', null, 'After basketball: ' + L2.PATHS[d.path.key].label), d.path.ms.map((m) => h('div', { class: 'jmsg ' + m.tone, style: 'margin:4px 0' }, 'Age ' + m.age + ': ' + m.text)))
+      : h('div', null, h('b', null, 'What comes next?'), h('div', { class: 'small muted' }, 'You are done playing, not done living.'), L2.pathOptions(S).map((o) => h('div', { class: 'row', style: 'margin:6px 0' }, h('div', null, h('b', null, o.label + ' · ' + o.read), h('div', { class: 'small muted' }, o.blurb)), h('span', { class: 'spacer' }), h('button', { onclick: () => run(L2.doPath, o.key) }, 'Choose')))));
+    const b = S.brand;
+    return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Life after the game'), b && b.earned ? h('p', { class: 'small muted' }, 'Endorsement career: ' + money(Math.round(b.earned)) + ' earned, peak brand built to ' + Math.round(b.score) + '.') : null, parts);
+  }
   function screenRetired() {
     const hof = S.hof, p = S.player;
     const mark = NBA.logos && NBA.logos._NBA ? h('div', { class: 'nbahero' }, h('span', null, h('img', { src: NBA.logos._NBA, alt: 'NBA' }))) : null;
@@ -1113,7 +1131,7 @@
       (G.canComeback(S) ? (() => { let yrs = 1; return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Miss it already?'),
         h('p', { class: 'small muted' }, 'Players do come back (ask Jordan). A few years away costs you athleticism and the league moves on, but a famous name still gets a call. You are ' + p.age + (S.farewellAnnounced || S.farewellDone ? '. You told the world it was your farewell, so the fans will be split.' : '.')),
         h('div', { class: 'row' }, h('select', { onchange: (e) => { yrs = +e.target.value; } }, [1, 2, 3].filter((y) => p.age + y <= 42).map((y) => h('option', { value: y }, y + (y === 1 ? ' year away' : ' years away')))), confirmBtn('Come out of retirement', '', () => { G.comeback(S, yrs); go(); }))); })() : null),
-      movesCard(), journalCard(40, 'Career journal'),
+      afterCard(), movesCard(), journalCard(40, 'Career journal'),
       h('div', { class: 'card' }, careerBody()),
       h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { wipe(); S = null; boot(); } }, 'Start a new career')));
   }
@@ -1270,6 +1288,11 @@
     const j = ((S.dec && S.dec.journal) || []).slice().reverse(); if (!j.length) return null;
     return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, title || 'Your journal'), h('div', { class: 'jlist' }, j.slice(0, n || 40).map((e) => h('div', { class: 'jrow ' + (e.tone || '') }, h('span', { class: 'jyr' }, e.label), h('div', null, h('b', { class: 'small' }, e.title), h('div', { class: 'small' }, e.text))))));
   }
+  function screenAgent() {
+    const Ag = NBA.Legacy.AGENTS;
+    return h('div', null, h('h1', null, 'Pick your agent'), h('p', { class: 'muted' }, 'This is the person who negotiates your contracts and sells your name. You can only pick once, so choose who you trust.'),
+      Ag.map((a) => h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('b', null, a.name + ' · ' + a.tag), h('div', { class: 'small muted' }, a.blurb)), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => { G.chooseAgent(S, a.id); save(); go(); } }, 'Hire')))));
+  }
   function screenCamp() {
     const Dc = DEC(); if (!S.dec || !S.dec.pending || S.dec.pending.id !== 'camp') { S.stage = 'pro_ready'; return screenProReady(); }
     const v = Dc.view(S), L = S.league;
@@ -1307,7 +1330,7 @@
     if (view === 'team' && st !== 'create') { app.append(screenTeam()); return; }
     if (view === 'league' && st !== 'create') { app.append(screenLeague()); return; }
     if (view === 'career' && st !== 'create') { app.append(screenCareer()); return; }
-    const m = { scouting: screenScouting, hs: screenHS, college_pick: screenCollegePick, college_ready: screenCollegeReady, college_decision: screenCollegeDecision, combine: screenCombine, workouts: screenWorkouts, draft_night: screenDraft, training: screenTraining, camp: screenCamp, pro_ready: screenProReady, season_play: screenSeasonPlay, season_recap: screenRecap, decision: screenDecision, retired: screenRetired };
+    const m = { scouting: screenScouting, hs: screenHS, college_pick: screenCollegePick, college_ready: screenCollegeReady, college_decision: screenCollegeDecision, combine: screenCombine, workouts: screenWorkouts, draft_night: screenDraft, training: screenTraining, camp: screenCamp, agent: screenAgent, pro_ready: screenProReady, season_play: screenSeasonPlay, season_recap: screenRecap, decision: screenDecision, retired: screenRetired };
     if (S.flash && st !== 'decision') { app.append(h('div', { class: 'callout' }, S.flash)); S.flash = null; }
     app.append((m[st] || screenCreate)());
   }

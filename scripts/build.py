@@ -1,7 +1,7 @@
 # Bundles style.css + src/shell.html + src/*.js into one self-contained page: python3 scripts/build.py
 shell = open('src/shell.html').read()
 css = open('style.css').read()
-js = "\n".join(open(f'src/{n}.js').read() for n in ['data', 'logos', 'engine', 'league', 'real', 'sizes', 'combine', 'decisions', 'presslines', 'postpress', 'mempress', 'reporters', 'feed', 'press', 'game', 'ui'])
+js = "\n".join(open(f'src/{n}.js').read() for n in ['data', 'logos', 'engine', 'league', 'real', 'sizes', 'combine', 'decisions', 'presslines', 'postpress', 'mempress', 'reporters', 'feed', 'legacy', 'press', 'game', 'ui'])
 assert '</script' not in js
 open('dist/nba-career-sim.html', 'w').write(shell.replace('/*CSS*/', css).replace('/*JS*/', js))
 # standalone page for GitHub Pages / phones: needs its own doctype + viewport (the artifact viewer supplies these itself)
