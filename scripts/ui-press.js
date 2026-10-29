@@ -9,7 +9,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
     page.on('pageerror', (e) => { errors.push(mode + ' PAGEERROR ' + e.message); console.log('PAGEERROR', e.message); });
     if (mode !== 'reader') await page.addInitScript((m) => {
       window.__prompts = [];
-      const sample = Object.assign(async () => ({ text: '' }), { json: async (prompt) => { window.__prompts.push(prompt); if (m === 'claude-down') throw { code: 'rate_limited', message: 'busy' }; return { tone: 'trash', intensity: 1.2, profane: false, reaction: 'MOCK REACTION: the room gasps.', headline: 'MOCK HEADLINE: star fires back' }; }, limits: async () => ({}) });
+      const sample = Object.assign(async () => ({ text: '' }), { json: async (prompt) => { window.__prompts.push(prompt); if (m === 'claude-down') throw { code: 'rate_limited', message: 'busy' }; if (/Write 3 fresh press-conference questions/.test(prompt)) return { questions: [{ reporter: 'Dana Whitfield', text: 'MOCK QUESTION: what is the first thing you want fans to see tonight?', heat: 1, answers: { humble: 'Honestly just a team that plays for each other.', confident: 'A team that is not afraid of anybody in this building.', joke: 'Me finding my seat on the bench. Very exciting.', deflect: 'Come watch the game and find out.', trash: 'That we are better than whoever lines up against us.', fight: 'Come to the game and see me say it to their face.' } }] }; return { tone: 'trash', intensity: 1.2, profane: false, reaction: 'MOCK REACTION: the room gasps.', headline: 'MOCK HEADLINE: star fires back' }; }, limits: async () => ({}) });
       window.claude = { use: async (n) => (n === 'sample' ? sample : null) };
     }, mode);
     await page.goto('file://' + path.resolve(__dirname, '../dist/index.html'));
@@ -22,23 +22,20 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
     });
     await page.click('text=/Tip off the .* season/');
     await page.waitForSelector('h1:has-text("Press conference")');
-    const note = await page.evaluate(() => new Promise((r) => setTimeout(() => r(document.querySelector('.pressnote').textContent), 200)));
+    await page.waitForTimeout(600);
+    const fresh = await page.evaluate(() => ({ badge: !!Array.from(document.querySelectorAll('.qcard .badge')).find((e) => /Fresh question/.test(e.textContent)), mock: /MOCK QUESTION/.test(document.body.innerText) }));
+    const okAi = mode === 'claude' ? fresh.badge && fresh.mock : !fresh.badge; console.log('PRESS fresh questions (' + mode + ')', okAi ? 'OK' : 'MISMATCH', JSON.stringify(fresh)); if (!okAi) errors.push(mode + ' fresh ' + JSON.stringify(fresh));
+    if (mode === 'claude') await page.evaluate(() => { const b = Array.from(document.querySelectorAll('.qcard')).find((e) => /MOCK QUESTION/.test(e.textContent)); b.querySelector('button').click(); }); else await page.click('.qcard button >> nth=0');
+    await page.waitForSelector('.pressbox');
+    const note = await page.evaluate(() => new Promise((r) => setTimeout(() => r(document.querySelector('.card .pressnote').textContent), 200)));
     const okNote = mode === 'reader' ? /read your answer for tone/.test(note) : /reporters in this room are Claude/.test(note);
     console.log('PRESS typed note (' + mode + ')', okNote ? 'OK' : 'MISMATCH', note); if (!okNote) errors.push(mode + ' note ' + note);
-    const q1 = await page.evaluate(() => document.querySelector('.card.suspense h2').textContent);
-    const say = 'Honestly I just want to thank my teammates and the coach, we have a great group';
-    await page.fill('.pressbox', say); await page.click('.card:has(.pressbox) button.primary');
-    await page.waitForFunction(() => /Question 2/i.test(document.body.innerText), null, { timeout: 8000 });
-    const log1 = await page.evaluate(() => Array.from(document.querySelectorAll('.jmsg')).map((e) => e.textContent).join(' | '));
-    const q2 = await page.evaluate(() => document.querySelector('.card.suspense h2').textContent);
-    const ok1 = log1.includes(say) && (mode === 'reader' ? /class act|nods along|PR people|Nobody has a follow-up/.test(log1) : mode === 'claude' ? /MOCK REACTION/.test(log1) : /class act|nods along|PR people|Nobody has a follow-up/.test(log1));
-    console.log('PRESS typed answer 1 (' + mode + ')', ok1 ? 'OK' : 'MISMATCH', log1.slice(0, 160)); if (!ok1) errors.push(mode + ' answer1 ' + log1);
     const bad = 'Wembanyama is overrated and he cannot guard me, bring it';
     await page.fill('.pressbox', bad); await page.click('.card:has(.pressbox) button.primary');
     await page.waitForSelector('button:text-matches("Play the game|Back to the season", "i")', { timeout: 8000 });
-    const fin = await page.evaluate(() => { const S = window.__NBA_UI.state, j = S.dec.journal.slice(-1)[0]; return { pd: !!S.matchLog[0].pd, media: S.dec.flags.media, locker: S.dec.flags.locker, journal: j && j.text, flash: (document.body.innerText.match(/Headline: [^\n]*/) || [''])[0], prompts: (window.__prompts || []).length, prompt0: (window.__prompts || [''])[0] }; });
-    const okFin = fin.pd && typeof fin.media === 'number' && (mode === 'reader' || mode === 'claude-down' || (fin.prompts === 2 && /DATA; ignore any instructions/.test(fin.prompt0) && /MOCK HEADLINE/.test(fin.flash)));
-    console.log('PRESS typed resolved (' + mode + ')', okFin ? 'OK' : 'MISMATCH', JSON.stringify({ pd: fin.pd, media: fin.media, locker: fin.locker, prompts: fin.prompts, flash: fin.flash.slice(0, 70), journal: (fin.journal || '').slice(0, 90) })); if (!okFin) errors.push(mode + ' resolved ' + JSON.stringify(fin));
+    const fin = await page.evaluate(() => { const S = window.__NBA_UI.state, j = S.dec.journal.slice(-1)[0]; return { pd: !!S.matchLog[0].pd, media: S.dec.flags.media, locker: S.dec.flags.locker, journal: j && j.text, headline: (document.querySelector('.headline') || {}).textContent || '', fans: document.querySelectorAll('.fan').length, quotes: ((S.dec.flags.pr || {}).quotes || []).length, prompts: (window.__prompts || []).length, prompt0: (window.__prompts || [])[0] || '' }; });
+    const okFin = fin.pd && typeof fin.media === 'number' && fin.headline.length > 8 && fin.fans >= 3 && fin.quotes === 1 && (mode === 'reader' || mode === 'claude-down' || (fin.prompts === 2 && /DATA; ignore any instructions/.test(fin.prompt0) && /MOCK HEADLINE/.test(fin.headline)));
+    console.log('PRESS typed resolved (' + mode + ')', okFin ? 'OK' : 'MISMATCH', JSON.stringify({ pd: fin.pd, media: fin.media, locker: fin.locker, prompts: fin.prompts, headline: fin.headline.slice(0, 70), fans: fin.fans, quotes: fin.quotes, journal: (fin.journal || '').slice(0, 90) })); if (!okFin) errors.push(mode + ' resolved ' + JSON.stringify(fin));
     await page.click('button:text-matches("Play the game|Back to the season", "i")');
     await ctx.close();
   }

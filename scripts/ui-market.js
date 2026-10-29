@@ -19,22 +19,26 @@ let PG = null;
     G.train(st, G.autoAlloc(st.player, G.trainingInfo(st).points)); if (st.stage === 'camp') Dc.autoResolve(st); st.stage = 'pro_ready';
     window.__NBA_UI.state = st; window.__NBA_UI.go();
   });
+  const answerPress = async () => { for (let k = 0; k < 10; k++) { if (await page.$('.qcard button')) await page.click('.qcard button >> nth=0'); else if (await page.$('.wkcard button')) await page.click('.wkcard button >> nth=0'); else break; await page.waitForTimeout(60); } };
   // ---- 1. the deadline: a trade request comes due with suitors
   await page.click('text=/Tip off the .* season/');
   // the opener is a hyped game: the press room comes first. Three kinds of answer, each with the words you would say; a trash-talk option appears when a question has bite
   await page.waitForSelector('h1:has-text("Press conference")');
+  const pk0 = await page.evaluate(() => ({ cards: document.querySelectorAll('.qcard').length, reporters: Array.from(document.querySelectorAll('.qcard .small.muted')).filter((e) => / · /.test(e.textContent)).length, image: /media image/i.test(document.body.innerText) }));
+  const okPk = pk0.cards >= 2 && pk0.reporters === pk0.cards && pk0.image; console.log('PRESS pick screen', okPk ? 'OK' : 'MISMATCH', JSON.stringify(pk0)); if (!okPk) errors.push('PRESS pick ' + JSON.stringify(pk0)); await shot('27-press-pick');
+  await page.click('.qcard button >> nth=0'); await page.waitForSelector('.pressbox');
   const pc0 = await page.evaluate(() => ({ q: document.querySelector('.card.suspense h2').textContent, opts: document.querySelectorAll('.wkcard').length, lines: Array.from(document.querySelectorAll('.wkcard .small')).filter((e) => /^["\u201C]/.test(e.textContent)).length, why: document.querySelector('h1 + p').textContent }));
   const okPc = pc0.opts >= 3 && pc0.lines === pc0.opts && pc0.q.length > 15; console.log('PRESS screen', okPc ? 'OK' : 'MISMATCH', JSON.stringify(pc0)); if (!okPc) errors.push('PRESS ' + JSON.stringify(pc0)); await shot('27-press');
-  for (let k = 0; k < 4 && (await page.$('.wkcard button')); k++) await page.click('.wkcard button >> nth=0');
-  const rs = await page.evaluate(() => ({ card: !!document.querySelector('.card.suspense .jmsg'), cont: /Play the game/i.test(document.body.innerText), game: /Before game 1/i.test(document.body.innerText) })); console.log('PRESS result page', rs.card && rs.cont && rs.game ? 'OK' : 'MISMATCH', JSON.stringify(rs)); if (!(rs.card && rs.cont && rs.game)) errors.push('PRESS result page'); await shot('27b-press-result');
+  await answerPress();
+  const rs = await page.evaluate(() => ({ card: !!document.querySelector('.card.suspense .jmsg'), cont: /Play the game/i.test(document.body.innerText), game: /Before game 1/i.test(document.body.innerText), headline: !!document.querySelector('.headline'), fans: document.querySelectorAll('.fan').length })); const okRs = rs.card && rs.cont && rs.game && rs.headline && rs.fans >= 3; console.log('PRESS result page', okRs ? 'OK' : 'MISMATCH', JSON.stringify(rs)); if (!okRs) errors.push('PRESS result page ' + JSON.stringify(rs)); await shot('27b-press-result');
   await page.click('button:text-matches("Play the game|Back to the season", "i")');
   const pc1 = await page.evaluate(() => { const S = window.__NBA_UI.state; return { pd: !!S.matchLog[0].pd, meters: Object.keys(S.dec.flags).filter((k) => /media|locker/.test(k)).length }; });
   const okPc1 = pc1.pd && pc1.meters === 2; console.log('PRESS answered', okPc1 ? 'OK' : 'MISMATCH', JSON.stringify(pc1)); if (!okPc1) errors.push('PRESS answered ' + JSON.stringify(pc1));
   // the press room after a game: park the season just after a flagged game, answer, and put everything back
   { const saved = await page.evaluate(() => { const S = window.__NBA_UI.state, i = S.matchLog.findIndex((x) => x.k === 'g' && x.pp && !x.po); if (i < 0) return null; const keep = { idx: S.matchIdx, pending: S.dec.pending }; S.matchIdx = i + 1; S.dec.pending = null; window.__NBA_UI.go(); return Object.assign(keep, { i }); });
     if (!saved) { console.log('POST press: no flagged game'); errors.push('POST none'); } else {
-      await page.waitForSelector('h1:has-text("Press conference")'); const pq = await page.evaluate(() => ({ sub: document.querySelector('h1 + p').textContent, q: document.querySelector('.card.suspense h2').textContent, opts: document.querySelectorAll('.wkcard').length }));
-      for (let k = 0; k < 4 && (await page.$('.wkcard button')); k++) await page.click('.wkcard button >> nth=0');
+      await page.waitForSelector('h1:has-text("Press conference")'); const sub = await page.evaluate(() => document.querySelector('h1 + p').textContent); await page.click('.qcard button >> nth=0'); await page.waitForSelector('.pressbox'); const pq = await page.evaluate((sub) => ({ sub, q: document.querySelector('.card.suspense h2').textContent, opts: document.querySelectorAll('.wkcard').length }), sub);
+      await answerPress();
       const back = await page.$('button:has-text("Back to the season")'); const okPp = /After game/.test(pq.sub) && /Final: [WL] \d+-\d+/.test(pq.sub) && pq.opts >= 3 && !!back;
       console.log('POST press', okPp ? 'OK' : 'MISMATCH', JSON.stringify(pq)); if (!okPp) errors.push('POST press ' + JSON.stringify(pq)); await shot('27c-post-press');
       if (back) await back.click();
@@ -66,7 +70,7 @@ let PG = null;
       }
       await page.click('.wkcard button >> nth=0'); await page.waitForSelector('button:text-matches("Play the game|Back to the season", "i")'); await page.click('button:text-matches("Play the game|Back to the season", "i")'); await page.waitForTimeout(100); await arm(); return 'clutch';
     }
-    if (/Press conference/.test(h1)) { for (let k = 0; k < 4 && (await page.$('.wkcard button')); k++) await page.click('.wkcard button >> nth=0'); await page.click('button:text-matches("Play the game|Back to the season", "i")'); await arm(); return 'press'; }
+    if (/Press conference/.test(h1)) { await answerPress(); await page.click('button:text-matches("Play the game|Back to the season", "i")'); await arm(); return 'press'; }
     return /Trade deadline/.test(h1) ? 'deadline' : /^(First Round|Conference|NBA Finals)/i.test(h1) ? 'series' : null;
   };
   await page.click('button:has-text("Instant")'); await simOn();

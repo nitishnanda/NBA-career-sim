@@ -93,7 +93,7 @@
   // the autopilot answers every question with a sensible default (so bulk careers, tests and realism checks do not need a person)
   function autoResolve(st) {
     // (a replayed season swaps st.dec under us: always look at the live one)
-    for (let guard = 0; state(st).pending && guard < 12; guard++) { const pd = state(st).pending, def = REG[pd.id], a = def.auto(st, pd.ctx, pd); choose(st, a.key, a.arg); }
+    for (let guard = 0; state(st).pending && guard < 24; guard++) { const pd = state(st).pending, def = REG[pd.id], a = def.auto(st, pd.ctx, pd); choose(st, a.key, a.arg); }
   }
 
   // ================================================================ decision 1: preseason camp
@@ -476,29 +476,42 @@
   register({
     id: 'press', title: 'Press conference', trigger: 'press',
     open(st) { return NBA.Game.pressOpen(st); },
+    // two phases: pick which reporter's question to take (a few are on offer), then answer it. Big moments let you take two.
     view(st, ctx, pd) {
-      const q = ctx.qs[pd.step] || ctx.qs[ctx.qs.length - 1];
-      return { why: ctx.why, kind: ctx.kind, opp: ctx.opp, step: pd.step, total: ctx.qs.length, topic: q.topic, question: q.text, options: q.opts.map((o) => ({ key: o.key, label: o.label, line: o.line, spicy: o.spicy })) };
+      const persona = NBA.Reporters.personaOf((state(st).flags.pr || { tally: [] }).tally), P = NBA.Reporters.PERSONAS[persona];
+      const base = { why: ctx.why, kind: ctx.kind, opp: ctx.opp, take: ctx.take, taken: ctx.chosen.length, persona: { key: persona, label: P.label, blurb: P.blurb } };
+      if (ctx.cur == null) return Object.assign(base, { phase: 'pick', candidates: ctx.pool.map((q, i) => ({ idx: i, reporter: q.reporter, text: q.text, heat: q.heat, src: q.src, ai: !!q.ai, done: ctx.chosen.indexOf(i) >= 0 })).filter((x) => !x.done) });
+      const q = ctx.pool[ctx.cur];
+      return Object.assign(base, { phase: 'answer', step: ctx.chosen.length, total: ctx.take, reporter: q.reporter, src: q.src, topic: q.topic, question: q.text, options: q.opts.map((o) => ({ key: o.key, label: o.label, line: o.line, spicy: o.spicy })) });
     },
     choose(st, ctx, key, arg, pd) {
-      const q = ctx.qs[pd.step];
+      if (key === 'pick') {
+        const i = +arg; if (!(i >= 0 && i < ctx.pool.length) || ctx.chosen.indexOf(i) >= 0 || ctx.cur != null) throw new Error('bad question');
+        ctx.cur = i; return { done: false, tone: 'neutral' };
+      }
+      if (ctx.cur == null) throw new Error('pick a question first');
+      const q = ctx.pool[ctx.cur], strip = (t) => String(t || '').replace(/^[\u201C"]|[\u201D"]$/g, '');
+      let pick, react;
       if (key === 'typed') {
         // your own words, already read (by the built-in reader or by Claude): the tone it came out as decides the effects, exactly like a button answer
         const a = arg || {}, tn = NBA.Press.TONES[a.tone] ? a.tone : 'deflect', words = String(a.text || '').slice(0, 240);
-        ctx.picks.push({ tone: tn, topic: q.topic, text: words, intensity: Math.max(0.7, Math.min(1.3, +a.intensity || 1)), profane: !!a.profane });
+        pick = { tone: tn, topic: q.topic, text: words, intensity: Math.max(0.7, Math.min(1.3, +a.intensity || 1)), profane: !!a.profane, fans: Array.isArray(a.fans) ? a.fans.map((x) => String(x).slice(0, 160)).slice(0, 2) : [] };
         (ctx.headlines = ctx.headlines || []).push(String(a.headline || '').slice(0, 90));
-        const react = '\uD83D\uDDE3 \u201C' + words + '\u201D \u2192 ' + String(a.reaction || '').slice(0, 260);
-        if (pd.step + 1 < ctx.qs.length) return { done: false, tone: 'neutral', text: react };
-        const r0 = NBA.Game.resolvePress(st, ctx);
-        return { done: true, tone: r0.tone, text: r0.text, journal: r0.journal };
+        react = '\uD83D\uDDE3 \u201C' + words + '\u201D \u2192 ' + String(a.reaction || '').slice(0, 260);
+      } else {
+        const o = q.opts.find((x) => x.key === key); if (!o) throw new Error('bad answer');
+        pick = { tone: key, topic: q.topic, text: strip(o.line) }; react = o.line;
       }
-      const o = q.opts.find((x) => x.key === key); if (!o) throw new Error('bad answer');
-      ctx.picks.push({ tone: key, topic: q.topic });
-      if (pd.step + 1 < ctx.qs.length) return { done: false, tone: 'neutral', text: o.line };
+      ctx.picks.push(pick); ctx.chosen.push(ctx.cur); ctx.cur = null;
+      const left = ctx.pool.length - ctx.chosen.length;
+      if (ctx.chosen.length < ctx.take && left > 0) return { done: false, tone: 'neutral', text: react };
       const r = NBA.Game.resolvePress(st, ctx);
-      return { done: true, tone: r.tone, text: r.text, journal: r.journal };
+      return { done: true, tone: r.tone, text: r.text, journal: r.journal, headline: r.headline, fans: r.fans, moods: r.moods, persona: r.persona };
     },
-    auto(st, ctx, pd) { const q = ctx.qs[pd.step]; return { key: (q.opts.find((o) => o.key === 'deflect') || q.opts.find((o) => !o.spicy) || q.opts[0]).key }; },
+    auto(st, ctx, pd) {
+      if (ctx.cur == null) { const i = ctx.pool.map((q, k) => ({ q, k })).filter((x) => ctx.chosen.indexOf(x.k) < 0).sort((a, b) => a.q.heat - b.q.heat)[0]; return { key: 'pick', arg: i.k }; }
+      const q = ctx.pool[ctx.cur]; return { key: (q.opts.find((o) => o.key === 'deflect') || q.opts.find((o) => !o.spicy) || q.opts[0]).key };
+    },
   });
 
   Object.assign(NBA, { Decisions: { invites, answerInvite, INV_TYPES, carry, register, state, rng, vibe, apply, offer, view, choose, autoResolve, takeSeason, log, relOf, TIERS, SKILL_WORDS, campMentors, standing } });

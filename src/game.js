@@ -1,7 +1,7 @@
 (function (g) {
   'use strict';
   const NBA = g.NBA;
-  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
+  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
   const D = NBA.data;
   const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
   const ATTRS = D.ATTRS;
@@ -620,15 +620,15 @@
       items.forEach((x) => { if (x.k === 'g' && x.po && x.n === 7 && !x.dnp) { x.cl = 1; x.g7 = 1; } }); }
     // the games the media cares about: a press conference before each (own random stream)
     { const rnd = mulberry(shotSeed(st, 9300)), D = NBA.Decisions.state(st), Lg = st.league, regs = items.filter((x) => x.k === 'g' && !x.po && !x.dnp), byNick = (n) => Lg.teams.find((x) => x.nick === n);
-      const mark = (x, why) => { if (x && !x.pc && !x.cl) { x.pc = 1; x.pcWhy = why; return true; } return false; }, cap = st.finalYear ? 6 : 4, marked = []; let n = 0;
-      const go = (x, why) => { if (n < cap && x && marked.every((y) => Math.abs(y.n - x.n) >= 10) && mark(x, why)) { n++; marked.push(x); return true; } return false; };   // never two press conferences within ten games of each other
+      const mark = (x, why) => { if (x && !x.pc && !x.cl) { x.pc = 1; x.pcWhy = why; return true; } return false; }, cap = st.finalYear ? 5 : 3, marked = []; let n = 0;
+      const go = (x, why) => { if (n < cap && x && marked.every((y) => Math.abs(y.n - x.n) >= 12) && mark(x, why)) { n++; marked.push(x); return true; } return false; };   // never two press conferences within ten games of each other
       go(regs[0], 'Opening night');
       // a rematch with last season's Finals opponent (or any playoff opponent) is a story: the first meeting gets a press conference
       const lastRec = st.proSeasons[st.proSeasons.length - 1], lastOpps = ((lastRec && lastRec.perSeries) || []).filter((x) => x.round !== 'Play-In').sort((a, b) => (b.round === 'NBA Finals') - (a.round === 'NBA Finals'));
       lastOpps.slice(0, 2).forEach((x) => { const ot = Lg.teams.find((q) => q.name === x.opp); if (ot) go(regs.find((y) => y.o === ot.nick), x.round === 'NBA Finals' ? 'Finals rematch against the ' + ot.nick : 'Rematch of last year\'s ' + x.round + ' against the ' + ot.nick); });
       const rv = D.rival && Lg.players[D.rival.id], rvT = rv && Lg.teams[rv.teamId]; if (rvT) regs.filter((x) => x.o === rvT.nick).slice(0, 2).forEach((x) => go(x, 'Rivalry game: ' + rv.name));
       const tr = (st.trades || []).slice(-1)[0], oldT = tr && tr.year >= Lg.year - 1 ? Lg.teams.find((x) => x.name === tr.from) : null; if (oldT) go(regs.find((x) => x.o === oldT.nick), 'Revenge game against your old team');
-      const big = regs.filter((x) => { const ot = byNick(x.o), s0 = ot && NBA.rosterOf(Lg, ot)[0]; return ot && (ot.wins >= 56 || (s0 && ovr(s0) >= 92)); }).map((x) => [rnd(), x]).sort((a, b) => a[0] - b[0]).slice(0, 2); big.forEach((x) => go(x[1], 'A marquee matchup'));
+      const big = regs.filter((x) => { const ot = byNick(x.o), s0 = ot && NBA.rosterOf(Lg, ot)[0]; return ot && (ot.wins >= 58 || (s0 && ovr(s0) >= 94)); }).map((x) => [rnd(), x]).sort((a, b) => a[0] - b[0]).slice(0, 1); big.forEach((x) => go(x[1], 'A marquee matchup'));
       let gap = 0; items.forEach((x, i) => { if (x.k === 'g' && !x.po) { if (x.dnp) gap++; else { if (gap >= 5 && go(x, 'First game back from injury')) x.back = 1; gap = 0; } } });
       if (st.finalYear) { const seen = new Set(); regs.forEach((x) => { if (!x.h && !seen.has(x.o)) { seen.add(x.o); x.tg = (x.tg || []).concat(['Farewell tribute']); x.tribute = 1; } }); regs.filter((x) => x.tribute).map((x) => [rnd(), x]).sort((a, b) => a[0] - b[0]).slice(0, 4).forEach((x) => go(x[1], 'Farewell tour stop')); }
       // playoffs: every series after the first round, any with a rival, and every Game 7 series
@@ -636,10 +636,11 @@
 
     // after the game: a press conference about what just happened. Up to three regular-season nights that stand out (a monster game, a bad one, a close one, a blowout),
     // and the game that ends every series or play-in game (own random stream: nothing else moves)
-    { const rnd = mulberry(shotSeed(st, 9500)), cap = st.finalYear ? 4 : 3, picks = [];
+    { const rnd = mulberry(shotSeed(st, 9500)), cap = st.finalYear ? 3 : 2, picks = [];
       const score = (x) => (x.pt >= 40 ? 3 : 0) + (x.tg && x.tg.includes('Triple-double') ? 2 : 0) + (x.pt <= 8 && x.m >= 20 ? 2.5 : 0) + (Math.abs(x.f - x.a) <= 3 ? 1 : 0) + (Math.abs(x.f - x.a) >= 22 ? 1.2 : 0) + rnd();
-      items.filter((x) => x.k === 'g' && !x.po && !x.dnp && x.n >= 8).map((x) => [score(x), x]).sort((a, b) => b[0] - a[0]).forEach(([s, x]) => { if (picks.length < cap && s >= 1.5 && picks.every((y) => Math.abs(y.n - x.n) >= 12)) { x.pp = 1; picks.push(x); } });
-      items.forEach((x, i) => { if (x.k === 'g' && x.po && !x.dnp) { const nx = items[i + 1]; if (!nx || nx.k === 'hdr' || nx.rnd !== x.rnd) { x.pp = 1; x.last = 1; } } }); }
+      items.filter((x) => x.k === 'g' && !x.po && !x.dnp && x.n >= 8).map((x) => [score(x), x]).sort((a, b) => b[0] - a[0]).forEach(([s, x]) => { if (picks.length < cap && s >= 2.2 && picks.every((y) => Math.abs(y.n - x.n) >= 14)) { x.pp = 1; picks.push(x); } });
+      // a first-round clincher is not a story; every later series end, every loss and every Game 7 is
+      items.forEach((x, i) => { if (x.k === 'g' && x.po && !x.dnp) { const nx = items[i + 1]; if (!nx || nx.k === 'hdr' || nx.rnd !== x.rnd) { x.last = 1; if (x.rnd !== 'First Round' || !x.w || x.g7 || x.pi) x.pp = 1; } } }); }
     return items;
   }
 
@@ -829,6 +830,44 @@
     }
     return out;
   }
+  // ---- the press room as a story: who is asking, what you said before, who you have a feud with
+  const prState = (st) => { const f = NBA.Decisions.state(st).flags; return f.pr || (f.pr = { quotes: [], tally: [], feuds: {}, heads: [], rep: {} }); };
+  const whenText = (st, q, it) => (q.y === st.league.year ? ((it && it.n && q.n && it.n - q.n <= 12) ? 'A few games ago' : 'Earlier this season') : q.y === st.league.year - 1 ? 'Last season' : 'A couple of seasons ago');
+  // a callback: something you said before, with how it turned out
+  function callbackQuestion(st, it, c, rnd) {
+    const R = NBA.Reporters, pr = prState(st), L = st.league; if (!pr.quotes.length || rnd() > 0.4) return null;   // not every time: a callback is an event
+    const rowOf = (q) => { const t = q.tone, w = q.w; if (t === 'trash') return w === 0 ? 'cbTrashLoss' : w === 1 ? 'cbTrashWin' : null; if (t === 'fight') return 'cbFight'; if (t === 'confident') return w === 0 ? 'cbConfLoss' : w === 1 ? 'cbConfWin' : null; if (t === 'joke') return 'cbJoke';
+      if (t === 'humble' && pr.tally.filter((k) => k === 'humble').length >= 3) return 'cbHumble'; if (t === 'deflect' && pr.tally.filter((k) => k === 'deflect').length >= 3) return 'cbDeflect'; return null; };
+    const ok = pr.quotes.map((q, i) => ({ q, i })).filter((x) => !x.q.used && x.q.text && (x.q.y < L.year || (it.n || 0) - (x.q.n || 0) >= 6)).map((x) => ({ x, cond: rowOf(x.q) })).filter((y) => y.cond);
+    if (!ok.length) return null;
+    const W = { cbTrashLoss: 6, cbTrashWin: 5, cbFight: 6, cbConfLoss: 4, cbConfWin: 3, cbJoke: 2, cbHumble: 1.5, cbDeflect: 1.5 };
+    let r = rnd() * ok.reduce((a, y) => a + W[y.cond], 0), pk = ok[ok.length - 1]; for (let k = 0; k < ok.length; k++) { r -= W[ok[k].cond]; if (r <= 0) { pk = ok[k]; break; } }
+    const ri = R.CALLBACKS.findIndex((row) => row[0] === pk.cond), q = pk.x.q;
+    const c2 = Object.assign({}, c, { quote: q.text.replace(/^[“"]|[”"]$/g, '').slice(0, 80), opp: q.opp || c.opp, score: q.score || '', when: whenText(st, q, it) });
+    const cq = rowQuestion(2000 + ri, R.CALLBACKS[ri], c2, rnd, 'callback'); cq.qid = pk.x.i; cq.src = 'callback'; return cq;
+  }
+  function feudQuestion(st, c, rnd) {
+    const R = NBA.Reporters, fd = prState(st).feuds[c.opp]; if (!fd || !fd.star) return null;
+    const ri = Math.floor(rnd() * R.FEUDS.length), c2 = Object.assign({}, c, { oppStar: fd.star, quote: (fd.quote || '').slice(0, 80) });
+    const fq = rowQuestion(3000 + ri, R.FEUDS[ri], c2, rnd, 'feud'); fq.src = 'feud'; return fq;
+  }
+  // the pool of questions on offer: the stories first (a rematch, a feud, something you said), then the generic bank leaning to what your media image invites; each gets a reporter
+  function assemblePool(st, c, rnd, specifics, bankQs, size) {
+    const R = NBA.Reporters, pr = prState(st), team = st.league.teams[st.teamId], pt = R.PERSONA_TOPICS[R.personaOf(pr.tally)] || [];
+    const bank = bankQs.slice().sort((a, b) => (pt.indexOf(b.topic) >= 0 ? 1 : 0) - (pt.indexOf(a.topic) >= 0 ? 1 : 0));
+    const out = []; specifics.forEach((q) => { if (out.length < size && !out.some((o) => o.i === q.i)) out.push(q); });
+    bank.forEach((q) => { if (out.length < size && !out.some((o) => o.i === q.i)) out.push(q); });
+    return out.map((q) => { q.reporter = R.reporterFor(team, q, pr.rep, rnd); return q; });
+  }
+  // what Claude is told about a press moment (artifact only): the situation, what you said before, who is in the room
+  function pressFacts(st, ctx) {
+    const R = NBA.Reporters, pr = prState(st), c = ctx.c, p = st.player, team = st.league.teams[st.teamId], it = st.matchLog[ctx.idx];
+    const cast = R.REPORTERS.concat([R.beatFor(team)]).map((r) => ({ name: r.name, outlet: r.outlet, style: r.style, edge: r.edge }));
+    return { player: { name: p.name, pos: p.pos, age: p.age, years: p.yearsPro, team: team.name }, moment: ctx.why, kind: ctx.kind, opponent: ctx.opp, opponentStar: c.oppStar || null, rival: c.rival || null, record: c.rec || null,
+      game: it && it.k === 'g' ? { n: it.n, home: !!it.h, ...(ctx.kind === 'post' ? { result: (it.w ? 'W ' : 'L ') + it.f + '-' + it.a, points: it.pt, rebounds: it.rb, assists: it.as } : {}) } : null,
+      mediaImage: R.PERSONAS[R.personaOf(pr.tally)].label, feud: pr.feuds[c.opp] ? { with: pr.feuds[c.opp].star, said: pr.feuds[c.opp].quote } : null,
+      recentQuotes: pr.quotes.slice(-3).map((q) => ({ tone: q.tone, said: q.text, vs: q.opp, result: q.w === 1 ? 'won' : q.w === 0 ? 'lost' : null })), alreadyCovered: ctx.pool.map((q) => q.text.slice(0, 80)), cast };
+  }
   function postOpen(st, it) {
     const P = NBA.Press, L = st.league, rnd = NBA.Decisions.rng(st, 'ppress|' + L.year + '|' + (it.po ? 'p' : 'r') + it.n + (it.rnd || '') + (it.pi ? 'i' : '')), bank = NBA.PostPress || [];
     const t = L.teams[st.teamId], opp = L.teams.find((x) => x.nick === it.o), star = opp ? NBA.rosterOf(L, opp)[0] : null, margin = Math.abs(it.f - it.a);
@@ -837,7 +876,7 @@
     const f = { bigNight: big && !!it.w, bigNightLoss: (it.pt >= 30 || td) && !it.w, goodNight: it.pt >= 30 && !big && !!it.w, badNight: (it.pt <= 8 && it.m >= 20) || it.r < 5.5, tripleDouble: !!td, win: !!it.w, loss: !it.w, closeWin: it.w && margin <= 5, closeLoss: !it.w && margin <= 5, blowoutWin: it.w && margin >= 18, blowoutLoss: !it.w && margin >= 18,
       clincher: !!(it.last && it.w && it.po && !it.pi && it.rnd !== 'NBA Finals'), champ: !!(it.last && it.w && it.rnd === 'NBA Finals'), elim: !!(it.last && !it.w && it.po && !it.pi), g7win: !!(it.g7 && it.w), g7loss: !!(it.g7 && !it.w), pinWin: !!(it.pi && it.w), pinLoss: !!(it.pi && !it.w), always: true };
     const W = { bigNight: 6, bigNightLoss: 6, badNight: 6, clincher: 6, elim: 6, g7win: 7, g7loss: 7, champ: 9, pinWin: 6, pinLoss: 6, tripleDouble: 4, goodNight: 4, closeWin: 3, closeLoss: 3, blowoutWin: 3, blowoutLoss: 3, win: 2, loss: 2, always: 1 };
-    const used = new Set(), out = [], n = it.po ? 3 : 2;
+    const used = new Set(), out = [], n = 3;
     for (let k = 0; k < n; k++) {
       const pool = bank.map((r, i) => ({ r, i })).filter((x) => f[x.r[0]] && !used.has(x.r[0]) && !out.some((o) => o.i === x.i));
       if (!pool.length) break;
@@ -846,21 +885,24 @@
       used.add(pk.r[0]); out.push({ i: pk.i, row: pk.r });
     }
     if (!out.length) return null;
-    const qs = out.map(({ i, row }) => rowQuestion(i, row, c, rnd, 'post:' + row[0]));
+    const rows = out.map(({ i, row }) => { const q = rowQuestion(i, row, c, rnd, 'post:' + row[0]); q.src = 'post'; return q; });
+    const specifics = [], fq = feudQuestion(st, c, rnd), cb = callbackQuestion(st, it, c, rnd); if (fq) specifics.push(fq); if (cb) specifics.push(cb);
+    const big2 = !!(f.champ || f.elim || f.g7win || f.g7loss), pool = assemblePool(st, c, rnd, specifics.concat(rows), [], big2 ? 4 : 3);
     const why = it.pi ? 'After the play-in game' : it.po ? 'After ' + (it.rnd || 'the playoff') + ' game ' + it.n : 'After game ' + it.n;
-    return { kind: 'post', idx: (st.matchIdx || 0) - 1, si: null, why, opp: it.o, qs, picks: [], c, headlines: [] };
+    return { kind: 'post', idx: (st.matchIdx || 0) - 1, si: null, why, opp: it.o, pool, take: big2 ? 2 : 1, chosen: [], cur: null, picks: [], c, headlines: [], persona: NBA.Reporters.personaOf(prState(st).tally) };
   }
   function pressOpen(st) {
     const pt = postTarget(st); if (pt) return postOpen(st, pt);
     const it = pressTarget(st); if (!it) return null;
     const P = NBA.Press, L = st.league, rnd = NBA.Decisions.rng(st, 'press|' + L.year + '|' + (it.k === 'g' ? it.n : 's' + it.ps));
-    const n = st.finalYear || it.k === 'hdr' ? 3 : 2, pk = P.pickQuestions(st, it, n, rnd);
+    const pk = P.pickQuestions(st, it, 5, rnd);
     if (!pk.questions.length) return null;
-    const ps = st.proSeasons || [], memQs = memoryQuestions(st, it, pk.c, rnd, it.k === 'hdr' ? 2 : 1, ps[ps.length - 2]);
-    const base = pk.questions.slice(0, Math.max(1, n - memQs.length)).map((q) => ({ i: q.i, topic: q.topic, heat: q.heat, text: q.text, opts: P.answerOptions(q, pk.c, rnd) }));
-    const qs = memQs.concat(base);
+    const ps = st.proSeasons || [], memQs = memoryQuestions(st, it, pk.c, rnd, 2, ps[ps.length - 2]);
+    const specifics = memQs.map((q) => { q.src = 'mem'; return q; }), fq = feudQuestion(st, pk.c, rnd), cb = callbackQuestion(st, it, pk.c, rnd); if (fq) specifics.push(fq); if (cb) specifics.push(cb);
+    const bankQs = pk.questions.map((q) => ({ i: q.i, topic: q.topic, heat: q.heat, text: q.text, opts: P.answerOptions(q, pk.c, rnd), src: 'bank' }));
+    const pool = assemblePool(st, pk.c, rnd, specifics, bankQs, it.k === 'hdr' ? 4 : 3), take = it.k === 'hdr' || st.finalYear ? 2 : 1;
     const why = it.k === 'g' ? it.pcWhy || 'A big game' : (it.rnd || 'Playoff series') + ' vs the ' + it.opp;
-    return { kind: it.k === 'g' ? 'game' : 'series', idx: st.matchIdx, si: it.ps, why, opp: it.k === 'g' ? it.o : it.opp, qs, picks: [], c: { oppStarOvr: pk.c.oppStarOvr, winning: pk.c.winning, hot: pk.c.hot, slump: pk.c.slump, oppStar: pk.c.oppStar, rivalHere: pk.c.rivalHere, rival: pk.c.rival, opp: pk.c.opp, team: pk.c.team, me: st.player.name, pos: st.player.pos }, headlines: [] };
+    return { kind: it.k === 'g' ? 'game' : 'series', idx: st.matchIdx, si: it.ps, why, opp: it.k === 'g' ? it.o : it.opp, pool, take, chosen: [], cur: null, picks: [], persona: NBA.Reporters.personaOf(prState(st).tally), c: { oppStarOvr: pk.c.oppStarOvr, winning: pk.c.winning, hot: pk.c.hot, slump: pk.c.slump, oppStar: pk.c.oppStar, rivalHere: pk.c.rivalHere, rival: pk.c.rival, opp: pk.c.opp, team: pk.c.team, me: st.player.name, pos: st.player.pos }, headlines: [] };
   }
   // what the answers did: the game (or series) you are about to play, the locker room, the media, and sometimes a fine or a suspension
   function resolvePress(st, ctx) {
@@ -878,10 +920,11 @@
       }
       F += f; H += h; Lk += lk; M += m; Hy += tn.hype;
     });
+    { const fd = prState(st).feuds[c.opp]; if (fd && ctx.kind === 'game') { F += 0.25 * (fd.level || 1); notes.push('The feud with ' + fd.star + ' is on: you walked in with something to prove.'); } }
     const net = F - 0.35 * H;
     const eff = [{ k: 'meter', f: 'media', d: M + 0.4 * Hy }, { k: 'meter', f: 'locker', d: Lk }];
     Dc.apply(st, eff);
-    if (!post) Dc.state(st).flags.asked = (Dc.state(st).flags.asked || []).concat(ctx.qs.map((q) => q.i)).slice(-200);   // no question twice for a long while
+    if (!post) Dc.state(st).flags.asked = (Dc.state(st).flags.asked || []).concat(ctx.chosen.map((qi) => ctx.pool[qi]).filter((q) => q && q.i < 2000).map((q) => q.i)).slice(-200);   // no question twice for a long while
     if (fine) st.earnings = Math.max(0, st.earnings - fine);
     let line = null;
     if (post) {
@@ -907,9 +950,28 @@
       line = pr.d > 0.04 ? 'The series starts with the momentum on your side.' : pr.d < -0.04 ? 'The series starts with the momentum on theirs.' : 'The series starts as it always would.';
     }
     const big = fine || ctx.picks.some((pk) => pk.tone === 'trash' || pk.tone === 'fight');
-    const head = (ctx.headlines || []).filter(Boolean)[0], quote = ctx.picks.find((pk) => pk.text && (pk.tone === 'trash' || pk.tone === 'fight'));
-    if (head) notes.unshift('Headline: "' + head + '".');
-    return { text: ([...new Set(notes)].concat([line]).join(' ')), tone: net > 0.2 ? 'good' : net < -0.2 || susp ? 'bad' : 'neutral', journal: big ? { tone: net > 0.2 && !susp ? 'good' : 'bad', text: (ctx.kind === 'game' || post ? ctx.why + ' vs the ' + ctx.opp : ctx.why) + ': ' + (quote ? 'You said "' + quote.text.slice(0, 90) + (quote.text.length > 90 ? '…' : '') + '". ' : '') + notes.join(' ') } : null };
+    const quote = ctx.picks.find((pk) => pk.text && (pk.tone === 'trash' || pk.tone === 'fight'));
+    // the press room remembers: who you answered and how they took it, what you said, a feud if you picked a fight, the headline and the fans' reaction
+    const R = NBA.Reporters, pr = prState(st), team = L.teams[st.teamId], itx = st.matchLog[ctx.idx], resW = itx && itx.k === 'g' ? (itx.w ? 1 : 0) : null, score = itx && itx.k === 'g' ? itx.f + '-' + itx.a : '';
+    const answered = ctx.chosen.map((qi, k) => ({ q: ctx.pool[qi], pick: ctx.picks[k] })).filter((x) => x.q && x.pick), moods = [];
+    answered.forEach(({ q }) => { if (q.src === 'callback' && q.qid != null && pr.quotes[q.qid]) pr.quotes[q.qid].used = true; });
+    let mm = 0;
+    answered.forEach(({ q, pick }) => {
+      pr.tally.push(pick.tone); pr.tally = pr.tally.slice(-24);
+      const rp = q.reporter;
+      if (rp) { const cur = pr.rep[rp.id] || (pr.rep[rp.id] = { m: 0 }), d = R.moodFor(pick.tone, rp.style); cur.m = clamp(cur.m + d, -4, 4); moods.push({ who: rp.name, outlet: rp.outlet, d: Math.round(d * 10) / 10, m: cur.m });
+        if (cur.m >= 2 && (pick.tone === 'humble' || pick.tone === 'joke' || pick.tone === 'confident')) mm += 0.3; else if (cur.m <= -2 && pick.tone !== 'humble' && pick.tone !== 'confident') mm -= 0.3; }
+      pr.quotes.push({ y: L.year, n: itx && itx.n || 0, tone: pick.tone, text: String(pick.text || '').replace(/^[“"]|[”"]$/g, '').slice(0, 160), opp: ctx.opp, w: resW, score }); pr.quotes = pr.quotes.slice(-30);
+      if ((pick.tone === 'trash' || pick.tone === 'fight') && c.oppStar) pr.feuds[c.opp] = { star: c.oppStar, level: pick.tone === 'fight' ? 2 : 1, y: L.year, quote: String(pick.text || '').replace(/^[“"]|[”"]$/g, '').slice(0, 80), seen: 0 };
+      if (q.src === 'feud') { const fd = pr.feuds[c.opp]; if (fd && !(pick.tone === 'trash' || pick.tone === 'fight')) { fd.seen = (fd.seen || 0) + 1; if (fd.seen >= 2) delete pr.feuds[c.opp]; } }
+    });
+    ctx.pool.forEach((q, qi) => { if (q.reporter && ctx.chosen.indexOf(qi) < 0 && !answered.some((x) => x.q.reporter && x.q.reporter.id === q.reporter.id)) { const cur = pr.rep[q.reporter.id] || (pr.rep[q.reporter.id] = { m: 0 }); cur.m = clamp(cur.m - 0.1, -4, 4); } });
+    if (mm) Dc.apply(st, [{ k: 'meter', f: 'media', d: mm }]);
+    const hrank = { fight: 6, trash: 5, confident: 4, joke: 3, humble: 2, deflect: 1 }, top = answered.slice().sort((a, b) => (hrank[b.pick.tone] || 0) - (hrank[a.pick.tone] || 0))[0];
+    let headline = null;
+    if (top) { const hs = (ctx.headlines || []).filter(Boolean)[0] || R.headlineFor(top.pick.tone, { name: p.name, opp: ctx.opp, team: team.nick }, top.pick.text, rnd); headline = { outlet: top.q.reporter ? top.q.reporter.outlet : 'The wire', text: hs }; pr.heads.push({ y: L.year, text: hs, outlet: headline.outlet }); pr.heads = pr.heads.slice(-30); }
+    const fans = top ? R.fanPosts(top.pick.tone, { name: p.name, opp: ctx.opp, team: team.nick }, post && itx ? (itx.w ? 'W' : 'L') : null, answered.reduce((a, x) => a.concat(x.pick.fans || []), []), rnd) : [];
+    return { text: ([...new Set(notes)].concat([line]).join(' ')), tone: net > 0.2 ? 'good' : net < -0.2 || susp ? 'bad' : 'neutral', headline, fans, moods, persona: R.personaOf(pr.tally), journal: big ? { tone: net > 0.2 && !susp ? 'good' : 'bad', text: (ctx.kind === 'game' || post ? ctx.why + ' vs the ' + ctx.opp : ctx.why) + ': ' + (quote ? 'You said "' + quote.text.slice(0, 90) + (quote.text.length > 90 ? '…' : '') + '". ' : '') + notes.join(' ') } : null };
   }
 
   // ---- decisions made while the games play: a playoff plan per series, and the clutch moments
@@ -1457,6 +1519,6 @@
     return st;
   }
 
-  Object.assign(NBA, { Game: { announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { Game: { announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

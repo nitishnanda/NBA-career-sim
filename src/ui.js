@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v62';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v63';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -1121,13 +1121,31 @@
     const r = S.decResult, sents = String(r.text || '').split(/(?<=[.!?"])\s+(?=[A-Z])/).filter(Boolean);
     return h('div', null, h('h1', null, r.title), r.sub ? h('p', { class: 'muted' }, r.sub) : null,
       h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, r.cap || 'What happened'), sents.map((x) => h('p', { class: 'jmsg ' + (r.tone || ''), style: 'margin:8px 0' }, x))),
+      r.headline ? h('div', { class: 'card' }, h('div', { class: 'cap2' }, '📰 Tomorrow\'s headline'), h('div', { class: 'headline' }, '“' + r.headline.text + '”'), h('div', { class: 'small muted' }, r.headline.outlet)) : null,
+      r.fans && r.fans.length ? h('div', { class: 'card' }, h('div', { class: 'cap2' }, '📱 The timeline'), r.fans.map((f) => h('div', { class: 'fan' }, h('b', null, f.who), ' ' + f.text))) : null,
+      r.moods && r.moods.length ? h('div', { class: 'small muted', style: 'margin:6px 0' }, r.moods.map((m) => m.who + ' (' + m.outlet + ') ' + (m.d > 0.15 ? 'liked that' : m.d < -0.15 ? 'was not impressed' : 'took notes') + '.').join(' ')) : null,
+      r.persona ? h('div', { class: 'small muted' }, 'Your media image: ', h('b', null, NBA.Reporters.PERSONAS[r.persona].label)) : null,
       h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { const r0 = S.decResult; S.decResult = null; stopAuto(); if (!(r0 && r0.post)) advanceOne(); save(); go(); } }, S.decResult && S.decResult.post ? 'Back to the season →' : 'Play the game →')));
   }
   function screenPress() {
-    const Dc = DEC(), v = Dc.view(S), t = S.league.teams[S.teamId], pd = S.dec.pending, q = pd.ctx.qs[pd.step];
+    const Dc = DEC(), v = Dc.view(S), t = S.league.teams[S.teamId], pd = S.dec.pending;
     const gi = S.matchLog && S.matchLog[pd.ctx.idx], post = pd.ctx.kind === 'post', gno = post && gi ? 'Final: ' + (gi.w ? 'W' : 'L') + ' ' + gi.f + '-' + gi.a + ' ' + (gi.h ? 'vs' : 'at') + ' the ' + gi.o : gi && gi.k === 'g' ? 'Before game ' + gi.n + ' of the season' + (gi.o ? ' · vs the ' + gi.o : '') : pd.ctx.why;
-    const finish = (r) => { if (!(S.dec.pending && S.dec.pending.id === 'press')) { S.decResult = { title: 'Press conference', sub: t.name + ' · ' + gno, text: r.text, tone: r.tone === 'good' ? 'good' : r.tone === 'bad' ? 'bad' : '', cap: 'The reaction', post }; saveSnap(); } save(); go(); };
-    const pick = (key) => { try { finish(Dc.choose(S, key)); } catch (e) { console.error(e); } };
+    const finish = (r) => { if (!(S.dec.pending && S.dec.pending.id === 'press')) { S.decResult = { title: 'Press conference', sub: t.name + ' · ' + gno, text: r.text, tone: r.tone === 'good' ? 'good' : r.tone === 'bad' ? 'bad' : '', cap: 'The reaction', post, headline: r.headline, fans: r.fans, moods: r.moods, persona: r.persona }; saveSnap(); } save(); go(); };
+    const act = (key, arg) => { try { finish(Dc.choose(S, key, arg)); } catch (e) { console.error(e); } };
+    const skipBar = h('div', { class: 'row', style: 'margin-top:10px' }, h('button', { class: 'ghost tiny', onclick: () => { S.noPress = true; try { Dc.autoResolve(S); } catch (e) { console.error(e); } save(); go(); } }, 'Skip press conferences from now on'), h('span', { class: 'small muted' }, 'You can switch them back on under the season controls.'));
+    const persona = h('div', { class: 'small muted' }, 'Your media image: ', h('b', null, v.persona.label), ' · ' + v.persona.blurb);
+    const rep = (r) => (r ? r.name + ' · ' + r.outlet : 'The press room');
+    const SRC = { mem: 'Your story', callback: 'You said it', feud: 'The feud', post: 'The game', bank: '' };
+    if (v.phase === 'pick') {
+      const aiNote = h('div', { class: 'small muted pressnote' }, '');
+      maybeAiQuestions(pd, aiNote);
+      return h('div', null, h('h1', null, 'Press conference'), h('p', { class: 'muted' }, t.name + ' · ' + v.why + (gno && gno !== v.why ? ' · ' + gno : '')),
+        pd.log.length ? h('div', { class: 'jlog' }, pd.log.map((x) => h('div', { class: 'jmsg' }, x.text.charAt(0) === '\uD83D' ? x.text : '🎤 ' + x.text))) : null,
+        h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, 'Pick your question · ' + (v.taken + 1) + ' of ' + v.take), h('p', { class: 'small muted', style: 'margin:6px 0' }, 'Reporters are shouting. You can take ' + (v.take - v.taken) + (v.take - v.taken === 1 ? ' question' : ' questions') + ' and the rest get ignored (they will remember).'), persona, aiNote),
+        h('div', { class: 'wkgrid' }, v.candidates.map((c) => h('div', { class: 'wkcard qcard' + (c.heat >= 2 ? ' spicy' : '') }, h('div', { class: 'small muted' }, rep(c.reporter), (SRC[c.src] || c.ai) ? h('span', { class: 'badge', style: 'margin-left:8px' }, c.ai ? 'Fresh question' : SRC[c.src]) : null), h('div', { style: 'margin:8px 0' }, '“' + c.text + '”'), h('button', { class: 'primary', onclick: () => act('pick', c.idx) }, 'Take this one')))),
+        skipBar, autoDecBar());
+    }
+    const q = pd.ctx.pool[pd.ctx.cur];
     // your own words: read by Claude when this page runs inside Claude, by the built-in reader everywhere else; either way they come out as one of the six tones
     const ta = h('textarea', { class: 'pressbox', rows: 3, maxlength: 240, placeholder: 'Or say it your own way… (up to 240 characters)' }), count = h('span', { class: 'small muted' }, '0 / 240'), note = h('div', { class: 'small muted pressnote' }, '');
     const go2 = h('button', { class: 'primary', disabled: true }, 'Say it');
@@ -1148,11 +1166,37 @@
     };
     return h('div', null, h('h1', null, 'Press conference'), h('p', { class: 'muted' }, t.name + ' · ' + v.why + (gno && gno !== v.why ? ' · ' + gno : '')),
       pd.log.length ? h('div', { class: 'jlog' }, pd.log.map((x) => h('div', { class: 'jmsg' }, x.text.charAt(0) === '\uD83D' ? x.text : '🎤 ' + x.text))) : null,
-      h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, 'Question ' + (v.step + 1) + ' of ' + v.total), h('h2', { style: 'margin:8px 0' }, '“' + v.question + '”')),
-      h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' + (o.spicy ? ' spicy' : '') }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.line), h('div', { style: 'margin-top:8px' }, h('button', { class: o.spicy ? '' : 'primary', onclick: () => pick(o.key) }, 'Say it'))))),
+      h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, 'Question ' + (v.step + 1) + ' of ' + v.total + ' · ' + rep(v.reporter)), h('h2', { style: 'margin:8px 0' }, '“' + v.question + '”'), persona),
+      h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' + (o.spicy ? ' spicy' : '') }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.line), h('div', { style: 'margin-top:8px' }, h('button', { class: o.spicy ? '' : 'primary', onclick: () => act(o.key) }, 'Say it'))))),
       h('div', { class: 'card' }, h('b', null, 'Say it in your own words'), ta, h('div', { class: 'row', style: 'margin-top:8px' }, go2, count), note),
-      h('div', { class: 'row', style: 'margin-top:10px' }, h('button', { class: 'ghost tiny', onclick: () => { S.noPress = true; try { Dc.autoResolve(S); } catch (e) { console.error(e); } save(); go(); } }, 'Skip press conferences from now on'), h('span', { class: 'small muted' }, 'You can switch them back on under the season controls.')),
-      autoDecBar());
+      skipBar, autoDecBar());
+  }
+  // the artifact's reporters are Claude: fresh questions written from this moment (what is at stake, what you said before). Anywhere else the bank is used.
+  let aiBusy = false;
+  function maybeAiQuestions(pd, noteEl) {
+    const ctx = pd.ctx; if (ctx.aiDone || aiBusy) return;
+    getSample().then(async (sm) => {
+      if (!sm) { ctx.aiDone = true; return; }
+      aiBusy = true; noteEl.textContent = '✨ The reporters in this room are Claude: they are writing fresh questions for this moment…';
+      try {
+        const facts = G.pressFacts(S, ctx), cast = facts.cast;
+        const got = NBA.Press.checkClaudeQuestions(await sm.json(NBA.Press.claudeQuestionsPrompt(facts), { modelTier: 'quick', cache: false }), cast);
+        const T = NBA.Press.TONES, team = S.league.teams[S.teamId], R = NBA.Reporters, pr = (DEC().state(S).flags.pr || { rep: {} });
+        const fresh = got.slice(0, 3).map((q, k) => {
+          const spicy = ['trash', 'fight'].filter((x) => q.answers[x]), calm = ['humble', 'confident', 'joke', 'deflect'].sort(() => Math.random() - 0.5).slice(0, spicy.length ? 2 : 3);
+          const cand = { i: 4000 + k, topic: 'ai', heat: q.heat, text: q.text, src: 'ai', ai: true, opts: calm.concat(spicy).map((x) => ({ key: x, label: T[x].label, line: '\u201C' + q.answers[x] + '\u201D', spicy: x === 'trash' || x === 'fight' })) };
+          cand.reporter = q.reporter ? { id: q.reporter.name, name: q.reporter.name, outlet: q.reporter.outlet, style: q.reporter.style } : R.reporterFor(team, cand, pr.rep, Math.random);
+          return cand;
+        });
+        if (fresh.length && ctx.cur == null && !ctx.chosen.length) {
+          // the fresh ones replace the generic bank questions on offer (the stories stay)
+          const keep = ctx.pool.filter((q) => q.src !== 'bank'), gone = ctx.pool.length - keep.length, room = Math.max(gone, keep.length < 3 ? 3 - keep.length : 0);
+          ctx.pool = keep.concat(fresh.slice(0, Math.max(1, Math.min(room, 3))));
+          noteEl.textContent = '';
+        }
+      } catch (e) { noteEl.textContent = SAMPLE_MSG[e && e.code] || ''; }
+      aiBusy = false; ctx.aiDone = true; save(); render();
+    });
   }
 
   // ------------------------------------------------------------ playoff approach and clutch moments (decision engine)

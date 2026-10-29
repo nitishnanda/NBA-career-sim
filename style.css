@@ -293,3 +293,5 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 .szwarn { margin-top: 8px; padding: 8px 10px; border-radius: 10px; border-left: 3px solid #5fd58f; background: var(--well); } .szwarn.warm { border-color: #f2c14e; } .szwarn.bad { border-color: #ff8b6b; }
 
 .plink { background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; letter-spacing: inherit; text-transform: none; } .plink:hover { color: var(--accent, #fff); text-decoration-style: solid; }
+
+.qcard .small { line-height: 1.4; } .headline { font: 700 20px var(--disp); letter-spacing: .02em; margin: 6px 0; } .fan { padding: 6px 0; border-top: 1px solid var(--line); } .fan:first-of-type { border-top: 0; }
