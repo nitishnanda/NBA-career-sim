@@ -782,3 +782,9 @@ A long injury (any named one, or 15+ missed games in a block) now stops the seas
 - **Brand** (0–100) moves each offseason toward a target from rating, awards, media mood, press persona, draft slot. Endorsement pool = 45% of the cap × (brand/100)^2.2; offers: 1/2/3 by brand 25/50/75, max 4 deals, shoe deal takes ~half the pool. Image-clause deals walk if media mood ≤ -3. Income is net of agent fee and goes into earnings.
 - **After the last game**: jersey retirement (5+ seasons with a club and a title or legacy ≥ 45), Hall of Fame speech (4 styles, bonus -1..+2), post-career path (coach, analyst, front office, business, step away) simulated into milestones; bonuses add to the legacy score.
 - `scripts/legacy-check.js` covers all of it; ui-test picks an agent.
+
+## v67 — coaches and the locker room
+- Every club has a head coach with a style (offensive mind, defensive disciplinarian, player developer, players' coach). Bad clubs fire them (50% under 28 wins, 28% under 35, 14% for long tenures, 3% otherwise). Human careers only.
+- When your club hires a new coach, the late-career decision gains a step: buy in, ask for a bigger role, or keep quiet. Style fit moves your minutes (+3% good fit, -4% bad), the choice shifts that and your relationship with him.
+- Locker room story about every other offseason (split by what the roster offers): a best friend, a beef over shots, a vets-versus-kids split, the beef coming back, a friend who needs help. Effects are small team-chemistry (depth ±0.4..2), relationships and journal entries; the feed posts the friend/beef/coach news.
+- Steps live inside the existing `late` decision, so autopilot never sees them and the baseline is untouched. `scripts/room-check.js`.

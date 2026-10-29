@@ -376,10 +376,13 @@
       const hurt = rec && rec.injury && /Suffered a/.test(rec.injury) && !/season-ending injury/.test(rec.injury) ? rec.injury : (rec && /season-ending/.test(rec.injury || '') ? rec.injury : null);
       if (hurt) steps.push('injury');
       if (p.age >= 33) steps.push('stance');
+      NBA.Room.steps(st).forEach((x) => steps.push(x));
       return steps.length ? { steps, hurt, done: {} } : null;
     },
     view(st, ctx, pd) {
       const step = ctx.steps[pd.step] || ctx.steps[ctx.steps.length - 1], p = st.player, o = ovr(p);
+      if (step === 'coach') return Object.assign({ step }, NBA.Room.coachView(st));
+      if (step === 'room') return Object.assign({ step }, NBA.Room.roomView(st, NBA.Room.roomStory(st)));
       if (step === 'injury') return { step, title: 'Coming back from injury', text: ctx.hurt + ' How do you handle the comeback?', options: [
         { key: 'rush', label: 'Rush back for opening night', blurb: 'You play right away. Your body may not be ready.', vibe: 'Risky' },
         { key: 'rehab', label: 'Do the full rehab', blurb: 'You miss the first stretch of games but come back right.', vibe: 'Patient' },
@@ -393,6 +396,7 @@
     },
     choose(st, ctx, key, arg, pd) {
       const step = ctx.steps[pd.step], more = pd.step + 1 < ctx.steps.length, p = st.player;
+      if (step === 'coach' || step === 'room') { const r = step === 'coach' ? NBA.Room.coachChoose(st, key) : NBA.Room.roomChoose(st, NBA.Room.roomStory(st), key); return { done: !more, tone: r.tone, text: r.text, effects: r.effects, journal: r.journal }; }
       if (step === 'injury') {
         const hit = rng(st, 'comeback|' + st.league.year)() < 0.38;
         const eff = key === 'rush' ? (hit ? [{ k: 'season', v: { extraMiss: 18 } }, { k: 'raw', a: 'ath', d: -1.2 }] : [{ k: 'season', v: { form: -0.01 } }]) : [{ k: 'season', v: { extraMiss: 9 } }, { k: 'raw', a: 'dur', d: 2 }];
@@ -404,7 +408,7 @@
       const text = { normal: 'You just play.', stats: 'You hunt your numbers this season.', wins: 'You take a smaller role to win.', mentor: 'You become the leader in the locker room.' }[key];
       return { done: true, tone: 'neutral', text, effects: eff, journal: key === 'normal' ? null : { tone: 'neutral', text: { stats: 'Chased numbers in the late years.', wins: 'Took a smaller role to help the team win.', mentor: 'Became the mentor in the locker room.' }[key] } };
     },
-    auto(st, ctx, pd) { const step = ctx.steps[pd.step]; return step === 'injury' ? { key: 'rehab' } : { key: 'normal' }; },
+    auto(st, ctx, pd) { const step = ctx.steps[pd.step]; return step === 'injury' ? { key: 'rehab' } : step === 'coach' ? { key: 'quiet' } : step === 'room' ? { key: { friend: 'polite', split: 'bridge', beefReturn: 'peace', friendAsk: 'help' }[NBA.Room.roomStory(st).type] || 'coach' } : { key: 'normal' }; },
   });
 
 
