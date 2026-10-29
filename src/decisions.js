@@ -413,6 +413,36 @@
 
 
 
+  // ================================================================ the draft-night promise
+  // The club that took you says what it sees for you. Higher picks get bigger promises and the club keeps them more often; a promise a club breaks is remembered.
+  register({
+    id: 'promise', title: 'Draft-night promise', trigger: 'promise',
+    when(st) { return !st.autoPlay; },
+    open(st) { const dr = st.draft; if (!dr) return null; const t = st.league.teams[st.teamId]; return { slot: dr.slot, team: t.name, nick: t.nick, teamId: t.id }; },
+    view(st, ctx) {
+      const hi = ctx.slot && ctx.slot <= 14, mid = ctx.slot && ctx.slot <= 30;
+      return { title: ctx.slot ? 'Draft night: ' + ctx.nick + ' take you #' + ctx.slot : 'Undrafted: the ' + ctx.nick + ' sign you', text: ctx.slot ? 'The front office pulled you aside after the pick. Everyone wants something from a rookie: what do you ask them for?' : 'You were not picked, but the ' + ctx.nick + ' want you in camp. You can still ask for something.', options: [
+        { key: 'starter', label: 'A starting spot', blurb: 'Make them put the role in writing. If the roster is crowded, a promise can get broken.', vibe: hi ? 'Good shot' : mid ? 'Could go either way' : 'Long shot' },
+        { key: 'dev', label: 'Development minutes', blurb: 'A plan: bench minutes, a skills coach, and room to make mistakes.', vibe: 'Safe' },
+        { key: 'brand', label: 'A marketing push', blurb: 'Jersey, billboards and a feature on the arena screen. Your name gets out there faster.', vibe: 'Brand over basketball' },
+        { key: 'none', label: 'No promises', blurb: 'Earn it on the court. The coaches like the attitude.', vibe: 'Humble' } ] };
+    },
+    choose(st, ctx, key) {
+      const sl = ctx.slot || 60, keep = key === 'starter' ? (sl <= 5 ? 0.85 : sl <= 14 ? 0.7 : sl <= 30 ? 0.5 : 0.3) : 1, ok = rng(st, 'promise|' + sl)() < keep, id = 'team' + ctx.teamId, tn = ctx.nick;
+      if (key === 'starter') {
+        if (ok) return { done: true, tone: 'good', text: 'The ' + tn + ' kept their word: you are in the starting five on opening night.', effects: [{ k: 'season', v: { minsMult: 1.07, form: 0.006 } }, { k: 'rel', id, name: ctx.team, d: 1 }], journal: { tone: 'good', text: 'The ' + tn + ' promised a starting spot and delivered.' } };
+        return { done: true, tone: 'bad', text: 'The ' + tn + ' signed a veteran in July and the promise quietly disappeared. You are on the bench and they know you know.', effects: [{ k: 'season', v: { minsMult: 0.95, depth: -0.5 } }, { k: 'rel', id, name: ctx.team, d: -2 }], journal: { tone: 'bad', text: 'The ' + tn + ' promised a starting spot and broke it.' } };
+      }
+      if (key === 'dev') return { done: true, tone: 'good', text: 'The ' + tn + ' wrote you a development plan. A little less floor time, a lot more coaching.', effects: [{ k: 'season', v: { minsMult: 0.97 } }, { k: 'bonusPts', d: 1 }, { k: 'rel', id, name: ctx.team, d: 1 }], journal: { tone: 'good', text: 'Agreed a development plan with the ' + tn + '.' } };
+      if (key === 'brand') {
+        const b = st.brand || (st.brand = { score: 0, deals: [], offers: null, earned: 0, year: null }); b.score = Math.min(100, b.score + 8);
+        return { done: true, tone: 'good', text: 'The ' + tn + ' put your face on the building. Your brand is already ahead of where a rookie should be.', effects: [{ k: 'season', v: { minsMult: 0.99 } }], journal: { tone: 'good', text: 'The ' + tn + ' gave you a marketing push.' } };
+      }
+      return { done: true, tone: 'good', text: 'You told them you would earn it. The coaches noticed.', effects: [{ k: 'season', v: { form: 0.008 } }, { k: 'rel', id, name: ctx.team, d: 1 }], journal: { tone: 'good', text: 'Asked for no promises and went to work.' } };
+    },
+    auto() { return { key: 'none' }; },
+  });
+
   // ================================================================ workout invitations
   // Other players reach out in the offseason: a teammate who wants a summer partner, a star who has noticed you, a veteran with a skill to hand down, a kid who wants to learn from you, a rival who wants you in his gym.
   // Each one is a yes or a no; the second yes costs you (nobody can train with everyone), and not everyone is who they seem.

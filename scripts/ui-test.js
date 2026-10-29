@@ -102,6 +102,7 @@ let PG_DBG = null;
     await page.click('text=Auto-allocate');
     await page.click('text=Confirm & advance the offseason');
     await page.click('text=Continue →');
+    if (!agentDone) { await page.waitForSelector('h1:has-text("Pick your agent"), button:has-text("Ask")'); if (await page.locator('button:has-text("Ask")').count()) { const t = await page.evaluate(() => document.querySelector('h1').innerText); await page.click('button:has-text("Ask") >> nth=3'); console.log('PROMISE', /Draft night|Undrafted/i.test(t) ? 'OK' : 'MISMATCH ' + t); if (!/Draft night|Undrafted/i.test(t)) errors.push('PROMISE'); } }
     if (!agentDone) { await page.waitForSelector('h1:has-text("Pick your agent")'); await page.click('button:has-text("Hire") >> nth=1'); agentDone = true; console.log('AGENT picked'); }
     await campStep();
   };
@@ -123,7 +124,7 @@ let PG_DBG = null;
     if (await page.$('button:has-text("Start the season")')) await page.click('button:has-text("Start the season")');
     else if (await page.$('.mcard.t3')) await page.click('button:has-text("Start the season")');
     else await page.click('h3:has-text("own game") ~ div button >> nth=0');
-    if (campN === 1) { const j = await page.evaluate(() => window.__NBA_UI.state.dec.journal.map((e) => e.kind).join()); if (!/^hs,role,brand,(camp|invite)$/.test(j)) errors.push('CAMP journal ' + j); else console.log('CAMP journal OK (hs, role, agent, camp)'); }
+    if (campN === 1) { const j = await page.evaluate(() => window.__NBA_UI.state.dec.journal.map((e) => e.kind).join()); if (!/^hs,role,promise,brand,(camp|invite)$/.test(j)) errors.push('CAMP journal ' + j); else console.log('CAMP journal OK (hs, role, promise, agent, camp)'); }
   };
   await trainLoop();
   await shot('06-pro-ready');

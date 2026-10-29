@@ -2220,6 +2220,36 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 
 
 
+  // ================================================================ the draft-night promise
+  // The club that took you says what it sees for you. Higher picks get bigger promises and the club keeps them more often; a promise a club breaks is remembered.
+  register({
+    id: 'promise', title: 'Draft-night promise', trigger: 'promise',
+    when(st) { return !st.autoPlay; },
+    open(st) { const dr = st.draft; if (!dr) return null; const t = st.league.teams[st.teamId]; return { slot: dr.slot, team: t.name, nick: t.nick, teamId: t.id }; },
+    view(st, ctx) {
+      const hi = ctx.slot && ctx.slot <= 14, mid = ctx.slot && ctx.slot <= 30;
+      return { title: ctx.slot ? 'Draft night: ' + ctx.nick + ' take you #' + ctx.slot : 'Undrafted: the ' + ctx.nick + ' sign you', text: ctx.slot ? 'The front office pulled you aside after the pick. Everyone wants something from a rookie: what do you ask them for?' : 'You were not picked, but the ' + ctx.nick + ' want you in camp. You can still ask for something.', options: [
+        { key: 'starter', label: 'A starting spot', blurb: 'Make them put the role in writing. If the roster is crowded, a promise can get broken.', vibe: hi ? 'Good shot' : mid ? 'Could go either way' : 'Long shot' },
+        { key: 'dev', label: 'Development minutes', blurb: 'A plan: bench minutes, a skills coach, and room to make mistakes.', vibe: 'Safe' },
+        { key: 'brand', label: 'A marketing push', blurb: 'Jersey, billboards and a feature on the arena screen. Your name gets out there faster.', vibe: 'Brand over basketball' },
+        { key: 'none', label: 'No promises', blurb: 'Earn it on the court. The coaches like the attitude.', vibe: 'Humble' } ] };
+    },
+    choose(st, ctx, key) {
+      const sl = ctx.slot || 60, keep = key === 'starter' ? (sl <= 5 ? 0.85 : sl <= 14 ? 0.7 : sl <= 30 ? 0.5 : 0.3) : 1, ok = rng(st, 'promise|' + sl)() < keep, id = 'team' + ctx.teamId, tn = ctx.nick;
+      if (key === 'starter') {
+        if (ok) return { done: true, tone: 'good', text: 'The ' + tn + ' kept their word: you are in the starting five on opening night.', effects: [{ k: 'season', v: { minsMult: 1.07, form: 0.006 } }, { k: 'rel', id, name: ctx.team, d: 1 }], journal: { tone: 'good', text: 'The ' + tn + ' promised a starting spot and delivered.' } };
+        return { done: true, tone: 'bad', text: 'The ' + tn + ' signed a veteran in July and the promise quietly disappeared. You are on the bench and they know you know.', effects: [{ k: 'season', v: { minsMult: 0.95, depth: -0.5 } }, { k: 'rel', id, name: ctx.team, d: -2 }], journal: { tone: 'bad', text: 'The ' + tn + ' promised a starting spot and broke it.' } };
+      }
+      if (key === 'dev') return { done: true, tone: 'good', text: 'The ' + tn + ' wrote you a development plan. A little less floor time, a lot more coaching.', effects: [{ k: 'season', v: { minsMult: 0.97 } }, { k: 'bonusPts', d: 1 }, { k: 'rel', id, name: ctx.team, d: 1 }], journal: { tone: 'good', text: 'Agreed a development plan with the ' + tn + '.' } };
+      if (key === 'brand') {
+        const b = st.brand || (st.brand = { score: 0, deals: [], offers: null, earned: 0, year: null }); b.score = Math.min(100, b.score + 8);
+        return { done: true, tone: 'good', text: 'The ' + tn + ' put your face on the building. Your brand is already ahead of where a rookie should be.', effects: [{ k: 'season', v: { minsMult: 0.99 } }], journal: { tone: 'good', text: 'The ' + tn + ' gave you a marketing push.' } };
+      }
+      return { done: true, tone: 'good', text: 'You told them you would earn it. The coaches noticed.', effects: [{ k: 'season', v: { form: 0.008 } }, { k: 'rel', id, name: ctx.team, d: 1 }], journal: { tone: 'good', text: 'Asked for no promises and went to work.' } };
+    },
+    auto() { return { key: 'none' }; },
+  });
+
   // ================================================================ workout invitations
   // Other players reach out in the offseason: a teammate who wants a summer partner, a star who has noticed you, a veteran with a skill to hand down, a kid who wants to learn from you, a rival who wants you in his gym.
   // Each one is a yes or a no; the second yes costs you (nobody can train with everyone), and not everyone is who they seem.
@@ -3844,12 +3874,21 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     }
     return alloc;
   }
+  // a pro preseason, in order: the draft-night promise (rookies, once), the agent (once), then camp (the autopilot answers camp itself)
+  function preseason(st) {
+    const Dc = NBA.Decisions; st.stage = 'pro_ready';
+    if (st.autoPlay) { if (st.autoDecide && Dc.offer(st, 'camp')) Dc.autoResolve(st); return; }
+    if (!st.promiseDone && st.proSeasons.length === 0 && st.draft) { st.promiseDone = true; if (Dc.offer(st, 'promise')) { st.stage = 'promise'; return; } }
+    if (!st.agent) { st.stage = 'agent'; return; }
+    if (Dc.offer(st, 'camp')) st.stage = 'camp';
+  }
+  function choosePromise(st, key) { const r = NBA.Decisions.choose(st, key); preseason(st); return r; }
   // the agent is picked once, before the first pro camp; then the preseason carries on
   function chooseAgent(st, id) {
     if (!NBA.Legacy.AGENTS.some((a) => a.id === id)) throw new Error('no such agent');
     st.agent = id; st.stage = 'pro_ready'; const Dc = NBA.Decisions;
     NBA.Decisions.log(st, { kind: 'brand', title: 'Agent', tone: 'good', text: 'Hired ' + NBA.Legacy.agentOf(st).name + ' (' + NBA.Legacy.agentOf(st).tag.toLowerCase() + ').' });
-    if (Dc.offer(st, 'camp')) st.stage = 'camp';
+    preseason(st);
   }
   function train(st, alloc) {
     const p = st.player;
@@ -3868,8 +3907,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     else if (next === 'pro_first') st.stage = 'pro_ready';
     else { NBA.offseason(st.league, { draft: true }); st.stage = 'pro_ready'; }
     // a pro preseason opens camp: who to train with (the autopilot answers it itself)
-    if (st.stage === 'pro_ready' && !st.autoPlay && !st.agent) { st.stage = 'agent'; return rep; }
-    if (st.stage === 'pro_ready') { if (st.autoPlay) { if (st.autoDecide && NBA.Decisions.offer(st, 'camp')) NBA.Decisions.autoResolve(st); } else if (NBA.Decisions.offer(st, 'camp')) st.stage = 'camp'; }
+    if (st.stage === 'pro_ready') preseason(st);
     return rep;
   }
 
@@ -4899,6 +4937,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     if (!cand.length) return Object.assign(base, { ok: false, reason: 'The ' + t.nick + ' have nobody close to your value to send back.' });
     const partner = cand.sort((a, b) => ovr(b) - ovr(a))[0];
     base.partner = { id: partner.id, name: partner.name, pos: partner.pos, age: partner.age, ovr: Math.round(ovr(partner)) };
+    base.picks = o - ovr(partner) >= 6 ? 'a first-round pick and a second' : o - ovr(partner) >= 3 ? 'a second-round pick' : '';   // a club that gets the better player sweetens it
     // your own club
     let accept = 1, why = '';
     if (franchise) { accept = mine.wins < 34 ? 0.75 : mine.wins < 43 ? 0.3 : 0.06; why = 'The ' + mine.nick + ' will not move their franchise player' + (mine.wins >= 43 ? ' while they are winning.' : ' for that offer.'); }
@@ -4975,6 +5014,14 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
           const ring = p.age >= 31 && t.wins >= 48, ti = teamInterest(st, t, v + (st.legendBonus || 0) + (ring ? 2.5 : 0)), sal = Math.max(2.3 * capFor(L.year) / 154.6, baseSal * (0.88 + rnd() * 0.17) * (t.wins < 33 ? 1.04 : 1) * (ring ? 0.7 : 1));
           return { teamId: t.id, name: t.name, nick: teamKey(t), wins: t.wins, label: teamLabel(t, t.wins), role: role(st, t), vibe: Dc.vibe(ti.p), vouch: ti.vouched, ring: p.age >= 31 && t.wins >= 48, yes: ti.yes, reason: ti.reason, salary: r1(sal), maxYears: p.age >= 36 ? 1 : p.age >= 33 ? 2 : 4, pitched: null, ip: ti.p, space: ti.space };
         }).sort((a, b) => b.wins - a.wins);
+        // sign-and-trade: stay long enough to be dealt, and a contender with no cap room can take you if it pays your old club in picks
+        out.signTrade = null;
+        if (out.resign && !out.waived && v >= 64) {
+          const sr = Dc.rng(st, 'sat|' + L.year), mset = new Set(out.market.map((m) => m.teamId));
+          const cands = L.teams.filter((t) => t.id !== st.teamId && !mset.has(t.id) && t.wins >= 42).map((t) => [sr(), t]).sort((x, y) => x[0] - y[0]).slice(0, 3).map((x) => x[1]);
+          out.signTrade = cands.map((t) => ({ teamId: t.id, name: t.name, nick: teamKey(t), wins: t.wins, label: teamLabel(t, t.wins), role: role(st, t), salary: out.resign.salary, years: Math.min(4, out.resign.maxYears), picks: v >= 74 ? 'two first-round picks' : v >= 68 ? 'a first-round pick' : 'a second-round pick' }));
+          if (!out.signTrade.length) out.signTrade = null;
+        }
         out.offers = [];
         out.neg = {};
         if (!out.waived) { const fairOwn = out.resign ? out.resign.salary : r1(Math.max(minSalary(L), baseSal * 0.85)); out.neg[own.id] = negCtx(st, own, fairOwn, out.resign ? (out.resign.cut ? 0.5 : 0.75) : 0.2, 0.5, true, mk.maxPct * cap, out.resign ? out.resign.maxYears : maxYrsOwn); }
@@ -5101,12 +5148,15 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     }
     if (action === 'resign' || action === 'switch') {
       const years = arg.years;
-      const t = L.teams[arg.teamId];
+      const t = L.teams[arg.teamId], oldT = L.teams[st.teamId], sat = arg.tag === 'sat' && action === 'switch' && (st.decision && st.decision.signTrade || []).find((x) => x.teamId === t.id);
+      if (arg.tag === 'sat' && !sat) throw new Error('no such sign-and-trade');
       st.teamId = t.id; p.teamId = t.id;
       st.contract = { salary: arg.salary, years, left: years, type: 'veteran' };
+      if (sat) { (st.trades = st.trades || []).push({ year: L.year, label: NBA.seasonLabel(L.year), from: oldT.name, to: t.name, ovr: Math.round(ovr(p)), age: p.age, partner: sat.picks + ' (sign-and-trade)', requested: false }); feedAdd(st, 'trade', { old: oldT.nick, team: t.nick }); NBA.Decisions.apply(st, [{ k: 'rel', id: 'team' + oldT.id, name: oldT.name, d: 1 }]); NBA.Decisions.log(st, { kind: 'trade', title: 'Sign-and-trade', tone: 'good', text: 'Re-signed with the ' + oldT.nick + ' and was dealt to the ' + t.nick + ' for ' + sat.picks + '. The ' + oldT.nick + ' got paid for losing you.' }); }
       if (arg.role) { st.contract.role = arg.role; if (!st.autoPlay && ROLE_FX[arg.role]) NBA.Decisions.apply(st, [{ k: 'season', v: ROLE_FX[arg.role] }]); }
+      if (sat) note('Sign-and-trade to ' + t.name);
       note((action === 'switch' ? 'Signed with ' : 'Re-signed with ') + t.name + ' (' + years + 'y, $' + arg.salary + 'M)');
-      if (!st.autoPlay) feedAdd(st, action === 'switch' ? 'sign' : 'resign', { team: t.nick });
+      if (!st.autoPlay && !sat) feedAdd(st, action === 'switch' ? 'sign' : 'resign', { team: t.nick });
       if (!st.autoPlay) NBA.Decisions.apply(st, [{ k: 'rel', id: 'team' + t.id, name: t.name, d: 0.5 }].concat(arg.tag === 'loyal' ? [{ k: 'rel', id: 'team' + t.id, name: t.name, d: 1 }, { k: 'season', v: { depth: 1 } }] : []));
       if (!st.autoPlay) NBA.Decisions.log(st, { kind: 'contract', title: 'Free agency', tone: 'neutral', text: (arg.tag === 'neg' ? 'Negotiated a deal with the ' + t.nick + (arg.role ? ' as a ' + arg.role.toLowerCase() : '') : arg.tag === 'loyal' ? 'Took a loyalty discount to stay with the ' + t.nick : arg.tag === 'ring' ? 'Took a pay cut to chase a ring with the ' + t.nick : action === 'switch' ? 'Signed with the ' + t.nick : 'Re-signed with the ' + t.nick) + ' for ' + years + ' year' + (years > 1 ? 's' : '') + ', $' + arg.salary + 'M a year.' });
       st.stage = 'training'; st.afterTraining = 'pro';
@@ -5214,7 +5264,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     return st;
   }
 
-  Object.assign(NBA, { capFor, Game: { chooseAgent, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { capFor, Game: { chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -5222,7 +5272,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v67';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v68';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -6228,6 +6278,9 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
         return h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('b', null, o.name), h('div', { class: 'small muted' }, o.label + ' · you would be a ' + o.role)), h('span', { class: 'spacer' }), h('b', null, money(o.salary) + ' / yr'), sel, h('button', { class: 'primary', onclick: () => done(G.decide(S, kind, { teamId: o.teamId, salary: o.salary, years: yrs, tag: o.tag })) }, kind === 'resign' ? 'Re-sign' : 'Sign')));
       };
       if (d.waived) out.push(h('div', { class: 'callout' }, d.waived));
+      if (d.signTrade) out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🔁 Sign-and-trade'), h('p', { class: 'small muted' }, 'You re-sign with the ' + d.team + ' and they trade you on. Contenders with no cap room can take you this way, and your old club gets picks. You keep your raise and sign for the length shown.'),
+        d.signTrade.map((o) => h('div', { class: 'row', style: 'margin:6px 0' }, logo(o.nick, 32), h('div', null, h('b', null, o.name), h('div', { class: 'small muted' }, o.label + ' · ' + o.role + ' · the ' + d.team + ' get ' + o.picks)), h('span', { class: 'spacer' }), h('b', null, money(o.salary) + ' / yr'), h('span', { class: 'small muted' }, o.years + 'y'),
+          confirmBtn('Sign-and-trade', 'primary', () => done(G.decide(S, 'switch', { teamId: o.teamId, salary: o.salary, years: o.years, tag: 'sat' })))))));
       if (d.market) {
         // free agency is a pitch, not a menu: clubs can say no
         const pitchCard = (m) => d.neg && d.neg[m.teamId] ? negCard(d, Object.assign({}, m, { name: m.name }), 'switch', done) : m.pitched === 'offer' ? mkOffer(Object.assign({}, m, { name: m.name, tag: m.ring ? 'ring' : null, label: m.label + ' · they made you an offer' + (m.ring ? ' · ring chase (a discount to play for a title)' : '') + (m.vouch ? ' · someone you trained with spoke up for you' : '') }), 'switch')
@@ -6367,7 +6420,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
       try { const r = Dc.choose(S, key, arg); S.dlDone = true; S.matchIdx = (S.matchIdx || 0) + 1; S.flash = r.text; save(); if (key !== 'decline') saveSnap(); go(); } catch (e) { console.error(e); S.flash = 'That deal fell through.'; render(); }
     };
     const optCard = (o) => h('div', { class: 'card' }, h('div', { class: 'row' }, logo(o.nick || (D.TEAMS.find((x) => x.id === o.teamId) || {}).nick, 40), h('div', null, h('b', null, o.name), h('div', { class: 'small muted' }, (o.label || '') + (o.role ? ' · you would be a ' + o.role : '')),
-      o.partnerName ? h('div', { class: 'small' }, 'They send back: ', h('b', null, o.partnerName)) : null, v.kind === 'waive' ? h('div', { class: 'small' }, 'Minimum contract, rest of the season') : null),
+      o.partnerName ? h('div', { class: 'small' }, 'They send back: ', h('b', null, o.partnerName), o.picks ? ' and send ' + o.picks : '') : null, v.kind === 'waive' ? h('div', { class: 'small' }, 'Minimum contract, rest of the season') : null),
       h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => finish(v.kind === 'waive' ? 'sign' : 'trade', o.teamId) }, v.kind === 'waive' ? 'Sign' : 'Accept trade')));
     const declineLabel = v.kind === 'norequest' ? 'Continue the season' : v.kind === 'request' ? 'Stay with the ' + t.nick : 'Stay put';
     return h('div', null, h('h1', null, 'Trade deadline'), h('p', { class: 'muted' }, t.name + ' · ' + w + '-' + (reg.length - w) + ' through ' + reg.length + ' games'),
@@ -6508,6 +6561,12 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const j = ((S.dec && S.dec.journal) || []).slice().reverse(); if (!j.length) return null;
     return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, title || 'Your journal'), h('div', { class: 'jlist' }, j.slice(0, n || 40).map((e) => h('div', { class: 'jrow ' + (e.tone || '') }, h('span', { class: 'jyr' }, e.label), h('div', null, h('b', { class: 'small' }, e.title), h('div', { class: 'small' }, e.text))))));
   }
+  function screenPromise() {
+    const Dc = DEC(); if (!S.dec || !S.dec.pending || S.dec.pending.id !== 'promise') { S.stage = 'pro_ready'; return screenProReady(); }
+    const v = Dc.view(S), step = (key) => { try { S.decResult = null; const r = G.choosePromise(S, key); S.flash = r.text; save(); go(); } catch (e) { console.error(e); } };
+    return h('div', null, h('h1', null, v.title), h('p', { class: 'muted' }, v.text),
+      h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: 'primary', onclick: () => step(o.key) }, 'Ask'))))));
+  }
   function screenAgent() {
     const Ag = NBA.Legacy.AGENTS;
     return h('div', null, h('h1', null, 'Pick your agent'), h('p', { class: 'muted' }, 'This is the person who negotiates your contracts and sells your name. You can only pick once, so choose who you trust.'),
@@ -6550,7 +6609,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     if (view === 'team' && st !== 'create') { app.append(screenTeam()); return; }
     if (view === 'league' && st !== 'create') { app.append(screenLeague()); return; }
     if (view === 'career' && st !== 'create') { app.append(screenCareer()); return; }
-    const m = { scouting: screenScouting, hs: screenHS, college_pick: screenCollegePick, college_ready: screenCollegeReady, college_decision: screenCollegeDecision, combine: screenCombine, workouts: screenWorkouts, draft_night: screenDraft, training: screenTraining, camp: screenCamp, agent: screenAgent, pro_ready: screenProReady, season_play: screenSeasonPlay, season_recap: screenRecap, decision: screenDecision, retired: screenRetired };
+    const m = { scouting: screenScouting, hs: screenHS, college_pick: screenCollegePick, college_ready: screenCollegeReady, college_decision: screenCollegeDecision, combine: screenCombine, workouts: screenWorkouts, draft_night: screenDraft, training: screenTraining, camp: screenCamp, agent: screenAgent, promise: screenPromise, pro_ready: screenProReady, season_play: screenSeasonPlay, season_recap: screenRecap, decision: screenDecision, retired: screenRetired };
     if (S.flash && st !== 'decision') { app.append(h('div', { class: 'callout' }, S.flash)); S.flash = null; }
     app.append((m[st] || screenCreate)());
   }

@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v67';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v68';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -1008,6 +1008,9 @@
         return h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('b', null, o.name), h('div', { class: 'small muted' }, o.label + ' · you would be a ' + o.role)), h('span', { class: 'spacer' }), h('b', null, money(o.salary) + ' / yr'), sel, h('button', { class: 'primary', onclick: () => done(G.decide(S, kind, { teamId: o.teamId, salary: o.salary, years: yrs, tag: o.tag })) }, kind === 'resign' ? 'Re-sign' : 'Sign')));
       };
       if (d.waived) out.push(h('div', { class: 'callout' }, d.waived));
+      if (d.signTrade) out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🔁 Sign-and-trade'), h('p', { class: 'small muted' }, 'You re-sign with the ' + d.team + ' and they trade you on. Contenders with no cap room can take you this way, and your old club gets picks. You keep your raise and sign for the length shown.'),
+        d.signTrade.map((o) => h('div', { class: 'row', style: 'margin:6px 0' }, logo(o.nick, 32), h('div', null, h('b', null, o.name), h('div', { class: 'small muted' }, o.label + ' · ' + o.role + ' · the ' + d.team + ' get ' + o.picks)), h('span', { class: 'spacer' }), h('b', null, money(o.salary) + ' / yr'), h('span', { class: 'small muted' }, o.years + 'y'),
+          confirmBtn('Sign-and-trade', 'primary', () => done(G.decide(S, 'switch', { teamId: o.teamId, salary: o.salary, years: o.years, tag: 'sat' })))))));
       if (d.market) {
         // free agency is a pitch, not a menu: clubs can say no
         const pitchCard = (m) => d.neg && d.neg[m.teamId] ? negCard(d, Object.assign({}, m, { name: m.name }), 'switch', done) : m.pitched === 'offer' ? mkOffer(Object.assign({}, m, { name: m.name, tag: m.ring ? 'ring' : null, label: m.label + ' · they made you an offer' + (m.ring ? ' · ring chase (a discount to play for a title)' : '') + (m.vouch ? ' · someone you trained with spoke up for you' : '') }), 'switch')
@@ -1147,7 +1150,7 @@
       try { const r = Dc.choose(S, key, arg); S.dlDone = true; S.matchIdx = (S.matchIdx || 0) + 1; S.flash = r.text; save(); if (key !== 'decline') saveSnap(); go(); } catch (e) { console.error(e); S.flash = 'That deal fell through.'; render(); }
     };
     const optCard = (o) => h('div', { class: 'card' }, h('div', { class: 'row' }, logo(o.nick || (D.TEAMS.find((x) => x.id === o.teamId) || {}).nick, 40), h('div', null, h('b', null, o.name), h('div', { class: 'small muted' }, (o.label || '') + (o.role ? ' · you would be a ' + o.role : '')),
-      o.partnerName ? h('div', { class: 'small' }, 'They send back: ', h('b', null, o.partnerName)) : null, v.kind === 'waive' ? h('div', { class: 'small' }, 'Minimum contract, rest of the season') : null),
+      o.partnerName ? h('div', { class: 'small' }, 'They send back: ', h('b', null, o.partnerName), o.picks ? ' and send ' + o.picks : '') : null, v.kind === 'waive' ? h('div', { class: 'small' }, 'Minimum contract, rest of the season') : null),
       h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => finish(v.kind === 'waive' ? 'sign' : 'trade', o.teamId) }, v.kind === 'waive' ? 'Sign' : 'Accept trade')));
     const declineLabel = v.kind === 'norequest' ? 'Continue the season' : v.kind === 'request' ? 'Stay with the ' + t.nick : 'Stay put';
     return h('div', null, h('h1', null, 'Trade deadline'), h('p', { class: 'muted' }, t.name + ' · ' + w + '-' + (reg.length - w) + ' through ' + reg.length + ' games'),
@@ -1288,6 +1291,12 @@
     const j = ((S.dec && S.dec.journal) || []).slice().reverse(); if (!j.length) return null;
     return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, title || 'Your journal'), h('div', { class: 'jlist' }, j.slice(0, n || 40).map((e) => h('div', { class: 'jrow ' + (e.tone || '') }, h('span', { class: 'jyr' }, e.label), h('div', null, h('b', { class: 'small' }, e.title), h('div', { class: 'small' }, e.text))))));
   }
+  function screenPromise() {
+    const Dc = DEC(); if (!S.dec || !S.dec.pending || S.dec.pending.id !== 'promise') { S.stage = 'pro_ready'; return screenProReady(); }
+    const v = Dc.view(S), step = (key) => { try { S.decResult = null; const r = G.choosePromise(S, key); S.flash = r.text; save(); go(); } catch (e) { console.error(e); } };
+    return h('div', null, h('h1', null, v.title), h('p', { class: 'muted' }, v.text),
+      h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: 'primary', onclick: () => step(o.key) }, 'Ask'))))));
+  }
   function screenAgent() {
     const Ag = NBA.Legacy.AGENTS;
     return h('div', null, h('h1', null, 'Pick your agent'), h('p', { class: 'muted' }, 'This is the person who negotiates your contracts and sells your name. You can only pick once, so choose who you trust.'),
@@ -1330,7 +1339,7 @@
     if (view === 'team' && st !== 'create') { app.append(screenTeam()); return; }
     if (view === 'league' && st !== 'create') { app.append(screenLeague()); return; }
     if (view === 'career' && st !== 'create') { app.append(screenCareer()); return; }
-    const m = { scouting: screenScouting, hs: screenHS, college_pick: screenCollegePick, college_ready: screenCollegeReady, college_decision: screenCollegeDecision, combine: screenCombine, workouts: screenWorkouts, draft_night: screenDraft, training: screenTraining, camp: screenCamp, agent: screenAgent, pro_ready: screenProReady, season_play: screenSeasonPlay, season_recap: screenRecap, decision: screenDecision, retired: screenRetired };
+    const m = { scouting: screenScouting, hs: screenHS, college_pick: screenCollegePick, college_ready: screenCollegeReady, college_decision: screenCollegeDecision, combine: screenCombine, workouts: screenWorkouts, draft_night: screenDraft, training: screenTraining, camp: screenCamp, agent: screenAgent, promise: screenPromise, pro_ready: screenProReady, season_play: screenSeasonPlay, season_recap: screenRecap, decision: screenDecision, retired: screenRetired };
     if (S.flash && st !== 'decision') { app.append(h('div', { class: 'callout' }, S.flash)); S.flash = null; }
     app.append((m[st] || screenCreate)());
   }

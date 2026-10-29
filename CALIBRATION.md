@@ -788,3 +788,9 @@ A long injury (any named one, or 15+ missed games in a block) now stops the seas
 - When your club hires a new coach, the late-career decision gains a step: buy in, ask for a bigger role, or keep quiet. Style fit moves your minutes (+3% good fit, -4% bad), the choice shifts that and your relationship with him.
 - Locker room story about every other offseason (split by what the roster offers): a best friend, a beef over shots, a vets-versus-kids split, the beef coming back, a friend who needs help. Effects are small team-chemistry (depth ±0.4..2), relationships and journal entries; the feed posts the friend/beef/coach news.
 - Steps live inside the existing `late` decision, so autopilot never sees them and the baseline is untouched. `scripts/room-check.js`.
+
+## v68 — draft and trade depth
+- **Draft-night promise** (human rookies, once, before the agent and camp): ask for a starting spot (kept 85/70/50/30% by pick band; kept = +7% minutes, broken = -5% and a club grudge), development minutes (+1 upgrade point, -3% minutes), a marketing push (+8 brand) or nothing (small form bonus).
+- **Sign-and-trade**: when your own club wants you back (rating ≥ 64), up to three contenders with no cap room can take you with their salary at your re-sign number; your old club gets picks (two firsts / a first / a second by value). Logged in the trade list and journal, feed posts a trade.
+- **Picks in trades**: deadline and offseason trade offers mention the picks a club adds when it is getting the better player.
+- Preseason chain refactored into `preseason(st)`: promise → agent → camp; autopilot path unchanged (baseline 76.5/12.9 and 77.2/13.2). `scripts/draft-trade-check.js`.
