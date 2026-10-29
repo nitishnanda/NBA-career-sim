@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v63';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v64';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -671,7 +671,9 @@
     const tabs = [['box', 'Box'], ['shots', 'Shots'], ['stats', 'Stats'], ['def', 'Defense'], ['plan', 'Plan']].concat(poP.length ? [['po', 'Playoffs']] : []);
     if (!tabs.some((x) => x[0] === mTab)) mTab = 'box';
     const mtabs = h('div', { class: 'mtabs' }, tabs.map(([k, l]) => h('button', { class: mTab === k ? 'on' : '', onclick: () => { mTab = k; render(); } }, l)));
-    const wrap = h('div', { class: 'dash mt-' + mTab }, h('div', { class: 'dtop' }, hero, quick, mtabs, telemetry), playoffPanel, h('div', { class: 'dmid' }, stream, averages, defense), planPanel);
+    const fb = feedBlocks(L.year, idx, 4);
+    const feedPanel = h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '📱'), h('h2', null, 'Timeline'), h('span', { class: 'spacer' }), h('button', { class: 'ghost tiny', onclick: showTimeline }, 'See everything')), fb.length ? fb.map(feedBlock) : h('p', { class: 'muted' }, 'Quiet for now. Big nights, trades and headlines show up here.'));
+    const wrap = h('div', { class: 'dash mt-' + mTab }, h('div', { class: 'dtop' }, hero, quick, mtabs, telemetry), playoffPanel, h('div', { class: 'dmid' }, stream, averages, defense), planPanel, feedPanel);
     return wrap;
   }
   // click any player's name for his career page: who he is, his awards and every season on record (the record starts with this save)
@@ -710,6 +712,24 @@
         : h('tr', null, h('td', null, g.d), h('td', { class: 'l' }, (g.h ? 'vs ' : '@ ') + g.o + (g.po ? ' · G' + g.n : '')), h('td', { class: 'l' }, h('span', { class: 'res ' + (g.w ? 'w' : 'l') }, g.w ? 'W' : 'L'), ' ' + g.f + '-' + g.a), h('td', null, g.m), h('td', null, g.pt), h('td', null, g.rb), h('td', null, g.as), h('td', null, g.fgm + '/' + g.fga), h('td', null, (g.pm > 0 ? '+' : '') + g.pm), h('td', null, h('span', { class: 'rating xs ' + rClass(g.r) }, g.r.toFixed(1)))))))));
   }
 
+  // ------------------------------------------------------------ the timeline (feed)
+  const FEED_LABEL = { big: 'Big night', td: 'Triple-double', bad: 'Rough night', streakW: 'Win streak', streakL: 'Losing streak', blowoutWin: 'Blowout win', blowoutLoss: 'Blowout loss', po: 'Series win', elim: 'Eliminated', champ: 'Champions', playin: 'Play-in', trade: 'Trade', tradeReq: 'Trade request', sign: 'Signing', resign: 'Re-signed', waived: 'Waived', injury: 'Injury', ret: 'Back on the floor', award: 'Award', allstar: 'All-Star', draft: 'Draft', retire: 'Retirement', press: 'Press room', winner: 'Game-winner', miss: 'Missed shot', hot: 'Hot take', coach: 'Coaching change', friend: 'Locker room', beef: 'Locker room', win: 'Win', loss: 'Loss' };
+  const kfmt = (n) => (n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : String(n));
+  const feedPost = (p) => h('div', { class: 'fan' }, h('b', null, p.who), p.news ? ' ' : '', ' ' + p.text, h('span', { class: 'likes' }, ' ♥ ' + kfmt(p.likes || 0)));
+  // everything the feed said this season, newest first: posts on the games you have seen plus the events (trades, awards, injuries, press) up to now
+  function feedBlocks(year, idx, limit) {
+    const out = [], items = S.matchLog || [];
+    items.slice(0, idx).forEach((g, i) => { if (g.k === 'g' && g.fan && g.fan.length) out.push({ at: i + 0.5, kind: g.fk, sub: g.po ? (g.rnd || 'Playoffs') : 'Game ' + g.n + ' vs ' + g.o, posts: g.fan }); });
+    ((S.dec && S.dec.flags && S.dec.flags.feed) || []).forEach((e, k) => { if (e.y === year && (e.at == null || e.at <= idx)) out.push({ at: e.at == null ? idx + 0.1 : e.at + 0.6 + k * 0.001, kind: e.kind, sub: '', posts: e.posts }); });
+    out.sort((a, b) => b.at - a.at); return limit ? out.slice(0, limit) : out;
+  }
+  const feedBlock = (b) => h('div', { class: 'feedblock' }, h('div', { class: 'small caps muted' }, (FEED_LABEL[b.kind] || 'Timeline') + (b.sub ? ' · ' + b.sub : '')), b.posts.map(feedPost));
+  function showTimeline() {
+    const L = S.league, all = [];
+    ((S.dec && S.dec.flags && S.dec.flags.feed) || []).slice().reverse().forEach((e) => all.push(h('div', { class: 'feedblock' }, h('div', { class: 'small caps muted' }, NBA.seasonLabel(e.y) + ' · ' + (FEED_LABEL[e.kind] || 'Timeline')), e.posts.map(feedPost))));
+    const cur = feedBlocks(L.year, (S.matchLog || []).length, 0).filter((b) => b.kind && ['big', 'td', 'bad', 'streakW', 'streakL', 'blowoutWin', 'blowoutLoss', 'po', 'elim', 'champ', 'playin'].includes(b.kind));
+    showModal('The timeline', h('div', null, cur.length ? [h('h3', null, 'This season'), cur.map(feedBlock)] : null, h('h3', null, 'Moments from your career'), all.length ? all : h('p', { class: 'muted' }, 'Nothing yet: the timeline wakes up when you do something.')));
+  }
   // ------------------------------------------------------------ team page
   const rosterRole = (r) => (r.me ? 'You' : r.mins >= 24 ? 'Starter' : r.mins >= 14 ? 'Rotation' : 'Bench');
   function rosterTable(rows) {
@@ -911,6 +931,7 @@
       r.playoff ? h('div', { class: 'card' }, h('h2', null, 'Playoffs' + (r.legend ? ' 🔥 LEGENDARY RUN' : r.heater ? ' 🔥 on a heater' : '')), h('div', { class: 'grid stats' }, statBox(f1(r.playoff.pts), 'PPG'), statBox(f1(r.playoff.reb), 'RPG'), statBox(f1(r.playoff.ast), 'APG'), r.poRating ? h('div', { class: 'statbox' }, h('div', { class: 'big' }, ratingBadge(r.poRating, 2)), h('div', { class: 'lbl' }, 'Playoff rating')) : null), h('p', { class: 'muted small' }, r.playoff.gp + ' games · ' + (r.playoff.form != null ? 'postseason form ×' + r.playoff.form.toFixed(2) + ' (' + f1(r.playoff.pts) + ' vs ' + f1(r.pts) + ' ppg in the regular season) · ' : '') + pct(r.playoff.ts) + ' TS% · ' + r.playoff.td + ' triple-doubles · high ' + r.playoff.high),
         h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, ['Round', 'Opponent', 'Result', 'PTS', 'REB', 'AST'].map((x, i) => h('th', { class: i < 3 ? 'l' : '' }, x)))), h('tbody', null, r.perSeries.map((s) => h('tr', null, h('td', { class: 'l' }, s.round), h('td', { class: 'l' }, s.opp), h('td', { class: 'l' }, s.result), h('td', null, f1(s.pts)), h('td', null, f1(s.reb)), h('td', null, f1(s.ast)))))))) : null,
       h('div', { class: 'card ink' }, h('h2', null, 'Around the league'), h('p', null, 'Champion: ', h('b', null, r.champion), ' · MVP: ', h('b', null, r.mvp)), h('p', { class: 'muted small' }, r.league.n30 + ' players averaged 30+ this year, ' + r.league.n25 + ' averaged 25+.'), h('h3', null, 'Top scorers'), r.league.topScorers.slice(0, 5).map((t, i) => h('div', { class: 'rank-row' }, h('span', { class: 'n' }, i + 1), h('span', null, t.name), h('b', null, f1(t.ppg))))),
+      (() => { const fb = feedBlocks(S.league.year, (S.matchLog || []).length, 0).slice(0, 6); return fb.length ? h('div', { class: 'card' }, h('h2', null, '📱 The timeline this year'), fb.map(feedBlock), h('div', { class: 'row' }, h('button', { class: 'ghost tiny', onclick: showTimeline }, 'See everything'))) : null; })(),
       h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { S.stage = 'decision'; S.decision = G.decisionOptions(S); go(); } }, 'Offseason decisions →')));
   }
 

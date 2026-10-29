@@ -295,3 +295,5 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 .plink { background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; letter-spacing: inherit; text-transform: none; } .plink:hover { color: var(--accent, #fff); text-decoration-style: solid; }
 
 .qcard .small { line-height: 1.4; } .headline { font: 700 20px var(--disp); letter-spacing: .02em; margin: 6px 0; } .fan { padding: 6px 0; border-top: 1px solid var(--line); } .fan:first-of-type { border-top: 0; }
+
+.feedblock { padding: 8px 0; border-top: 1px solid var(--line); } .feedblock:first-of-type { border-top: 0; } .likes { color: var(--muted, #8a8f98); font-size: 12px; margin-left: 6px; white-space: nowrap; }
