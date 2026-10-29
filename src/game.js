@@ -1,7 +1,7 @@
 (function (g) {
   'use strict';
   const NBA = g.NBA;
-  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./feed.js'); require('./legacy.js'); require('./room.js'); require('./live.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
+  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./feed.js'); require('./legacy.js'); require('./room.js'); require('./live.js'); require('./allstar.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
   const D = NBA.data;
   const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
   const ATTRS = D.ATTRS;
@@ -598,7 +598,7 @@
       it.ar = NBA.data.ARENAS[it.h ? t.nick : opps[i].nick] || '';
       if (b) it.pm = Math.round((it.f - it.a) * (b.m / 48) * 1.1 + randn() * 4);
       items.push(it);
-      if (i === 51) items.push({ k: 'hdr', text: 'All-Star Weekend' + (rec.awards.includes('All-Star') ? ' · you were selected ★' : '') });
+      if (i === 51) items.push({ k: 'hdr', asw: 1, text: 'All-Star Weekend' + (rec.awards.includes('All-Star') ? ' · you were selected ★' : '') });
       if (i === 54) items.push({ k: 'hdr', dl: 1, text: 'Trade deadline' });
     }
     items.push({ k: 'hdr', text: 'Regular season complete · ' + t.wins + '-' + t.losses });
@@ -728,6 +728,7 @@
     const dIdx = A.allDefTeams.findIndex((tm) => tm.includes('user'));
     if (dIdx >= 0) { cnt('All-Defense'); awardsHere.push('All-Defensive ' + ['First', 'Second'][dIdx] + ' Team'); }
     if (A.allStar.includes('user')) { cnt('All-Star'); awardsHere.push('All-Star'); }
+    NBA.AllStar.build(st, A);
     const mvpPlace = A.mvpIds.indexOf('user');
     if (mvpPlace > 0) awardsHere.push('MVP voting: #' + (mvpPlace + 1));
 
@@ -779,7 +780,7 @@
     rec.bests = seasonBests(st.matchLog, rec.label, rec.age);
     if (NBA.onSeasonLog) NBA.onSeasonLog(st, rec);
     rec.perSeries = perSeries.map((x) => { const y = Object.assign({}, x); delete y.list; delete y.w; delete y.l; delete y.won; return y; });
-    st.proSeasons.push(rec);
+    st.proSeasons.push(rec); if (!st.autoPlay) NBA.AllStar.reapply(st, rec);
     awardsHere.forEach((a) => { if (/^NBA Champion|^MVP voting/.test(a)) return; if (a === 'All-Star') feedAdd(st, 'allstar', {}, { key: 'as' + L.year, at: null }); else feedAdd(st, 'award', { award: a.replace(/ \(.*\)$/, '') }, { key: 'aw' + L.year + a, at: null }); });
     st.earnings += st.contract.salary;
     st.earnings26 = (st.earnings26 || 0) + (st.contract.salary / capFor(L.year)) * capFor(2026); // in 2026 cap dollars

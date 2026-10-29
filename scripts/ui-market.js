@@ -80,6 +80,10 @@ let PG = null;
       }
       await page.click('.wkcard button >> nth=0'); await page.waitForSelector('button:text-matches("Play the game|Back to the season", "i")'); await page.click('button:text-matches("Play the game|Back to the season", "i")'); await page.waitForTimeout(100); await arm(); return 'clutch';
     }
+    if (/All-Star Weekend/.test(h1) || await page.$('button:has-text("Start the weekend")')) {
+      for (let k = 0; k < 14; k++) { const b = await page.$('button:has-text("Back to the season")'); if (b) { await b.click(); break; } const c = (await page.$('button:has-text("Start the weekend")')) || (await page.$('button:has-text("Continue →")')) || (await page.$('.wkcard button')); if (!c) break; await c.click(); await page.waitForTimeout(60); }
+      await arm(); return 'weekend';
+    }
     if (/Press conference/.test(h1)) { await answerPress(); await page.click('button:text-matches("Play the game|Back to the season", "i")'); await arm(); return 'press'; }
     if (/^Injury/i.test(h1)) { await page.click('.wkcard button >> nth=0'); await page.click('button:text-matches("Back to the season|Play the game", "i")'); await arm(); return 'injury'; }
     return /Trade deadline/.test(h1) ? 'deadline' : /^(First Round|Conference|NBA Finals)/i.test(h1) ? 'series' : null;

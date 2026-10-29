@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v69';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v70';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -495,6 +495,11 @@
       if (!pend('injury')) Dc.offer(S, 'injury');
       if (pend('injury')) { if (S.autoDec) { Dc.autoResolve(S); save(); return holdAt(); } return true; }
     }
+    if (it.k === 'hdr' && it.asw) {   // All-Star Weekend: the selection, the events you are invited to, the game
+      if (S.autoDec) { NBA.AllStar.skip(S); S.matchIdx++; save(); return holdAt(); }
+      if (NBA.AllStar.start(S)) return true;
+      S.matchIdx++; save(); return holdAt();
+    }
     if (it.k === 'hdr' && it.dl && !S.dlDone) {
       if (!S.dlChecked) { S.dlChecked = true; Dc.offer(S, 'deadline'); save(); }
       if (pend('deadline')) { if (S.autoDec) { Dc.autoResolve(S); S.dlDone = true; S.matchIdx++; save(); return false; } return true; }
@@ -521,12 +526,10 @@
         if (pend('press')) { if (S.autoDec) { Dc.autoResolve(S); save(); return holdAt(); } return true; }
         it.pd = 1;
       }
-      if (it.cl && !it.cd) {
-        if (S.liveMode && !bulk && !S.autoDec) return false;   // watching live: the call is made inside the game
-        if (!pend('clutch')) Dc.offer(S, 'clutch');
-        if (!pend('clutch')) { it.cd = 1; return false; }
-        if (S.autoDec) { Dc.autoResolve(S); save(); return false; }
-        return true;
+      if (it.cl && !it.cd) {   // last-possession calls are made only inside a live game; a simmed game just plays out
+        if (S.liveMode && !bulk) return false;
+        if (pend('clutch')) S.dec.pending = null;
+        it.cd = 1;
       }
     }
     return false;
@@ -537,7 +540,7 @@
     while (S.matchIdx < items.length) {
       const it = items[S.matchIdx]; S.matchIdx++;
       if (it.k === 'g') got = true;
-      if (got) { while (items[S.matchIdx] && items[S.matchIdx].k === 'hdr' && !(items[S.matchIdx].dl && !S.dlDone) && !(items[S.matchIdx].ps != null)) S.matchIdx++; break; }
+      if (got) { while (items[S.matchIdx] && items[S.matchIdx].k === 'hdr' && !(items[S.matchIdx].dl && !S.dlDone) && !(items[S.matchIdx].ps != null) && !items[S.matchIdx].asw) S.matchIdx++; break; }
     }
   }
   function autoplay(until) {
@@ -553,7 +556,7 @@
     if (LV && S.matchLog && S.stage === 'season_play') return screenLive();
     if (!S.leagueSnap || !S.matchLog) { S.stage = 'season_recap'; save(); return screenRecap(); } // save from an older build
     if (S.decResult) return screenDecResult();
-    if (holdAt()) { const pid = S.dec.pending.id; return pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : pid === 'press' ? screenPress() : pid === 'injury' ? screenInjury() : screenDeadline(); }
+    if (holdAt()) { if (NBA.AllStar.active(S)) return screenAllStar(); const pid = S.dec.pending.id; return pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : pid === 'press' ? screenPress() : pid === 'injury' ? screenInjury() : screenDeadline(); }
     const items = S.matchLog || [], idx = S.matchIdx || 0, L = S.league, p = S.player, t = L.teams[S.teamId];
     const shown = items.slice(0, idx), done = idx >= items.length;
     const reg = shown.filter((x) => x.k === 'g' && !x.po), poG = shown.filter((x) => x.k === 'g' && x.po);
@@ -1275,7 +1278,7 @@
   const LIVE_SPEEDS = [[24, 'Max · 2 min'], [12, '4 min'], [6, '8 min'], [1, 'Real time']];
   const LV_COLS = [['pt', 'PTS'], ['rb', 'REB'], ['as', 'AST'], ['st', 'STL'], ['bk', 'BLK'], ['to', 'TO'], ['pf', 'PF']];
   function liveStop() { if (LV && LV.timer) { clearInterval(LV.timer); LV.timer = null; } }
-  function liveSkipHdrs() { const items = S.matchLog; while (items[S.matchIdx] && items[S.matchIdx].k === 'hdr' && !(items[S.matchIdx].dl && !S.dlDone) && items[S.matchIdx].ps == null) S.matchIdx++; }
+  function liveSkipHdrs() { const items = S.matchLog; while (items[S.matchIdx] && items[S.matchIdx].k === 'hdr' && !(items[S.matchIdx].dl && !S.dlDone) && items[S.matchIdx].ps == null && !items[S.matchIdx].asw) S.matchIdx++; }
   function startLive() {
     stopAuto(); const items = S.matchLog;
     if (holdAt()) { render(); return; }
@@ -1374,6 +1377,27 @@
     }
   }
 
+  // ------------------------------------------------------------ All-Star Weekend
+  function screenAllStar() {
+    const AS = NBA.AllStar, v = AS.view(S), R = v.roster, f = S.dec.flags.asw;
+    const step = (key) => { try { AS.answer(S, key); save(); render(); window.scrollTo(0, 0); } catch (e) { console.error(e); } };
+    const cont = () => { AS.next(S); save(); render(); window.scrollTo(0, 0); };
+    const table = (cols, rows) => h('table', { class: 'lvq' }, h('tr', null, cols.map((c, i) => h('th', null, c))), rows.map((r) => h('tr', null, r.map((c, i) => h(i ? 'td' : 'th', null, String(c))))));
+    const conf = (name, list) => h('div', null, h('b', null, name), list.map((x) => h('div', { class: 'small' + (x.isUser ? ' me-line' : ''), style: x.isUser ? 'font-weight:700' : '' }, (x.starter ? '★ ' : '') + x.name + ' · ' + x.pos + ' · ' + x.team + (x.isUser ? ' (you)' : ''))));
+    const out = [h('div', { class: 'callout' }, '⭐ All-Star Weekend · game ' + ((S.matchLog || []).slice(0, S.matchIdx).filter((x) => x.k === 'g' && !x.po).length) + ' of the season'), h('h1', null, v.title), h('p', { class: 'muted' }, v.text)];
+    if (v.step === 'intro') {
+      out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'The rosters'), h('p', { class: 'small muted' }, 'Starters (★) are the top five in each conference by the vote, reserves are picked by the coaches.'), h('div', { class: 'lvlead' }, conf('East', R.E), conf('West', R.W))),
+        h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Your weekend'), h('ul', null, [f.sel ? h('li', null, 'The All-Star Game' + (f.starter ? ' (starter)' : ' (reserve)')) : null, f.inv.rising ? h('li', null, 'Rising Stars') : null, f.inv.three ? h('li', null, 'Three-Point Contest invite') : null, f.inv.dunk ? h('li', null, 'Slam Dunk Contest invite') : null])),
+        h('div', { class: 'row' }, h('button', { class: 'primary big-btn', onclick: () => step('go') }, 'Start the weekend →')));
+    } else if (v.result) {
+      out.push(h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, v.tone === 'good' ? 'Highlight' : 'Result'), h('p', { class: 'jmsg ' + (v.tone || '') }, v.text), v.rows && v.rows.length ? table(f.last.cols || ['Player', 'R1', 'Final'], v.rows) : null), h('div', { class: 'row' }, h('button', { class: 'primary big-btn', onclick: cont }, 'Continue →')));
+    } else if (v.step === 'recap') {
+      out.push(h('div', { class: 'card' }, (f.res.lines || []).length ? f.res.lines.map((l) => h('p', { class: 'jmsg', style: 'margin:6px 0' }, '• ' + l)) : h('p', null, 'You took it all in.'), v.awards.length ? h('p', { class: 'jmsg good' }, '🏆 ' + v.awards.join(' · ')) : null), h('div', { class: 'row' }, h('button', { class: 'primary big-btn', onclick: () => { AS.answer(S, 'done'); S.matchIdx++; save(); go(); } }, 'Back to the season')));
+    } else {
+      out.push(h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: 'primary', onclick: () => step(o.key) }, v.step === 'game' ? 'Play' : 'Enter'))))), v.canPass ? h('div', { class: 'row', style: 'margin-top:10px' }, h('button', { class: 'ghost', onclick: () => step('pass') }, 'Pass on this one')) : null);
+    }
+    return h('div', null, out);
+  }
   function screenClutch() {
     const Dc = DEC(), v = Dc.view(S), t = S.league.teams[S.teamId], rec = S.proSeasons[S.proSeasons.length - 1];
     const pick = (key) => { try { const r = Dc.choose(S, key); S.decResult = { title: v.g7 ? 'Game 7' : 'Clutch time', sub: t.name + (v.home ? ' vs ' : ' at ') + 'the ' + v.opp + (v.g7 ? '' : ' · game ' + v.n), text: r.text, tone: r.tone === 'good' ? 'good' : 'bad', cap: r.tone === 'good' ? 'You came through' : 'It did not go your way' }; save(); go(); } catch (e) { console.error(e); } };

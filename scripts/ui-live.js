@@ -59,5 +59,11 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
       await page.click('button:has-text("Continue →")');
     }
   }
+  // ---- 3. not watching live: a clutch game just plays out, no call, no screen
+  await page.evaluate(() => { const S = window.__NBA_UI.state; S.liveMode = false; const L = S.matchLog; const i = L.findIndex((x, k) => k >= S.matchIdx && x.k === 'g' && !x.dnp && !x.inj); L[i].cl = 1; L[i].cd = 0; S.dec.pending = null; S.matchIdx = i; window.__NBA_UI.render(); window.__i3 = i; });
+  await page.waitForSelector('button:has-text("Sim next game")');
+  const simmed = await page.evaluate(() => !/Clutch time|Game 7/i.test(document.body.innerText)); ck('LIVE off: no clutch screen', simmed);
+  await page.click('button:has-text("Sim next game")');
+  { const r = await page.evaluate(() => { const S = window.__NBA_UI.state; return { mi: S.matchIdx === window.__i3 + 1, cd: S.matchLog[window.__i3].cd, pend: !!(S.dec.pending && S.dec.pending.id === 'clutch') }; }); ck('LIVE off: the game plays out', r.mi && r.cd === 1 && !r.pend, r); }
   console.log('errors:', errors.length ? errors : 'none'); await browser.close(); process.exit(errors.length ? 1 : 0);
 })();
