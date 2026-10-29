@@ -38,11 +38,13 @@
     { const left = 82 - miss - (opts.extraMiss || 0); if (o >= T.qualifyOvr && !major && left - rest < 65 && left >= 65) rest = Math.min(rest, left - 65); }
     return { gp: clamp(82 - miss - rest - (opts.extraMiss || 0), 0, 82), miss, rest, injuries: list, major, notable };
   }
-  function applyMajorInjury(p) {
-    p.attrs.ath = clamp(p.attrs.ath - (3 + rand() * 4), 8, 99);
-    p.attrs.dur = clamp(p.attrs.dur - (2 + rand() * 4), 8, 99);
-    p.target.ath = clamp(p.target.ath - 3, 8, 99);
+  // what a major injury takes from the body: the burst (athleticism) and the durability. Drawn once; a person's rehab choice scales it later, the autopilot just takes it.
+  function injuryDamage() { return { ath: 3 + rand() * 4, dur: 2 + rand() * 4, tath: 3 }; }
+  function applyInjuryDamage(p, d, f) {
+    f = f == null ? 1 : f;
+    p.attrs.ath = clamp(p.attrs.ath - d.ath * f, 8, 99); p.attrs.dur = clamp(p.attrs.dur - d.dur * f, 8, 99); p.target.ath = clamp(p.target.ath - d.tath * f, 8, 99);
   }
+  function applyMajorInjury(p) { applyInjuryDamage(p, injuryDamage(), 1); }
 
   // ------------------------------------------------------------ NPC creation
   function makeNPC(L, age, opts) {
@@ -806,6 +808,6 @@
     return { n90: o.filter((x) => x >= 90).length, n85: o.filter((x) => x >= 85).length, n80: o.filter((x) => x >= 80).length, mean: sum(o) / o.length, top: o.slice(0, 6).map((x) => Math.round(x)) };
   }
 
-  Object.assign(NBA, { recruitYears, rosterOf, swapPlayers, seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, makeReal, userDraft, teamNeeds, needText, npcDraft, draftClass, mockSeeded, stockBase, mockBoards, ATH_POS, combineFor, combineComp, CB_K, makeProspect, retireP, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
+  Object.assign(NBA, { injuryDamage, applyInjuryDamage, recruitYears, rosterOf, swapPlayers, seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, makeReal, userDraft, teamNeeds, needText, npcDraft, draftClass, mockSeeded, stockBase, mockBoards, ATH_POS, combineFor, combineComp, CB_K, makeProspect, retireP, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

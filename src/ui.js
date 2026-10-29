@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v64';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v65';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -490,6 +490,11 @@
       prev.ppd = 1;
     }
     const it = S.matchLog[S.matchIdx || 0]; if (!it) return false;
+    // a long injury: how do you come back? (the choice edits the games ahead and what the body keeps)
+    if (it.k === 'g' && it.inj && !(S.dec.flags.injChoice && S.dec.flags.injChoice.y === S.league.year)) {
+      if (!pend('injury')) Dc.offer(S, 'injury');
+      if (pend('injury')) { if (S.autoDec) { Dc.autoResolve(S); save(); return holdAt(); } return true; }
+    }
     if (it.k === 'hdr' && it.dl && !S.dlDone) {
       if (!S.dlChecked) { S.dlChecked = true; Dc.offer(S, 'deadline'); save(); }
       if (pend('deadline')) { if (S.autoDec) { Dc.autoResolve(S); S.dlDone = true; S.matchIdx++; save(); return false; } return true; }
@@ -546,7 +551,7 @@
   function screenSeasonPlay() {
     if (!S.leagueSnap || !S.matchLog) { S.stage = 'season_recap'; save(); return screenRecap(); } // save from an older build
     if (S.decResult) return screenDecResult();
-    if (holdAt()) { const pid = S.dec.pending.id; return pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : pid === 'press' ? screenPress() : screenDeadline(); }
+    if (holdAt()) { const pid = S.dec.pending.id; return pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : pid === 'press' ? screenPress() : pid === 'injury' ? screenInjury() : screenDeadline(); }
     const items = S.matchLog || [], idx = S.matchIdx || 0, L = S.league, p = S.player, t = L.teams[S.teamId];
     const shown = items.slice(0, idx), done = idx >= items.length;
     const reg = shown.filter((x) => x.k === 'g' && !x.po), poG = shown.filter((x) => x.k === 'g' && x.po);
@@ -982,6 +987,7 @@
       return h('div', null, out);
     }
     if (d.farewell && S.farewellOverride) out.push(h('div', { class: 'callout' }, 'You said this was your farewell. If you sign or stay, the fans, the media and the room will all notice, and it will cost you.'));
+    { const ij = ((S.dec && S.dec.journal) || []).filter((e) => e.kind === 'injury' && e.year === S.league.year).slice(-1)[0]; if (ij) out.push(h('div', { class: 'callout' }, '🩹 ' + ij.title + ': ' + ij.text)); }
 
     if (S.dec && S.dec.pending && S.dec.pending.id === 'late' && !d.mustRetire) { const v = DEC().view(S);
       out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, v.title), h('p', { class: 'small muted' }, v.text), S.dec.pending.log.length ? h('div', { class: 'jlog' }, S.dec.pending.log.map((x) => h('div', { class: 'jmsg ' + x.tone }, x.text))) : null,
@@ -1229,6 +1235,14 @@
       h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'How do you want to approach this series?'),
         h('p', { class: 'small muted' }, (v.rival ? '🔥 Rivalry series: ' + v.rival + ' is on the other side. ' : '') + (v.oppStar ? 'Their best player: ' + v.oppStar + '. ' : '') + 'Your supporting cast averages ' + v.support + ' OVR; you are ' + v.mine + '. Every approach has a price: nothing here is free.'),
         h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), o.fit ? h('div', { class: 'small vibe' }, o.fit) : null, h('div', { style: 'margin-top:8px' }, h('button', { class: o.key === 'balanced' ? '' : 'primary', onclick: () => pick(o.key) }, o.key === 'balanced' ? 'Stay balanced' : 'Choose')))))),
+      autoDecBar());
+  }
+  function screenInjury() {
+    const Dc = DEC(), v = Dc.view(S), t = S.league.teams[S.teamId];
+    const pick = (key) => { try { const r = Dc.choose(S, key); S.decResult = { title: 'Injury', sub: t.name + ' · ' + v.name, text: r.text, tone: r.tone === 'good' ? 'good' : r.tone === 'bad' ? 'bad' : '', cap: 'Your rehab plan', post: true }; saveSnap(); save(); go(); } catch (e) { console.error(e); } };
+    return h('div', null, h('h1', null, 'Injury'), h('p', { class: 'muted' }, t.name + ' · ' + v.name),
+      h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, v.major ? 'A major injury' : 'You are hurt'), h('h2', { style: 'margin:6px 0' }, 'A ' + v.name + ': about ' + v.games + ' games out.'), h('p', { class: 'small muted' }, v.major ? 'This is the kind of injury that ends seasons and sometimes the burst that made you special. How you come back matters.' : 'The medical staff has a timeline. How you handle it is up to you.')),
+      h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.risk), h('div', { style: 'margin-top:8px' }, h('button', { class: 'primary', onclick: () => pick(o.key) }, 'Choose'))))),
       autoDecBar());
   }
   function screenClutch() {

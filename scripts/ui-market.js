@@ -43,6 +43,16 @@ let PG = null;
       console.log('POST press', okPp ? 'OK' : 'MISMATCH', JSON.stringify(pq)); if (!okPp) errors.push('POST press ' + JSON.stringify(pq)); await shot('27c-post-press');
       if (back) await back.click();
       await page.evaluate((sv) => { const S = window.__NBA_UI.state; S.matchLog[sv.i].ppd = 0; S.matchIdx = sv.idx; S.dec.pending = sv.pending; window.__NBA_UI.go(); }, saved); } }
+  // a long injury opens the rehab decision: park the season at a fake injury block, choose, check the games moved, put everything back
+  { const sv = await page.evaluate(() => { const S = window.__NBA_UI.state; const keep = { log: JSON.stringify(S.matchLog), idx: S.matchIdx, pending: S.dec.pending, flags: JSON.stringify(S.dec.flags), rec: JSON.stringify(S.proSeasons[S.proSeasons.length - 1]) };
+      const k = S.matchLog.findIndex((x, i) => x.k === 'g' && !x.po && !x.dnp && i > 4); for (let i = k; i < k + 20; i++) { const it = S.matchLog[i]; if (it.k !== 'g') continue; ['m', 'pt', 'rb', 'or', 'as', 'st', 'bk', 'to', 'pf', 'fgm', 'fga', 'tpm', 'tpa', 'ftm', 'fta', 'r', 'sh', 'pm'].forEach((f) => { delete it[f]; }); it.tg = []; it.dnp = 'Injured'; it.ib = 1; }
+      S.matchLog[k].inj = { name: 'torn meniscus', major: false, miss: 20 }; S.matchIdx = k; S.dec.pending = null; window.__NBA_UI.go(); return Object.assign(keep, { k }); });
+    await page.waitForSelector('h1:has-text("Injury")'); const ij = await page.evaluate(() => ({ opts: document.querySelectorAll('.wkcard').length, vibes: document.querySelectorAll('.wkcard .vibe').length, text: document.querySelector('.card.suspense h2').textContent }));
+    const okIj = ij.opts === 3 && ij.vibes === 3 && /torn meniscus/.test(ij.text); console.log('INJURY screen', okIj ? 'OK' : 'MISMATCH', JSON.stringify(ij)); if (!okIj) errors.push('INJURY ' + JSON.stringify(ij)); await shot('27d-injury');
+    await page.click('.wkcard button >> nth=0'); await page.waitForSelector('button:has-text("Back to the season")');
+    const r = await page.evaluate((sv) => { const S = window.__NBA_UI.state, ch = S.dec.flags.injChoice; return { choice: ch && ch.key, shown: /rehab plan/i.test(document.body.innerText), dnp: S.matchLog.filter((x) => x.k === 'g' && x.dnp && !x.po).length }; }, sv);
+    const okR = r.choice === 'rest' && r.shown; console.log('INJURY chosen', okR ? 'OK' : 'MISMATCH', JSON.stringify(r)); if (!okR) errors.push('INJURY chosen ' + JSON.stringify(r));
+    await page.evaluate((sv) => { const S = window.__NBA_UI.state; S.matchLog = JSON.parse(sv.log); S.matchIdx = sv.idx; S.dec.pending = sv.pending; S.dec.flags = JSON.parse(sv.flags); S.proSeasons[S.proSeasons.length - 1] = JSON.parse(sv.rec); S.decResult = null; window.__NBA_UI.go(); }, sv); }
   // press conferences switched off: a flagged game passes without a question and nothing is left pending
   { const off = await page.evaluate(() => { const S = window.__NBA_UI.state, i = S.matchLog.findIndex((x) => x.k === 'g' && x.pp && !x.po); if (i < 0) return null; const keep = { idx: S.matchIdx, pending: S.dec.pending }; S.noPress = true; S.matchIdx = i + 1; S.dec.pending = null; window.__NBA_UI.go(); return Object.assign(keep, { i }); });
     if (off) { await page.waitForSelector('text=Sim next game'); const r = await page.evaluate((sv) => { const S = window.__NBA_UI.state; return { h1: document.querySelector('h1') ? document.querySelector('h1').textContent : '', ppd: S.matchLog[sv.i].ppd, pending: S.dec.pending && S.dec.pending.id, box: !!document.querySelector('input[type=checkbox]') }; }, off);
@@ -71,6 +81,7 @@ let PG = null;
       await page.click('.wkcard button >> nth=0'); await page.waitForSelector('button:text-matches("Play the game|Back to the season", "i")'); await page.click('button:text-matches("Play the game|Back to the season", "i")'); await page.waitForTimeout(100); await arm(); return 'clutch';
     }
     if (/Press conference/.test(h1)) { await answerPress(); await page.click('button:text-matches("Play the game|Back to the season", "i")'); await arm(); return 'press'; }
+    if (/^Injury/i.test(h1)) { await page.click('.wkcard button >> nth=0'); await page.click('button:text-matches("Back to the season|Play the game", "i")'); await arm(); return 'injury'; }
     return /Trade deadline/.test(h1) ? 'deadline' : /^(First Round|Conference|NBA Finals)/i.test(h1) ? 'series' : null;
   };
   await page.click('button:has-text("Instant")'); await simOn();

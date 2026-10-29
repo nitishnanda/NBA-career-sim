@@ -564,7 +564,7 @@
     opps.length = total;
     const missed = new Set();
     if (miss >= 15) { const st0 = Math.floor(rand() * (total - miss + 1)); for (let i = 0; i < miss; i++) missed.add(st0 + i); } else { while (missed.size < miss) missed.add(Math.floor(rand() * total)); }
-    const blockInjury = miss >= 15;
+    const blockInjury = miss >= 15; let firstInj = false;
     const played = []; for (let i = 0, k = 0; i < total; i++) if (!missed.has(i)) played.push({ slot: i, g: games[k++] });
     const boxes = {}; played.forEach((x) => { boxes[x.slot] = mk(x.g, line.fgp, line.tpp, line.ftp, line.ts); });
     // the season's shooting is the season line (fitShooting), then every game gets its shots; both on their own random streams, so nothing else moves
@@ -578,7 +578,7 @@
       const won = winSlots.has(i), b = boxes[i];
       const sc = score(won, b ? b.pt + 38 : 0);
       const it = Object.assign({ k: 'g', n: i + 1, d: dateStr(L.year, 9, 22 + Math.round(i * 1.98 + (rand() - 0.5) * 1.5)), o: opps[i].nick, oc: opps[i].city, h: rand() < 0.5 ? 1 : 0, w: won ? 1 : 0, ot: sc.ot }, { f: sc.f, a: sc.a });
-      if (b) Object.assign(it, b); else { it.dnp = blockInjury ? (injuryText || 'Injured') : 'Rest'; }
+      if (b) Object.assign(it, b); else { it.dnp = blockInjury ? (injuryText || 'Injured') : 'Rest'; if (blockInjury) { it.ib = 1; if (!firstInj) { firstInj = true; if (st.injInfo) it.inj = { name: st.injInfo.name, major: st.injInfo.major, miss: st.injInfo.miss }; } } }
       it.ar = NBA.data.ARENAS[it.h ? t.nick : opps[i].nick] || '';
       if (b) it.pm = Math.round((it.f - it.a) * (b.m / 48) * 1.1 + randn() * 4);
       items.push(it);
@@ -685,7 +685,9 @@
     if (p.yearsPro === 0) { const sv = NBA.rngGet(); NBA.setSeed(st.seasonSeed ^ 0x3c6ef372); p.benchCap = rand() < NBA.tuning.benchRole * (age <= 19 ? 1.25 : age >= 22 ? 0.6 : 1) ? 15 + 12 * rand() : 0; NBA.rngSet(sv); }
     if (p.yearsPro <= 1 && p.benchCap) { fx.minsCap = p.benchCap + 8 * p.yearsPro; fx.notes.push(p.yearsPro === 0 ? 'Coach is bringing you along slowly: a bench role behind the veterans for now.' : 'Still earning the coach\'s full trust: more minutes, but not a full starter\'s load yet.'); }
     const avail = rollAvail(p, { extraMiss: fx.extraMiss });
-    if (avail.major) applyMajorInjury(p);
+    st.injDamage = null;
+    if (avail.major) { if (st.autoPlay) applyMajorInjury(p); else st.injDamage = NBA.injuryDamage(); }   // a person decides how to rehab: the damage is applied (scaled) at the end of the year
+    st.injInfo = avail.major || avail.notable ? { name: avail.major || avail.notable, major: !!avail.major, miss: avail.miss } : avail.miss >= 15 ? { name: ['sprained ankle', 'strained hamstring', 'bone bruise in the knee', 'strained groin', 'back spasms', 'sore Achilles'][avail.miss % 6], major: false, miss: avail.miss } : null;
     p.rookie = p.yearsPro === 0;
     L.teams[st.teamId].depth += fx.depth;
     let userLine = null;
@@ -845,6 +847,67 @@
       used.add(pk.row[0]); out.push(rowQuestion(1000 + pk.i, pk.row, c, rnd, 'mem:' + pk.row[0]));
     }
     return out;
+  }
+  // ---- injuries with stakes: at the start of a long injury you choose how to come back; the choice edits the games and the damage to your body is scaled at the end of the year
+  const INJ = {
+    major: { surgery: { label: 'Surgery now, full rehab', blurb: 'The slowest road back, and the kindest one to your body.', ext: 10, dmg: 0.5, sb: 0, risk: 'Safest' },
+      rehab: { label: 'Rehab without surgery', blurb: 'A faster return, with a real chance of a setback and a body that never fully comes back.', ext: -0.1, dmg: 1, sb: 0.18, risk: 'Some risk' },
+      rush: { label: 'Push to be back for the stretch run', blurb: 'Everything on the comeback. The body may not forgive you.', ext: -0.25, dmg: 1.5, sb: 0.4, risk: 'Big risk' } },
+    minor: { rest: { label: 'Rest it fully', blurb: 'A few extra games on the shelf and nothing lingering.', ext: 4, dmg: 0.5, sb: 0, risk: 'Safest' },
+      standard: { label: 'Follow the medical plan', blurb: 'The staff\'s timeline, no heroics.', ext: 0, dmg: 1, sb: 0.1, risk: 'Low risk' },
+      rush: { label: 'Play through it', blurb: 'Back sooner, at reduced minutes. It could flare up.', ext: -0.3, dmg: 1.3, sb: 0.3, risk: 'Real risk' } },
+  };
+  const BOX_KEYS = ['m', 'pt', 'rb', 'or', 'as', 'st', 'bk', 'to', 'pf', 'fgm', 'fga', 'tpm', 'tpa', 'ftm', 'fta'];
+  const setDnp = (it, label) => { BOX_KEYS.concat(['r', 'sh', 'pm']).forEach((k) => { delete it[k]; }); it.tg = []; it.dnp = label; it.cl = 0; it.pc = 0; it.pp = 0; it.fan = null; it.fk = null; };
+  function setBack(st, it, src) {
+    if (!src) return;
+    BOX_KEYS.forEach((k) => { it[k] = Math.round((src[k] || 0) * (k === 'to' || k === 'pf' ? 0.8 : 0.62)); });
+    it.fgm = Math.min(it.fgm, it.fga); it.tpa = Math.min(it.tpa, it.fga); it.tpm = Math.min(it.tpm, it.tpa, it.fgm); it.ftm = Math.min(it.ftm, it.fta); it.pt = it.fgm * 2 + it.tpm + it.ftm;
+    delete it.dnp; delete it.ib; it.tg = ['Back early']; it.pm = Math.round((it.f - it.a) * (it.m / 48) * 1.1); it.r = rateItem(it); it.sh = shotsFor(it, st.player, shotSeed(st, 7800 + it.n));
+  }
+  function medianGame(items) { const gs = items.filter((x) => x.k === 'g' && !x.po && !x.dnp).sort((a, b) => a.pt - b.pt); return gs.length ? gs[Math.floor(gs.length / 2)] : null; }
+  // the games a choice changes, as concrete item positions: [position, label] to sit out, positions to bring back early
+  function applyInjuryPlan(st, plan, fromIdx) {
+    const items = st.matchLog, src = medianGame(items);
+    (plan.dnp || []).forEach(([i, label]) => { const it = items[i]; if (i >= fromIdx && it && it.k === 'g' && !it.po && !it.dnp) setDnp(it, label); });
+    (plan.played || []).forEach((i) => { const it = items[i]; if (i >= fromIdx && it && it.k === 'g' && it.dnp) setBack(st, it, src); });
+    recomputeFromLog(st);
+  }
+  function injuryInfo(st) {
+    const it = (st.matchLog || [])[st.matchIdx || 0]; if (!it || it.k !== 'g' || !it.inj) return null;
+    const items = st.matchLog; let n = 0; for (let i = st.matchIdx; items[i]; i++) { if (items[i].k === 'g') { if (items[i].ib && items[i].dnp) n++; else break; } }
+    const T0 = it.inj.major ? INJ.major : INJ.minor;
+    return { name: it.inj.name, major: it.inj.major, games: n, options: Object.keys(T0).map((k) => ({ key: k, label: T0[k].label, blurb: T0[k].blurb, risk: T0[k].risk })) };
+  }
+  function applyInjuryChoice(st, key) {
+    const info = injuryInfo(st); if (!info) throw new Error('no injury');
+    const T0 = info.major ? INJ.major : INJ.minor, conf = T0[key]; if (!conf) throw new Error('bad choice');
+    const items = st.matchLog, idx = st.matchIdx || 0, blk = []; let end = idx;
+    for (let i = idx; items[i]; i++) { if (items[i].k === 'g') { if (items[i].ib && items[i].dnp) blk.push(i); else { end = i; break; } } end = i + 1; }
+    const plan = { dnp: [], played: [] }; let after = [];
+    for (let j = end; items[j]; j++) if (items[j].k === 'g' && !items[j].po && !items[j].dnp) after.push(j);
+    if (conf.ext >= 1) { const k = Math.round(conf.ext); after.slice(0, k).forEach((j) => plan.dnp.push([j, 'Rehab'])); after = after.slice(k); }
+    else if (conf.ext < 0) { const s = Math.max(0, Math.min(blk.length - 2, Math.round(-conf.ext * blk.length))); blk.slice(blk.length - s).forEach((j) => plan.played.push(j)); }
+    const sb = NBA.Decisions.rng(st, 'injsb|' + st.league.year)() < conf.sb;
+    if (sb) { const seq = plan.played.concat(after), win = seq.slice(3, 3 + 10); win.forEach((j) => plan.dnp.push([j, 'Setback'])); plan.played = plan.played.filter((j) => win.indexOf(j) < 0); }
+    applyInjuryPlan(st, plan, 0);
+    const early = plan.played.length, text = 'You chose to ' + conf.label.toLowerCase() + '. ' + (conf.ext >= 1 ? 'Expect ' + Math.round(conf.ext) + ' extra games on the shelf.' : conf.ext < 0 ? (early ? 'You are back ' + early + ' games early, at reduced minutes.' : 'There was no room to come back any sooner.') : 'The timeline stands.') + (sb ? ' Then it flared up: a setback costs you more games.' : '');
+    NBA.Decisions.state(st).flags.injChoice = { y: st.league.year, key, dmg: conf.dmg, setback: sb, major: info.major, plan, label: conf.label };
+    feedAdd(st, 'injury', {}, { key: 'inj' + st.league.year, at: idx });
+    return { text, sb };
+  }
+  // after a replay the regenerated future games lose the edits: put them back (games already seen are untouched)
+  function reapplyInjury(st, fromIdx) { const ch = NBA.Decisions.state(st).flags.injChoice; if (ch && ch.y === st.league.year && ch.plan) applyInjuryPlan(st, ch.plan, fromIdx); }
+  // the end of the year: the damage to the body, scaled by how you rehabbed (offseason, once)
+  function applyInjuryFx(st) {
+    const Dc = NBA.Decisions, f = Dc.state(st).flags, L = st.league, p = st.player; if (f.injFxYear === L.year) return;
+    f.injFxYear = L.year; const ch = f.injChoice && f.injChoice.y === L.year ? f.injChoice : null;
+    let d = st.injDamage || null, k = ch ? ch.dmg : 1;
+    if (!d && ch && ch.setback && !ch.major) { d = { ath: 2, dur: 2, tath: 1 }; k = 1; }
+    if (!d) return;
+    const before = Math.round(p.attrs.ath); NBA.applyInjuryDamage(p, d, k + (ch && ch.setback && ch.major ? 0.35 : 0)); st.injDamage = null;
+    const lost = before - Math.round(p.attrs.ath);
+    Dc.log(st, { kind: 'injury', title: 'Lasting damage', tone: lost >= 4 ? 'bad' : 'neutral', text: (ch ? 'Rehab choice: ' + ch.label.toLowerCase() + '. ' : '') + (lost >= 1 ? 'The injury cost you some of your burst (athleticism -' + lost + ') and some durability.' : 'The body came back close to where it was.') });
   }
   // ---- the timeline: posts from the feed about what just happened. Event posts live in the flags (they survive a replay); game posts ride on the log items.
   const hashS = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
@@ -1128,7 +1191,7 @@
         td: reg.filter((g) => g.tg.includes('Triple-double')).length, dd: reg.filter((g) => g.tg.includes('Double-double') || g.tg.includes('Triple-double')).length,
         g40: reg.filter((g) => g.pt >= 40).length, g50: reg.filter((g) => g.pt >= 50).length, high: Math.max.apply(null, reg.map((g) => g.pt)), totPts: sumOf(reg, 'pt'), totReb: sumOf(reg, 'rb'), totAst: sumOf(reg, 'as'), avgRating: Math.round(mean(reg, 'r') * 100) / 100 });
       rec.avgTD = n >= 30 && rec.pts >= 10 && rec.reb >= 10 && rec.ast >= 10;
-    }
+    } else { Object.assign(rec, { gp: 0, mins: 0, pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, tov: 0, td: 0, dd: 0, g40: 0, g50: 0, high: 0, totPts: 0, totReb: 0, totAst: 0, avgRating: null }); rec.avgTD = false; }
     shootingFromLog(rec, items);
     st.career.td += rec.td - oldTd;
     if (!!rec.avgTD !== !!oldAvg) { const d = rec.avgTD ? 1 : -1; st.career.tdSeasons += d; if (rec.pts >= 30) st.career.td30Seasons += d; }
@@ -1174,7 +1237,7 @@
     playSeason(st, { rerun: true });
     const force = moves.length > 0 || !!st.poForce || !!opt.force;
     st.matchLog = spliceLog(st, keep.log, st.matchLog, keep.idx, force); st.matchIdx = keep.idx; st.shotTab = keep.shotTab; st.shotScope = keep.shotScope;
-    recomputeFromLog(st);
+    recomputeFromLog(st); reapplyInjury(st, keep.idx);
     const rec = st.proSeasons[st.proSeasons.length - 1];
     if (!force && st.clutchDelta) { rec.wins += st.clutchDelta; rec.losses -= st.clutchDelta; }
     if (moves.length || force) {
@@ -1289,7 +1352,7 @@
     out.mustRetire = forceRetire;
     if (st.finalYear) out.farewell = true;
     const human = !st.autoPlay, Dc = NBA.Decisions;
-    if (human) { finalizeRivals(st); finalizePress(st); }
+    if (human) { applyInjuryFx(st); finalizeRivals(st); finalizePress(st); }
     if (human && !Dc.state(st).pending) Dc.offer(st, 'late');
     // a club can cut a player who is doing badly (his contract is voided; the salary he was owed is still paid): he goes to the market like any other free agent
     if (human && !out.expiring && !forceRetire && c.left > 0 && p.age >= 24 && v < 63 && !protection(st) && Dc.rng(st, 'cut|' + L.year)() < (v < 58 ? 0.55 : 0.3)) {
@@ -1552,6 +1615,6 @@
     return st;
   }
 
-  Object.assign(NBA, { Game: { announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { Game: { announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

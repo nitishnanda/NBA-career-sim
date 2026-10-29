@@ -472,6 +472,18 @@
     return { text };
   }
 
+  // ================================================================ the injury: how do you come back
+  register({
+    id: 'injury', title: 'Injury', trigger: 'injury',
+    open(st) { const info = NBA.Game.injuryInfo(st); return info ? { name: info.name, major: info.major, games: info.games, options: info.options, idx: st.matchIdx } : null; },
+    view(st, ctx) { return { name: ctx.name, major: ctx.major, games: ctx.games, options: ctx.options }; },
+    choose(st, ctx, key) {
+      const r = NBA.Game.applyInjuryChoice(st, key);
+      return { done: true, tone: r.sb ? 'bad' : key === 'rush' ? 'neutral' : 'good', text: r.text, journal: { tone: r.sb ? 'bad' : 'neutral', text: 'Suffered a ' + ctx.name + '. ' + r.text } };
+    },
+    auto(st, ctx) { return { key: ctx.major ? 'rehab' : 'standard' }; },
+  });
+
   // ================================================================ decision 8: the press conference
   register({
     id: 'press', title: 'Press conference', trigger: 'press',
