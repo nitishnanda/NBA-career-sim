@@ -265,6 +265,19 @@
   Q('playoffs', 'g7', 0, 'What do you do the night before a Game 7?');
   Q('playoffs', 'finals', 0, 'You are three wins from a title. How do you stay calm?');
   Q('playoffs', 'finals', 1, 'Does a Finals loss define a career?');
+  // a rookie's story: where he came from. Each asks about his own college and high school years (asked in his first pro season only)
+  Q('origin', 'oneDone', 0, 'You played one year at {school} before the draft. Was leaving early the right call?');
+  Q('origin', 'fourYr', 0, 'You stayed {collegeYrs} years at {school}. Did staying help you get ready for this level?');
+  Q('origin', 'collegeTitle', 0, 'You won a national title at {school}. Does that carry over to the NBA?');
+  Q('origin', 'collegeHonor', 0, 'You were named {honor} at {school}. Does any of that matter now that you are playing against pros?');
+  Q('origin', 'hasCollege', 0, 'You averaged {collegePts} points a game in your last year at {school}. What do you expect your numbers to look like here?');
+  Q('origin', 'transferred', 0, 'You changed schools in college. What did that teach you?');
+  Q('origin', 'hsPrep', 0, 'You played at a national prep powerhouse in high school. What are you still leaning on from those years?');
+  Q('origin', 'hsHome', 0, 'You carried your high school team back in {homeTown}. How different is it playing with other pros?');
+  Q('origin', 'hsCircuit', 0, 'You made your name on the summer circuit in high school. Do you still think about those showcases?');
+  Q('origin', 'rookieYear', 0, 'Do people back in {homeTown} still follow you? What do they say?');
+  Q('origin', 'hasCollege', 0, 'Do you still keep in touch with your old teammates at {school}?');
+  Q('origin', 'rookieYear', 0, 'What is the biggest thing you wish you had known back in high school?');
 
   // ---------------------------------------------------------------- how the player can answer
   const TONES = {
@@ -315,22 +328,31 @@
     const pr = st.proSeasons[st.proSeasons.length - 2], ps = pr && (pr.perSeries || []).find((x) => opp && x.opp === opp.name); c.rivalWon = !!(c.rivalHere && ps && /^W/.test(ps.result)); c.rivalLost = !!(c.rivalHere && ps && /^L/.test(ps.result));
     c.rumor = !!D.flags.tradeReq; c.farewell = !!st.finalYear;
     const rank = Object.values(L.players).filter((q) => !q.rookie && ovr(q) > ovr(p)).length + 1; c.top10 = rank <= 10; c.top5 = rank <= 5;
-    const tot = (st.proSeasons || []).reduce((a, x) => a + (x.totPts || 0), 0) + reg.reduce((a, g2) => a + g2.pt, 0), nextM = Math.ceil((tot + 1) / 5000) * 5000;
+    const tot = (st.proSeasons || []).slice(0, -1).reduce((a, x) => a + (x.totPts || 0), 0) + reg.reduce((a, g2) => a + g2.pt, 0), nextM = Math.ceil((tot + 1) / 5000) * 5000;
     c.milestone = tot >= 4000 && nextM - tot <= 500; c.mile = nextM.toLocaleString('en-US'); c.toMile = Math.max(1, Math.round(nextM - tot));
     const tr = (st.trades || []).slice(-1)[0]; c.revenge = !!(tr && opp && tr.from === opp.name && tr.year >= L.year - 1);
     c.injuryBack = !!it.back; c.playoffs = !!(it.rnd || it.po); c.finals = it.rnd === 'NBA Finals'; c.g7 = !!it.g7; c.eliminated = false;
     const arch = p.arch, sec = p.sec; c.scorer = arch === 'scorer' || sec === 'scorer'; c.shooter = arch === 'shooter' || sec === 'shooter'; c.defender = arch === 'defender' || sec === 'defender'; c.dominator = arch === 'dominator' || sec === 'dominator'; c.twoway = arch === 'twoway' || sec === 'twoway'; c.gen = arch === 'generational' || sec === 'generational';
     c.big = p.pos === 'C' || p.pos === 'PF'; c.guard = p.pos === 'PG' || p.pos === 'SG'; c.homeTown = p.home || 'home'; c.bubble = allReg.length >= 30 && Math.abs(w / allReg.length - 0.5) <= 0.07;
+    const cy = st.collegeYears || [], cl = cy[cy.length - 1], hs = ((D.journal || []).find((e) => e.kind === 'hs') || { text: '' }).text;
+    c.gamesPlayed = allReg.length; c.fresh = !it.po && allReg.length < 3;   // too early in the year for bad blood with anyone
+    c.hasCollege = c.rookieYear && cy.length > 0; c.oneDone = c.rookieYear && cy.length === 1; c.fourYr = c.rookieYear && cy.length >= 3; c.collegeYrs = cy.length;
+    c.collegeTitle = c.rookieYear && cy.some((y) => (y.tourney || '').includes('Won the National')); c.honor = cl && cl.honors && cl.honors[0] ? cl.honors[0] : ''; c.collegeHonor = c.rookieYear && !!c.honor;
+    c.collegePts = cl && cl.line ? (+cl.line.pts || 0).toFixed(1) : ''; c.transferred = c.rookieYear && !!st.transferred;
+    c.hsPrep = c.rookieYear && /prep powerhouse/.test(hs); c.hsHome = c.rookieYear && /stayed home/.test(hs); c.hsCircuit = c.rookieYear && /circuit/.test(hs);
     c.opener = (it.n === 1 && !it.po); c.away = !it.h && !it.po; c.opp = c.opp; c.always = true;
     return c;
   }
   const FILL = (str, c) => str.replace(/\{(\w+)\}/g, (m, k) => (c[k] != null && c[k] !== false ? String(c[k]) : m === '{oppStar}' ? 'their best player' : m === '{mate}' ? 'your teammate' : m === '{rival}' ? 'your rival' : m === '{vet}' ? 'the veteran' : m === '{rookie}' ? 'the rookie' : ''));
 
   // pick n questions: no topic twice in one session, never one asked earlier this season, weighted towards what is going on (a rival, a farewell, an old team) over the generic
-  const WEIGHT = { style: 2, bubble: 2.5, stakes: 1.6, leg: 1.5, rival: 6, farewell: 6, revenge: 6, playoffs: 4, form: 3, health: 3, awards: 2, biz: 2, game: 2, mile: 3, mate: 1.5, team: 1.4, young: 2, vet: 1.5, media: 0.7 };
+  const WEIGHT = { origin: 3.2, style: 2, bubble: 2.5, stakes: 1.6, leg: 1.5, rival: 6, farewell: 6, revenge: 6, playoffs: 4, form: 3, health: 3, awards: 2, biz: 2, game: 2, mile: 3, mate: 1.5, team: 1.4, young: 2, vet: 1.5, media: 0.7 };
   function pickQuestions(st, it, n, rnd) {
     const c = ctxFor(st, it), asked = (NBA.Decisions.state(st).flags.asked || []).slice(-190), used = new Set(), out = [];
-    const ok = B.map((q, i) => ({ q, i })).filter((x) => c[x.q.cond] && asked.indexOf(x.i) < 0 && (x.q.cond !== 'oppStar' || c.oppStar) && !(x.q.heat >= 2 && !(c.oppStar || c.rival)));
+    // a question that leans on history is only asked when there is history: no pro past in a rookie year, no 'last game' before the first, no booing in game two
+    const PAST_PRO = /tough on you before|different from last year|since you came into the league|been here before|all these years|used to be/i, LAST_G = /last game/i, EARLY = /earlier this season|booing/i;
+    const ok = B.map((q, i) => ({ q, i })).filter((x) => c[x.q.cond] && asked.indexOf(x.i) < 0 && (x.q.cond !== 'oppStar' || c.oppStar) && !(x.q.heat >= 2 && !((c.oppStar || c.rival) && !c.fresh))
+      && !(c.rookieYear && PAST_PRO.test(x.q.text)) && !(c.gamesPlayed < 1 && !c.playoffs && LAST_G.test(x.q.text)) && !(c.gamesPlayed < 8 && !c.playoffs && EARLY.test(x.q.text)));
     for (let k = 0; k < n; k++) {
       const pool = ok.filter((x) => !used.has(x.q.topic) && !out.some((o) => o.i === x.i));
       if (!pool.length) break;
@@ -346,8 +368,9 @@
     const row = (NBA.PressLines || [])[q.i];
     const keys = ['humble', 'confident', 'joke', 'deflect'];
     let spicy = [];
-    if (row) { if (row[4]) spicy.push('trash'); if (row[5]) spicy.push('fight'); }
-    else { const heat = q.heat + (c.rivalHere ? 1 : 0); if (heat >= 1 && (c.oppStar || c.rival)) spicy.push('trash'); if (heat >= 2 && (c.oppStar || c.rival)) spicy.push('fight'); }
+    const bite = !c.fresh || c.rivalHere;   // nobody trash-talks a team he has not played yet (the first games of a season: no bad blood, no trash)
+    if (row) { if (row[4] && bite) spicy.push('trash'); if (row[5] && bite) spicy.push('fight'); }
+    else { const heat = q.heat + (c.rivalHere ? 1 : 0); if (heat >= 1 && (c.oppStar || c.rival) && bite) spicy.push('trash'); if (heat >= 2 && (c.oppStar || c.rival) && bite) spicy.push('fight'); }
     // three calm answers (two when there is a spicy one to offer): not every question offers every tone
     const calm = keys.slice().sort(() => rnd() - 0.5).slice(0, spicy.length ? 2 : 3);
     const IDX = { humble: 0, confident: 1, joke: 2, deflect: 3, trash: 4, fight: 5 };

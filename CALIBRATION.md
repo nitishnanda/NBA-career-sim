@@ -820,3 +820,10 @@ A long injury (any named one, or 15+ missed games in a block) now stops the seas
 - **Sign-and-trade card** reworded: it is an option, nothing has happened yet, and it is separate from the re-sign choices below it.
 - **Assist ceiling**: expected and season assists soften above 9 a game (x0.45) and above 7.5 for shooters, scorers and defenders who are not point guards (x0.35). Over 669 star-career seasons the max went from 15.8 to 11.6, and none reach 12 (real: Jokic 9.8, Trae 10.8, Haliburton 12.0; 14-15 was Stockton's).
 - Baseline 76.7/12.7 and 77.2/12.8 (the extra trade rolls shift the random stream; within the usual run-to-run noise).
+
+## v73 — rookie press conferences
+- Questions that lean on history are only asked when there is history: nothing about a pro past in a rookie year ("tough on you before", "different from last year", "since you came into the league", "been here before"), nothing about "last game" before game one, nothing about booing or "earlier this season" before game eight.
+- Trash talk and fight answers are not offered in the first two games of a season (a team you have not played yet) unless you are facing your rival, and heat-2 questions need the same.
+- Milestone questions counted the whole current season (already in the list as a finished record) on top of games played; now only past seasons plus games so far.
+- 12 new questions about a rookie's college and high school years (one-and-done, four years, a national title, honors, last-year scoring, a transfer, prep school, staying home, the summer circuit, the hometown, old teammates, advice to your younger self), each with hand-written answers; they ride a heavier topic weight in a rookie's first season. Bank is now 236 questions with 236 answer rows.
+- `scripts/press3-check.js`: 40 rookie seasons, 102 press moments, 0 past/last-game/early-trash/unfilled lines, 26 origin questions.
