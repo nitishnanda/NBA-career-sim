@@ -337,13 +337,21 @@
     // a 30+ ppg usage load costs you the ball-handling and glass work: real 33+ ppg seasons come with ~6 ast / ~6 reb
     const gl = (p.arch === 'generational' || p.sec === 'generational') ? T.genTrade : 1;   // all-round superstars keep more of the passing and glass work at high volume
     const hi = Math.max(0, pts - 27), astTrade = Math.max(0.52, 1 - 0.07 * gl * hi), rebTrade = Math.max(0.66, 1 - 0.04 * gl * hi);
-    return {
+    const outL = {
       ovr: o, usg, ts, mins, pace,
       pts, reb: reb36 * k * Math.exp(T.trGlass * (p.tr || NOTR).glass - T.trGlass * T.trGlass / 2) * (c.rebMult || 1) * (p.arch === 'dominator' && p.sec === 'generational' ? T.gdReb : 1) * (p.arch === 'generational' ? 0.97 : 1) * rebTrade * (1 + T.starReb * top), ast: ast36 * k * Math.exp(T.trPass * (p.tr || NOTR).pass - T.trPass * T.trPass / 2) * (c.astMult || 1) * (p.arch === 'dominator' && p.sec === 'generational' ? T.gdAst : 1) * (p.arch === 'generational' ? 0.88 * Math.exp(-T.genStyleAst * ((p.tr || NOTR).style || 0)) : p.arch === 'dominator' ? Math.exp(-T.domStyleAst * ((p.tr || NOTR).style || 0)) : 1) * astTrade * (1 + T.starAst * top),
       stl: stl36 * k, blk: blk36 * k, tov: tov36 * k,
     };
+    outL.ast = capAst(outL.ast, p);
+    return outL;
   }
 
+  // an assist ceiling: 10+ a game takes a team's whole offence in your hands (Jokic 9.8, LeBron 10.2, Trae 10.8, Haliburton 12.0 in the pace of 2023); 14-15 was Stockton's alone.
+  // Players who are not primary passers (shooters, scorers, wings) flatten earlier still. Applied to the expected line and again after the season's noise and game plan.
+  function capAst(x, p) {
+    const wing = (p.arch === 'shooter' || p.arch === 'scorer' || p.arch === 'defender') && p.pos !== 'PG', knee = wing ? 7.5 : 9;
+    return x > knee ? knee + (x - knee) * (wing ? 0.35 : 0.45) : x;
+  }
   // Convert a points figure into a full shooting line.
   function shootingLine(p, pts, ts, usg) {
     const a = p.attrs;
@@ -426,7 +434,7 @@
     return s;
   }
 
-  Object.assign(NBA, {
+  Object.assign(NBA, { capAst,
     rand, randn, clamp, rint, pick, r1, weighted, sum, setSeed, useRandom, rngGet, rngSet,
     ovr, ovrOf, makePlayer, buildTarget, rollCeiling, rollTdPlan, randomArch, randomPos, nameGen, regionOf,
     rollSize, randomSize, sizeZ, wtAt, wsAt, fmtHt, progress, applyTraining, trainPoints, rookieFloor, expLine, shootingLine, genGame, summarize, gameRating,

@@ -343,6 +343,7 @@
     const seq = st.styleSeq && st.styleSeq.length ? st.styleSeq : [[0, st.style || 'balanced']];
     const share = styleShare(seq, 82), eff = STYLE_KEYS.map((k, i) => Object.keys(share).reduce((a, sty) => a + share[sty] * STYLE_MULT[sty][i], 0));
     ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k, i) => { m[k] *= eff[i]; });
+    m.ast = NBA.capAst(m.ast, p);
     // rookies: even Wembanyama / Luka / LeBron / Iverson topped out around 21-23.5 ppg (real rookie ppg vs the rating-based expectation)
     if (rookie && m.pts > 18.5) m.pts = 18.5 + (m.pts - 18.5) * 0.36;
     const games = [];
@@ -878,11 +879,17 @@
   };
   const BOX_KEYS = ['m', 'pt', 'rb', 'or', 'as', 'st', 'bk', 'to', 'pf', 'fgm', 'fga', 'tpm', 'tpa', 'ftm', 'fta'];
   const setDnp = (it, label) => { BOX_KEYS.concat(['r', 'sh', 'pm']).forEach((k) => { delete it[k]; }); it.tg = []; it.dnp = label; it.cl = 0; it.pc = 0; it.pp = 0; it.fan = null; it.fk = null; };
+  // a game you were cleared for early: your median game at reduced minutes, each one its own night (not the same box score copied)
   function setBack(st, it, src) {
     if (!src) return;
-    BOX_KEYS.forEach((k) => { it[k] = Math.round((src[k] || 0) * (k === 'to' || k === 'pf' ? 0.8 : 0.62)); });
-    it.fgm = Math.min(it.fgm, it.fga); it.tpa = Math.min(it.tpa, it.fga); it.tpm = Math.min(it.tpm, it.tpa, it.fgm); it.ftm = Math.min(it.ftm, it.fta); it.pt = it.fgm * 2 + it.tpm + it.ftm;
-    delete it.dnp; delete it.ib; it.tg = ['Back early']; it.pm = Math.round((it.f - it.a) * (it.m / 48) * 1.1); it.r = rateItem(it); it.sh = shotsFor(it, st.player, shotSeed(st, 7800 + it.n));
+    const r = mulberry(shotSeed(st, 7600 + it.n)), j = (lo, hi) => lo + (hi - lo) * r(), sc = 0.62 * j(0.9, 1.1);
+    it.m = Math.max(8, Math.round((src.m || 30) * sc));
+    const f = (k, lo, hi) => Math.round((src[k] || 0) * sc * j(lo, hi));
+    it.fga = Math.max(2, f('fga', 0.65, 1.4)); it.fgm = Math.min(it.fga, f('fgm', 0.55, 1.5)); it.tpa = Math.min(it.fga, f('tpa', 0.5, 1.6)); it.tpm = Math.min(it.tpa, it.fgm, f('tpm', 0.4, 1.7));
+    it.fta = f('fta', 0.4, 1.8); it.ftm = Math.min(it.fta, f('ftm', 0.5, 1.5));
+    it.rb = f('rb', 0.5, 1.6); it.or = Math.min(it.rb, f('or', 0.3, 1.8)); it.as = f('as', 0.4, 1.7); it.st = f('st', 0, 2.5); it.bk = f('bk', 0, 2.5); it.to = f('to', 0.3, 1.8); it.pf = Math.min(6, f('pf', 0.5, 1.6));
+    it.pt = it.fgm * 2 + it.tpm + it.ftm;
+    delete it.dnp; delete it.ib; it.tg = ['Back early']; it.pm = Math.round((it.f - it.a) * (it.m / 48) * 1.1 + (r() - 0.5) * 6); it.r = rateItem(it); it.sh = shotsFor(it, st.player, shotSeed(st, 7800 + it.n));
   }
   function medianGame(items) { const gs = items.filter((x) => x.k === 'g' && !x.po && !x.dnp).sort((a, b) => a.pt - b.pt); return gs.length ? gs[Math.floor(gs.length / 2)] : null; }
   // the games a choice changes, as concrete item positions: [position, label] to sit out, positions to bring back early

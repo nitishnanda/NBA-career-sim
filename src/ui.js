@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v70';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v72';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -683,7 +683,15 @@
     const mtabs = h('div', { class: 'mtabs' }, tabs.map(([k, l]) => h('button', { class: mTab === k ? 'on' : '', onclick: () => { mTab = k; render(); } }, l)));
     const fb = feedBlocks(L.year, idx, 4);
     const feedPanel = h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '📱'), h('h2', null, 'Timeline'), h('span', { class: 'spacer' }), h('button', { class: 'ghost tiny', onclick: showTimeline }, 'See everything')), fb.length ? fb.map(feedBlock) : h('p', { class: 'muted' }, 'Quiet for now. Big nights, trades and headlines show up here.'));
-    const wrap = h('div', { class: 'dash mt-' + mTab }, h('div', { class: 'dtop' }, hero, quick, mtabs, telemetry), playoffPanel, h('div', { class: 'dmid' }, stream, averages, defense), planPanel, feedPanel);
+    // hurt: say so on the season screen (it used to show only in the game log)
+    const injBanner = (() => {
+      let i = idx, n = 0, lbl = null; while (items[i] && n < 90) { const x = items[i]; if (x.k === 'g' && !x.po) { if (x.dnp && x.dnp !== 'Rest') { n++; lbl = lbl || x.dnp; } else break; } else if (x.k === 'g') break; i++; }
+      if (!n) return null;
+      const nm = (items.slice(Math.max(0, idx - 40), idx + n + 2).map((x) => x.inj && x.inj.name).filter(Boolean)[0]) || (S.dec.flags.injChoice && S.dec.flags.injChoice.y === L.year ? S.dec.flags.injChoice.label : 'a lingering injury');
+      const back = items[i] && items[i].k === 'g' ? 'Back for game ' + items[i].n : 'Out for the rest of the regular season';
+      return h('div', { class: 'callout inj' }, '🩹 You are hurt: ' + nm + '. ' + (lbl === 'Setback' ? 'A setback in rehab. ' : lbl === 'Rehab' ? 'Held out for rehab. ' : '') + 'Out ' + n + ' more game' + (n > 1 ? 's' : '') + ' · ' + back + '.');
+    })();
+    const wrap = h('div', { class: 'dash mt-' + mTab }, injBanner, h('div', { class: 'dtop' }, hero, quick, mtabs, telemetry), playoffPanel, h('div', { class: 'dmid' }, stream, averages, defense), planPanel, feedPanel);
     return wrap;
   }
   // click any player's name for his career page: who he is, his awards and every season on record (the record starts with this save)
@@ -1013,9 +1021,9 @@
         return h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('b', null, o.name), h('div', { class: 'small muted' }, o.label + ' · you would be a ' + o.role)), h('span', { class: 'spacer' }), h('b', null, money(o.salary) + ' / yr'), sel, h('button', { class: 'primary', onclick: () => done(G.decide(S, kind, { teamId: o.teamId, salary: o.salary, years: yrs, tag: o.tag })) }, kind === 'resign' ? 'Re-sign' : 'Sign')));
       };
       if (d.waived) out.push(h('div', { class: 'callout' }, d.waived));
-      if (d.signTrade) out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🔁 Sign-and-trade'), h('p', { class: 'small muted' }, 'You re-sign with the ' + d.team + ' and they trade you on. Contenders with no cap room can take you this way, and your old club gets picks. You keep your raise and sign for the length shown.'),
+      if (d.signTrade) out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🔁 Option: leave in a sign-and-trade'), h('p', { class: 'small muted' }, 'Nothing has happened yet. Pick one of these and the ' + d.team + ' will re-sign you and immediately trade you to that contender, who could not sign you outright. They get picks and you get the deal shown. Or ignore this and use the re-sign and free agency options below.'),
         d.signTrade.map((o) => h('div', { class: 'row', style: 'margin:6px 0' }, logo(o.nick, 32), h('div', null, h('b', null, o.name), h('div', { class: 'small muted' }, o.label + ' · ' + o.role + ' · the ' + d.team + ' get ' + o.picks)), h('span', { class: 'spacer' }), h('b', null, money(o.salary) + ' / yr'), h('span', { class: 'small muted' }, o.years + 'y'),
-          confirmBtn('Sign-and-trade', 'primary', () => done(G.decide(S, 'switch', { teamId: o.teamId, salary: o.salary, years: o.years, tag: 'sat' })))))));
+          confirmBtn('Do this deal', 'primary', () => done(G.decide(S, 'switch', { teamId: o.teamId, salary: o.salary, years: o.years, tag: 'sat' })))))));
       if (d.market) {
         // free agency is a pitch, not a menu: clubs can say no
         const pitchCard = (m) => d.neg && d.neg[m.teamId] ? negCard(d, Object.assign({}, m, { name: m.name }), 'switch', done) : m.pitched === 'offer' ? mkOffer(Object.assign({}, m, { name: m.name, tag: m.ring ? 'ring' : null, label: m.label + ' · they made you an offer' + (m.ring ? ' · ring chase (a discount to play for a title)' : '') + (m.vouch ? ' · someone you trained with spoke up for you' : '') }), 'switch')

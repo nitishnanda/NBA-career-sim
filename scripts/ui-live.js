@@ -65,5 +65,9 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   const simmed = await page.evaluate(() => !/Clutch time|Game 7/i.test(document.body.innerText)); ck('LIVE off: no clutch screen', simmed);
   await page.click('button:has-text("Sim next game")');
   { const r = await page.evaluate(() => { const S = window.__NBA_UI.state; return { mi: S.matchIdx === window.__i3 + 1, cd: S.matchLog[window.__i3].cd, pend: !!(S.dec.pending && S.dec.pending.id === 'clutch') }; }); ck('LIVE off: the game plays out', r.mi && r.cd === 1 && !r.pend, r); }
+  // ---- 4. hurt: the season screen says so
+  await page.evaluate(() => { const S = window.__NBA_UI.state, L = S.matchLog; let i = L.findIndex((x, k) => k > S.matchIdx + 1 && x.k === 'g' && !x.po && !x.dnp && !x.cl); S.liveMode = false; S.matchIdx = i; for (let k = i; k < i + 4; k++) { if (L[k].k === 'g') { L[k].dnp = 'Missed 4 games with injuries.'; L[k].ib = 1; } } S.dec.pending = null; L[i].pc = 0; window.__NBA_UI.render(); });
+  await page.waitForSelector('text=You are hurt');
+  { const t = await page.evaluate(() => document.querySelector('.callout.inj').textContent); ck('INJURY banner on the season screen', /hurt: a lingering injury/.test(t) && /Out \d+ more game/.test(t) && /Back for game/.test(t), { t }); }
   console.log('errors:', errors.length ? errors : 'none'); await browser.close(); process.exit(errors.length ? 1 : 0);
 })();

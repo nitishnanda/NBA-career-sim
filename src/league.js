@@ -591,10 +591,11 @@
     for (let k = 0; k < n * 6 && events.length < n; k++) {
       const sb = 1 + Math.floor(rnd() * 34), gap = 2 + Math.floor(rnd() * 14), sa = sb + gap;
       if (sa > 55 || used.has(sb) || used.has(sa) || order[sb - 1] === order[sa - 1]) continue;
+      if (rnd() > (sb === 1 ? 0.03 : sb <= 3 ? 0.12 : sb <= 5 ? 0.35 : sb <= 8 ? 0.7 : 1)) continue;   // the top picks almost never move on the night (a #1 pick is traded about one draft in thirty)
       used.add(sb); used.add(sa);
       const A = L.teams[order[sa - 1]], B = L.teams[order[sb - 1]];   // A moves up from sa to sb
       order[sb - 1] = A.id; order[sa - 1] = B.id;
-      const sweet = sb <= 14 && gap >= 8 ? 'a 2028 first-round pick' : rnd() < 0.5 ? 'a 2029 second-round pick' : rnd() < 0.5 ? 'cash considerations' : 'a 2028 second-round pick';
+      const sweet = sb <= 5 ? 'two future first-round picks' : sb <= 14 && gap >= 8 ? 'a 2028 first-round pick' : rnd() < 0.5 ? 'a 2029 second-round pick' : rnd() < 0.5 ? 'cash considerations' : 'a 2028 second-round pick';
       events.push({ slot: sb, other: sa, upId: A.id, downId: B.id, text: A.nick + ' trade up to #' + sb + ', sending #' + sa + ' and ' + sweet + ' to ' + B.nick });
     }
     events.sort((a, b) => a.slot - b.slot);
@@ -719,6 +720,11 @@
     a.bench.push(pb.id); b.bench.push(pa.id); pa.teamId = b.id; pb.teamId = a.id;
   }
   const cashOut = (L, pa, phase) => { deal(L, pa); };
+  function swapGroup(L, a, listA, b, listB) {
+    const ids = listA.concat(listB).map((q) => q.id);
+    [a, b].forEach((t) => { t.core = t.core.filter((id) => !ids.includes(id)); t.bench = (t.bench || []).filter((id) => !ids.includes(id)); });
+    listB.forEach((q) => { a.bench.push(q.id); q.teamId = a.id; }); listA.forEach((q) => { b.bench.push(q.id); q.teamId = b.id; });
+  }
   // phase 'offseason': mostly like-for-like swaps (talent just changes address) plus the odd star request; 'deadline': sellers move veterans to contenders for lesser, younger players
   function marketTrades(L, n, phase) {
     const dl = phase === 'deadline', yr = dl ? L.year + 0.5 : L.year + 1;
@@ -737,11 +743,22 @@
       const cand = rb.filter((q, i) => (star ? i <= 2 && ovr(q) >= tg - 7 && ovr(q) <= tg + 1 : dl ? i >= 2 && ovr(q) <= tg - 1.5 && ovr(q) >= tg - 8 && q.age <= pa.age - 2 : i >= 3 && Math.abs(ovr(q) - tg) <= 4) && rand() <= moveWeight(L, q, phase));
       if (!cand.length) continue;
       const pb = pick(cand);
-      swapPlayers(L, a, pa, b, pb); done++;
-      pa.since = yr; pb.since = yr; pa.moved = pb.moved = L.year;
-      const sweet = ovr(pa) - ovr(pb) >= 3 ? ' and a ' + (L.year + 1 + rint(0, 3)) + ' ' + (rand() < 0.6 ? 'first' : 'second') + '-round pick' : '';
+      // the shape of the deal: mostly one for one, but clubs also send two or three lesser players (and picks) for one better player, or swap two for two and three for three
+      let giveA = [pa], giveB = [pb]; const shape = star ? 1 : rand();
+      const extras = (roster, ex, n, hi, lo) => roster.filter((q, i) => i >= 3 && !ex.includes(q) && ovr(q) <= hi && ovr(q) >= lo && rand() <= moveWeight(L, q, phase)).sort(() => rand() - 0.5).slice(0, n);
+      if (shape < 0.2) giveB = [pb].concat(extras(rb, [pb], 1 + (rand() < 0.5 ? 1 : 0), tg - 2, tg - 16));
+      else if (shape < 0.38) { const k = 1 + (rand() < 0.45 ? 1 : 0); giveA = [pa].concat(extras(ra, [pa], k, tg + 1, tg - 16)); giveB = [pb].concat(extras(rb, [pb], k, tg - 1, tg - 16)); }
+      const okSize = (n) => n >= 8 && n <= 12;
+      if (!okSize(ra.length - giveA.length + giveB.length) || !okSize(rb.length - giveB.length + giveA.length)) { giveA = [pa]; giveB = [pb]; }
+      const group = (list) => { const x = list.map((q) => q.name + ' (' + tag(q) + ')'); return x.length > 1 ? x.slice(0, -1).join('; ') + ' and ' + x[x.length - 1] : x[0]; };
+      const gap = ovr(pa) - Math.max.apply(null, giveB.map((q) => ovr(q))), npick = giveB.length > giveA.length ? (ovr(pa) >= 74 ? 1 + (rand() < 0.6 ? 1 : 0) : gap >= 2 ? 1 : 0) : gap >= 3 ? 1 : 0;
+      const pickWord = (n) => { const y = L.year + 1 + rint(0, 3), first = rand() < (ovr(pa) >= 72 ? 0.7 : 0.4); return n === 1 ? 'a ' + y + ' ' + (first ? 'first' : 'second') + '-round pick' : 'two ' + (y) + '-' + (y + 1) + ' ' + (first ? 'first' : 'second') + '-round picks'; };
+      const sweet = npick ? ' and ' + pickWord(npick) : '';
+      swapGroup(L, a, giveA, b, giveB); done++;
+      giveA.concat(giveB).forEach((q) => { q.since = yr; q.moved = L.year; });
+      const multi = giveA.length > 1 || giveB.length > 1;
       logMove(L, phase, star ? a.nick + ' trade franchise player ' + pa.name + ' (' + tag(pa) + ') to the ' + b.nick + ' after a trade request, for ' + pb.name + ' (' + tag(pb) + ')' + sweet
-        : b.nick + ' acquire ' + pa.name + ' (' + tag(pa) + ') from the ' + a.nick + ' for ' + pb.name + ' (' + tag(pb) + ')' + sweet, a, b);
+        : b.nick + ' acquire ' + group(giveA) + ' from the ' + a.nick + ' for ' + group(giveB) + sweet, a, b);
       if (dl) { b.dlBoost = (b.dlBoost || 0) + clamp((ovr(pa) - ovr(pb)) * 0.12, 0.05, 0.7); }
     }
     return done;
@@ -808,6 +825,6 @@
     return { n90: o.filter((x) => x >= 90).length, n85: o.filter((x) => x >= 85).length, n80: o.filter((x) => x >= 80).length, mean: sum(o) / o.length, top: o.slice(0, 6).map((x) => Math.round(x)) };
   }
 
-  Object.assign(NBA, { injuryDamage, applyInjuryDamage, recruitYears, rosterOf, swapPlayers, seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, makeReal, userDraft, teamNeeds, needText, npcDraft, draftClass, mockSeeded, stockBase, mockBoards, ATH_POS, combineFor, combineComp, CB_K, makeProspect, retireP, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
+  Object.assign(NBA, { planTrades, injuryDamage, applyInjuryDamage, recruitYears, rosterOf, swapPlayers, seasonLabel, rollAvail, applyMajorInjury, newLeague, simSeason, finalsMVP, offseason, runYear, makeReal, userDraft, teamNeeds, needText, npcDraft, draftClass, mockSeeded, stockBase, mockBoards, ATH_POS, combineFor, combineComp, CB_K, makeProspect, retireP, mockRange, projectStock, lotteryOrder, poolStats, perfOf, defScore, coTaxFor, teamRoster, makeNPC, poisson });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

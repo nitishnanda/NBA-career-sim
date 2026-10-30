@@ -85,7 +85,7 @@ let PG = null;
       await arm(); return 'weekend';
     }
     if (/Press conference/.test(h1)) { await answerPress(); await page.click('button:text-matches("Play the game|Back to the season", "i")'); await arm(); return 'press'; }
-    if (/^Injury/i.test(h1)) { await page.click('.wkcard button >> nth=0'); await page.click('button:text-matches("Back to the season|Play the game", "i")'); await arm(); return 'injury'; }
+    if (/^Injury/i.test(h1)) { await page.click('.wkcard button >> nth=0'); await page.click('button:text-matches("Back to the season|Play the game", "i")'); await page.waitForTimeout(150); if (!global.__injBanner) { const b = await page.evaluate(() => { const S = window.__NBA_UI.state, nx = S.matchLog.slice(S.matchIdx).find((x) => x.k === 'g'); return { out: !!(nx && nx.dnp && nx.dnp !== 'Rest'), banner: /You are hurt/.test(document.body.innerText) }; }); global.__injBanner = 1; console.log('INJURY banner', !b.out || b.banner ? 'OK' : 'MISMATCH', JSON.stringify(b)); if (b.out && !b.banner) errors.push('INJURY banner'); } await arm(); return 'injury'; }
     return /Trade deadline/.test(h1) ? 'deadline' : /^(First Round|Conference|NBA Finals)/i.test(h1) ? 'series' : null;
   };
   await page.click('button:has-text("Instant")'); await simOn();
@@ -176,7 +176,7 @@ let PG = null;
   await page.waitForSelector('text=negotiate with other clubs, text=Offseason: what now', { timeout: 15000 }).catch(() => {});
   const cb1 = await page.evaluate(() => { const S = window.__NBA_UI.state; return { retired: S.retired, stage: S.stage, n: S.comebacks, age: S.player.age, last: S.dec.journal.slice(-1)[0].text }; });
   const okCb = !cb1.retired && cb1.stage === 'decision' && cb1.n === 1 && cb1.age === cb0.age + 2 && /Came out of retirement/.test(cb1.last); console.log('COMEBACK', okCb ? 'OK' : 'MISMATCH', JSON.stringify({ cb0, cb1 })); if (!okCb) errors.push('COMEBACK ' + JSON.stringify({ cb0, cb1 }));
-  await page.evaluate(() => { const S = window.__NBA_UI.state; S.stage = 'pro_ready'; S.player.age = 36; S.decision = null; S.dec.season = {}; S.dec.flags.media = 0; window.__NBA_UI.go(); });
+  await page.evaluate(() => { const S = window.__NBA_UI.state; S.stage = 'pro_ready'; S.player.age = 36; Object.keys(S.player.attrs).forEach((k) => { S.player.attrs[k] = Math.max(S.player.attrs[k], 78); }); S.decision = null; S.dec.season = {}; S.dec.flags.media = 0; window.__NBA_UI.go(); });
   await page.waitForSelector('text=Is this the last one');
   await page.click('button:has-text("Announce my farewell season")'); await page.click('button:has-text("Tap again to confirm")');
   await page.waitForSelector('text=Farewell season announced');

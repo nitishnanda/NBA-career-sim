@@ -812,3 +812,11 @@ A long injury (any named one, or 15+ missed games in a block) now stops the seas
 - Game: attempts above 28 are compressed (x0.4) and capped at 41; the season steer cannot push a game past 37 attempts. Max over 33k games went from 53 to 38, games of 40+ from 37 to 0 (real: 40+ is legendary).
 - Season: 3-point tries per game above 8.5 are compressed (x0.45) in the shooting line. Top 3PM seasons across 30 star careers went from 408/402/400 to 349/346/346 (the record, 402, is out of reach).
 - Autopilot baseline unchanged (76.5/12.9, 77.3/13.2); realism 87% at N=40.
+
+## v72 — fewer #1 trades, multi-player trades, injury return fixes, assist ceiling
+- **Draft night**: the top picks almost never move now. Chance a trade involves the pick: #1 3%, #2-3 12%, #4-5 35%, #6-8 70% (3,000 drafts: #1 traded 0.5%, #2 2.2%, #3 1.6%; was ~13%). When a top-5 pick does move, the price is two future firsts.
+- **League trades**: besides one-for-one, clubs now do package deals: ~22% of trades are 1-for-2, 1-for-3, 2-for-1, 2-for-2, 3-for-3 and so on (players of lower rating, on both sides) with a pick or two added when the club is getting the better player (two firsts for a 74+ player). Rosters stay 8-12 before the usual trimming.
+- **Injury return**: games you are cleared for early are no longer one copied box score; each is its own night (median game at ~62% minutes with per-stat noise). A setback after a few games back is still possible and still shows as a missed stretch ("Setback"), now with the season-screen banner explaining it. **New banner**: when you are hurt the season screen says so ("You are hurt: X. Out N more games, back for game M").
+- **Sign-and-trade card** reworded: it is an option, nothing has happened yet, and it is separate from the re-sign choices below it.
+- **Assist ceiling**: expected and season assists soften above 9 a game (x0.45) and above 7.5 for shooters, scorers and defenders who are not point guards (x0.35). Over 669 star-career seasons the max went from 15.8 to 11.6, and none reach 12 (real: Jokic 9.8, Trae 10.8, Haliburton 12.0; 14-15 was Stockton's).
+- Baseline 76.7/12.7 and 77.2/12.8 (the extra trade rolls shift the random stream; within the usual run-to-run noise).
