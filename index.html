@@ -2640,6 +2640,18 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 [ "I do my routine. I eat well, watch some film, and talk to my family.", "I sleep. I am ready. This is why we play.", "I stare at the ceiling for four hours. It is a ritual.", "", "", "" ],
 [ "We stay in the moment, trust our work, and enjoy the ride. We have not won anything yet.", "We stay hungry. We are close, but not there. We will stay calm and finish.", "I am calm. My hands are shaking. That is just my signature.", "", "", "" ],
 [ "I do not think a loss defines a career. It teaches you. I am grateful for the chance.", "No. It makes you want it more. I am working for a ring.", "A Finals loss? I still have a gym membership and a ring finger. I am fine.", "", "", "" ],
+[ "It was a hard call. I talked to my family and my coaches, and I felt ready. I am grateful {school} gave me a place to grow.", "I trusted myself. I knew I was ready and I am proving it every night.", "My mom wanted me to stay for the cafeteria. I told her the NBA has a better one.", "", "", "" ],
+[ "Staying let me grow up. {school} taught me how to be a pro off the court, and I am thankful for it.", "It did. I came in ready because I put in the years. Nothing here surprises me.", "Four years of film sessions. I can recognise a zone defense by smell now.", "", "", "" ],
+[ "That group at {school} taught me what winning takes. I carry it, but a new team has to earn its own.", "It does. I know what it takes and I am not scared of big games.", "It carries over to the group chat. Not sure about anything else.", "", "", "" ],
+[ "That was because of my teammates and my coaches at {school}. Here I am just trying to earn my spot.", "It tells me I can play. Pros are bigger and smarter, but I like my chances.", "I got a plaque. It does not guard anybody, unfortunately.", "", "", "" ],
+[ "I do not set a number. I want to help this team win and keep getting better every week.", "I expect to be a lot better than that. I did not come here to just be a rookie.", "If I say a number my agent will make me sign it. No numbers.", "", "", "" ],
+[ "It taught me to be patient and to trust the process. Change is hard, but it made me stronger.", "That I can adapt to anything. I bet on myself and it worked.", "That every school thinks its cafeteria is the best. It is not true.", "", "", "" ],
+[ "The coaching. I learned how to play the right way, and the work habits from that place stuck with me.", "That I belong with the best. I played against them every day, so the competition does not scare me.", "The recruiting visits. I still do not know what half the mascots are.", "", "", "" ],
+[ "A big adjustment. Back home I took every shot. Here I am learning my role and loving it.", "I will take it. Back home I carried the team, here I will help carry this one.", "Sharing the ball? Out of respect for my coach I will not say what I thought about it first.", "", "", "" ],
+[ "Those showcases made me who I am. I learned how to compete against everybody, and I will not forget it.", "All the time. That is where I learned I could hang with the best in the country.", "I remember the gyms. Sweaty. Loud. Incredible hot dogs, though.", "", "", "" ],
+[ "They do, and I appreciate it. They say they are proud. I want to make {homeTown} proud every night.", "Everybody there is ready to see me do big things. I want to give them that.", "They say I should call more. My mom says that, a lot.", "", "", "" ],
+[ "All the time. Those guys are my brothers. We have a group chat and I check it every day.", "We talk. They are rooting for me and I am rooting for them. We all want to win.", "The group chat is 90 percent memes. I am not sure what the other 10 percent is.", "", "", "" ],
+[ "That the work is worth it. Stay patient, stay humble, and listen to people who care about you.", "That I was good enough. I wish I had trusted myself sooner.", "To ice my ankles more. And that braces are not forever.", "", "", "" ],
   ];
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -3778,6 +3790,19 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   Q('playoffs', 'g7', 0, 'What do you do the night before a Game 7?');
   Q('playoffs', 'finals', 0, 'You are three wins from a title. How do you stay calm?');
   Q('playoffs', 'finals', 1, 'Does a Finals loss define a career?');
+  // a rookie's story: where he came from. Each asks about his own college and high school years (asked in his first pro season only)
+  Q('origin', 'oneDone', 0, 'You played one year at {school} before the draft. Was leaving early the right call?');
+  Q('origin', 'fourYr', 0, 'You stayed {collegeYrs} years at {school}. Did staying help you get ready for this level?');
+  Q('origin', 'collegeTitle', 0, 'You won a national title at {school}. Does that carry over to the NBA?');
+  Q('origin', 'collegeHonor', 0, 'You were named {honor} at {school}. Does any of that matter now that you are playing against pros?');
+  Q('origin', 'hasCollege', 0, 'You averaged {collegePts} points a game in your last year at {school}. What do you expect your numbers to look like here?');
+  Q('origin', 'transferred', 0, 'You changed schools in college. What did that teach you?');
+  Q('origin', 'hsPrep', 0, 'You played at a national prep powerhouse in high school. What are you still leaning on from those years?');
+  Q('origin', 'hsHome', 0, 'You carried your high school team back in {homeTown}. How different is it playing with other pros?');
+  Q('origin', 'hsCircuit', 0, 'You made your name on the summer circuit in high school. Do you still think about those showcases?');
+  Q('origin', 'rookieYear', 0, 'Do people back in {homeTown} still follow you? What do they say?');
+  Q('origin', 'hasCollege', 0, 'Do you still keep in touch with your old teammates at {school}?');
+  Q('origin', 'rookieYear', 0, 'What is the biggest thing you wish you had known back in high school?');
 
   // ---------------------------------------------------------------- how the player can answer
   const TONES = {
@@ -3828,22 +3853,31 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const pr = st.proSeasons[st.proSeasons.length - 2], ps = pr && (pr.perSeries || []).find((x) => opp && x.opp === opp.name); c.rivalWon = !!(c.rivalHere && ps && /^W/.test(ps.result)); c.rivalLost = !!(c.rivalHere && ps && /^L/.test(ps.result));
     c.rumor = !!D.flags.tradeReq; c.farewell = !!st.finalYear;
     const rank = Object.values(L.players).filter((q) => !q.rookie && ovr(q) > ovr(p)).length + 1; c.top10 = rank <= 10; c.top5 = rank <= 5;
-    const tot = (st.proSeasons || []).reduce((a, x) => a + (x.totPts || 0), 0) + reg.reduce((a, g2) => a + g2.pt, 0), nextM = Math.ceil((tot + 1) / 5000) * 5000;
+    const tot = (st.proSeasons || []).slice(0, -1).reduce((a, x) => a + (x.totPts || 0), 0) + reg.reduce((a, g2) => a + g2.pt, 0), nextM = Math.ceil((tot + 1) / 5000) * 5000;
     c.milestone = tot >= 4000 && nextM - tot <= 500; c.mile = nextM.toLocaleString('en-US'); c.toMile = Math.max(1, Math.round(nextM - tot));
     const tr = (st.trades || []).slice(-1)[0]; c.revenge = !!(tr && opp && tr.from === opp.name && tr.year >= L.year - 1);
     c.injuryBack = !!it.back; c.playoffs = !!(it.rnd || it.po); c.finals = it.rnd === 'NBA Finals'; c.g7 = !!it.g7; c.eliminated = false;
     const arch = p.arch, sec = p.sec; c.scorer = arch === 'scorer' || sec === 'scorer'; c.shooter = arch === 'shooter' || sec === 'shooter'; c.defender = arch === 'defender' || sec === 'defender'; c.dominator = arch === 'dominator' || sec === 'dominator'; c.twoway = arch === 'twoway' || sec === 'twoway'; c.gen = arch === 'generational' || sec === 'generational';
     c.big = p.pos === 'C' || p.pos === 'PF'; c.guard = p.pos === 'PG' || p.pos === 'SG'; c.homeTown = p.home || 'home'; c.bubble = allReg.length >= 30 && Math.abs(w / allReg.length - 0.5) <= 0.07;
+    const cy = st.collegeYears || [], cl = cy[cy.length - 1], hs = ((D.journal || []).find((e) => e.kind === 'hs') || { text: '' }).text;
+    c.gamesPlayed = allReg.length; c.fresh = !it.po && allReg.length < 3;   // too early in the year for bad blood with anyone
+    c.hasCollege = c.rookieYear && cy.length > 0; c.oneDone = c.rookieYear && cy.length === 1; c.fourYr = c.rookieYear && cy.length >= 3; c.collegeYrs = cy.length;
+    c.collegeTitle = c.rookieYear && cy.some((y) => (y.tourney || '').includes('Won the National')); c.honor = cl && cl.honors && cl.honors[0] ? cl.honors[0] : ''; c.collegeHonor = c.rookieYear && !!c.honor;
+    c.collegePts = cl && cl.line ? (+cl.line.pts || 0).toFixed(1) : ''; c.transferred = c.rookieYear && !!st.transferred;
+    c.hsPrep = c.rookieYear && /prep powerhouse/.test(hs); c.hsHome = c.rookieYear && /stayed home/.test(hs); c.hsCircuit = c.rookieYear && /circuit/.test(hs);
     c.opener = (it.n === 1 && !it.po); c.away = !it.h && !it.po; c.opp = c.opp; c.always = true;
     return c;
   }
   const FILL = (str, c) => str.replace(/\{(\w+)\}/g, (m, k) => (c[k] != null && c[k] !== false ? String(c[k]) : m === '{oppStar}' ? 'their best player' : m === '{mate}' ? 'your teammate' : m === '{rival}' ? 'your rival' : m === '{vet}' ? 'the veteran' : m === '{rookie}' ? 'the rookie' : ''));
 
   // pick n questions: no topic twice in one session, never one asked earlier this season, weighted towards what is going on (a rival, a farewell, an old team) over the generic
-  const WEIGHT = { style: 2, bubble: 2.5, stakes: 1.6, leg: 1.5, rival: 6, farewell: 6, revenge: 6, playoffs: 4, form: 3, health: 3, awards: 2, biz: 2, game: 2, mile: 3, mate: 1.5, team: 1.4, young: 2, vet: 1.5, media: 0.7 };
+  const WEIGHT = { origin: 3.2, style: 2, bubble: 2.5, stakes: 1.6, leg: 1.5, rival: 6, farewell: 6, revenge: 6, playoffs: 4, form: 3, health: 3, awards: 2, biz: 2, game: 2, mile: 3, mate: 1.5, team: 1.4, young: 2, vet: 1.5, media: 0.7 };
   function pickQuestions(st, it, n, rnd) {
     const c = ctxFor(st, it), asked = (NBA.Decisions.state(st).flags.asked || []).slice(-190), used = new Set(), out = [];
-    const ok = B.map((q, i) => ({ q, i })).filter((x) => c[x.q.cond] && asked.indexOf(x.i) < 0 && (x.q.cond !== 'oppStar' || c.oppStar) && !(x.q.heat >= 2 && !(c.oppStar || c.rival)));
+    // a question that leans on history is only asked when there is history: no pro past in a rookie year, no 'last game' before the first, no booing in game two
+    const PAST_PRO = /tough on you before|different from last year|since you came into the league|been here before|all these years|used to be/i, LAST_G = /last game/i, EARLY = /earlier this season|booing/i;
+    const ok = B.map((q, i) => ({ q, i })).filter((x) => c[x.q.cond] && asked.indexOf(x.i) < 0 && (x.q.cond !== 'oppStar' || c.oppStar) && !(x.q.heat >= 2 && !((c.oppStar || c.rival) && !c.fresh))
+      && !(c.rookieYear && PAST_PRO.test(x.q.text)) && !(c.gamesPlayed < 1 && !c.playoffs && LAST_G.test(x.q.text)) && !(c.gamesPlayed < 8 && !c.playoffs && EARLY.test(x.q.text)));
     for (let k = 0; k < n; k++) {
       const pool = ok.filter((x) => !used.has(x.q.topic) && !out.some((o) => o.i === x.i));
       if (!pool.length) break;
@@ -3859,8 +3893,9 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const row = (NBA.PressLines || [])[q.i];
     const keys = ['humble', 'confident', 'joke', 'deflect'];
     let spicy = [];
-    if (row) { if (row[4]) spicy.push('trash'); if (row[5]) spicy.push('fight'); }
-    else { const heat = q.heat + (c.rivalHere ? 1 : 0); if (heat >= 1 && (c.oppStar || c.rival)) spicy.push('trash'); if (heat >= 2 && (c.oppStar || c.rival)) spicy.push('fight'); }
+    const bite = !c.fresh || c.rivalHere;   // nobody trash-talks a team he has not played yet (the first games of a season: no bad blood, no trash)
+    if (row) { if (row[4] && bite) spicy.push('trash'); if (row[5] && bite) spicy.push('fight'); }
+    else { const heat = q.heat + (c.rivalHere ? 1 : 0); if (heat >= 1 && (c.oppStar || c.rival) && bite) spicy.push('trash'); if (heat >= 2 && (c.oppStar || c.rival) && bite) spicy.push('fight'); }
     // three calm answers (two when there is a spicy one to offer): not every question offers every tone
     const calm = keys.slice().sort(() => rnd() - 0.5).slice(0, spicy.length ? 2 : 3);
     const IDX = { humble: 0, confident: 1, joke: 2, deflect: 3, trash: 4, fight: 5 };
@@ -5632,7 +5667,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v72';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v73';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
