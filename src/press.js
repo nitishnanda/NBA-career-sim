@@ -375,6 +375,7 @@
     c.mock = mockAvg || ''; c.draftFell = c.rookieYear && !!slot && !!mockAvg && slot - mockAvg >= 6; c.draftRose = c.rookieYear && !!slot && !!mockAvg && mockAvg - slot >= 6;
     c.draftTraded = c.rookieYear && !!(dr && dr.userTrade); c.draftTeam = dr && dr.draftedBy ? String(dr.draftedBy).split(' ').slice(-1)[0] : '';
     c.draftWorked = c.rookieYear && !!(dr && dr.workouts && dr.workouts.done && dr.workouts.done[dr.draftedById]);
+    c.rookieDeal = !!(st.contract && st.contract.type === 'rookie');   // nobody asks a player on his first contract to lead the team
     c.opener = (it.n === 1 && !it.po); c.away = !it.h && !it.po; c.opp = c.opp; c.always = true;
     return c;
   }
@@ -385,9 +386,9 @@
   function pickQuestions(st, it, n, rnd) {
     const c = ctxFor(st, it), asked = (NBA.Decisions.state(st).flags.asked || []).slice(-190), used = new Set(), out = [];
     // a question that leans on history is only asked when there is history: no pro past in a rookie year, no 'last game' before the first, no booing in game two
-    const PAST_PRO = /tough on you before|different from last year|since you came into the league|been here before|all these years|used to be/i, LAST_G = /last game/i, EARLY = /earlier this season|booing/i;
+    const LEAD = /loudest voice|leader of this team|whose team is it|face of a franchise|What do you tell him\?|lead this team|take charge/i, PAST_PRO = /tough on you before|different from last year|since you came into the league|been here before|all these years|used to be/i, LAST_G = /last game/i, EARLY = /earlier this season|booing/i;
     const ok = B.map((q, i) => ({ q, i })).filter((x) => c[x.q.cond] && asked.indexOf(x.i) < 0 && (x.q.cond !== 'oppStar' || c.oppStar) && !(x.q.heat >= 2 && !((c.oppStar || c.rival) && !c.fresh))
-      && !(c.rookieYear && PAST_PRO.test(x.q.text)) && !(c.gamesPlayed < 1 && !c.playoffs && LAST_G.test(x.q.text)) && !(c.gamesPlayed < 8 && !c.playoffs && EARLY.test(x.q.text)));
+      && !(c.rookieYear && PAST_PRO.test(x.q.text)) && !(c.rookieDeal && LEAD.test(x.q.text)) && !(c.gamesPlayed < 1 && !c.playoffs && LAST_G.test(x.q.text)) && !(c.gamesPlayed < 8 && !c.playoffs && EARLY.test(x.q.text)));
     for (let k = 0; k < n; k++) {
       const pool = ok.filter((x) => !used.has(x.q.topic) && !out.some((o) => o.i === x.i));
       if (!pool.length) break;

@@ -50,7 +50,7 @@
     const peer = ms.filter((q) => NBA.ovr(q) >= me - 6 && NBA.ovr(q) <= me + 4), old = ms.filter((q) => q.age >= 31), young = ms.filter((q) => q.age <= 22);
     if (!rm.friend) pool.push({ type: 'friend', w: 3, who: pick(ms.slice(0, 8)) });
     if (peer.length && !(rm.beef && rm.beef.year >= L.year - 2)) pool.push({ type: 'beef', w: me >= 70 ? 3 : 1.5, who: pick(peer) });
-    if (old.length && young.length) pool.push({ type: 'split', w: 2, old: pick(old), young: pick(young) });
+    if (old.length && young.length && !(st.contract && st.contract.type === 'rookie')) pool.push({ type: 'split', w: 2, old: pick(old), young: pick(young) });
     if (rm.beef && rm.beef.year >= L.year - 2 && !rm.beef.over) pool.push({ type: 'beefReturn', w: 3, who: { id: rm.beef.id, name: rm.beef.name } });
     if (rm.friend && ms.some((q) => q.id === rm.friend.id)) pool.push({ type: 'friendAsk', w: 2.5, who: { id: rm.friend.id, name: rm.friend.name } });
     if (!pool.length || r() < 0.5) return null;

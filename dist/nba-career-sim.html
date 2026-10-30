@@ -1423,7 +1423,8 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const cz = (zV + zSp + zL) / 3, z = { vert: zV, sprint: zSp, lane: zL, shuttle: zSh, bench: zB };
     const pct = (v, t) => Math.round(100 * phi((v - t.m) / t.sd)), pc = { hgt: pct(hb, T0.hgt), wgt: pct(wt, T0.wgt), ws: pct(ws, T0.ws), reach: pct(reach, T0.reach), vert: Math.round(100 * phi(zV)), sprint: Math.round(100 * phi(zSp)), lane: Math.round(100 * phi(zL)), shuttle: Math.round(100 * phi(zSh)), bench: Math.round(100 * phi(zB)) };
     const parts = { ath: o.test ? CB_K.ath * cz : CB_K.skip, hgt: CB_K.hgt * sz.h, len: CB_K.len * sz.l, wgt: CB_K.wgt * sz.w };
-    return { year: o.year || 0, hb, wt, ws, reach, tested: !!o.test, tests: o.test ? tests : null, z: o.test ? z : null, pct: pc, cz: o.test ? cz : null, parts, bonus: parts.ath + parts.hgt + parts.len + parts.wgt };
+    const rawB = parts.ath + parts.hgt + parts.len + parts.wgt, bonus = rawB < 1 ? Math.max(-15, 1 + (rawB - 1) * (1 + 1.4 * Math.min(5, 1 - rawB))) : rawB;   // a bad combine sinks a prospect, and the worse it is the faster it costs: below +1 the penalty is convex (0 counts as -1.4, -1 as -6.6, -2 as -14.6, never worse than -15)
+    return { year: o.year || 0, hb, wt, ws, reach, tested: !!o.test, tests: o.test ? tests : null, z: o.test ? z : null, pct: pc, cz: o.test ? cz : null, parts, raw: rawB, bonus };
   }
   // the real prospect whose measurements are closest (same position or one next to it): height, weight, wingspan and, when both were tested, jump and speed
   function combineComp(p, cb) {
@@ -3156,7 +3157,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const peer = ms.filter((q) => NBA.ovr(q) >= me - 6 && NBA.ovr(q) <= me + 4), old = ms.filter((q) => q.age >= 31), young = ms.filter((q) => q.age <= 22);
     if (!rm.friend) pool.push({ type: 'friend', w: 3, who: pick(ms.slice(0, 8)) });
     if (peer.length && !(rm.beef && rm.beef.year >= L.year - 2)) pool.push({ type: 'beef', w: me >= 70 ? 3 : 1.5, who: pick(peer) });
-    if (old.length && young.length) pool.push({ type: 'split', w: 2, old: pick(old), young: pick(young) });
+    if (old.length && young.length && !(st.contract && st.contract.type === 'rookie')) pool.push({ type: 'split', w: 2, old: pick(old), young: pick(young) });
     if (rm.beef && rm.beef.year >= L.year - 2 && !rm.beef.over) pool.push({ type: 'beefReturn', w: 3, who: { id: rm.beef.id, name: rm.beef.name } });
     if (rm.friend && ms.some((q) => q.id === rm.friend.id)) pool.push({ type: 'friendAsk', w: 2.5, who: { id: rm.friend.id, name: rm.friend.name } });
     if (!pool.length || r() < 0.5) return null;
@@ -3926,6 +3927,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     c.mock = mockAvg || ''; c.draftFell = c.rookieYear && !!slot && !!mockAvg && slot - mockAvg >= 6; c.draftRose = c.rookieYear && !!slot && !!mockAvg && mockAvg - slot >= 6;
     c.draftTraded = c.rookieYear && !!(dr && dr.userTrade); c.draftTeam = dr && dr.draftedBy ? String(dr.draftedBy).split(' ').slice(-1)[0] : '';
     c.draftWorked = c.rookieYear && !!(dr && dr.workouts && dr.workouts.done && dr.workouts.done[dr.draftedById]);
+    c.rookieDeal = !!(st.contract && st.contract.type === 'rookie');   // nobody asks a player on his first contract to lead the team
     c.opener = (it.n === 1 && !it.po); c.away = !it.h && !it.po; c.opp = c.opp; c.always = true;
     return c;
   }
@@ -3936,9 +3938,9 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   function pickQuestions(st, it, n, rnd) {
     const c = ctxFor(st, it), asked = (NBA.Decisions.state(st).flags.asked || []).slice(-190), used = new Set(), out = [];
     // a question that leans on history is only asked when there is history: no pro past in a rookie year, no 'last game' before the first, no booing in game two
-    const PAST_PRO = /tough on you before|different from last year|since you came into the league|been here before|all these years|used to be/i, LAST_G = /last game/i, EARLY = /earlier this season|booing/i;
+    const LEAD = /loudest voice|leader of this team|whose team is it|face of a franchise|What do you tell him\?|lead this team|take charge/i, PAST_PRO = /tough on you before|different from last year|since you came into the league|been here before|all these years|used to be/i, LAST_G = /last game/i, EARLY = /earlier this season|booing/i;
     const ok = B.map((q, i) => ({ q, i })).filter((x) => c[x.q.cond] && asked.indexOf(x.i) < 0 && (x.q.cond !== 'oppStar' || c.oppStar) && !(x.q.heat >= 2 && !((c.oppStar || c.rival) && !c.fresh))
-      && !(c.rookieYear && PAST_PRO.test(x.q.text)) && !(c.gamesPlayed < 1 && !c.playoffs && LAST_G.test(x.q.text)) && !(c.gamesPlayed < 8 && !c.playoffs && EARLY.test(x.q.text)));
+      && !(c.rookieYear && PAST_PRO.test(x.q.text)) && !(c.rookieDeal && LEAD.test(x.q.text)) && !(c.gamesPlayed < 1 && !c.playoffs && LAST_G.test(x.q.text)) && !(c.gamesPlayed < 8 && !c.playoffs && EARLY.test(x.q.text)));
     for (let k = 0; k < n; k++) {
       const pool = ok.filter((x) => !used.has(x.q.topic) && !out.some((o) => o.i === x.i));
       if (!pool.length) break;
@@ -5732,7 +5734,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v75';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v76';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)

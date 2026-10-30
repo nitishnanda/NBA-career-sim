@@ -500,7 +500,8 @@
     const cz = (zV + zSp + zL) / 3, z = { vert: zV, sprint: zSp, lane: zL, shuttle: zSh, bench: zB };
     const pct = (v, t) => Math.round(100 * phi((v - t.m) / t.sd)), pc = { hgt: pct(hb, T0.hgt), wgt: pct(wt, T0.wgt), ws: pct(ws, T0.ws), reach: pct(reach, T0.reach), vert: Math.round(100 * phi(zV)), sprint: Math.round(100 * phi(zSp)), lane: Math.round(100 * phi(zL)), shuttle: Math.round(100 * phi(zSh)), bench: Math.round(100 * phi(zB)) };
     const parts = { ath: o.test ? CB_K.ath * cz : CB_K.skip, hgt: CB_K.hgt * sz.h, len: CB_K.len * sz.l, wgt: CB_K.wgt * sz.w };
-    return { year: o.year || 0, hb, wt, ws, reach, tested: !!o.test, tests: o.test ? tests : null, z: o.test ? z : null, pct: pc, cz: o.test ? cz : null, parts, bonus: parts.ath + parts.hgt + parts.len + parts.wgt };
+    const rawB = parts.ath + parts.hgt + parts.len + parts.wgt, bonus = rawB < 1 ? Math.max(-15, 1 + (rawB - 1) * (1 + 1.4 * Math.min(5, 1 - rawB))) : rawB;   // a bad combine sinks a prospect, and the worse it is the faster it costs: below +1 the penalty is convex (0 counts as -1.4, -1 as -6.6, -2 as -14.6, never worse than -15)
+    return { year: o.year || 0, hb, wt, ws, reach, tested: !!o.test, tests: o.test ? tests : null, z: o.test ? z : null, pct: pc, cz: o.test ? cz : null, parts, raw: rawB, bonus };
   }
   // the real prospect whose measurements are closest (same position or one next to it): height, weight, wingspan and, when both were tested, jump and speed
   function combineComp(p, cb) {
