@@ -278,6 +278,29 @@
   Q('origin', 'rookieYear', 0, 'Do people back in {homeTown} still follow you? What do they say?');
   Q('origin', 'hasCollege', 0, 'Do you still keep in touch with your old teammates at {school}?');
   Q('origin', 'rookieYear', 0, 'What is the biggest thing you wish you had known back in high school?');
+  // draft night and the combine: asked in a rookie's first pro season, from what actually happened to him
+  Q('combine', 'combineSkipped', 0, 'You skipped the athletic testing at the combine. Was that a business decision?');
+  Q('combine', 'combineTested', 0, 'What did you take away from the combine now that you are on the other side of it?');
+  Q('combine', 'combineVert', 0, 'You jumped {vertMax} inches at the combine, one of the best in your class. Does that show up in games?');
+  Q('combine', 'combineSprint', 0, 'Your sprint times at the combine turned heads. Is speed your biggest weapon?');
+  Q('combine', 'combineBench', 0, 'You struggled on the bench press at the combine. Has the weight room been a focus since?');
+  Q('combine', 'combineLen', 0, 'Your wingspan at the combine, {ws}, had scouts talking. How much do you rely on your length?');
+  Q('combine', 'combineSmall', 0, 'You measured shorter than a lot of players at the combine. Did anyone say you were too small?');
+  Q('combine', 'combineStar', 0, 'You were one of the stars of the combine. Did that change where you were picked?');
+  Q('combine', 'combineBad', 0, 'Your combine numbers were not great. Did you feel you had something to prove?');
+  Q('combine', 'hasCombine', 0, 'What was the strangest question a team asked you in a combine interview?');
+  Q('draftnight', 'draftNo1', 0, 'You were the number one pick. Does it feel like you carry the whole draft class?');
+  Q('draftnight', 'draftTop3', 0, 'You went number {draft} in the draft. What was going through your head when your name was called?');
+  Q('draftnight', 'draftPicked', 0, 'Where were you and who were you with when your name was called?');
+  Q('draftnight', 'draftMid', 0, 'It was a long wait on draft night. What was the hardest moment?');
+  Q('draftnight', 'draftLate', 0, 'You went in the second round. Do you carry that with you?');
+  Q('draftnight', 'draftUD', 1, 'You went undrafted. How did that night feel, and what do you say to the teams that passed?');
+  Q('draftnight', 'draftFell', 1, 'The mock drafts had you around number {mock} and you went number {draft}. Did you feel slighted?');
+  Q('draftnight', 'draftRose', 0, 'Mock drafts had you around number {mock} and you went number {draft}. Did you prove anyone wrong?');
+  Q('draftnight', 'draftTraded', 0, 'You were traded right after the draft. How did you find out?');
+  Q('draftnight', 'draftWorked', 0, 'The {draftTeam} drafted you after working you out. Was that always your favorite fit?');
+  Q('draftnight', 'rookieYear', 0, 'What was the first thing you bought after signing your rookie deal?');
+  Q('draftnight', 'rookieYear', 0, 'Everyone talks about the draft-night suit. What was yours, and who picked it out?');
 
   // ---------------------------------------------------------------- how the player can answer
   const TONES = {
@@ -340,13 +363,25 @@
     c.collegeTitle = c.rookieYear && cy.some((y) => (y.tourney || '').includes('Won the National')); c.honor = cl && cl.honors && cl.honors[0] ? cl.honors[0] : ''; c.collegeHonor = c.rookieYear && !!c.honor;
     c.collegePts = cl && cl.line ? (+cl.line.pts || 0).toFixed(1) : ''; c.transferred = c.rookieYear && !!st.transferred;
     c.hsPrep = c.rookieYear && /prep powerhouse/.test(hs); c.hsHome = c.rookieYear && /stayed home/.test(hs); c.hsCircuit = c.rookieYear && /circuit/.test(hs);
+    // the combine and draft night, from what actually happened to him
+    const cm = p.cmb, dr = st.draft, pc = (cm && cm.pct) || {}, mk = st.combine && st.combine.mocks, mockRows = []; (mk && mk.outlets || []).forEach((o) => (o.rows || []).forEach((r) => { if (r.isUser) mockRows.push(r.slot); }));
+    const mockAvg = mockRows.length ? Math.round(mockRows.reduce((a, b) => a + b, 0) / mockRows.length) : null, slot = dr && dr.slot ? dr.slot : null;
+    c.hasCombine = c.rookieYear && !!cm; c.combineTested = c.hasCombine && !!cm.tested; c.combineSkipped = c.hasCombine && !cm.tested;
+    c.combineVert = c.combineTested && (pc.vert || 0) >= 80; c.combineSprint = c.combineTested && (pc.sprint || 0) >= 80; c.combineBench = c.combineTested && (pc.bench != null ? pc.bench : 50) <= 20;
+    c.combineLen = c.hasCombine && (pc.ws || 0) >= 85; c.combineSmall = c.hasCombine && (pc.hgt != null ? pc.hgt : 50) <= 15; c.combineStar = c.hasCombine && (cm.bonus || 0) >= 1.5; c.combineBad = c.hasCombine && (cm.bonus || 0) <= -1.5;
+    c.vertMax = cm && cm.tests ? Math.round(cm.tests.mxv) : ''; c.ws = cm && cm.ws ? NBA.fmtHt(cm.ws) : '';
+    c.draftPicked = c.rookieYear && !!slot; c.draftNo1 = c.rookieYear && slot === 1; c.draftTop3 = c.rookieYear && !!slot && slot <= 3 && slot > 1; c.draftMid = c.rookieYear && !!slot && slot >= 12 && slot <= 30;
+    c.draftLate = c.rookieYear && !!slot && slot > 30; c.draftUD = c.rookieYear && !!dr && !slot;
+    c.mock = mockAvg || ''; c.draftFell = c.rookieYear && !!slot && !!mockAvg && slot - mockAvg >= 6; c.draftRose = c.rookieYear && !!slot && !!mockAvg && mockAvg - slot >= 6;
+    c.draftTraded = c.rookieYear && !!(dr && dr.userTrade); c.draftTeam = dr && dr.draftedBy ? String(dr.draftedBy).split(' ').slice(-1)[0] : '';
+    c.draftWorked = c.rookieYear && !!(dr && dr.workouts && dr.workouts.done && dr.workouts.done[dr.draftedById]);
     c.opener = (it.n === 1 && !it.po); c.away = !it.h && !it.po; c.opp = c.opp; c.always = true;
     return c;
   }
   const FILL = (str, c) => str.replace(/\{(\w+)\}/g, (m, k) => (c[k] != null && c[k] !== false ? String(c[k]) : m === '{oppStar}' ? 'their best player' : m === '{mate}' ? 'your teammate' : m === '{rival}' ? 'your rival' : m === '{vet}' ? 'the veteran' : m === '{rookie}' ? 'the rookie' : ''));
 
   // pick n questions: no topic twice in one session, never one asked earlier this season, weighted towards what is going on (a rival, a farewell, an old team) over the generic
-  const WEIGHT = { origin: 3.2, style: 2, bubble: 2.5, stakes: 1.6, leg: 1.5, rival: 6, farewell: 6, revenge: 6, playoffs: 4, form: 3, health: 3, awards: 2, biz: 2, game: 2, mile: 3, mate: 1.5, team: 1.4, young: 2, vet: 1.5, media: 0.7 };
+  const WEIGHT = { origin: 3.2, combine: 3.4, draftnight: 3.4, style: 2, bubble: 2.5, stakes: 1.6, leg: 1.5, rival: 6, farewell: 6, revenge: 6, playoffs: 4, form: 3, health: 3, awards: 2, biz: 2, game: 2, mile: 3, mate: 1.5, team: 1.4, young: 2, vet: 1.5, media: 0.7 };
   function pickQuestions(st, it, n, rnd) {
     const c = ctxFor(st, it), asked = (NBA.Decisions.state(st).flags.asked || []).slice(-190), used = new Set(), out = [];
     // a question that leans on history is only asked when there is history: no pro past in a rookie year, no 'last game' before the first, no booing in game two
