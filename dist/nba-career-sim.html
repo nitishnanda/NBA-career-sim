@@ -1404,8 +1404,8 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   // ratings. Real draft position vs combine, within a position (1,534 prospects): per +1 sd, log(pick) -0.15 height, -0.08 wingspan, -0.06 weight, and -0.15 for the average
   // of the vertical / sprint / agility z-scores (~10 stock points per unit of log(pick) in this sim); size already shapes ratings here, so the size terms are 60% of the real ones.
   const ATH_POS = { PG: [54.9, 13.0], SG: [56.5, 13.4], SF: [61.8, 12.0], PF: [62.6, 11.7], C: [57.7, 11.6] };   // prospects' athleticism rating by position: mean, sd
-  const CB_K = { ath: 1.5, hgt: 0.9, len: 0.5, wgt: 0.35, skip: -0.8 };   // stock points per +1 sd (athletic composite, height, wingspan beyond height, weight for his height); skipping the tests
-  const CB_SD = 1.3;   // sd of the combine bonus across a class (measured), so mock-draft ranges carry the same spread
+  const CB_K = { ath: 3.2, hgt: 2.0, len: 1.1, wgt: 0.8, skip: -2.0 };   // stock points per +1 sd (athletic composite, height, wingspan beyond height, weight for his height); skipping the tests
+  const CB_SD = 3.1;   // sd of the combine bonus across a class (measured), so mock-draft ranges carry the same spread
   const mulberry = (seed) => { let a = seed | 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
   const hashOf = (v) => { const t = String(v); let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return h | 0; };
   const phi = (z) => 0.5 * (1 + Math.tanh(0.7978845608 * (z + 0.044715 * z * z * z)));
@@ -1451,14 +1451,15 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     while (p.age < age) progress(p);
     return p;
   }
+  const softCeil = (c) => (c > 86 ? 86 + (c - 86) * 0.45 : c);   // scouts see a huge ceiling as 'a star', not as a sure thing: past 86 it counts less than half
   function stockOf(p, bonus) {
     // scouts only see the true ceiling in proportion to how visible the prospect is (recruit tier); an under-scouted talent is judged on what they look like now
-    const vis = p.vis == null ? 1 : p.vis, o = ovr(p) - 7 * (1 - vis), seen = vis * p.ceiling + (1 - vis) * 76;
+    const vis = p.vis == null ? 1 : p.vis, o = ovr(p) - 7 * (1 - vis), seen = vis * softCeil(p.ceiling) + (1 - vis) * 76;
     const est = seen + randn() * (9 + 10 * (1 - vis)) + (rand() < 0.12 ? randn() * 16 : 0);
-    return 0.5 * o + 0.5 * est - 1.4 * (p.age - 19) + (bonus || 0) + (p.cmb ? p.cmb.bonus : 0) + randn() * 5;
+    return 0.5 * o + 0.5 * est - 1.4 * (p.age - 19) + (bonus || 0) + (p.cmb ? p.cmb.bonus : 0) + randn() * 6.5;
   }
   function projectStock(p) { // deterministic version for mock draft
-    return 0.5 * ovr(p) + 0.5 * p.ceiling - 1.4 * (p.age - 19);
+    return 0.5 * ovr(p) + 0.5 * softCeil(p.ceiling) - 1.4 * (p.age - 19);
   }
   // Age at draft by recruit tier (real 2009-24 college prospects, data/real-draft-prospects.csv): share of class, then % Fr/So/Jr/Sr
   const RECRUIT_TIERS = [[0.052, [90, 9, 1, 0]], [0.055, [54, 25, 12, 8]], [0.126, [36, 28, 18, 19]], [0.155, [15, 21, 26, 38]], [0.159, [5, 17, 20, 58]], [0.296, [2, 13, 21, 63]], [0.158, [5, 6, 14, 75]]];
@@ -1577,7 +1578,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
         const age = +weighted({ 19: 46, 20: 26, 21: 16, 22: 12 });
         const c = rollCeiling(0, null);
         const o = c - (10 + 12 * rand()) * rem[age];
-        const st = 0.5 * o + 0.5 * (c + randn() * 9) - 1.4 * (age - 19) + randn() * 5 + randn() * CB_SD;
+        const st = 0.5 * o + 0.5 * (softCeil(c) + randn() * 9) - 1.4 * (age - 19) + randn() * 5 + randn() * CB_SD;
         if (st > s) better++;
       }
       ranks.push(1 + better);
@@ -1590,7 +1591,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   // him (0.5: current rating, the part of his ceiling that is visible, age, college prestige) and adds its own opinion (sd 3.5 stock points), so mocks agree on the top
   // few picks, disagree further down, and the real night still holds surprises (the real order carries the rest of the scouting noise).
   const OUTLETS = ['Hoops Insider', 'Draft Central', 'Courtside Report'];
-  function scoutMean(p, bonus) { const vis = p.vis == null ? 1 : p.vis, o = ovr(p) - 7 * (1 - vis), seen = vis * p.ceiling + (1 - vis) * 76; return 0.5 * o + 0.5 * seen - 1.4 * (p.age - 19) + (bonus || 0); }
+  function scoutMean(p, bonus) { const vis = p.vis == null ? 1 : p.vis, o = ovr(p) - 7 * (1 - vis), seen = vis * softCeil(p.ceiling) + (1 - vis) * 76; return 0.5 * o + 0.5 * seen - 1.4 * (p.age - 19) + (bonus || 0); }
   // the player's stock without the combine and with a fixed seed for the scouting noise: stock after the combine = this + the combine's bonus
   function stockBase(L, user, bonus, seed) { const sv = NBA.rngGet(), keep = user.cmb; user.cmb = null; NBA.setSeed(seed); const r = stockOf(user, bonus); NBA.rngSet(sv); user.cmb = keep; return r; }
   function mockBoards(L, cls, user, bonus, orderIds, stocks) {   // stocks: the player's stock in the three states: { before, after, alt }
@@ -2851,15 +2852,31 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   const pick = (arr, rnd) => arr[Math.floor(rnd() * arr.length)];
   const fill = (s, c) => String(s).replace(/\{(\w+)\}/g, (m, k) => (c[k] != null && c[k] !== false ? String(c[k]) : ''));
   // three or four posts for the fan feed (from the bank, plus anything Claude wrote for a typed answer)
-  function fanPosts(tone, c, result, extra, rnd) {
-    const bank = (FANS[tone] || FANS.deflect).slice(), out = [], handles = FAN_HANDLES.slice();
+  function fanPosts(tone, c, result, extra, rnd, said) {
+    let bank = (FANS[tone] || FANS.deflect).slice(); const out = [], handles = FAN_HANDLES.slice();
+    if (said != null && !/\b(team|teammates?|we|our|us|credit|coach|guys|group)\b/i.test(said)) bank = bank.filter((t) => !/team|teammate|flowers|credit|locker/i.test(t));   // no fan can say he gave the team credit if he did not
     const take = (arr) => { if (!arr.length) return; const i = Math.floor(rnd() * arr.length); out.push(arr.splice(i, 1)[0]); };
     (extra || []).slice(0, 2).forEach((t) => out.push(String(t).slice(0, 160)));
     while (out.length < 3 && bank.length) take(bank);
     if (result === 'W') take(FANS_WIN.slice()); else if (result === 'L') take(FANS_LOSS.slice());
     return out.slice(0, 4).map((t) => { const h = handles.splice(Math.floor(rnd() * handles.length), 1)[0] || 'hoopsfan'; return { who: '@' + h, text: fill(t, c) }; });
   }
-  const headlineFor = (tone, c, quote, rnd) => fill(pick(HEADLINES[tone] || HEADLINES.deflect, rnd), Object.assign({}, c, { quote: String(quote || '').replace(/^[“"]|[”"]$/g, '').slice(0, 70) }));
+  // the headline the press room runs for what you actually said: it names the subject of the question and quotes your own answer, so it can never claim something you did not say
+  const SUBJECT = { game: 'tonight\'s game', rival: 'his rivalry', form: 'his recent play', team: 'the {team}', mate: 'his teammates', young: 'life as a young player', vet: 'his veteran role', farewell: 'his farewell season', biz: 'his contract', awards: 'the awards race', playoffs: 'the playoffs', health: 'his health', mile: 'the milestone chase', revenge: 'facing his old team', media: 'the media', style: 'his game', bubble: 'the playoff race', crowd: 'the crowd', hometown: 'his hometown', coach: 'his coach', stakes: 'the stakes', refs: 'the officiating', rest: 'rest', leg: 'his legacy', fun: 'life off the court', draftq: 'his draft class', origin: 'his road to the league', combine: 'the combine', draftnight: 'draft night', callback: 'his earlier comments', feud: 'the war of words', ai: 'the question' };
+  const OPP_TOPICS = new Set(['game', 'rival', 'revenge', 'playoffs', 'stakes', 'feud']);
+  const VERBS = { humble: ['keeps it humble on', 'stays grounded on', 'keeps the focus off himself on'], confident: ['is confident about', 'backs himself on', 'has no doubts about'], joke: ['jokes about', 'cracks up the room on', 'keeps it light on'], deflect: ['keeps it short on', 'sidesteps questions about', 'says little about'] };
+  const shortQuote = (q) => { let t = String(q || '').replace(/^[\u201C"]|[\u201D"]$/g, '').trim(); const s1 = t.split(/(?<=[.!?])\s+/)[0] || t; t = s1.length >= 12 ? s1 : t; if (t.length > 74) { t = t.slice(0, 74); t = t.slice(0, Math.max(40, t.lastIndexOf(' '))) + '\u2026'; } return t.replace(/[.]$/, ''); };
+  function headlineFor(tone, c, quote, rnd, topic) {
+    const tp = String(topic || ''), base = tp.replace(/^(post|mem):/, ''), isPost = /^post:/.test(tp), isMem = /^mem:/.test(tp), q = shortQuote(quote), opp = c.opp && c.opp !== 'other side' ? c.opp : '';
+    const subject = fill(isPost ? (opp ? 'the ' + opp + ' game' : 'the game') : isMem ? (opp ? 'his history with the ' + opp : 'his past') : (base === 'game' && opp ? 'tonight\'s game against the ' + opp : (SUBJECT[tp] || 'the question')), c);
+    if (tone === 'trash' || tone === 'fight') {
+      const target = (OPP_TOPICS.has(tp) || isPost || isMem) && opp ? 'the ' + opp : 'his critics';
+      const forms = tone === 'fight' ? ['{name} loses his cool with ' + target + ': "' + q + '"', '"' + q + '": {name} snaps at ' + target] : ['{name} takes aim at ' + target + ': "' + q + '"', '"' + q + '": {name} fires back at ' + target];
+      return fill(pick(forms, rnd), c);
+    }
+    const v = pick(VERBS[tone] || VERBS.deflect, rnd), forms = ['{name} ' + v + ' ' + subject + ': "' + q + '"', '"' + q + '": {name} on ' + subject];
+    return fill(pick(forms, rnd), c);
+  }
 
   NBA.Reporters = { REPORTERS, beatFor, reporterFor, moodFor, PERSONAS, personaOf, PERSONA_TOPICS, CALLBACKS, FEUDS, HEADLINES, FANS, fanPosts, headlineFor, mulberry };
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -4172,10 +4189,14 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     return rec;
   }
 
+  // what the scouts add or take away for where and how he played: the school, the role he took, how he spent high school, honors and titles. The combine (size and
+  // tests) is added separately. 'Generational' is only a small nudge: scouts credit the talent through the ceiling they can see, they do not hand out the top pick.
   function stockBonus(st) {
     const c = st.college, last = st.collegeYears[st.collegeYears.length - 1];
-    let b = (c.prestige - 3) * 0.9 + (st.genBonus || 0) * Math.min(1, Math.max(0, (st.stars - 1) / 3));   // scouts only credit 'generational' once the recruit is a known name
-    b += ({ takeover: 0.8, fit: 0.2, quiet: -0.4 })[st.collegeRole] || 0;
+    let b = (c.prestige - 3) * 1.2 + (st.genBonus || 0) * 0.2 * Math.min(1, Math.max(0, (st.stars - 1) / 3));
+    b += ({ takeover: 2.4, fit: 0.8, quiet: -2.2 })[st.collegeRole] || 0;   // running the offense puts the numbers up; a development year does not
+    const hs = ((NBA.Decisions.state(st).journal || []).find((e) => e.kind === 'hs') || { text: '' }).text;
+    b += /prep powerhouse/.test(hs) ? 1.0 : /stayed home/.test(hs) ? -0.8 : /blew up/.test(hs) ? 1.8 : /circuit/.test(hs) ? -0.6 : 0;
     if (last.honors.includes('National Player of the Year')) b += 3;
     else if (last.honors.includes('Consensus All-American')) b += 1.5;
     if (st.collegeYears.some((y) => y.tourney.includes('Won the National'))) b += 0.8;
@@ -5133,8 +5154,8 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     if (mm) Dc.apply(st, [{ k: 'meter', f: 'media', d: mm }]);
     const hrank = { fight: 6, trash: 5, confident: 4, joke: 3, humble: 2, deflect: 1 }, top = answered.slice().sort((a, b) => (hrank[b.pick.tone] || 0) - (hrank[a.pick.tone] || 0))[0];
     let headline = null;
-    if (top) { const hs = (ctx.headlines || []).filter(Boolean)[0] || R.headlineFor(top.pick.tone, { name: p.name, opp: ctx.opp, team: team.nick }, top.pick.text, rnd); headline = { outlet: top.q.reporter ? top.q.reporter.outlet : 'The wire', text: hs }; pr.heads.push({ y: L.year, text: hs, outlet: headline.outlet }); pr.heads = pr.heads.slice(-30); }
-    const fans0 = top ? R.fanPosts(top.pick.tone, { name: p.name, opp: ctx.opp, team: team.nick }, post && itx ? (itx.w ? 'W' : 'L') : null, answered.reduce((a, x) => a.concat(x.pick.fans || []), []), rnd) : [];
+    if (top) { const hs = (ctx.headlines || []).filter(Boolean)[0] || R.headlineFor(top.pick.tone, { name: p.name, opp: ctx.opp, team: team.nick }, top.pick.text, rnd, top.pick.topic); headline = { outlet: top.q.reporter ? top.q.reporter.outlet : 'The wire', text: hs }; pr.heads.push({ y: L.year, text: hs, outlet: headline.outlet }); pr.heads = pr.heads.slice(-30); }
+    const fans0 = top ? R.fanPosts(top.pick.tone, { name: p.name, opp: ctx.opp, team: team.nick }, post && itx ? (itx.w ? 'W' : 'L') : null, answered.reduce((a, x) => a.concat(x.pick.fans || []), []), rnd, top.pick.text) : [];
     const fans = fans0.map((f) => Object.assign({ likes: Math.round(Math.pow(rnd(), 2) * 12000) + 20 }, f)); if (fans.length) feedAdd(st, 'press', {}, { posts: fans, at: post ? (st.matchIdx || 0) : (st.matchIdx || 0) });
     return { text: ([...new Set(notes)].concat([line]).join(' ')), tone: net > 0.2 ? 'good' : net < -0.2 || susp ? 'bad' : 'neutral', headline, fans, moods, persona: R.personaOf(pr.tally), journal: big ? { tone: net > 0.2 && !susp ? 'good' : 'bad', text: (ctx.kind === 'game' || post ? ctx.why + ' vs the ' + ctx.opp : ctx.why) + ': ' + (quote ? 'You said "' + quote.text.slice(0, 90) + (quote.text.length > 90 ? '…' : '') + '". ' : '') + notes.join(' ') } : null };
   }
@@ -5711,7 +5732,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v74';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v75';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)

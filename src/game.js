@@ -123,10 +123,14 @@
     return rec;
   }
 
+  // what the scouts add or take away for where and how he played: the school, the role he took, how he spent high school, honors and titles. The combine (size and
+  // tests) is added separately. 'Generational' is only a small nudge: scouts credit the talent through the ceiling they can see, they do not hand out the top pick.
   function stockBonus(st) {
     const c = st.college, last = st.collegeYears[st.collegeYears.length - 1];
-    let b = (c.prestige - 3) * 0.9 + (st.genBonus || 0) * Math.min(1, Math.max(0, (st.stars - 1) / 3));   // scouts only credit 'generational' once the recruit is a known name
-    b += ({ takeover: 0.8, fit: 0.2, quiet: -0.4 })[st.collegeRole] || 0;
+    let b = (c.prestige - 3) * 1.2 + (st.genBonus || 0) * 0.2 * Math.min(1, Math.max(0, (st.stars - 1) / 3));
+    b += ({ takeover: 2.4, fit: 0.8, quiet: -2.2 })[st.collegeRole] || 0;   // running the offense puts the numbers up; a development year does not
+    const hs = ((NBA.Decisions.state(st).journal || []).find((e) => e.kind === 'hs') || { text: '' }).text;
+    b += /prep powerhouse/.test(hs) ? 1.0 : /stayed home/.test(hs) ? -0.8 : /blew up/.test(hs) ? 1.8 : /circuit/.test(hs) ? -0.6 : 0;
     if (last.honors.includes('National Player of the Year')) b += 3;
     else if (last.honors.includes('Consensus All-American')) b += 1.5;
     if (st.collegeYears.some((y) => y.tourney.includes('Won the National'))) b += 0.8;
@@ -1084,8 +1088,8 @@
     if (mm) Dc.apply(st, [{ k: 'meter', f: 'media', d: mm }]);
     const hrank = { fight: 6, trash: 5, confident: 4, joke: 3, humble: 2, deflect: 1 }, top = answered.slice().sort((a, b) => (hrank[b.pick.tone] || 0) - (hrank[a.pick.tone] || 0))[0];
     let headline = null;
-    if (top) { const hs = (ctx.headlines || []).filter(Boolean)[0] || R.headlineFor(top.pick.tone, { name: p.name, opp: ctx.opp, team: team.nick }, top.pick.text, rnd); headline = { outlet: top.q.reporter ? top.q.reporter.outlet : 'The wire', text: hs }; pr.heads.push({ y: L.year, text: hs, outlet: headline.outlet }); pr.heads = pr.heads.slice(-30); }
-    const fans0 = top ? R.fanPosts(top.pick.tone, { name: p.name, opp: ctx.opp, team: team.nick }, post && itx ? (itx.w ? 'W' : 'L') : null, answered.reduce((a, x) => a.concat(x.pick.fans || []), []), rnd) : [];
+    if (top) { const hs = (ctx.headlines || []).filter(Boolean)[0] || R.headlineFor(top.pick.tone, { name: p.name, opp: ctx.opp, team: team.nick }, top.pick.text, rnd, top.pick.topic); headline = { outlet: top.q.reporter ? top.q.reporter.outlet : 'The wire', text: hs }; pr.heads.push({ y: L.year, text: hs, outlet: headline.outlet }); pr.heads = pr.heads.slice(-30); }
+    const fans0 = top ? R.fanPosts(top.pick.tone, { name: p.name, opp: ctx.opp, team: team.nick }, post && itx ? (itx.w ? 'W' : 'L') : null, answered.reduce((a, x) => a.concat(x.pick.fans || []), []), rnd, top.pick.text) : [];
     const fans = fans0.map((f) => Object.assign({ likes: Math.round(Math.pow(rnd(), 2) * 12000) + 20 }, f)); if (fans.length) feedAdd(st, 'press', {}, { posts: fans, at: post ? (st.matchIdx || 0) : (st.matchIdx || 0) });
     return { text: ([...new Set(notes)].concat([line]).join(' ')), tone: net > 0.2 ? 'good' : net < -0.2 || susp ? 'bad' : 'neutral', headline, fans, moods, persona: R.personaOf(pr.tally), journal: big ? { tone: net > 0.2 && !susp ? 'good' : 'bad', text: (ctx.kind === 'game' || post ? ctx.why + ' vs the ' + ctx.opp : ctx.why) + ': ' + (quote ? 'You said "' + quote.text.slice(0, 90) + (quote.text.length > 90 ? '…' : '') + '". ' : '') + notes.join(' ') } : null };
   }

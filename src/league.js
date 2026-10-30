@@ -481,8 +481,8 @@
   // ratings. Real draft position vs combine, within a position (1,534 prospects): per +1 sd, log(pick) -0.15 height, -0.08 wingspan, -0.06 weight, and -0.15 for the average
   // of the vertical / sprint / agility z-scores (~10 stock points per unit of log(pick) in this sim); size already shapes ratings here, so the size terms are 60% of the real ones.
   const ATH_POS = { PG: [54.9, 13.0], SG: [56.5, 13.4], SF: [61.8, 12.0], PF: [62.6, 11.7], C: [57.7, 11.6] };   // prospects' athleticism rating by position: mean, sd
-  const CB_K = { ath: 1.5, hgt: 0.9, len: 0.5, wgt: 0.35, skip: -0.8 };   // stock points per +1 sd (athletic composite, height, wingspan beyond height, weight for his height); skipping the tests
-  const CB_SD = 1.3;   // sd of the combine bonus across a class (measured), so mock-draft ranges carry the same spread
+  const CB_K = { ath: 3.2, hgt: 2.0, len: 1.1, wgt: 0.8, skip: -2.0 };   // stock points per +1 sd (athletic composite, height, wingspan beyond height, weight for his height); skipping the tests
+  const CB_SD = 3.1;   // sd of the combine bonus across a class (measured), so mock-draft ranges carry the same spread
   const mulberry = (seed) => { let a = seed | 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
   const hashOf = (v) => { const t = String(v); let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return h | 0; };
   const phi = (z) => 0.5 * (1 + Math.tanh(0.7978845608 * (z + 0.044715 * z * z * z)));
@@ -528,14 +528,15 @@
     while (p.age < age) progress(p);
     return p;
   }
+  const softCeil = (c) => (c > 86 ? 86 + (c - 86) * 0.45 : c);   // scouts see a huge ceiling as 'a star', not as a sure thing: past 86 it counts less than half
   function stockOf(p, bonus) {
     // scouts only see the true ceiling in proportion to how visible the prospect is (recruit tier); an under-scouted talent is judged on what they look like now
-    const vis = p.vis == null ? 1 : p.vis, o = ovr(p) - 7 * (1 - vis), seen = vis * p.ceiling + (1 - vis) * 76;
+    const vis = p.vis == null ? 1 : p.vis, o = ovr(p) - 7 * (1 - vis), seen = vis * softCeil(p.ceiling) + (1 - vis) * 76;
     const est = seen + randn() * (9 + 10 * (1 - vis)) + (rand() < 0.12 ? randn() * 16 : 0);
-    return 0.5 * o + 0.5 * est - 1.4 * (p.age - 19) + (bonus || 0) + (p.cmb ? p.cmb.bonus : 0) + randn() * 5;
+    return 0.5 * o + 0.5 * est - 1.4 * (p.age - 19) + (bonus || 0) + (p.cmb ? p.cmb.bonus : 0) + randn() * 6.5;
   }
   function projectStock(p) { // deterministic version for mock draft
-    return 0.5 * ovr(p) + 0.5 * p.ceiling - 1.4 * (p.age - 19);
+    return 0.5 * ovr(p) + 0.5 * softCeil(p.ceiling) - 1.4 * (p.age - 19);
   }
   // Age at draft by recruit tier (real 2009-24 college prospects, data/real-draft-prospects.csv): share of class, then % Fr/So/Jr/Sr
   const RECRUIT_TIERS = [[0.052, [90, 9, 1, 0]], [0.055, [54, 25, 12, 8]], [0.126, [36, 28, 18, 19]], [0.155, [15, 21, 26, 38]], [0.159, [5, 17, 20, 58]], [0.296, [2, 13, 21, 63]], [0.158, [5, 6, 14, 75]]];
@@ -654,7 +655,7 @@
         const age = +weighted({ 19: 46, 20: 26, 21: 16, 22: 12 });
         const c = rollCeiling(0, null);
         const o = c - (10 + 12 * rand()) * rem[age];
-        const st = 0.5 * o + 0.5 * (c + randn() * 9) - 1.4 * (age - 19) + randn() * 5 + randn() * CB_SD;
+        const st = 0.5 * o + 0.5 * (softCeil(c) + randn() * 9) - 1.4 * (age - 19) + randn() * 5 + randn() * CB_SD;
         if (st > s) better++;
       }
       ranks.push(1 + better);
@@ -667,7 +668,7 @@
   // him (0.5: current rating, the part of his ceiling that is visible, age, college prestige) and adds its own opinion (sd 3.5 stock points), so mocks agree on the top
   // few picks, disagree further down, and the real night still holds surprises (the real order carries the rest of the scouting noise).
   const OUTLETS = ['Hoops Insider', 'Draft Central', 'Courtside Report'];
-  function scoutMean(p, bonus) { const vis = p.vis == null ? 1 : p.vis, o = ovr(p) - 7 * (1 - vis), seen = vis * p.ceiling + (1 - vis) * 76; return 0.5 * o + 0.5 * seen - 1.4 * (p.age - 19) + (bonus || 0); }
+  function scoutMean(p, bonus) { const vis = p.vis == null ? 1 : p.vis, o = ovr(p) - 7 * (1 - vis), seen = vis * softCeil(p.ceiling) + (1 - vis) * 76; return 0.5 * o + 0.5 * seen - 1.4 * (p.age - 19) + (bonus || 0); }
   // the player's stock without the combine and with a fixed seed for the scouting noise: stock after the combine = this + the combine's bonus
   function stockBase(L, user, bonus, seed) { const sv = NBA.rngGet(), keep = user.cmb; user.cmb = null; NBA.setSeed(seed); const r = stockOf(user, bonus); NBA.rngSet(sv); user.cmb = keep; return r; }
   function mockBoards(L, cls, user, bonus, orderIds, stocks) {   // stocks: the player's stock in the three states: { before, after, alt }

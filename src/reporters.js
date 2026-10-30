@@ -101,15 +101,31 @@
   const pick = (arr, rnd) => arr[Math.floor(rnd() * arr.length)];
   const fill = (s, c) => String(s).replace(/\{(\w+)\}/g, (m, k) => (c[k] != null && c[k] !== false ? String(c[k]) : ''));
   // three or four posts for the fan feed (from the bank, plus anything Claude wrote for a typed answer)
-  function fanPosts(tone, c, result, extra, rnd) {
-    const bank = (FANS[tone] || FANS.deflect).slice(), out = [], handles = FAN_HANDLES.slice();
+  function fanPosts(tone, c, result, extra, rnd, said) {
+    let bank = (FANS[tone] || FANS.deflect).slice(); const out = [], handles = FAN_HANDLES.slice();
+    if (said != null && !/\b(team|teammates?|we|our|us|credit|coach|guys|group)\b/i.test(said)) bank = bank.filter((t) => !/team|teammate|flowers|credit|locker/i.test(t));   // no fan can say he gave the team credit if he did not
     const take = (arr) => { if (!arr.length) return; const i = Math.floor(rnd() * arr.length); out.push(arr.splice(i, 1)[0]); };
     (extra || []).slice(0, 2).forEach((t) => out.push(String(t).slice(0, 160)));
     while (out.length < 3 && bank.length) take(bank);
     if (result === 'W') take(FANS_WIN.slice()); else if (result === 'L') take(FANS_LOSS.slice());
     return out.slice(0, 4).map((t) => { const h = handles.splice(Math.floor(rnd() * handles.length), 1)[0] || 'hoopsfan'; return { who: '@' + h, text: fill(t, c) }; });
   }
-  const headlineFor = (tone, c, quote, rnd) => fill(pick(HEADLINES[tone] || HEADLINES.deflect, rnd), Object.assign({}, c, { quote: String(quote || '').replace(/^[“"]|[”"]$/g, '').slice(0, 70) }));
+  // the headline the press room runs for what you actually said: it names the subject of the question and quotes your own answer, so it can never claim something you did not say
+  const SUBJECT = { game: 'tonight\'s game', rival: 'his rivalry', form: 'his recent play', team: 'the {team}', mate: 'his teammates', young: 'life as a young player', vet: 'his veteran role', farewell: 'his farewell season', biz: 'his contract', awards: 'the awards race', playoffs: 'the playoffs', health: 'his health', mile: 'the milestone chase', revenge: 'facing his old team', media: 'the media', style: 'his game', bubble: 'the playoff race', crowd: 'the crowd', hometown: 'his hometown', coach: 'his coach', stakes: 'the stakes', refs: 'the officiating', rest: 'rest', leg: 'his legacy', fun: 'life off the court', draftq: 'his draft class', origin: 'his road to the league', combine: 'the combine', draftnight: 'draft night', callback: 'his earlier comments', feud: 'the war of words', ai: 'the question' };
+  const OPP_TOPICS = new Set(['game', 'rival', 'revenge', 'playoffs', 'stakes', 'feud']);
+  const VERBS = { humble: ['keeps it humble on', 'stays grounded on', 'keeps the focus off himself on'], confident: ['is confident about', 'backs himself on', 'has no doubts about'], joke: ['jokes about', 'cracks up the room on', 'keeps it light on'], deflect: ['keeps it short on', 'sidesteps questions about', 'says little about'] };
+  const shortQuote = (q) => { let t = String(q || '').replace(/^[\u201C"]|[\u201D"]$/g, '').trim(); const s1 = t.split(/(?<=[.!?])\s+/)[0] || t; t = s1.length >= 12 ? s1 : t; if (t.length > 74) { t = t.slice(0, 74); t = t.slice(0, Math.max(40, t.lastIndexOf(' '))) + '\u2026'; } return t.replace(/[.]$/, ''); };
+  function headlineFor(tone, c, quote, rnd, topic) {
+    const tp = String(topic || ''), base = tp.replace(/^(post|mem):/, ''), isPost = /^post:/.test(tp), isMem = /^mem:/.test(tp), q = shortQuote(quote), opp = c.opp && c.opp !== 'other side' ? c.opp : '';
+    const subject = fill(isPost ? (opp ? 'the ' + opp + ' game' : 'the game') : isMem ? (opp ? 'his history with the ' + opp : 'his past') : (base === 'game' && opp ? 'tonight\'s game against the ' + opp : (SUBJECT[tp] || 'the question')), c);
+    if (tone === 'trash' || tone === 'fight') {
+      const target = (OPP_TOPICS.has(tp) || isPost || isMem) && opp ? 'the ' + opp : 'his critics';
+      const forms = tone === 'fight' ? ['{name} loses his cool with ' + target + ': "' + q + '"', '"' + q + '": {name} snaps at ' + target] : ['{name} takes aim at ' + target + ': "' + q + '"', '"' + q + '": {name} fires back at ' + target];
+      return fill(pick(forms, rnd), c);
+    }
+    const v = pick(VERBS[tone] || VERBS.deflect, rnd), forms = ['{name} ' + v + ' ' + subject + ': "' + q + '"', '"' + q + '": {name} on ' + subject];
+    return fill(pick(forms, rnd), c);
+  }
 
   NBA.Reporters = { REPORTERS, beatFor, reporterFor, moodFor, PERSONAS, personaOf, PERSONA_TOPICS, CALLBACKS, FEUDS, HEADLINES, FANS, fanPosts, headlineFor, mulberry };
 })(typeof window !== 'undefined' ? window : globalThis);
