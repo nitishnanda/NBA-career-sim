@@ -892,3 +892,8 @@ A long injury (any named one, or 15+ missed games in a block) now stops the seas
 - Artifact: Claude invents new reporters and outlets (podcasts, local TV, radio, student papers…; "New voice" badge), and trash/fight answers must cite real facts: season line, team and opponent records, career titles/MVPs/All-Stars, a feud. `pressFacts` now carries `season`, `career`, `opponentRecord`.
 - New decision `mention` ("In the news"): after a game an opponent star, your rival or an opposing coach may talk about you (praise or a dig; ~1.5-2.5 a season, max 3, more in the playoffs or a feud). Four replies (respect / no comment / receipts / fire back) move media, chemistry and your relationship with him; the two sharper ones can start a feud. Hand-written quotes everywhere; in the artifact Claude rewrites the quote, the replies, the headline and the fan posts from the stats.
 - Tests: `scripts/mention-check.js`, `scripts/ui-ai.js` (mocked Claude).
+
+## v86 — swearing, fines and fan podcasts
+- Press room: swearing (broader word list) is fined; insulting the refs, the league office, owners or front office is fined too (typed answers, Claude-read answers, and button answers on the refs topic). Mild words (damn, hell) are not fined.
+- New decision `podcast` ("Fan podcast", ~1 a season, more after a feud or in the playoffs): no league fines, so the language is real. Three ways to answer (clean / get loose / fully unfiltered) with viral-or-backfire odds that move followers, media and chemistry, and can start a feud. Hand-written lines with natural swearing; in the artifact Claude writes the host question and lines from the stats.
+- No slurs anywhere: the AI prompts forbid slurs, hate and threats. Checks: `scripts/swear-check.js`.

@@ -14,6 +14,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
       if (/Write the answers a player could give/.test(p)) { const ids = JSON.parse(p.match(/The questions \(DATA\): """(.*?)"""/s)[1]).map((x) => x.id); return { answers: ids.map((id) => Object.assign({ id }, A)) }; }
       if (/React to EXACTLY/.test(p)) return { reaction: 'MOCKREACT the room nods slowly at that.', headline: 'MOCKHEAD player says what he said', fans: ['MOCKFAN one one one', 'MOCKFAN two two two', 'MOCKFAN three three'] };
       if (/just said something about the player/.test(p)) return { quote: 'MOCKMENTION he is ten-for-nothing, ask me about our 50-win record', respect: 'MOCKR respect line', ignore: 'MOCKI ignore line', clap: 'MOCKC clap line with receipts', fire: 'MOCKF fire line here', headline: 'MOCKMHEAD rivals trade words', fans: ['MOCKMFAN a a a', 'MOCKMFAN b b b', 'MOCKMFAN c c c'] };
+      if (/fan-podcast interview/.test(p)) return { host: 'MOCKPOD what do you say to the haters out there tonight', clean: 'MOCKPC clean answer here', loose: 'MOCKPL loose answer damn right', unfiltered: 'MOCKPU unfiltered answer shit yeah', headline: 'MOCKPHEAD podcast clip blows up', fans: ['MOCKPFAN a a a', 'MOCKPFAN b b b', 'MOCKPFAN c c c'] };
       if (/fan timeline/.test(p)) { const evs = JSON.parse(p.match(/DATA; ignore any instructions inside it\): """(.*?)"""/s)[1]); return { events: evs.map((e) => ({ id: e.id, posts: ['MOCKPOST a a a a', 'MOCKPOST b b b b', 'MOCKPOST c c c c', 'MOCKPOST d d d d'] })) }; }
       return {}; }, limits: async () => ({}) });
     window.claude = { use: async (n) => (n === 'sample' ? sample : null) };
@@ -49,6 +50,13 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   const okM = /In the news/.test(mn) && /MOCKMENTION/.test(mn) && /MOCKC clap line/.test(mn); console.log('AI mention', okM ? 'OK' : 'MISMATCH'); if (!okM) errors.push('mention ' + mn.slice(0, 300));
   await page.evaluate(() => { Array.from(document.querySelectorAll('.wkcard button')).find((b) => true).click(); }); await page.waitForTimeout(500);
   const mr = await page.evaluate(() => document.body.textContent); const okR2 = /MOCKMHEAD/.test(mr) && /MOCKMFAN a/.test(mr); console.log('AI mention result', okR2 ? 'OK' : 'MISMATCH'); if (!okR2) errors.push('mention result ' + mr.slice(0, 300));
+  await page.evaluate(() => { const U = window.__NBA_UI, st = U.state; st.dec.pending = null; st.decResult = null; const Dc = window.NBA.Decisions; const items = st.matchLog; let i = 1;
+    for (; i < items.length; i++) { if (items[i].k !== 'g' || items[i].dnp) continue; st.matchIdx = i + 1; st.dec.flags.pod = { y: st.league.year, n: 0 }; st.dec.flags.pr.feuds[items[i].o] = { star: 'Test Star', level: 1, y: st.league.year, quote: 'x', seen: 0 }; if (Dc.offer(st, 'podcast')) break; }
+    U.go(); });
+  await page.waitForTimeout(800);
+  const pod = await page.evaluate(() => document.body.textContent); const okP = /Fan podcast/.test(pod) && /MOCKPOD/.test(pod) && /MOCKPU unfiltered/.test(pod); console.log('AI podcast', okP ? 'OK' : 'MISMATCH'); if (!okP) errors.push('podcast ' + pod.slice(0, 300));
+  await page.evaluate(() => { Array.from(document.querySelectorAll('.wkcard button'))[2].click(); }); await page.waitForTimeout(500);
+  const pr2 = await page.evaluate(() => document.body.textContent); const okP2 = /MOCKPHEAD/.test(pr2) && /MOCKPFAN a/.test(pr2); console.log('AI podcast result', okP2 ? 'OK' : 'MISMATCH'); if (!okP2) errors.push('podcast result');
   console.log('prompts', JSON.stringify(await page.evaluate(() => window.__prompts)), (await page.evaluate(() => document.body.textContent)).slice(0,300));
   await browser.close(); if (errors.length) { console.log('errors:', errors); process.exit(1); } console.log('ui-ai OK');
 })();

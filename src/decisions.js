@@ -541,12 +541,12 @@
       if (key === 'typed') {
         // your own words, already read (by the built-in reader or by Claude): the tone it came out as decides the effects, exactly like a button answer
         const a = arg || {}, tn = NBA.Press.TONES[a.tone] ? a.tone : 'deflect', words = String(a.text || '').slice(0, 240);
-        pick = { tone: tn, topic: q.topic, text: words, intensity: Math.max(0.7, Math.min(1.3, +a.intensity || 1)), profane: !!a.profane, fans: Array.isArray(a.fans) ? a.fans.map((x) => String(x).slice(0, 160)).slice(0, 2) : [] };
+        pick = { tone: tn, topic: q.topic, text: words, intensity: Math.max(0.7, Math.min(1.3, +a.intensity || 1)), profane: !!a.profane, badmouth: !!a.badmouth, fans: Array.isArray(a.fans) ? a.fans.map((x) => String(x).slice(0, 160)).slice(0, 2) : [] };
         (ctx.headlines = ctx.headlines || []).push(String(a.headline || '').slice(0, 90));
         react = '\uD83D\uDDE3 \u201C' + words + '\u201D \u2192 ' + String(a.reaction || '').slice(0, 260);
       } else {
         const o = q.opts.find((x) => x.key === key); if (!o) throw new Error('bad answer');
-        pick = { tone: key, topic: q.topic, text: strip(o.line) }; react = o.line;
+        pick = { tone: key, topic: q.topic, text: strip(o.line) }; if (key === 'fight' || key === 'trash') { pick.profane = !!NBA.Press.isProfane(pick.text); pick.badmouth = !!NBA.Press.badmouth(pick.text); } react = o.line;
       }
       ctx.picks.push(pick); ctx.chosen.push(ctx.cur); ctx.cur = null;
       const left = ctx.pool.length - ctx.chosen.length;
@@ -612,6 +612,28 @@
       return { done: true, tone, text, effects: eff, journal: key === 'respect' || key === 'ignore' ? null : { tone, text: nm + ' mentioned you in the press: ' + text } };
     },
     auto() { return { key: 'ignore' }; },
+  });
+  // ================================================================ a fan podcast: no league fines, so the language is real
+  register({
+    id: 'podcast', title: 'Fan podcast', trigger: 'podcast',
+    when(st) { return !st.autoPlay; },
+    open(st) { return NBA.Game.podcastOpen(st, (st.matchLog || [])[(st.matchIdx || 0) - 1]); },
+    view(st, ctx) {
+      const L = ctx.lines || ctx.base;
+      return { title: 'Fan podcast', host: ctx.host, show: ctx.show, ai: !!ctx.ai, question: ctx.hostQ, text: ctx.show + ' invited you on after the ' + (ctx.game.won ? 'win' : 'loss') + ' over the ' + ctx.opp + '. No league fines on a fan podcast, so you can say what you actually think.', options: [
+        { key: 'clean', label: 'Keep it clean', blurb: L.clean, vibe: 'Safe' },
+        { key: 'loose', label: 'Get loose', blurb: L.loose, vibe: 'Some swearing. Fun' },
+        { key: 'unfiltered', label: 'Fully unfiltered', blurb: L.unfiltered, vibe: 'Heavy swearing. Could go viral or sink you', spicy: true }] };
+    },
+    choose(st, ctx, key) {
+      const r = rng(st, 'pod-r|' + st.league.year + '|' + ctx.game.n + '|' + (ctx.game.po ? 'p' : 'r'))(), Sx = NBA.Social, nm = ctx.star; let text, tone = 'neutral', eff = [];
+      const feud = (lvl) => { if (!nm) return; try { Dc0(st).feuds[ctx.opp] = { star: nm, level: lvl, y: st.league.year, quote: (ctx.lines && ctx.lines[key] ? ctx.lines[key] : ctx.base[key]).replace(/^[\u201C"]|[\u201D"]$/g, '').slice(0, 80), seen: 0 }; } catch (e) { /* no feud book */ } };
+      if (key === 'clean') { Sx.change(st, 0.008); eff = [{ k: 'meter', f: 'media', d: 0.4 }]; text = 'You kept it fun and clean. The clip did decent numbers and nobody had a problem with it.'; tone = 'good'; }
+      else if (key === 'loose') { const ok = r < 0.68; if (ok) { Sx.change(st, 0.03); eff = [{ k: 'meter', f: 'media', d: 0.5 }, { k: 'meter', f: 'locker', d: 0.2 }]; text = 'You got loose and the swearing felt natural. The clip is everywhere and fans say it is the realest interview of the year.'; tone = 'good'; } else { Sx.change(st, -0.004); eff = [{ k: 'meter', f: 'media', d: -0.2 }]; text = 'The jokes did not land. A few people made it a meme, but not the kind you wanted.'; } feud(1); }
+      else { const ok = r < 0.5; if (ok) { Sx.change(st, 0.06); eff = [{ k: 'meter', f: 'media', d: 0.4 }, { k: 'meter', f: 'locker', d: 0.3 }]; text = 'Fully unfiltered and it went nuclear: millions of views, a wave of new followers, and the other locker room is fuming.'; tone = 'good'; } else { Sx.change(st, -0.015); eff = [{ k: 'meter', f: 'media', d: -0.9 }, { k: 'meter', f: 'chem', d: -0.3 }]; text = 'It went too far. A sponsor sent a polite email, the team asked you to calm it down, and the clip is the only thing anyone is talking about.'; tone = 'bad'; } feud(2); }
+      return { done: true, tone, text, effects: eff, journal: key === 'clean' ? null : { tone, text: 'Fan podcast (' + ctx.show + '): ' + text } };
+    },
+    auto() { return { key: 'clean' }; },
   });
   const clamp0 = (x) => Math.max(0.15, Math.min(0.85, x));
   const Dc0 = (st) => { const f = state(st).flags; return f.pr || (f.pr = { quotes: [], tally: [], feuds: {}, heads: [], rep: {} }); };

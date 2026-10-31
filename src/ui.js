@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v85';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v86';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -536,6 +536,10 @@
         if (!S.noSocial && !S.autoPlay && prev && prev.k === 'g' && !prev.dnp && !prev.md) {
           if (pend('mention')) { if (S.autoDec) { Dc.autoResolve(S); prev.md = 1; save(); return holdAt(); } return true; }
           prev.md = 1; if (Dc.offer(S, 'mention')) { if (S.autoDec) { Dc.autoResolve(S); save(); return holdAt(); } save(); return true; } } }
+      { const prev = (S.matchIdx || 0) > 0 ? S.matchLog[S.matchIdx - 1] : null;   // a fan podcast wants you on
+        if (!S.noSocial && !S.autoPlay && prev && prev.k === 'g' && !prev.dnp && !prev.pcast) {
+          if (pend('podcast')) { if (S.autoDec) { Dc.autoResolve(S); prev.pcast = 1; save(); return holdAt(); } return true; }
+          prev.pcast = 1; if (Dc.offer(S, 'podcast')) { if (S.autoDec) { Dc.autoResolve(S); save(); return holdAt(); } save(); return true; } } }
       if (it.cl && !it.cd) {   // last-possession calls are made only inside a live game; a simmed game just plays out
         if (S.liveMode && !bulk) return false;
         if (pend('clutch')) S.dec.pending = null;
@@ -568,7 +572,7 @@
     // every decision is a pop-up over the season page (not a screen of its own)
     let overlay = null;
     if (S.decResult) overlay = screenDecResult();
-    else if (holdAt()) { if (NBA.AllStar.active(S)) overlay = screenAllStar(); else { const pid = S.dec.pending.id; overlay = pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : pid === 'press' ? screenPress() : pid === 'injury' ? screenInjury() : pid === 'social' ? screenSocial() : pid === 'mention' ? screenMention() : screenDeadline(); } if (overlay === 'again') return screenSeasonPlay(); }
+    else if (holdAt()) { if (NBA.AllStar.active(S)) overlay = screenAllStar(); else { const pid = S.dec.pending.id; overlay = pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : pid === 'press' ? screenPress() : pid === 'injury' ? screenInjury() : pid === 'social' ? screenSocial() : pid === 'mention' ? screenMention() : pid === 'podcast' ? screenPodcast() : screenDeadline(); } if (overlay === 'again') return screenSeasonPlay(); }
     const items = S.matchLog || [], idx = S.matchIdx || 0, L = S.league, p = S.player, t = L.teams[S.teamId];
     const shown = items.slice(0, idx), done = idx >= items.length;
     const reg = shown.filter((x) => x.k === 'g' && !x.po), poG = shown.filter((x) => x.k === 'g' && x.po);
@@ -1330,7 +1334,7 @@
       }
       if (!res) res = local;
       // the built-in reader is the safety net: if Claude calls a flat answer a fight or the other way round by a wide margin the sim still follows the tone Claude picked (it read the words), but profanity the reader saw is never lost
-      if (local.profane && !res.profane) res.profane = true;
+      if (local.profane && !res.profane) res.profane = true; if (local.badmouth && !res.badmouth) res.badmouth = true;
       try { finish(Dc.choose(S, 'typed', Object.assign({ text }, res))); } catch (e) { console.error(e); ta.disabled = false; go2.disabled = false; note.textContent = 'That one did not go through. Try again.'; }
     };
     return h('div', null, h('h1', null, 'Press conference'), h('p', { class: 'muted' }, t.name + ' · ' + v.why + (gno && gno !== v.why ? ' · ' + gno : '')),
@@ -1571,6 +1575,15 @@
     return h('div', null, h('h1', null, '📰 ' + v.title), h('p', { class: 'muted' }, t.name + ' · ' + v.text),
       h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, v.who.name + ' · ' + v.who.role + (v.ai ? ' ✨' : '')), h('h2', { style: 'margin:8px 0' }, v.quote)),
       h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' + (o.key === 'fire' ? ' spicy' : '') }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: o.key === 'respect' ? 'primary' : '', onclick: () => pick(o.key) }, 'Say it'))))), autoDecBar());
+  }
+  let podBusy = false;
+  function screenPodcast() {
+    const Dc = DEC(), v = Dc.view(S), pd = S.dec.pending, ctx = pd.ctx, t = S.league.teams[S.teamId];
+    if (!ctx.aiDone && !podBusy) { podBusy = true; getSample().then(async (sm) => { if (!sm) { ctx.aiDone = true; podBusy = false; return; } try { const got = NBA.Press.checkClaudePodcast(await aiJson(NBA.Press.claudePodcastPrompt({ show: ctx.show, host: ctx.host, opponent: ctx.oppName, oppStar: ctx.star, oppRecord: ctx.oppRecord, game: ctx.game, season: ctx.season, career: ctx.career, feud: ctx.feud, player: ctx.me, team: ctx.team }))); if (got && S.dec.pending === pd) { ctx.hostQ = got.host; ctx.lines = got.lines; ctx.ai = 1; ctx.ext = { headline: got.headline, fans: got.fans }; } } catch (e) { /* the hand-written lines stay */ } ctx.aiDone = true; podBusy = false; save(); if (S.dec.pending === pd) render(); }); }
+    const pick = (key) => { try { const r = Dc.choose(S, key), ex = ctx.ext; S.decResult = { title: 'Fan podcast', sub: ctx.show + ' · ' + t.name, text: r.text, tone: r.tone === 'good' ? 'good' : r.tone === 'bad' ? 'bad' : 'neutral', cap: r.tone === 'good' ? 'The clip' : r.tone === 'bad' ? 'The fallout' : 'The clip', post: true, headline: ex && ex.headline ? { text: ex.headline, outlet: ctx.show } : null, fans: ex && ex.fans && ex.fans.length ? ex.fans.map((x, k) => ({ who: '@' + HANDLES[(k * 3 + 2) % HANDLES.length], text: x })) : null, ai: ex ? 1 : 0 }; const it = S.matchLog[ctx.idx]; if (it) it.pcast = 1; save(); go(); } catch (e) { console.error(e); } };
+    return h('div', null, h('h1', null, '🎙️ ' + v.title), h('p', { class: 'muted' }, t.name + ' · ' + v.text),
+      h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, v.host + ' · ' + v.show + (v.ai ? ' ✨' : '')), h('h2', { style: 'margin:8px 0' }, '“' + v.question + '”')),
+      h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' + (o.spicy ? ' spicy' : '') }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: o.key === 'clean' ? 'primary' : '', onclick: () => pick(o.key) }, 'Say it'))))), autoDecBar());
   }
   function screenSocial() {
     const Dc = DEC(), v = Dc.view(S), s = NBA.Social.state(S);

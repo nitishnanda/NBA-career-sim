@@ -1068,6 +1068,27 @@
     m.n++;
     return { who, kind, quote: fill(bank[Math.floor(rnd() * bank.length)]), opp: it.o, oppId: opp.id, oppName: opp.name, game: { n: it.n, po: !!it.po, round: it.rnd || '', won: !!it.w, score: it.f + '-' + it.a, pts: it.pt, reb: it.rb, ast: it.as, fg: it.fgm + '-' + it.fga, rating: it.r }, season: ss, career: careerFacts(st), feud: feud ? { with: feud.star, said: feud.quote } : null, oppRecord: orec, me: st.player.name, team: L.teams[st.teamId].name, idx: (st.matchIdx || 0) - 1 };
   }
+  // a fan podcast invites you on: no league fines there, the language is real (hand-written lines; in the artifact Claude writes them from the stats)
+  const POD_SHOWS = ['Dead Rim Radio', 'The Late Night Hoops Hour', 'Court Side Chaos', 'Dre & Marcus Unplugged', 'The Bad Pass Podcast', 'Zone Press Live'];
+  const POD_Q = ['{opp} fans have been all over you online. What do you say to them?', 'You put up {pts} on the {opp} last night. Did you want to send a message?', 'Real talk: is {star} actually that good, or is it hype?', 'Everyone is asking whether the {team} are real. Are they?'];
+  const POD_L = {
+    clean: ['\u201CI let the game do the talking. {pts} on them, we got the {res}, and we move on to the next one.\u201D', '\u201CI respect {star}, I respect the {opp}. But I came to win and I did.\u201D'],
+    loose: ['\u201CI am not going to lie, {pts} on those guys felt damn good. We are {rec} for a reason and the {opp} can chill.\u201D', '\u201C{star} is good, sure, but I am not scared of that dude. Check the tape, I put {pts} on his ass.\u201D'],
+    unfiltered: ['\u201CBro, the {opp} talk all that shit and then I drop {pts} on them. We are {rec}. Fuck outta here with that noise.\u201D', '\u201C{star} can talk all he wants. I put {pts} on him, we are {rec}, and he can kiss my ass about it.\u201D'],
+  };
+  function podcastOpen(st, it) {
+    const Dc = NBA.Decisions, f = Dc.state(st).flags, L = st.league, y = L.year, m = f.pod && f.pod.y === y ? f.pod : (f.pod = { y, n: 0 });
+    if (m.n >= 2 || !it || it.k !== 'g' || it.dnp) return null;
+    const pr = prState(st), opp = L.teams.find((x) => x.nick === it.o); if (!opp) return null;
+    const rnd = Dc.rng(st, 'podcast|' + y + '|' + (it.po ? 'p' : 'r') + it.n + (it.rnd || '')), feud = pr.feuds[it.o];
+    const p0 = (it.po ? 0.05 : 0.012) + (feud ? 0.1 : 0) + (it.pt >= 35 ? 0.02 : 0) + Math.min(0.02, (NBA.Social.state(st).f || 0) / 600000);
+    if (rnd() > p0) return null;
+    const star = NBA.rosterOf(L, opp)[0], me = st.player.name, ss = seasonSoFar(st, st.matchIdx || 0), orec = opp.wins != null ? opp.wins + '-' + opp.losses : '?';
+    const fill = (t) => t.replace(/\{pts\}/g, it.pt).replace(/\{opp\}/g, opp.nick).replace(/\{star\}/g, star ? star.name : 'their star').replace(/\{team\}/g, L.teams[st.teamId].nick).replace(/\{rec\}/g, ss.record).replace(/\{res\}/g, it.w ? 'win' : 'loss');
+    const pick = (a) => a[Math.floor(rnd() * a.length)], base = {}; Object.keys(POD_L).forEach((k) => { base[k] = fill(pick(POD_L[k])); });
+    m.n++;
+    return { host: pick(['Big Mike', 'Tasha G', 'Dre', 'Marcus', 'Jo Jo']), show: pick(POD_SHOWS), hostQ: fill(pick(POD_Q)), base, opp: it.o, oppName: opp.name, star: star ? star.name : null, game: { n: it.n, po: !!it.po, round: it.rnd || '', won: !!it.w, score: it.f + '-' + it.a, pts: it.pt, reb: it.rb, ast: it.as, fg: it.fgm + '-' + it.fga }, season: ss, career: careerFacts(st), oppRecord: orec, feud: feud ? { with: feud.star, said: feud.quote } : null, me, team: L.teams[st.teamId].name, idx: (st.matchIdx || 0) - 1 };
+  }
   function pressFacts(st, ctx) {
     const R = NBA.Reporters, pr = prState(st), c = ctx.c, p = st.player, team = st.league.teams[st.teamId], it = st.matchLog[ctx.idx];
     const cast = R.REPORTERS.concat([R.beatFor(team)]).map((r) => ({ name: r.name, outlet: r.outlet, style: r.style, edge: r.edge }));
@@ -1123,7 +1144,8 @@
     let F = 0, H = 0, Lk = 0, M = 0, Hy = 0, susp = false, fine = 0; const notes = [], post = ctx.kind === 'post';
     ctx.picks.forEach((pk) => {
       const tn = T[pk.tone], k = pk.intensity || 1; let f = tn.fire * (pk.tone === 'trash' || pk.tone === 'fight' ? k : 1), h = tn.heat * (pk.tone === 'trash' || pk.tone === 'fight' ? k : 1), lk = tn.locker, m = tn.media;
-      if (pk.profane) { fine = Math.max(fine, 0.05); m -= 0.5; notes.push('The league did not love your language.'); }
+      if (pk.profane) { fine = Math.max(fine, 0.05); m -= 0.5; notes.push('You swore in the press room and the league fined you. Save that for a fan podcast.'); }
+      if (pk.badmouth || (pk.topic === 'refs' && (pk.tone === 'trash' || pk.tone === 'fight'))) { fine = Math.max(fine, 0.075); m -= 0.4; notes.push('The league fined you for criticizing the officials and the league.'); }
       if (pk.tone === 'trash') {
         if (rnd() < clamp(0.55 + 0.012 * (ovr(p) - c.oppStarOvr) + (c.winning ? 0.04 : 0) + (c.hot ? 0.03 : 0) - (c.slump ? 0.05 : 0), 0.2, 0.85)) { m += 0.5; notes.push(post ? 'Your words made the rounds and the fans loved it.' : 'The trash talk fired you up.'); }
         else { f = -0.7; m -= 1.2; h *= 1.5; notes.push(post ? 'The trash talk backfired: the other locker room pinned it to the wall.' : 'The trash talk backfired: it fired them up, not you.'); }
@@ -1885,6 +1907,6 @@
     return st;
   }
 
-  Object.assign(NBA, { capFor, marketCurve, Game: { mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { capFor, marketCurve, Game: { podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
