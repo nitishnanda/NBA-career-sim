@@ -882,3 +882,8 @@ A long injury (any named one, or 15+ missed games in a block) now stops the seas
 
 ## v83 — every press question is Claude-written (artifact)
 - Story questions (history, feuds, callbacks) are now reworded fresh by Claude too, keeping their facts; with the fresh generic questions, answers and reactions, nothing in the room is canned when Claude is available.
+
+## v84 — injuries across the whole calendar
+- Long injuries now hit in the preseason (~15%: the first games are gone, decision pops up at game 1) or late in the year (~14%); a separate late-season injury (3–10 games, ~4%/season) can run into the playoffs.
+- A late injury can cost the first N playoff games or the whole postseason (team power drops by the star's share in the league sim, so the team really goes in without him); box scores show DNP "Injured", series table shows "missed N".
+- First games back after 4+ missed get a minutes limit (2–5 games, ramping ~60%→95%), tagged "Minutes limit". Checks: `scripts/injury2-check.js`; baseline peak OVR 76.6/76.9, ppg 12.3.
