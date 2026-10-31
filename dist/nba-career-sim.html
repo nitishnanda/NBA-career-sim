@@ -3456,10 +3456,11 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   function skip(st) { const f = flags(st); if (!(f.asw && f.asw.year === st.league.year)) f.asw = { year: st.league.year, steps: [], i: 0, inv: {}, res: {}, last: null, done: true }; else f.asw.done = true; }
 
   // ---- the events
-  const sc3 = (st, q, rnd, mode) => 11 + (q.three - 72) * 0.22 + rnd() * 3.2 + (mode === 'money' ? (rnd() < 0.35 ? 4.5 : -3) : 0);
+  // a rack's score: the stroke sets the level; the money ball is a gamble that pays off more often for a real shooter
+  const sc3 = (st, q, rnd, mode) => { let v = 11.4 + (q.three - 72) * 0.26 + rnd() * 3.2; if (mode === 'money') v += rnd() < clamp(0.18 + 0.011 * (q.three - 70), 0.15, 0.55) ? 5 : -3.5; return v; };
   function threeContest(st, key) {
     const rnd = rng(st, 'three|' + key), P = pools(st), p = st.player, npcs = P.three.slice().sort(() => rnd() - 0.5).slice(0, 7);
-    const mine = { name: p.name, three: p.attrs.three, user: true }, field = [mine].concat(npcs.map((x) => ({ name: x.name, three: x.three })));
+    const mine = { name: p.name, three: p.attrs.three + 2, user: true }, field = [mine].concat(npcs.map((x) => ({ name: x.name, three: x.three })));
     field.forEach((x) => { x.r1 = r1(Math.max(4, sc3(st, x, rnd, x.user ? key : (rnd() < 0.3 ? 'money' : 'steady')))); });
     field.sort((a, b) => b.r1 - a.r1); const fin = field.slice(0, 3); fin.forEach((x) => { x.fin = r1(Math.max(4, sc3(st, x, rnd, x.user ? key : (rnd() < 0.3 ? 'money' : 'steady')))); });
     fin.sort((a, b) => b.fin - a.fin); const fi = fin.findIndex((x) => x.user), place = fi >= 0 ? fi + 1 : 4;
@@ -3467,7 +3468,8 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   }
   function dunkContest(st, key) {
     const rnd = rng(st, 'dunk|' + key), P = pools(st), p = st.player, npcs = P.dunk.slice().sort(() => rnd() - 0.5).slice(0, 3);
-    const dunk = (ath, mode) => 37 + (ath - 80) * 0.3 + (mode === 'ambitious' ? (rnd() < 0.5 ? 9 : -8) : mode === 'prop' ? 3 + (rnd() - 0.5) * 6 : (rnd() - 0.5) * 4) + (rnd() - 0.5) * 4;
+    // clean dunks score a steady +2; the dunk nobody has seen lands more often for a real athlete (+10, else -9); a prop wins the crowd more than the judges (+1, wide spread)
+    const dunk = (ath, mode) => { const base = 37 + (ath - 80) * 0.3 + (rnd() - 0.5) * 4; if (mode === 'ambitious') return base + (rnd() < clamp(0.35 + 0.012 * (ath - 80), 0.3, 0.75) ? 10 : -9); if (mode === 'prop') return base + 1 + (rnd() - 0.5) * 8; return base + 2 + (rnd() - 0.5) * 2; };
     const field = [{ name: p.name, ath: p.attrs.ath, user: true }].concat(npcs.map((x) => ({ name: x.name, ath: x.ath })));
     field.forEach((x) => { const m = x.user ? key : ['safe', 'ambitious', 'prop'][Math.floor(rnd() * 3)]; x.d1 = r1(clamp(dunk(x.ath, m), 20, 50)); x.d2 = r1(clamp(dunk(x.ath, x.user ? key : 'safe'), 20, 50)); x.tot = r1(x.d1 + x.d2); });
     field.sort((a, b) => b.tot - a.tot);
@@ -3480,9 +3482,17 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     const hi = Math.round((tot + margin) / 2), lo = tot - hi, f = won ? hi : lo, a = won ? lo : hi;
     const ppg = rec ? rec.pts : 15, k = { compete: 1.12, cruise: 0.8, showtime: 0.95 }[key] * (R.starter ? 1 : 0.85);
     const pts = Math.max(2, Math.round(ppg * 0.85 * k + (rnd() - 0.4) * 9)), reb = Math.max(0, Math.round((rec ? rec.reb : 5) * 0.65 * k + (rnd() - 0.5) * 4)), ast = Math.max(0, Math.round((rec ? rec.ast : 3) * 0.7 * k + (key === 'showtime' ? 3 : 0) + (rnd() - 0.5) * 3));
-    const mins = R.starter ? 22 : 17, line = pts + 0.7 * (reb + ast) + (won ? 5 : 0) + (key === 'showtime' ? 3 : 0), best = 28 + rnd() * 12;
-    const mvp = line > best && rnd() < 0.85;
-    const npcMvp = (won ? R[mine] : R[opp]).filter((x) => !x.isUser)[Math.floor(rnd() * 3)] || { name: 'a star' };
+    const mins = R.starter ? 22 : 17, line = pts + 0.7 * (reb + ast) + (won ? 3 : 0);
+    // the MVP is the best player on the night among the winners (a loser takes it only with a huge game): everyone on the roster gets a performance from his rating and the night's luck,
+    // you from your rating, your approach and the line you put up. Past three of them it gets much harder: nobody wins it more than three or four times
+    const gauss = () => { let u = 0; while (u === 0) u = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rnd()); };
+    const perf = (x) => 0.55 * ((x.ovr || 75) - 72) / 7 + 0.9 * gauss() + (x.starter ? 0.3 : 0);
+    const meRow = R[mine].find((x) => x.isUser) || { ovr: Math.round(NBA.ovr(p)), starter: R.starter }, keyMod = { compete: 0.1, cruise: -0.35, showtime: 0 }[key];
+    const zu = perf(meRow) + keyMod + 0.25 * (line - 24) / 9 - 0.3;
+    const winners = (won ? R[mine] : R[opp]).filter((x) => !x.isUser).map((x) => ({ x, z: perf(x) })).sort((u, v) => v.z - u.z), top = winners[0] || { x: { name: 'a star' }, z: 0 };
+    let mvp = won ? zu > top.z : zu > top.z + 1.8;
+    const cnt = (st.career.awards || {})['All-Star Game MVP'] || 0; if (mvp && cnt >= 3) mvp = rnd() < (cnt >= 4 ? 0.08 : 0.35);
+    const npcMvp = top.x;
     return { won, f, a, mine, pts, reb, ast, mins, mvp, mvpName: mvp ? p.name : npcMvp.name };
   }
   const risingStars = (st, key) => {
@@ -3547,7 +3557,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
     f.last = r; return r;
   }
   const next = (st) => { const f = flags(st).asw; f.last = null; f.i++; if (f.steps[f.i] === undefined) f.done = true; };
-  NBA.AllStar = { build, start, active, skip, view, answer, next, reapply };
+  NBA.AllStar = { _t: { threeContest, dunkContest, allStarGame, risingStars }, build, start, active, skip, view, answer, next, reapply };
 })(typeof window !== 'undefined' ? window : globalThis);
 
 (function (g) {
@@ -5734,7 +5744,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v76';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v77';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
