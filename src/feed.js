@@ -87,6 +87,28 @@
     talker: ['talks all that trash then drops {pts} on {fg}?? sit down', 'the confidence is crazy for someone averaging {ppg}. mid players with mouths 😭', 'he said what in the presser?? and that box score though 💀 ratio incoming', 'run your mouth all you want, {pts} points does not back it up', 'cant back it up. never could. the {opp} just dragged him on the court', 'that interview aged like milk. {pts} points lol'],
     hot: ['unpopular opinion: nobody in the top 5 is actually a top 5 player. the league is weak', 'the league is so watered down. {cmp} would average 40 in this era', 'ranking the top 5 again and everyone is mad. good', 'nobody plays defense anymore. these stats mean nothing'],
   });
+  // Instagram-comment energy: blunt one-liners, tribal stan-vs-hater arguments, ALL CAPS defenders, "post the final score", "now show him playing D"
+  const MORE = {
+    big: ['Yall talking about {cmp} while {name} literally put up {pts} on the {opp}???', 'IDC WHAT ANYBODY SAYS, {name} SHOWED THE {opp} WHO HE REALLY IS 🗣️🗣️🗣️', 'Now show {name} playing D. Oh wait. You can\'t.', 'Post the final score please 😂🥀', '{pts} on {fg}. Soft.', '{pts} and still lost the matchup lol', 'Y\'all should be grateful to have {name} on your team given he is the best player on it!', 'cool {pts}. now watch the film of the 4th quarter'],
+    bad: ['{name} {fg}. Soft.', 'Now show {name} making a shot. Oh wait. You can\'t.', 'I used to like {name} too til I actually watched and saw how much he cries to the refs', 'Post the final score please 😂🥀', '{pts} points?? and they pay him {salary}M 😭', 'Saying you can guard me when you create all the contact by leaning forward and getting the foul call. Is soft', 'CAN\'T BEAT A HEALTHY {opp}', 'Yall were saying MVP in November 🤡', '{name} a free throw merchant 🤣 {pts} points and half of em from the line'],
+    brick: ['{name} {fg} while guarded by a rookie. Soft.', 'Who hurt him 😭 {fgp}%', 'Brick city 🥀', 'Now show {name} shooting under 40%. Oh wait. This is it.'],
+    tov: ['{tov} turnovers 🥀 post the final score please', 'Ball security is soft. {tov} turnovers.', 'Yall hype the passing but {tov} turnovers is CRAZY 😂'],
+    win: ['Post the final score please 😂🥀', 'CAN\'T BEAT A HEALTHY {team}', 'The {opp} fans got quiet quick', 'Beat the {opp} and the timeline still finds something to complain about 😂', 'a win is a win but y\'all still got the same flaws'],
+    loss: ['Post the final score please 😂🥀', 'CAN\'T BEAT A HEALTHY {opp}', 'Y\'all talk so much for a team that lost by that much 😭', 'Soft. All of them.', 'The {team} played like they were scared 🥀'],
+    talker: ['Talks all that trash then {pts} on {fg}. Soft.', 'Now show {name} backing up the talk. Oh wait. You can\'t.', 'Mid players with mouths 🥀 {ppg} ppg and he wants smoke', 'He said what in the press room?? and the box score says {pts} 😂😂'],
+    winner: ['IDC IF PPL CALL IT A PUSHOFF, {name} SHOWED THE {opp} WHO HE REALLY IS 🗣️🗣️🗣️', 'Refs gave him that. Post the replay.', 'Lucky. {fg} the whole game.'],
+    miss: ['Soft. Gave up the shot.', 'Now show {name} hitting one in the clutch. Oh wait. You can\'t.', 'Can\'t beat a healthy {opp} and can\'t hit a shot 🥀'],
+    elim: ['Soft. Same story every year.', 'Post the final series score please 😂🥀', 'Now show {name} winning in the playoffs. Oh wait. You can\'t.'],
+    good: ['{pts} on {fg}? ok. soft.', 'Yall talking about {cmp} while {name} literally put up {pts}???', 'Fine game. Still not on {cmp}\'s level.'],
+    contract: ['{salary}M for THAT?? Soft.', 'The {team} front office is cooked 🥀'],
+    trade: ['This is soft from the {team}. Trade for a real player.', 'Y\'all should be grateful to have {name} on your team lol'],
+  };
+  Object.keys(MORE).forEach((k) => { BANK[k] = (BANK[k] || []).concat(MORE[k]); });
+  // instagram-style handles: real-looking usernames with digits, dots and underscores
+  const IG1 = ['user', 'rizith', 'rz', 'one_two', 'moso', 'vic', 'record', 'ogk', 'jordan', 'savon', 'hoop', 'dre', 'tre', 'kay', 'big', 'lil', 'mj', 'dub', 'bucket', 'zay', 'cj', 'no_cap', 'fade', 'sixth', 'bron', 'steph', 'wemby', 'luka', 'jay', 'nate'];
+  const IG2 = ['walk', 'many', 'tor', 'dave', 'daniel', 'dresser', '.1', '_sp24', '9896', '0223007049', 'szn', 'hq', 'king', '_', '23', '.tv', 'official', 'fan', '4life', '.gg', '_hoops', 'ball', 'daily', '7'];
+  const igHandle = (rnd) => { const a = IG1[Math.floor(rnd() * IG1.length)], b = IG2[Math.floor(rnd() * IG2.length)], sep = rnd() < 0.3 ? '.' : rnd() < 0.4 ? '_' : ''; return a + sep + b + (rnd() < 0.3 ? Math.floor(rnd() * 99) : ''); };
+  const AGE = ['2h', '4h', '6h', '7h', '11h', '14h', '1d', '2d', '3d', '1w'];
   // breaking-news framing for events that deserve it
   const NEWSY = { trade: 'BREAKING: {name} has been traded to the {team}, sources say.', tradeReq: 'Sources: {name} has requested a trade from the {old}.', sign: 'Sources: {name} agrees to terms with the {team}.', resign: '{name} re-signs with the {team}.', waived: '{name} has been waived by the {team}.', injury: 'Update: {name} is out with an injury, the {team} confirm.', draft: 'With the #{slot} pick, the {team} select {name}.', retire: 'BREAKING: {name} announces his retirement.', coach: 'The {team} have made a coaching change.' };
   const BASE = { champ: 90000, award: 40000, trade: 32000, retire: 70000, big: 28000, td: 22000, winner: 36000, draft: 30000, tradeReq: 26000, injury: 30000, sign: 20000 };
@@ -97,8 +119,8 @@
     const bank = (BANK[kind] || BANK.hot).filter(need).slice(), out = [], handles = HANDLES.slice(), base = BASE[kind] || 9000;
     const likes = (m) => Math.max(12, Math.round(Math.pow(rnd(), 2.2) * base * m));
     if (NEWSY[kind]) out.push({ who: '@' + NEWS[Math.floor(rnd() * NEWS.length)], text: fill(NEWSY[kind], c), likes: likes(1.3), news: true });
-    while (out.length < (n || 3) && bank.length) { const t = bank.splice(Math.floor(rnd() * bank.length), 1)[0]; out.push({ who: '@' + handles.splice(Math.floor(rnd() * handles.length), 1)[0], text: fill(t, c), likes: likes(1) }); }
+    while (out.length < (n || 3) && bank.length) { const t = bank.splice(Math.floor(rnd() * bank.length), 1)[0]; out.push({ who: igHandle(rnd), text: fill(t, c), likes: Math.max(1, likes(1) - Math.floor(rnd() * 40)), t: AGE[Math.floor(rnd() * AGE.length)], rp: rnd() < 0.5 ? Math.floor(Math.pow(rnd(), 2) * 70) + 1 : 0 }); }
     return out;
   }
-  NBA.Feed = { posts, BANK, HANDLES };
+  NBA.Feed = { posts, BANK, HANDLES, igHandle, AGE };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v90';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v91';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -754,7 +754,7 @@
   // ------------------------------------------------------------ the timeline (feed)
   const FEED_LABEL = { big: 'Big night', td: 'Triple-double', bad: 'Rough night', streakW: 'Win streak', streakL: 'Losing streak', blowoutWin: 'Blowout win', blowoutLoss: 'Blowout loss', po: 'Series win', elim: 'Eliminated', champ: 'Champions', playin: 'Play-in', trade: 'Trade', tradeReq: 'Trade request', sign: 'Signing', resign: 'Re-signed', waived: 'Waived', injury: 'Injury', ret: 'Back on the floor', award: 'Award', allstar: 'All-Star', draft: 'Draft', retire: 'Retirement', press: 'Press room', winner: 'Game-winner', miss: 'Missed shot', hot: 'Hot take', coach: 'Coaching change', friend: 'Locker room', beef: 'Locker room', win: 'Win', loss: 'Loss' };
   const kfmt = (n) => (n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : String(n));
-  const feedPost = (p) => h('div', { class: 'fan' }, h('b', null, p.who), p.news ? ' ' : '', ' ' + p.text + (p.ai ? ' ✨' : ''), h('span', { class: 'likes' }, ' ♥ ' + kfmt(p.likes || 0)));
+  const feedPost = (p) => h('div', { class: 'fan' }, h('b', null, String(p.who || '').replace(/^@/, '')), ' ' + p.text + (p.ai ? ' ✨' : ''), h('div', { class: 'small muted igrow' }, (p.t || '3h') + '  ·  ' + kfmt(p.likes || 0) + ' likes  ·  Reply'), p.rp ? h('div', { class: 'small muted igrep' }, '— View replies (' + p.rp + ')') : null);
   // everything the feed said this season, newest first: posts on the games you have seen plus the events (trades, awards, injuries, press) up to now
   function feedBlocks(year, idx, limit) {
     const out = [], items = S.matchLog || [];
@@ -1287,7 +1287,7 @@
     const events = todo.map((t, i) => ({ id: i, kind: t.kind, player: { name: p.name, pos: p.pos, team: tm.name, age: p.age, ovr: Math.round(NBA.ovr(p)) }, facts: Object.assign({ seasonSoFar: G.seasonSoFar(S, t.at), record: undefined, career: G.careerFacts(S), contractM: Math.round(S.contract.salary), compareTo: ({ PG: ['Magic Johnson', 'Stockton', 'Chris Paul', 'Steph Curry'], SG: ['Jordan', 'Kobe', 'Wade', 'Harden'], SF: ['LeBron', 'Durant', 'Pippen', 'Kawhi'], PF: ['Duncan', 'Garnett', 'Dirk', 'Giannis'], C: ['Shaq', 'Hakeem', 'Jokic', 'Kareem'] })[p.pos] || ['LeBron', 'Jordan'] }, t.facts), examples: (t.ref.fan || t.ref.posts || []).slice(0, 2).map((x) => x.text) }));
     const got = NBA.Press.checkClaudeFeed(await aiJson(NBA.Press.claudeFeedPrompt(events)), events); let changed = 0;
     todo.forEach((t, i) => { if (!got[i]) return; const old = t.ref.fan || t.ref.posts || [], likes = old.map((x) => x.likes || 0).sort((a, b) => b - a), hs = NBA.Feed.HANDLES.slice().sort(() => Math.random() - 0.5);
-      const posts = got[i].map((text, k) => ({ who: '@' + hs[k % hs.length], text, likes: likes[k] != null ? likes[k] : Math.round(Math.pow(Math.random(), 2) * 8000 + 12), ai: 1 }));
+      const posts = got[i].map((text, k) => ({ who: NBA.Feed.igHandle(Math.random), text, likes: likes[k] != null ? likes[k] : Math.round(Math.pow(Math.random(), 2) * 8000 + 12), t: NBA.Feed.AGE[Math.floor(Math.random() * NBA.Feed.AGE.length)], rp: Math.random() < 0.5 ? Math.floor(Math.pow(Math.random(), 2) * 70) + 1 : 0, ai: 1 }));
       if (t.ref.fan) { t.ref.fan = posts; t.ref.aiF = 1; } else { t.ref.posts = posts; t.ref.ai = 1; } changed++; });
     feedAiBusy = false; if (changed) { save(); if (!LV && !document.querySelector('.dlg-back') && S && S.stage === 'season_play') render(); }
   }
