@@ -25,6 +25,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   for (let k = 0; k < 6; k++) {
     if (await page.$('button:has-text("Sim to All-Star")')) await page.click('button:has-text("Sim to All-Star")'); await page.waitForTimeout(400);
     if (await page.$('button:has-text("Start the weekend")')) break;
+    if (/The timeline/i.test(await page.textContent('h1'))) { await page.click('.dlg-back .wkcard button >> nth=0'); await page.click('button:text-matches("Back to the season|Play the game|Continue", "i")'); }
     if (/^Injury/i.test(await page.textContent('h1'))) { await page.click('.wkcard button >> nth=0'); await page.click('button:text-matches("Back to the season|Play the game", "i")'); }
   }
   await page.waitForSelector('button:has-text("Start the weekend")');

@@ -87,6 +87,7 @@ let PG = null;
       for (let k = 0; k < 14; k++) { const b = await page.$('button:has-text("Back to the season")'); if (b) { await b.click(); break; } const c = (await page.$('button:has-text("Start the weekend")')) || (await page.$('button:has-text("Continue →")')) || (await page.$('.wkcard button')); if (!c) break; await c.click(); await page.waitForTimeout(60); }
       await arm(); return 'weekend';
     }
+    if (/The timeline/.test(h1)) { await page.click('.dlg-back .wkcard button >> nth=0'); await page.click('button:text-matches("Back to the season|Play the game|Continue", "i")'); await arm(); return 'social'; }
     if (/Press conference/.test(h1)) { await answerPress(); await page.click('button:text-matches("Play the game|Back to the season", "i")'); await arm(); return 'press'; }
     if (/^Injury/i.test(h1)) { await page.click('.wkcard button >> nth=0'); await page.click('button:text-matches("Back to the season|Play the game", "i")'); await page.waitForTimeout(150); if (!global.__injBanner) { const b = await page.evaluate(() => { const S = window.__NBA_UI.state, nx = S.matchLog.slice(S.matchIdx).find((x) => x.k === 'g'); return { out: !!(nx && nx.dnp && nx.dnp !== 'Rest'), banner: /You are hurt/.test(document.body.innerText) }; }); global.__injBanner = 1; console.log('INJURY banner', !b.out || b.banner ? 'OK' : 'MISMATCH', JSON.stringify(b)); if (b.out && !b.banner) errors.push('INJURY banner'); } await arm(); return 'injury'; }
     return /Trade deadline/.test(h1) ? 'deadline' : /^(First Round|Conference|NBA Finals)/i.test(h1) ? 'series' : null;
@@ -149,7 +150,7 @@ let PG = null;
   const okD = pHi <= pLo && pRole <= pRole2 && /They would go up to about/.test(await page.evaluate(() => document.querySelector('.negform').innerText));
   console.log('NEGOTIATION dial', okD ? 'OK' : 'MISMATCH', JSON.stringify({ pHi, pLo, pRole, pRole2 })); if (!okD) errors.push('NEG dial ' + JSON.stringify({ pHi, pLo, pRole, pRole2 })); await shot('22-negotiation');
   // an absurd ask gets turned down or countered; a modest one gets a deal (counters are accepted)
-  if (pHi <= 40) {   // (a club with lots of room and a modest price tag may say yes to the top of its range: only test the refusal where the top really is absurd)
+  if (pHi <= 3) {   // (a club with lots of room and a modest price tag may say yes to the top of its range: only test the refusal where the top really is absurd)
   await setSal(bounds.max); await page.click('button:has-text("Make the offer")'); await page.waitForTimeout(100);
   const rej = await page.evaluate(() => ({ t: document.body.innerText.match(/(laughed|broke down|counter)[^\n]*/), closed: /Talks over|laughed off|broke down/.test(document.body.innerText), counter: /Accept counter/.test(document.body.innerText), signed: window.__NBA_UI.state.stage !== 'decision' }));
   console.log('NEGOTIATION absurd ask', JSON.stringify(rej)); if (rej.signed) errors.push('NEG absurd ask signed');

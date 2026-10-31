@@ -26,12 +26,13 @@
   // once a year: bad clubs change coaches (yours too); the news goes to the feed and, for you, becomes a decision step
   function offseason(st) {
     const f = flags(st), L = st.league; if (f.coachYear === L.year) return; f.coachYear = L.year;
-    const cs = f.coaches || (f.coaches = {}); f.newCoach = null;
+    const cs = f.coaches || (f.coaches = {}); f.newCoach = null; f.chem = Math.round((f.chem || 0) * 0.5 * 10) / 10; const log = f.coachLog || (f.coachLog = []);
     L.teams.forEach((t) => {
       const c = coachOf(st, t.id), ten = L.year - c.since, r = rng('fire|' + st.player.name + '|' + t.id + '|' + L.year)();
       const pr = t.wins < 28 ? 0.5 : t.wins < 35 ? 0.28 : t.wins < 41 && ten >= 4 ? 0.14 : 0.03;
       if (r < pr) {
         const n = (c.n || 0) + 1, nc = mk(st, t.id, L.year, n); nc.n = n; cs[t.id] = nc;
+        log.push({ y: L.year, team: t.nick, from: c.name, to: nc.name, style: nc.style, wins: t.wins }); f.coachLog = log.slice(-40);
         if (t.id === st.teamId) { f.newCoach = { year: L.year, from: c.name, name: nc.name, style: nc.style }; NBA.Game.feedAdd(st, 'coach', { team: t.nick }, { key: 'coach' + L.year, at: null }); }
       }
     });
@@ -80,7 +81,7 @@
   }
   function roomChoose(st, s, key) {
     const f = flags(st), rm = f.room, L = st.league, r = rng('roomc|' + st.player.name + '|' + L.year + '|' + key)(), ev = [], who = s.who, nm = who ? who.name : '';
-    const rel = (id, name, d) => ev.push({ k: 'rel', id, name, d }), dep = (d, extra) => ev.push({ k: 'season', v: Object.assign({ depth: d }, extra || {}) });
+    const rel = (id, name, d) => ev.push({ k: 'rel', id, name, d }), dep = (d, extra) => { ev.push({ k: 'season', v: Object.assign({ depth: d }, extra || {}) }); ev.push({ k: 'meter', f: 'chem', d: Math.round(d * 1.2 * 10) / 10 }); };
     let tone = 'good', text = '', jt = '';
     if (s.type === 'friend') {
       if (key === 'close') { rm.friend = { id: who.id, name: nm, year: L.year }; rel(who.id, nm, 3); dep(1.2); text = nm + ' is your guy now. The whole building can feel it.'; jt = 'Became close with ' + nm + '.'; NBA.Game.feedAdd(st, 'friend', { name: nm, team: L.teams[st.teamId].nick }, { key: 'friend' + L.year, at: null }); }
@@ -117,7 +118,7 @@
   function coachChoose(st, key) {
     const nc = flags(st).newCoach, fit = fitOf(st), r = rng('coachc|' + st.player.name + '|' + st.league.year + '|' + key)(), id = 'coach' + st.teamId, ev = [];
     const base = fit > 0 ? 1.03 : fit < 0 ? 0.96 : 1; let mins = base, tone = 'neutral', text;
-    if (key === 'buyin') { mins = fit < 0 ? 0.98 : base * 1.01; ev.push({ k: 'rel', id, name: nc.name, d: 2 }, { k: 'season', v: { depth: 0.6 } }); text = 'You backed ' + nc.name + ' publicly and ran his stuff. ' + (fit < 0 ? 'It softened the fit, and he noticed.' : 'He noticed.'); tone = 'good'; }
+    if (key === 'buyin') { mins = fit < 0 ? 0.98 : base * 1.01; ev.push({ k: 'rel', id, name: nc.name, d: 2 }, { k: 'season', v: { depth: 0.6 } }, { k: 'meter', f: 'chem', d: 0.6 }); text = 'You backed ' + nc.name + ' publicly and ran his stuff. ' + (fit < 0 ? 'It softened the fit, and he noticed.' : 'He noticed.'); tone = 'good'; }
     else if (key === 'ask') {
       const ok = r < (fit > 0 ? 0.7 : fit < 0 ? 0.3 : 0.5) + 0.004 * (NBA.ovr(st.player) - 65);
       if (ok) { mins = base * 1.05; ev.push({ k: 'rel', id, name: nc.name, d: 1.5 }); text = nc.name + ' heard you out and gave you a bigger role.'; tone = 'good'; }
@@ -133,5 +134,16 @@
     if (roomStory(st)) out.push('room');
     return out;
   }
-  NBA.Room = { STYLES, coachOf, offseason, fitOf, steps, roomStory, roomView, roomChoose, coachView, coachChoose, mates };
+  // the coach and the room as a page: who the coach is and how you fit, how tight the locker room is, who likes you and who does not, and the groups in it
+  const CHEM = (v) => (v >= 5 ? 'Tight' : v >= 2 ? 'Solid' : v > -2 ? 'Okay' : v > -5 ? 'Tense' : 'Toxic');
+  function panel(st) {
+    const f = flags(st), D = NBA.Decisions, c = coachOf(st, st.teamId), S = STYLES[c.style], fit = fitOf(st), crel = D.relOf(st, 'coach' + st.teamId), chem = Math.max(-8, Math.min(8, (f.locker || 0) + (f.chem || 0)));
+    const ms = mates(st), friend = f.room && f.room.friend, beef = f.room && f.room.beef && !f.room.beef.over ? f.room.beef : null;
+    const row = (q) => { const v = D.relOf(st, q.id), lbl = friend && friend.id === q.id ? 'Best friend' : beef && beef.id === q.id ? 'Feud' : v >= 2 ? 'Close' : v >= 0.5 ? 'Friendly' : v <= -2 ? 'Feud' : v <= -0.5 ? 'Tense' : 'Neutral'; return { id: q.id, name: q.name, pos: q.pos, age: q.age, ovr: Math.round(NBA.ovr(q)), v, label: lbl }; };
+    const rows = ms.map(row), grp = (name, fn) => { const g = rows.filter(fn); return { name, n: g.length, mood: g.length ? g.reduce((a, x) => a + x.v, 0) / g.length : 0 }; };
+    const top3 = ms.slice(0, 3).map((q) => q.id);
+    return { coach: { name: c.name, style: S.label, blurb: S.blurb, since: c.since, tenure: st.league.year - c.since, fit, rapport: crel >= 2 ? 'He trusts you' : crel <= -1.5 ? 'He is frustrated with you' : 'A working relationship', crel }, chem, chemLabel: CHEM(chem),
+      rows: rows.slice().sort((a, b) => Math.abs(b.v) - Math.abs(a.v) || b.ovr - a.ovr).slice(0, 8), groups: [grp('Veterans (30+)', (x) => x.age >= 30), grp('The stars', (x) => top3.includes(x.id)), grp('The young guys (23 and under)', (x) => x.age <= 23)], friend: friend ? friend.name : null, beef: beef ? beef.name : null, log: (f.coachLog || []).slice(-14).reverse() };
+  }
+  NBA.Room = { panel, STYLES, coachOf, offseason, fitOf, steps, roomStory, roomView, roomChoose, coachView, coachChoose, mates };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -365,7 +365,7 @@
     const awards = {
       mvp: ref(byMVP[0]), mvpRunner: ref(byMVP[1]), dpoy: ref(dpoy[0]), roy: ref(roy[0]), mip: ref(mip[0]),
       scoring: scoring[0] ? { id: scoring[0].id, name: scoring[0].p.name, ppg: scoring[0].l.pts, isUser: !!scoring[0].isUser } : null,
-      allNBA: allNBA.map((x) => x.e.id), allDef: allDef.map((x) => x.e.id), allStar: stars.map((x) => x.e.id),
+      allNBA: allNBA.map((x) => x.e.id), allDef: allDef.map((x) => x.e.id), allStar: stars.map((x) => x.e.id), allStarBoard: { E: asCand.filter((x) => x.e.t.conf === 'E').slice(0, 20).map((x) => ({ id: x.e.id, s: Math.round(x.s * 100) / 100 })), W: asCand.filter((x) => x.e.t.conf === 'W').slice(0, 20).map((x) => ({ id: x.e.id, s: Math.round(x.s * 100) / 100 })) },
       mvpIds: byMVP.slice(0, 5).map((x) => x.e.id),
     };
     const rrow = (x) => ({ id: x.e.id, name: x.e.p.name, team: x.e.t.nick, pts: x.e.l.pts, reb: x.e.l.reb, ast: x.e.l.ast, stl: x.e.l.stl, blk: x.e.l.blk, perf: x.e.l.perf, gp: x.e.l.gp, wins: x.e.t.wins, isUser: !!x.e.isUser, s: x.s, da: Math.max(x.e.p.attrs.rimP, x.e.p.attrs.perD) });
@@ -469,8 +469,10 @@
     const mid = rest.slice().sort((a, b) => a.wins - b.wins);
     const first = top4.concat(lotRest, mid);
     // round 2: reverse of record
-    const second = L.teams.slice().sort((a, b) => a.wins - b.wins || rand() - 0.5);
-    return first.concat(second);
+    const second = L.teams.slice().sort((a, b) => a.wins - b.wins || rand() - 0.5), base = first.concat(second);
+    // the order is by the picks' owners (a club may have traded its pick); where each came from is kept for the draft board
+    if (NBA.Picks) { NBA.Picks.ensure(L); (L._draftOrig = L._draftOrig || {})[L.year] = base.map((t) => t.id); return base.map((t, i) => L.teams[NBA.Picks.ownerOf(L, L.year, i < 30 ? 1 : 2, t.id)]); }
+    return base;
   }
 
   // ------------------------------------------------------------ draft combine
@@ -597,7 +599,8 @@
       used.add(sb); used.add(sa);
       const A = L.teams[order[sa - 1]], B = L.teams[order[sb - 1]];   // A moves up from sa to sb
       order[sb - 1] = A.id; order[sa - 1] = B.id;
-      const sweet = sb <= 5 ? 'two future first-round picks' : sb <= 14 && gap >= 8 ? 'a 2028 first-round pick' : rnd() < 0.5 ? 'a 2029 second-round pick' : rnd() < 0.5 ? 'cash considerations' : 'a 2028 second-round pick';
+      let sweet = sb <= 5 ? 'two future first-round picks' : sb <= 14 && gap >= 8 ? 'a 2028 first-round pick' : rnd() < 0.5 ? 'a 2029 second-round pick' : rnd() < 0.5 ? 'cash considerations' : 'a 2028 second-round pick';
+      if (NBA.Picks && !/cash/.test(sweet)) { const nf = /two future/.test(sweet) ? 2 : /first/.test(sweet) ? 1 : 0, got = NBA.Picks.take(L, A.id, nf, nf ? 0 : 1, rnd); if (got.length) { NBA.Picks.give(L, got, B.id); sweet = NBA.Picks.textOf(L, got, A.id); } }
       events.push({ slot: sb, other: sa, upId: A.id, downId: B.id, text: A.nick + ' trade up to #' + sb + ', sending #' + sa + ' and ' + sweet + ' to ' + B.nick });
     }
     events.sort((a, b) => a.slot - b.slot);
@@ -639,7 +642,7 @@
     // the board: all 60 picks with who, where from, how big, how he tested, and where the pre-draft ranking (by talent and age alone, before the scouts' noise and the combine) had him
     const proj = all.slice().sort((x, y) => (projectStock(y) + (y === user ? bonus || 0 : 0)) - (projectStock(x) + (x === user ? bonus || 0 : 0))), mockRank = new Map(proj.map((q, i) => [q, i + 1]));
     const evAt = {}; tp.events.forEach((e) => { evAt[e.slot] = e; evAt[e.other] = e; });
-    const board = all.slice(0, 60).map((p, i) => { const t = order[i], o0 = L.teams[baseIds[i]], via = t.id !== o0.id ? o0 : null; return { slot: i + 1, name: p.name, pos: p.pos, age: p.age, team: t.name, nick: t.nick, teamRec: t.wins + '-' + t.losses, via: via ? via.nick : null, viaName: via ? via.name : null, viaRec: via ? via.wins + '-' + via.losses : null, trade: evAt[i + 1] ? evAt[i + 1].text : (userTrade && userTrade.slotBack === i + 1 ? userTrade.text : null), isUser: p === user, ovr: Math.round(ovr(p)), from: p.from || '', ht: p.ht, wt: p.wt, ws: p.ws, mockRank: mockRank.get(p), cz: p.cmb && p.cmb.cz != null ? Math.round(100 * p.cmb.cz) / 100 : null, bonus: p.cmb ? Math.round(10 * p.cmb.bonus) / 10 : 0 }; });
+    const board = all.slice(0, 60).map((p, i) => { const t = order[i], o0 = L.teams[((L._draftOrig || {})[L.year] || baseIds)[i]], via = t.id !== o0.id ? o0 : null; return { slot: i + 1, name: p.name, pos: p.pos, age: p.age, team: t.name, nick: t.nick, teamRec: t.wins + '-' + t.losses, via: via ? via.nick : null, viaName: via ? via.name : null, viaRec: via ? via.wins + '-' + via.losses : null, trade: evAt[i + 1] ? evAt[i + 1].text : (userTrade && userTrade.slotBack === i + 1 ? userTrade.text : null), isUser: p === user, ovr: Math.round(ovr(p)), from: p.from || '', ht: p.ht, wt: p.wt, ws: p.ws, mockRank: mockRank.get(p), cz: p.cmb && p.cmb.cz != null ? Math.round(100 * p.cmb.cz) / 100 : null, bonus: p.cmb ? Math.round(10 * p.cmb.bonus) / 10 : 0 }; });
     const drafted = uslot ? order[uslot - 1] : null, landing = userTrade ? L.teams[userTrade.toId] : drafted;
     return { slot: uslot || null, team: landing, draftedBy: drafted, userTrade, trades: tp.events.map((e) => ({ slot: e.slot, other: e.other, text: e.text, upNick: L.teams[e.upId].nick, downNick: L.teams[e.downId].nick })), board, order, classSize: all.length, mockRank: mockRank.get(user) };
   }
@@ -755,7 +758,9 @@
       const group = (list) => { const x = list.map((q) => q.name + ' (' + tag(q) + ')'); return x.length > 1 ? x.slice(0, -1).join('; ') + ' and ' + x[x.length - 1] : x[0]; };
       const gap = ovr(pa) - Math.max.apply(null, giveB.map((q) => ovr(q))), npick = giveB.length > giveA.length ? (ovr(pa) >= 74 ? 1 + (rand() < 0.6 ? 1 : 0) : gap >= 2 ? 1 : 0) : gap >= 3 ? 1 : 0;
       const pickWord = (n) => { const y = L.year + 1 + rint(0, 3), first = rand() < (ovr(pa) >= 72 ? 0.7 : 0.4); return n === 1 ? 'a ' + y + ' ' + (first ? 'first' : 'second') + '-round pick' : 'two ' + (y) + '-' + (y + 1) + ' ' + (first ? 'first' : 'second') + '-round picks'; };
-      const sweet = npick ? ' and ' + pickWord(npick) : '';
+      let sweet = '';
+      if (npick && NBA.Picks) { const firsts = rand() < (ovr(pa) >= 72 ? 0.7 : 0.4) ? npick : 0, got = NBA.Picks.take(L, b.id, firsts, firsts ? 0 : npick, rand); if (got.length) { NBA.Picks.give(L, got, a.id); sweet = ' and ' + NBA.Picks.textOf(L, got, b.id); } }
+      else if (npick) sweet = ' and ' + pickWord(npick);
       swapGroup(L, a, giveA, b, giveB); done++;
       giveA.concat(giveB).forEach((q) => { q.since = yr; q.moved = L.year; });
       const multi = giveA.length > 1 || giveB.length > 1;
@@ -812,7 +817,7 @@
     marketTrades(L, 5, 'offseason');
     L.teams.forEach((t) => fillCore(L, t));
     if (opts.draft !== false) npcDraft(L);
-    L.year++;
+    L.year++; if (NBA.Picks) NBA.Picks.ensure(L);
   }
 
   // run one season with no user (used while the player is in college and for warm-up)

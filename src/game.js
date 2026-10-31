@@ -1,7 +1,7 @@
 (function (g) {
   'use strict';
   const NBA = g.NBA;
-  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./feed.js'); require('./legacy.js'); require('./room.js'); require('./live.js'); require('./allstar.js'); require('./cap.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
+  if (typeof require !== 'undefined') { try { require('./picks.js'); require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./feed.js'); require('./legacy.js'); require('./social.js'); require('./room.js'); require('./live.js'); require('./allstar.js'); require('./cap.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
   const D = NBA.data;
   const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
   const ATTRS = D.ATTRS;
@@ -703,6 +703,7 @@
     const fx = rollEvents(st, p);
     const dfx = NBA.Decisions.takeSeason(st);   // what the player's own decisions queued for this season
     fx.form += dfx.form || 0; fx.extraMiss += dfx.extraMiss || 0; fx.minsMult *= dfx.minsMult || 1; fx.depth += dfx.depth || 0;
+    if (!st.autoPlay) fx.minsMult *= 1 + 0.012 * clamp(NBA.Decisions.relOf(st, 'coach' + st.teamId), -3, 3) + 0.012 * NBA.Room.fitOf(st);   // a coach who trusts you and likes your game gives you a little more
     // rookie role: coaches bring some young players along off the bench whatever their talent (Kobe 15 mpg at 18, Giannis 25, Jokic 22, Harden 23 behind Westbrook and Durant);
     // real future stars' rookie minutes vary by 7-9 mpg, far more than rating alone gives. It is a cap on minutes (it only bites a rookie good enough to play more),
     // drawn on its own stream so nothing else in the season changes; the second season's cap is 8 minutes higher
@@ -949,7 +950,7 @@
     const team = L.teams[st.teamId], rnd = NBA.Reporters.mulberry(hashS(kind + '|' + L.year + '|' + list.length + '|' + st.player.name + (opt.key || '')));
     const cc = Object.assign({ name: st.player.name, team: team ? team.nick : '', city: team ? team.city : '' }, c || {});
     list.push({ y: L.year, at: ('at' in opt) ? opt.at : (st.stage === 'season_play' && st.matchLog ? (st.matchIdx || 0) : null), kind, key: opt.key || null, posts: opt.posts || NBA.Feed.posts(kind, cc, rnd, opt.count || 3) });
-    f.feed = list.slice(-120);
+    f.feed = list.slice(-120); if (NBA.Social && !st.autoPlay) NBA.Social.bump(st, kind, list[list.length - 1].posts);
   }
   // ---- the press room as a story: who is asking, what you said before, who you have a feud with
   const prState = (st) => { const f = NBA.Decisions.state(st).flags; return f.pr || (f.pr = { quotes: [], tally: [], feuds: {}, heads: [], rep: {} }); };
@@ -1244,7 +1245,7 @@
     const notes = [];
     Object.keys(rv).forEach((k) => { if (!L.players[k]) { if (d.rival && String(d.rival.id) === k) { notes.push({ tone: 'neutral', text: rv[k].name + ' is out of the league. The rivalry ends there.' }); d.rival = null; } delete rv[k]; } else rv[k].teamId = L.players[k].teamId; });
     const top = Object.keys(rv).map((k) => [k, rv[k]]).sort((a, b) => b[1].s - a[1].s)[0];
-    if (top && top[1].s >= 3 && (!d.rival || String(d.rival.id) !== top[0])) { d.rival = { id: top[0], name: top[1].name, since: L.year }; notes.push({ tone: 'neutral', text: 'A rivalry is born with ' + top[1].name + '. ' + top[1].why + '.' }); }
+    if (top && top[1].s >= 3 && (!d.rival || String(d.rival.id) !== top[0])) { d.rival = { id: top[0], name: top[1].name, since: L.year }; if (!st.autoPlay) feedAdd(st, 'rival', { rival: top[1].name }, { key: 'rv' + L.year + top[0], at: null }); notes.push({ tone: 'neutral', text: 'A rivalry is born with ' + top[1].name + '. ' + top[1].why + '.' }); }
     else if (d.rival && (!rv[d.rival.id] || rv[d.rival.id].s < 1.2)) { notes.push({ tone: 'neutral', text: 'The rivalry with ' + d.rival.name + ' has cooled.' }); d.rival = null; }
     // a call-out is settled on the court
     const co = d.flags.calledOut;
@@ -1360,7 +1361,8 @@
     const L = st.league, p = st.player, old = L.teams[st.teamId], t = L.teams[mv.teamId];
     if (mv.kind === 'trade') {
       const partner = L.players[mv.partnerId];
-      if (partner) { t.core = t.core.filter((id) => id !== partner.id); t.bench = (t.bench || []).filter((id) => id !== partner.id); old.bench = (old.bench || []).concat([partner.id]); partner.teamId = old.id; partner.since = L.year + 0.5; partner.moved = L.year; }
+      [partner, mv.extraId != null ? L.players[mv.extraId] : null].filter(Boolean).forEach((q) => { t.core = t.core.filter((id) => id !== q.id); t.bench = (t.bench || []).filter((id) => id !== q.id); old.bench = (old.bench || []).concat([q.id]); q.teamId = old.id; q.since = L.year + 0.5; q.moved = L.year; });
+      if (mv.pickKeys && mv.pickKeys.length && NBA.Picks) NBA.Picks.giveKeys(L, mv.pickKeys, old.id);
       (st.trades = st.trades || []).push({ year: L.year, label: NBA.seasonLabel(L.year), from: old.name, to: t.name, ovr: Math.round(ovr(p)), age: p.age, partner: mv.partnerText, requested: !!mv.requested, midSeason: true });
     } else if (mv.kind === 'sign') {
       st.contract = { salary: mv.salary, years: 1, left: 1, type: 'veteran' };
@@ -1410,8 +1412,13 @@
     const sorted = cand.sort((a, b) => ovr(b) - ovr(a)), mySal0 = st.contract ? st.contract.salary : 0; let partner = sorted[0], matchWhy = null;
     for (let i = 0; i < sorted.length; i++) { const q = sorted[i], ps = NBA.Cap.salaryOf(L, q), a1 = NBA.Cap.tradeMatch(st, t, mySal0, ps), a2 = NBA.Cap.tradeMatch(st, mine, ps, mySal0); if (a1.ok && a2.ok) { partner = q; matchWhy = null; break; } if (!matchWhy) matchWhy = a1.ok ? a2.why : a1.why; }
     base.partner = { id: partner.id, name: partner.name, pos: partner.pos, age: partner.age, ovr: Math.round(ovr(partner)) };
-    base.picks = o - ovr(partner) >= 6 ? 'a first-round pick and a second' : o - ovr(partner) >= 3 ? 'a second-round pick' : '';   // a club that gets the better player sweetens it
-    { const mySal = mySal0, pSal = NBA.Cap.salaryOf(L, partner); base.partner.salary = pSal; base.mySalary = r1(mySal); if (matchWhy) return Object.assign(base, { ok: false, reason: matchWhy }); }
+    { const mySal = mySal0, pSal = NBA.Cap.salaryOf(L, partner); base.partner.salary = pSal; base.mySalary = r1(mySal); if (matchWhy) return Object.assign(base, { ok: false, reason: matchWhy });
+      // a club that gets the better player sweetens it with real picks, and sometimes a second player (a two-for-one) when the salaries and the rosters allow it
+      const gap = o - ovr(partner), nf = gap >= 6 ? 1 : 0, ns = gap >= 6 ? 1 : gap >= 3 ? 1 : 0, got = NBA.Picks && (nf || ns) ? NBA.Picks.take(L, t.id, nf, ns, null) : [];
+      base.picks = got.length ? NBA.Picks.textOf(L, got, t.id) : ''; base.pickKeys = NBA.Picks && got.length ? NBA.Picks.keysOf(got) : []; base.pickFirsts = got.filter((x) => x.r === 1).length;
+      if (gap >= 5) { const ex = rb.filter((q, i) => i >= 3 && q !== partner && ovr(q) <= ovr(partner) - 3 && q.age <= 31).sort((x, y) => ovr(y) - ovr(x))[0];
+        if (ex) { const eSal = NBA.Cap.salaryOf(L, ex), m3 = NBA.Cap.tradeMatch(st, mine, pSal + eSal, mySal), m4 = NBA.Cap.tradeMatch(st, t, mySal, pSal + eSal);
+          if (m3.ok && m4.ok && NBA.rosterOf(L, mine).length + 1 <= 12 && rb.length - 2 >= 7) base.extra = { id: ex.id, name: ex.name, pos: ex.pos, age: ex.age, ovr: Math.round(ovr(ex)), salary: eSal }; } } }
     // your own club
     let accept = 1, why = '';
     if (franchise) { accept = mine.wins < 34 ? 0.75 : mine.wins < 43 ? 0.3 : 0.06; why = 'The ' + mine.nick + ' will not move their franchise player' + (mine.wins >= 43 ? ' while they are winning.' : ' for that offer.'); }
@@ -1463,7 +1470,7 @@
     out.mustRetire = forceRetire;
     if (st.finalYear) out.farewell = true;
     const human = !st.autoPlay, Dc = NBA.Decisions;
-    if (human) { applyInjuryFx(st); NBA.Legacy.brandYear(st); finalizeRivals(st); finalizePress(st); }
+    if (human) { applyInjuryFx(st); NBA.Social.year(st); NBA.Legacy.brandYear(st); finalizeRivals(st); finalizePress(st); }
     if (human) { const b = st.brand; out.brand = { score: Math.round(b ? b.score : 0), deals: b ? b.deals : [], offers: NBA.Legacy.endorseOffers(st), agent: NBA.Legacy.agentOf(st) }; }
     if (human) {
       const own0 = L.teams[st.teamId]; out.finance = NBA.Cap.finance(st, own0);
@@ -1641,9 +1648,11 @@
       const t = L.teams[arg.teamId], opt = (st.decision && st.decision.tradeOptions || []).find((x) => x.teamId === t.id);
       if (!opt || !opt.ok) throw new Error('trade not available');
       const old = L.teams[st.teamId], partner = L.players[opt.partner.id];
-      if (partner) { t.core = t.core.filter((id) => id !== partner.id); t.bench = (t.bench || []).filter((id) => id !== partner.id); old.bench = (old.bench || []).concat([partner.id]); partner.teamId = old.id; }   // the user is not in a roster list: only the partner moves
+      const mover = [partner].concat(opt.extra && L.players[opt.extra.id] ? [L.players[opt.extra.id]] : []).filter(Boolean);
+      mover.forEach((q) => { t.core = t.core.filter((id) => id !== q.id); t.bench = (t.bench || []).filter((id) => id !== q.id); old.bench = (old.bench || []).concat([q.id]); q.teamId = old.id; });   // the user is not in a roster list: only the players coming back move
+      if (opt.pickKeys && opt.pickKeys.length && NBA.Picks) { NBA.Picks.giveKeys(L, opt.pickKeys, old.id); NBA.Decisions.state(st).flags.tradePrice = { y: L.year, team: t.nick, text: opt.picks, firsts: opt.pickFirsts || 0 }; NBA.Decisions.apply(st, [{ k: 'season', v: { minsMult: 1.03 } }]); }
       st.teamId = t.id; p.teamId = t.id;
-      (st.trades = st.trades || []).push({ year: L.year, label: NBA.seasonLabel(L.year), from: old.name, to: t.name, ovr: Math.round(ovr(p)), age: p.age, partner: opt.partner.name + ' (' + opt.partner.ovr + ' ovr)', requested: true });
+      (st.trades = st.trades || []).push({ year: L.year, label: NBA.seasonLabel(L.year), from: old.name, to: t.name, ovr: Math.round(ovr(p)), age: p.age, partner: opt.partner.name + ' (' + opt.partner.ovr + ' ovr)' + (opt.extra ? ' and ' + opt.extra.name : '') + (opt.picks ? ' and ' + opt.picks : ''), requested: true });
       note('Traded to ' + t.name + ' for ' + opt.partner.name); feedAdd(st, 'trade', { old: old.nick, team: t.nick });
       NBA.Decisions.state(st).flags.tradeReq = null;
       NBA.Decisions.log(st, { kind: 'trade', title: 'Traded', tone: 'neutral', text: 'Traded from the ' + old.nick + ' to the ' + t.nick + ' for ' + opt.partner.name + '.' });
@@ -1660,7 +1669,7 @@
       if (arg.role) { st.contract.role = arg.role; if (!st.autoPlay && ROLE_FX[arg.role]) NBA.Decisions.apply(st, [{ k: 'season', v: ROLE_FX[arg.role] }]); }
       if (sat) note('Sign-and-trade to ' + t.name);
       note((action === 'switch' ? 'Signed with ' : 'Re-signed with ') + t.name + ' (' + years + 'y, $' + arg.salary + 'M)');
-      if (!st.autoPlay && !sat) feedAdd(st, action === 'switch' ? 'sign' : 'resign', { team: t.nick });
+      if (!st.autoPlay && !sat) { feedAdd(st, action === 'switch' ? 'sign' : 'resign', { team: t.nick }); feedAdd(st, 'contract', { team: t.nick, salary: r1(arg.salary), years }, { key: 'ct' + L.year, at: null }); }
       if (!st.autoPlay) NBA.Decisions.apply(st, [{ k: 'rel', id: 'team' + t.id, name: t.name, d: 0.5 }].concat(arg.tag === 'loyal' ? [{ k: 'rel', id: 'team' + t.id, name: t.name, d: 1 }, { k: 'season', v: { depth: 1 } }] : []));
       if (!st.autoPlay) NBA.Decisions.log(st, { kind: 'contract', title: 'Free agency', tone: 'neutral', text: (arg.tag === 'neg' ? 'Negotiated a deal with the ' + t.nick + (arg.role ? ' as a ' + arg.role.toLowerCase() : '') : arg.tag === 'loyal' ? 'Took a loyalty discount to stay with the ' + t.nick : arg.tag === 'ring' ? 'Took a pay cut to chase a ring with the ' + t.nick : action === 'switch' ? 'Signed with the ' + t.nick : 'Re-signed with the ' + t.nick) + ' for ' + years + ' year' + (years > 1 ? 's' : '') + ', $' + arg.salary + 'M a year.' });
       st.stage = 'training'; st.afterTraining = 'pro';

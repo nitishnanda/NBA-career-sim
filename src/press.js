@@ -301,6 +301,10 @@
   Q('draftnight', 'draftWorked', 0, 'The {draftTeam} drafted you after working you out. Was that always your favorite fit?');
   Q('draftnight', 'rookieYear', 0, 'What was the first thing you bought after signing your rookie deal?');
   Q('draftnight', 'rookieYear', 0, 'Everyone talks about the draft-night suit. What was yours, and who picked it out?');
+  // the price a club paid for you
+  Q('team', 'pickPrice', 1, 'The {tradeTeam} gave up {tradePicks} to get you. How much pressure is that?');
+  Q('team', 'pickPrice', 0, 'Fans are already counting the picks the {tradeTeam} traded for you. Do you feel like you have to justify the price?');
+  Q('team', 'pickPrice', 0, 'The {tradeTeam} mortgaged part of their future for you. What do you tell the fans who are worried?');
 
   // ---------------------------------------------------------------- how the player can answer
   const TONES = {
@@ -376,6 +380,7 @@
     c.draftTraded = c.rookieYear && !!(dr && dr.userTrade); c.draftTeam = dr && dr.draftedBy ? String(dr.draftedBy).split(' ').slice(-1)[0] : '';
     c.draftWorked = c.rookieYear && !!(dr && dr.workouts && dr.workouts.done && dr.workouts.done[dr.draftedById]);
     c.rookieDeal = !!(st.contract && st.contract.type === 'rookie');   // nobody asks a player on his first contract to lead the team
+    const tpz = D.flags.tradePrice; c.pickPrice = !!(tpz && tpz.y >= L.year - 1 && tpz.text); c.tradeTeam = tpz ? tpz.team : ''; c.tradePicks = tpz ? tpz.text : '';
     c.opener = (it.n === 1 && !it.po); c.away = !it.h && !it.po; c.opp = c.opp; c.always = true;
     return c;
   }

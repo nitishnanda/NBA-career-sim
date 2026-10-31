@@ -277,7 +277,7 @@
       if (key === 'trade') {
         const o = ctx.options.find((x) => x.teamId === arg); if (!o) throw new Error('bad trade');
         const t = L.teams[o.teamId], text = 'traded to the ' + t.nick;
-        G.midSeasonMove(st, { kind: 'trade', teamId: o.teamId, partnerId: o.partner.id, partnerText: o.partner.name + ' (' + o.partner.ovr + ' ovr)', requested: ctx.kind === 'request', text });
+        G.midSeasonMove(st, { kind: 'trade', teamId: o.teamId, partnerId: o.partner.id, extraId: o.extra ? o.extra.id : null, pickKeys: o.pickKeys || [], partnerText: o.partner.name + ' (' + o.partner.ovr + ' ovr)' + (o.extra ? ' and ' + o.extra.name : '') + (o.picks ? ' and ' + o.picks : ''), requested: ctx.kind === 'request', text });
         state(st).flags.tradeReq = null;
         return { done: true, tone: 'good', text: 'Traded to the ' + t.nick + ' for ' + o.partner.name + '. New team, new situation.', journal: { tone: 'good', text: (ctx.kind === 'request' ? 'Got the trade you asked for: ' : 'Traded at the deadline: ') + old.nick + ' to ' + t.nick + ', for ' + o.partner.name + '.' } };
       }
@@ -558,6 +558,33 @@
       if (ctx.cur == null) { const i = ctx.pool.map((q, k) => ({ q, k })).filter((x) => ctx.chosen.indexOf(x.k) < 0).sort((a, b) => a.q.heat - b.q.heat)[0]; return { key: 'pick', arg: i.k }; }
       const q = ctx.pool[ctx.cur]; return { key: (q.opts.find((o) => o.key === 'deflect') || q.opts.find((o) => !o.spicy) || q.opts[0]).key };
     },
+  });
+
+  // ================================================================ a moment on social media: twice a season the timeline wants something from you
+  register({
+    id: 'social', title: 'The timeline', trigger: 'social',
+    when(st) { return !st.autoPlay; },
+    open(st) {
+      const it = (st.matchLog || [])[(st.matchIdx || 0) - 1]; if (!it || it.k !== 'g' || it.dnp) return null;
+      return { opp: it.o, won: !!it.w, pts: it.pt, reb: it.rb, ast: it.as, score: it.f + '-' + it.a, n: it.n, followers: NBA.Social.state(st).f };
+    },
+    view(st, ctx) {
+      const S = NBA.Social.state(st), line = ctx.won ? 'You went for ' + ctx.pts + ' on the ' + ctx.opp + ' last night (' + ctx.score + ' W) and the timeline is buzzing.' : 'A tough one against the ' + ctx.opp + ' (' + ctx.score + ' L), and the replies are... a lot.';
+      return { title: 'The timeline', text: line + ' ' + S.handle + ' · ' + NBA.Social.fmt(S.f) + ' followers. What do you post?', options: [
+        { key: 'hype', label: ctx.won ? 'Post the highlights' : 'Post a hype video', blurb: 'A clip and a caption that says everything.', vibe: 'Safe and fun' },
+        { key: 'thanks', label: 'Thank the fans and the team', blurb: 'Gratitude, no ego. The locker room likes it.', vibe: 'Warm' },
+        { key: 'clap', label: 'Reply to a hater', blurb: 'Someone said you were washed. You have thoughts.', vibe: 'Could go viral. Could backfire' },
+        { key: 'quiet', label: 'Log off for a few days', blurb: 'Stay off the timeline. Focus on the game.', vibe: 'Quiet' }] };
+    },
+    choose(st, ctx, key) {
+      const r = rng(st, 'social|' + st.league.year + '|' + ctx.n)(), Sx = NBA.Social, G = NBA.Game; let text, tone = 'neutral', eff = [];
+      if (key === 'hype') { const viral = r < 0.16; Sx.change(st, viral ? 0.04 : 0.012); eff = [{ k: 'meter', f: 'media', d: 0.2 }]; text = viral ? 'The clip took off: millions of views and a wave of new followers.' : 'The post did its job: a nice bump in likes and followers.'; tone = viral ? 'good' : 'neutral'; if (viral) G.feedAdd(st, 'hot', {}, { key: 'sv' + st.league.year + ctx.n, at: null }); }
+      else if (key === 'thanks') { Sx.change(st, 0.007); eff = [{ k: 'meter', f: 'media', d: 0.4 }, { k: 'meter', f: 'chem', d: 0.3 }]; text = 'Fans and teammates loved it. The room noticed.'; tone = 'good'; }
+      else if (key === 'clap') { if (r < 0.5) { Sx.change(st, 0.045); eff = [{ k: 'meter', f: 'media', d: 0.3 }]; text = 'You said it perfectly. The reply got a million likes and the hater deleted the account.'; tone = 'good'; G.feedAdd(st, 'hot', {}, { key: 'sv' + st.league.year + ctx.n, at: null }); } else { Sx.change(st, -0.015); eff = [{ k: 'meter', f: 'media', d: -1 }, { k: 'meter', f: 'chem', d: -0.3 }]; text = 'It backfired: the quote tweets were brutal and the press picked it up.'; tone = 'bad'; } }
+      else { Sx.change(st, -0.004); eff = [{ k: 'meter', f: 'chem', d: 0.3 }]; text = 'You logged off and focused on the game. The timeline moved on.'; tone = 'neutral'; }
+      return { done: true, tone, text, effects: eff, journal: key === 'clap' ? { tone, text: 'Replied to a hater online: ' + text } : null };
+    },
+    auto() { return { key: 'thanks' }; },
   });
 
   Object.assign(NBA, { Decisions: { invites, answerInvite, INV_TYPES, carry, register, state, rng, vibe, apply, offer, view, choose, autoResolve, takeSeason, log, relOf, TIERS, SKILL_WORDS, campMentors, standing } });
