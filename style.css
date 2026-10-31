@@ -321,3 +321,8 @@ body.dlg-open { overflow: hidden; }
 @media (min-width: 700px) { .dlg .wkgrid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 560px) { .dlg-back { align-items: flex-end; padding: 8px; } .dlg { max-height: 88vh; border-radius: 20px 20px 14px 14px; padding: 16px; } }
 @keyframes mfade { from { opacity: 0; } to { opacity: 1; } } @keyframes mpop { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+
+/* cap sheet */
+.capbar { position: relative; height: 14px; border-radius: 999px; background: rgba(255,255,255,.08); margin: 22px 0 6px; } .capbar b { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #5fd58f, #ffd166 70%, #ff6b60); }
+.capmark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: rgba(255,255,255,.55); } .capmark span { position: absolute; top: -16px; left: -14px; font: 600 10px var(--disp); letter-spacing: .08em; color: var(--muted); white-space: nowrap; }
+.capsheet tr.me td, .capsheet tr.me th { font-weight: 700; color: #fff; } .capsheet td:first-child { text-align: left; }

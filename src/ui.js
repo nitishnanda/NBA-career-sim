@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v78';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v79';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -809,7 +809,23 @@
     return rows;
   }
 
-  function screenTeam() {
+  // the cap sheet: your club's payroll against the cap, the tax line and the aprons, then every contract
+  function capPanel(t) {
+    const C = NBA.Cap, f = C.finance(S, t), rows = C.sheet(S, t), top = f.apron2 * 1.08, pc = (x) => Math.min(100, 100 * x / top).toFixed(1) + '%';
+    const mark = (x, lbl) => h('i', { class: 'capmark', style: 'left:' + pc(x), title: lbl + ' ' + money(x) }, h('span', null, lbl));
+    return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🏦'), h('h2', null, 'Payroll and cap'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, f.status)),
+      h('div', { class: 'capbar' }, h('b', { style: 'width:' + pc(f.payroll) }), mark(f.cap, 'Cap'), mark(f.taxLine, 'Tax'), mark(f.apron1, 'Apron 1'), mark(f.apron2, 'Apron 2')),
+      h('div', { class: 'row small muted', style: 'justify-content:space-between;margin:10px 0' }, h('span', null, 'Payroll ' + money(f.payroll)), h('span', null, f.space ? 'Cap room ' + money(f.space) : 'Over the cap by ' + money(f.payroll - f.cap)), h('span', null, f.taxBill ? 'Tax bill about ' + money(f.taxBill) : 'Exception: ' + f.exception.kind + (f.space ? '' : ' up to ' + money(f.exception.amount)))),
+      h('table', { class: 'lvq capsheet' }, h('tr', null, ['Player', 'Pos', 'OVR', 'Salary', 'Years'].map((c, i) => h('th', null, c))), rows.map((r) => h('tr', { class: r.user ? 'me' : '' }, h('td', { style: 'text-align:left' }, r.name + (r.user ? ' (you)' : '')), h('td', null, r.pos), h('td', null, r.ovr), h('td', null, money(r.salary)), h('td', null, r.left + (r.opt === 'player' ? ' · player option' : r.opt === 'team' ? ' · team option' : ''))))));
+  }
+  function screenTeam() { const el = screenTeam0(); if (S.contract && S.teamId != null && el.append) el.append(capPanel(S.league.teams[S.teamId])); return el; }
+  function leaguePayrolls() {
+    const C = NBA.Cap, rows = S.league.teams.map((t) => Object.assign({ t }, C.finance(S, t))).sort((a, b) => b.payroll - a.payroll);
+    return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🏦'), h('h2', null, 'Payrolls around the league')),
+      h('table', { class: 'lvq capsheet' }, h('tr', null, ['Team', 'Payroll', 'Status', 'Room / tax'].map((c) => h('th', null, c))), rows.map((r) => h('tr', { class: r.t.id === S.teamId ? 'me' : '' }, h('td', { style: 'text-align:left' }, r.t.name), h('td', null, money(r.payroll)), h('td', null, r.status), h('td', null, r.space ? money(r.space) + ' room' : r.taxBill ? money(r.taxBill) + ' tax' : '–')))));
+  }
+  function screenLeague() { const el = screenLeague0(); if (S.contract && el.append) el.append(leaguePayrolls()); return el; }
+  function screenTeam0() {
     const L = S.league, t = L.teams[S.teamId], items = S.matchLog || [], idx = S.matchIdx || 0, p = S.player;
     if (!(S.proSeasons.length || S.draft)) return h('div', { class: 'dash' }, h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '👥'), h('h2', null, 'Team')), h('p', { class: 'muted' }, 'You get a team after the draft. Come back then to see your teammates.')));
     const inSeason = S.stage === 'season_play' && S.matchLog && idx < items.length, reg = items.slice(0, idx).filter((x) => x.k === 'g' && !x.po), N = inSeason ? reg.length : 82, prog = inSeason ? Math.min(1, N / 82) : 1;
@@ -839,7 +855,7 @@
   }
 
   // ------------------------------------------------------------ around the league
-  function screenLeague() {
+  function screenLeague0() {
     const L = S.league, snap = S.leagueSnap, inSeason = S.stage === 'season_play' && snap && S.matchLog;
     const items = S.matchLog || [], idx = S.matchIdx || 0;
     let rows, label, N = 82;
@@ -960,11 +976,12 @@
 
   // contract negotiation: name your money, years and role; the dial shows the odds live, the club answers when you submit
   let negOpen = null;
+  const capText = (c) => (c.kind === 'Cap room' ? '💰 Cap room ' + money(c.room) + ' (payroll ' + money(c.payroll) + ')' : '🧾 ' + c.status + ': only the ' + c.kind.toLowerCase() + ', up to ' + money(c.max)) + (c.capped ? ' · they would pay more if they could' : '');
   function negCard(d, o, kind, doneFn) {
     const c = d.neg && d.neg[o.teamId]; if (!c) return null;
     const ask = { salary: Math.min(c.maxSal, Math.max(c.minSal, o.salary)), years: Math.min(c.pref, c.maxYears), role: c.offered };
     const open = negOpen === o.teamId;
-    const head = h('div', { class: 'row' }, h('div', null, h('b', null, o.name), h('div', { class: 'small muted' }, (o.label || '') + ' · they see you as a ' + c.offered.toLowerCase() + ' · opening offer ' + money(c.fair) + ' / yr'), c.read.length ? h('div', { class: 'small vibe' }, c.read.join(' ')) : null, c.msg ? h('div', { class: 'small ' + (c.closed ? 'bad' : '') }, c.msg) : null), h('span', { class: 'spacer' }),
+    const head = h('div', { class: 'row' }, h('div', null, h('b', null, o.name), h('div', { class: 'small muted' }, (o.label || '') + ' · they see you as a ' + c.offered.toLowerCase() + ' · opening offer ' + money(c.fair) + ' / yr'), o.cap ? h('div', { class: 'small muted' }, capText(o.cap)) : null, c.read.length ? h('div', { class: 'small vibe' }, c.read.join(' ')) : null, c.msg ? h('div', { class: 'small ' + (c.closed ? 'bad' : '') }, c.msg) : null), h('span', { class: 'spacer' }),
       c.closed ? h('span', { class: 'badge' }, 'Talks over') : h('button', { onclick: () => { negOpen = open ? null : o.teamId; render(); } }, open ? 'Close' : 'Negotiate'));
     if (!open || c.closed) return h('div', { class: 'card' + (c.closed ? ' off' : '') }, head);
     // the dial
@@ -975,9 +992,10 @@
     const why = h('div', { class: 'small muted' });
     const sal = h('input', { type: 'number', min: c.minSal, max: c.maxSal, step: 0.1, value: ask.salary }), rng = h('input', { type: 'range', min: c.minSal, max: c.maxSal, step: 0.1, value: ask.salary });
     const yrs = h('select', null, Array.from({ length: c.maxYears }, (_, i) => h('option', { value: i + 1, selected: i + 1 === ask.years }, (i + 1) + ' year' + (i ? 's' : ''))));
+    const optBox = h('input', { type: 'checkbox', onchange: () => upd() }), optRow = h('label', { class: 'small muted', style: 'display:block;margin-top:6px' }, optBox, ' Player option on the last year (you can walk after the year before it; clubs like it less)');
     const rl = h('select', null, G.ROLES.slice().reverse().map((r) => h('option', { value: r, selected: r === ask.role }, r)));
     const upd = () => {
-      ask.salary = Math.min(c.maxSal, Math.max(c.minSal, +sal.value || c.minSal)); ask.years = +yrs.value; ask.role = rl.value;
+      ask.salary = Math.min(c.maxSal, Math.max(c.minSal, +sal.value || c.minSal)); ask.years = +yrs.value; ask.role = rl.value; optBox.disabled = ask.years < 3; if (ask.years < 3) optBox.checked = false; ask.option = optBox.checked ? 'player' : null;
       const r = G.negOdds(S, o.teamId, ask), p = r.p;
       fill.setAttribute('stroke', 'hsl(' + Math.round(p * 120) + ',70%,55%)'); fill.setAttribute('stroke-dasharray', (p * LEN).toFixed(1) + ' ' + LEN.toFixed(1)); txt.textContent = Math.round(p * 100) + '%';
       why.textContent = 'They would go up to about ' + money(Math.min(r.ceil, c.maxSal)) + ' for these terms. ' + r.parts.filter((x) => Math.abs(x.v) >= 0.02).map((x) => x.label + ' ' + (x.v > 0 ? '+' : '−') + Math.round(Math.abs(x.v) * 100) + '%').join(' · ');
@@ -985,12 +1003,15 @@
     sal.oninput = () => { rng.value = sal.value; upd(); }; rng.oninput = () => { sal.value = rng.value; upd(); }; yrs.onchange = upd; rl.onchange = upd; upd();
     const body = c.counter
       ? h('div', null, h('div', { class: 'callout' }, c.msg), h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { try { doneFn(G.acceptCounter(S, o.teamId)); } catch (e) { console.error(e); } } }, 'Accept counter'), h('button', { onclick: () => { try { G.declineCounter(S, o.teamId); save(); render(); } catch (e) { console.error(e); } } }, 'Decline and keep haggling')))
-      : h('div', { class: 'negbox' }, svg, h('div', { class: 'negform' }, h('label', { class: 'small muted' }, 'Salary ($M / yr)'), h('div', { class: 'row' }, sal, rng), h('div', { class: 'row' }, h('div', null, h('label', { class: 'small muted' }, 'Years'), yrs), h('div', null, h('label', { class: 'small muted' }, 'Role'), rl)), why,
+      : h('div', { class: 'negbox' }, svg, h('div', { class: 'negform' }, h('label', { class: 'small muted' }, 'Salary ($M / yr)'), h('div', { class: 'row' }, sal, rng), h('div', { class: 'row' }, h('div', null, h('label', { class: 'small muted' }, 'Years'), yrs), h('div', null, h('label', { class: 'small muted' }, 'Role'), rl)), optRow, why,
         h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { try { const res = G.negotiate(S, o.teamId, ask); if (res.ok) doneFn(res); else { save(); render(); } } catch (e) { console.error(e); } } }, 'Make the offer'))));
     return h('div', { class: 'card' }, head, body);
   }
 
-  function screenDecision() {
+  // the offseason page, with the late-career / locker-room / new-coach decision as a pop-up over it
+  let decModal = null;
+  function screenDecision() { decModal = null; const pg = screenDecision0(); return decModal ? h('div', null, modal(decModal), pg) : pg; }
+  function screenDecision0() {
     const d = S.decision || (S.decision = G.decisionOptions(S));
     const done = (res) => { if (S.dec && S.dec.pending && S.dec.pending.id === 'late') DEC().autoResolve(S); S.farewellOverride = false; S.decision = null; alloc = {}; S.flash = res && res.text; go(); };
     const out = [h('h1', null, 'Offseason: what now?'), h('p', { class: 'muted' }, 'Age ' + d.age + ' · OVR ' + d.ovr + ' · ' + d.team + ' · market value ~' + money(d.marketSalary) + ' (cap ' + money(d.cap) + ')')];
@@ -1011,10 +1032,22 @@
         b.offers.map((o) => h('div', { class: 'row', style: 'margin:6px 0' }, h('div', null, h('b', null, o.name), h('div', { class: 'small muted' }, o.cat + ' · ' + money(o.annual) + ' a year for ' + o.years + ' year' + (o.years > 1 ? 's' : '') + (o.clause === 'image' ? ' · image clause: they leave if the media turns on you' : ''))), h('span', { class: 'spacer' }),
           o.state ? h('span', { class: 'small muted' }, o.state === 'yes' ? 'Signed' : 'Passed') : h('span', { class: 'row' }, h('button', { class: 'primary', disabled: full, onclick: () => { try { L2.answerOffer(S, o.id, true); save(); render(); } catch (e) { console.error(e); } } }, full ? 'Deals full' : 'Sign'), h('button', { onclick: () => { L2.answerOffer(S, o.id, false); save(); render(); } }, 'Pass'))))));
     }
+    // the money: where your club stands against the cap, a team option the club used, a player option for you, an extension on the table
+    if (d.finance) { const f = d.finance; out.push(h('div', { class: 'small muted', style: 'margin:6px 0' }, '🏦 ' + d.team + ' payroll ' + money(f.payroll) + ' · cap ' + money(f.cap) + ' · tax line ' + money(f.taxLine) + ' · ' + f.status + (f.space ? ' · ' + money(f.space) + ' of room' : '') + (f.taxBill ? ' · tax bill about ' + money(f.taxBill) : ''))); }
+    if (d.optionNote) out.push(h('div', { class: 'callout' }, d.optionNote));
+    if (d.taxNote) out.push(h('div', { class: 'callout' }, '🧾 ' + d.taxNote));
+    if (d.playerOption) { const po = d.playerOption;
+      out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Your player option'), h('p', { class: 'small muted' }, 'The last year of your deal is yours to keep or leave: $' + po.salary + 'M, or test the market now (your value is about ' + money(po.marketSalary) + '). ' + (po.better ? 'The market looks better than your option.' : 'The market is not obviously better than your option.')),
+        h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { try { done(G.decide(S, 'option', { take: true })); } catch (e) { console.error(e); } } }, 'Opt in for ' + money(po.salary)), confirmBtn('Decline and test free agency', '', () => { try { G.decide(S, 'option', { take: false }); S.decision = null; save(); render(); } catch (e) { console.error(e); } })))); }
+    if (d.extension) { const ex = d.extension; let yrs = ex.years;
+      out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '✍️ ' + ex.kind), h('p', { class: 'small muted' }, 'The ' + ex.team + ' want to lock you in before you hit the market: ' + money(ex.salary) + ' a year, starting next season' + (ex.crit ? ' (you qualify for the bigger number with ' + ex.crit + ')' : '') + '. You still play out your current year.'),
+        h('div', { class: 'row' }, h('b', null, money(ex.salary) + ' / yr'), h('select', { onchange: (e) => { yrs = +e.target.value; } }, Array.from({ length: ex.maxYears }, (_, i) => h('option', { value: i + 1, selected: i + 1 === yrs }, (i + 1) + ' year' + (i ? 's' : '')))), h('span', { class: 'spacer' }),
+          h('button', { class: 'primary', onclick: () => { try { done(G.decide(S, 'extend', { salary: ex.salary, years: yrs })); } catch (e) { console.error(e); } } }, 'Sign the extension'), h('button', { class: 'ghost', onclick: () => { S.decision.extension = null; save(); render(); } }, 'Not now')))); }
+    else if (d.extensionNo) out.push(h('p', { class: 'small muted' }, d.extensionNo));
     { const ij = ((S.dec && S.dec.journal) || []).filter((e) => e.kind === 'injury' && e.year === S.league.year).slice(-1)[0]; if (ij) out.push(h('div', { class: 'callout' }, '🩹 ' + ij.title + ': ' + ij.text)); }
 
     if (S.dec && S.dec.pending && S.dec.pending.id === 'late' && !d.mustRetire) { const v = DEC().view(S);
-      out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, v.title), h('p', { class: 'small muted' }, v.text), S.dec.pending.log.length ? h('div', { class: 'jlog' }, S.dec.pending.log.map((x) => h('div', { class: 'jmsg ' + x.tone }, x.text))) : null,
+      decModal = (h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, v.title), h('p', { class: 'small muted' }, v.text), S.dec.pending.log.length ? h('div', { class: 'jlog' }, S.dec.pending.log.map((x) => h('div', { class: 'jmsg ' + x.tone }, x.text))) : null,
         h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { onclick: () => { try { DEC().choose(S, o.key); save(); render(); } catch (e) { console.error(e); } } }, 'Choose'))))))); }
     if (d.mustRetire) out.push(h('div', { class: 'callout' }, d.farewell ? 'Your farewell season is over. The league gives you a standing ovation, and it is time to hang them up.' : 'No team has an offer for you and your body says it is time. This is the end of the road.'));
     if (d.expiring && !d.mustRetire) {

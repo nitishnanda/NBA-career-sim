@@ -11,6 +11,8 @@ let PG_DBG = null;
   page.on('console', (m) => { if (m.type() === 'error') errors.push('CONSOLE ' + m.text()); });
   page.on('dialog', (d) => d.accept());
   const shot = (n) => page.screenshot({ path: process.env.SHOTS + '/' + (mobile ? 'm-' : '') + n + '.png', fullPage: true });
+  const _click = page.click.bind(page);   // an offseason story pop-up (locker room, new coach, comeback: no h1) is answered before any click behind it
+  page.click = async (sel, opts) => { for (let k = 0; k < 6 && await page.$('.dlg-back') && !(await page.$('.dlg-back h1')) && await page.$('.dlg-back .wkcard button'); k++) { if (/^\.dlg|wkcard/.test(String(sel))) break; await _click('.dlg-back .wkcard button >> nth=0'); await page.waitForTimeout(120); } return _click(sel, opts); };
   await page.goto('file://' + path.resolve(__dirname, process.env.DIST ? '../dist/index.html' : '../index.html'));
   await page.fill('input[type=text]', 'Nitish Nanda');
   await page.click('text=Box-Score Dominator');
@@ -196,6 +198,7 @@ let PG_DBG = null;
     await page.waitForSelector('text=Offseason decisions');
     if (i === 0) await shot('07-recap');
     await page.click('text=Offseason decisions');
+    for (let k = 0; k < 6 && await page.$('.dlg-back'); k++) { const b = await page.$('.dlg .wkcard button'); if (!b) break; await b.click(); await page.waitForTimeout(120); }   // a locker-room or coach pop-up: answer it
     if (i === 0) await shot('08-decision');
     const retire = await page.$('text=No team has an offer');
     if (retire || i >= 5) { await page.click('text=Retire from basketball'); await page.click('text=Tap again to confirm'); break; }

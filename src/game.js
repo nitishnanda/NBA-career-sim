@@ -1,7 +1,7 @@
 (function (g) {
   'use strict';
   const NBA = g.NBA;
-  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./feed.js'); require('./legacy.js'); require('./room.js'); require('./live.js'); require('./allstar.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
+  if (typeof require !== 'undefined') { try { require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./feed.js'); require('./legacy.js'); require('./room.js'); require('./live.js'); require('./allstar.js'); require('./cap.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
   const D = NBA.data;
   const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
   const ATTRS = D.ATTRS;
@@ -232,7 +232,7 @@
     if (slot && slot <= 30) { sal = capY * 0.0892 * Math.pow(0.958, slot - 1); yrs = 4; }
     else if (slot) { sal = capY * Math.max(0.0097, 0.0149 - (slot - 31) * 0.00023); yrs = 3; }
     else { sal = capY * 0.0084; yrs = 2; }
-    st.contract = { salary: r1(sal), years: yrs, left: yrs, type: 'rookie' };
+    st.contract = { salary: r1(sal), years: yrs, left: yrs, type: 'rookie', teamOpt: !!(slot && slot <= 30) };   // first-rounders: the club holds options on years 3 and 4
     st.stage = 'draft_night';
     return st.draft;
   }
@@ -798,6 +798,7 @@
     if (pline && po.userMade) st.playoffLines.push(Object.assign({ label: res.label, age, team: t.name }, rec.playoff, { heater, text: resultText }));
     p.yearsPro++;
     st.contract.left--;
+    if (st.contract.left <= 0 && st.contract.next) { const nx = st.contract.next, ro = st.contract.role; st.contract = { salary: nx.salary, years: nx.years, left: nx.years, type: 'veteran', role: ro, opt: null }; }   // an extension starts the year the old deal ends
     st.bonusPoints = fx.bonusPts;
     st.stage = 'season_play';
     if (!wasSeeded) NBA.useRandom();
@@ -1329,9 +1330,12 @@
     const lo = franchise ? o - 5 : system ? o - 7 : o - 12, hi = franchise ? o + 4 : o + 3;
     const cand = rb.filter((q, i) => ovr(q) >= lo && ovr(q) <= hi && (i > 0 || o >= top + 2));
     if (!cand.length) return Object.assign(base, { ok: false, reason: 'The ' + t.nick + ' have nobody close to your value to send back.' });
-    const partner = cand.sort((a, b) => ovr(b) - ovr(a))[0];
+    // the best player they can send back whose salary fits (an over-the-cap club may take back at most 125% + $0.1M of what it sends out)
+    const sorted = cand.sort((a, b) => ovr(b) - ovr(a)), mySal0 = st.contract ? st.contract.salary : 0; let partner = sorted[0], matchWhy = null;
+    for (let i = 0; i < sorted.length; i++) { const q = sorted[i], ps = NBA.Cap.salaryOf(L, q), a1 = NBA.Cap.tradeMatch(st, t, mySal0, ps), a2 = NBA.Cap.tradeMatch(st, mine, ps, mySal0); if (a1.ok && a2.ok) { partner = q; matchWhy = null; break; } if (!matchWhy) matchWhy = a1.ok ? a2.why : a1.why; }
     base.partner = { id: partner.id, name: partner.name, pos: partner.pos, age: partner.age, ovr: Math.round(ovr(partner)) };
     base.picks = o - ovr(partner) >= 6 ? 'a first-round pick and a second' : o - ovr(partner) >= 3 ? 'a second-round pick' : '';   // a club that gets the better player sweetens it
+    { const mySal = mySal0, pSal = NBA.Cap.salaryOf(L, partner); base.partner.salary = pSal; base.mySalary = r1(mySal); if (matchWhy) return Object.assign(base, { ok: false, reason: matchWhy }); }
     // your own club
     let accept = 1, why = '';
     if (franchise) { accept = mine.wins < 34 ? 0.75 : mine.wins < 43 ? 0.3 : 0.06; why = 'The ' + mine.nick + ' will not move their franchise player' + (mine.wins >= 43 ? ' while they are winning.' : ' for that offer.'); }
@@ -1344,10 +1348,10 @@
   // The answers are rolled once from the career's own seeded stream, so reloading the page never changes a rejection.
   const sig = (x) => 1 / (1 + Math.exp(-x));
   const minSalary = (L) => r1(2.3 * capFor(L.year) / 154.6);
-  function teamInterest(st, t, v) {
+  function teamInterest(st, t, v, fin) {
     const L = st.league, p = st.player, rnd = NBA.Decisions.rng(st, 'fa|' + t.id + '|' + L.year);
     const r = NBA.rosterOf(L, t), fourth = r[3] ? ovr(r[3]) : 60;
-    const space = clamp(0.75 - 0.011 * (t.wins - 41) + (rnd() - 0.5) * 0.9, 0, 1), need = NBA.teamNeeds(L, t)[p.pos] || 0.3;
+    const rv = rnd(), space = fin ? clamp(fin.space / (0.22 * fin.cap), 0, 1) : clamp(0.75 - 0.011 * (t.wins - 41) + (rv - 0.5) * 0.9, 0, 1), need = NBA.teamNeeds(L, t)[p.pos] || 0.3;
     const gap = v - fourth;
     // mentors on that club vouch for you
     const rel = NBA.Decisions.state(st).rel; let vouch = 0; Object.keys(rel).forEach((k) => { const q = L.players[k]; if (q && q.teamId === t.id && rel[k].v > 0) vouch += Math.min(2, rel[k].v); });
@@ -1385,11 +1389,33 @@
     const human = !st.autoPlay, Dc = NBA.Decisions;
     if (human) { applyInjuryFx(st); NBA.Legacy.brandYear(st); finalizeRivals(st); finalizePress(st); }
     if (human) { const b = st.brand; out.brand = { score: Math.round(b ? b.score : 0), deals: b ? b.deals : [], offers: NBA.Legacy.endorseOffers(st), agent: NBA.Legacy.agentOf(st) }; }
+    if (human) {
+      const own0 = L.teams[st.teamId]; out.finance = NBA.Cap.finance(st, own0);
+      // team options on a first-round rookie deal (years 3 and 4): the club decides each summer, and a club that declines sends you to free agency early
+      if (c.type === 'rookie' && c.teamOpt && (c.left === 2 || c.left === 1) && c.optYear !== L.year) {
+        c.optYear = L.year; const slot = (st.draft && st.draft.slot) || 30, pickP = clamp(0.45 + 0.03 * (v - 58) + (slot <= 10 ? 0.3 : 0), 0.12, 0.99);
+        if (Dc.rng(st, 'teamopt|' + L.year)() >= pickP) { c.left = 0; c.optDeclined = L.year; out.expiring = true; }
+        else c.optPicked = L.year;
+      }
+      if (c.optDeclined === L.year) out.optionNote = 'The ' + own0.nick + ' declined your team option: you are a free agent a year or two early.';
+      else if (c.optPicked === L.year) out.optionNote = 'The ' + own0.nick + ' picked up your team option for next season.';
+      // a player option on the last year: opt in, or test the market now
+      if (c.opt && c.opt.type === 'player' && c.left === 1 && !out.expiring) out.playerOption = { salary: c.salary, marketSalary: r1(baseSal), better: baseSal > c.salary * 1.06 };
+    }
     if (human && !Dc.state(st).pending) Dc.offer(st, 'late');
     // a club can cut a player who is doing badly (his contract is voided; the salary he was owed is still paid): he goes to the market like any other free agent
     if (human && !out.expiring && !forceRetire && c.left > 0 && p.age >= 24 && v < 63 && !protection(st) && Dc.rng(st, 'cut|' + L.year)() < (v < 58 ? 0.55 : 0.3)) {
       feedAdd(st, 'waived', { team: L.teams[st.teamId].nick }, { key: 'waived' + L.year, at: null });
       out.expiring = true; out.waived = 'The ' + L.teams[st.teamId].nick + ' waived you: they decided your spot and your salary were better spent elsewhere.';
+    }
+    // an extension: one year left on the deal, and your club would rather lock you in than let you walk. A star past seven years with the right résumé can get the supermax (35% of the cap)
+    if (human && !out.expiring && c.left === 1 && !c.next && !out.playerOption && v >= 60 && !forceRetire && p.age <= 34) {
+      const own1 = L.teams[st.teamId], er = Dc.rng(st, 'ext|' + L.year)(), recent = st.proSeasons.slice(-3), allNba = recent.filter((x) => (x.awards || []).some((a) => /^All-NBA/.test(a))).length, honors = recent.some((x) => (x.awards || []).some((a) => /^(MVP$|Defensive Player of the Year)/.test(a)));
+      const crit = allNba >= 2 || honors, rookieDeal = c.type === 'rookie', superOk = !rookieDeal && p.yearsPro >= 7 && p.yearsPro <= 9 && crit, desig = rookieDeal && crit;
+      if (er < clamp(0.55 + 0.03 * (v - 62), 0.2, 0.95)) {
+        const maxPct = superOk ? 0.35 : desig ? 0.3 : mk.maxPct, maxSal = r1(maxPct * cap), sal = r1(Math.min(maxSal, Math.max(minSalary(L), baseSal * (superOk ? 1.06 : 0.97))));
+        out.extension = { team: own1.nick, salary: sal, maxSal, years: Math.min(5, p.age >= 33 ? 2 : p.age >= 31 ? 3 : 5), maxYears: p.age >= 33 ? 2 : p.age >= 31 ? 3 : 5, kind: superOk ? 'Supermax extension' : desig ? 'Designated rookie extension' : rookieDeal ? 'Rookie-scale extension' : 'Contract extension', crit: crit ? (allNba >= 2 ? 'two All-NBA seasons in three' : 'an MVP or Defensive Player of the Year in the last three') : null };
+      } else out.extensionNo = 'The ' + own1.nick + ' are not ready to talk about an extension this summer.';
     }
     if (out.expiring) {
       const own = L.teams[st.teamId];
@@ -1397,16 +1423,22 @@
       out.resign = { teamId: own.id, name: own.name, salary: r1(Math.max(2.3 * capFor(L.year) / 154.6, baseSal)), maxYears: maxYrsOwn, role: role(st, own), label: teamLabel(own, own.wins) };
       if (human) {
         // your own club may not want you back, or only for less
-        const rs = Dc.rng(st, 'resign|' + L.year)(), keepP = out.waived ? 0 : clamp(0.5 + 0.035 * (v - 62) + 0.12 * Math.min(2, Dc.relOf(st, 'team' + own.id)), 0.1, 0.97);
+        const finO = NBA.Cap.finance(st, own), withoutMe = finO.payroll - c.salary, proj = withoutMe + (out.resign ? out.resign.salary : 0), taxHit = proj > finO.apron2 ? 0.32 : proj > finO.taxLine ? 0.18 : 0;
+        out.taxNote = taxHit ? 'The ' + own.nick + ' would be ' + (proj > finO.apron2 ? 'over the second apron' : 'deep in the luxury tax') + ' with you back ($' + r1(proj) + 'M payroll against a $' + finO.taxLine + 'M tax line), so they are hesitant.' : null;
+        const rs = Dc.rng(st, 'resign|' + L.year)(), keepP = out.waived ? 0 : clamp(0.5 + 0.035 * (v - 62) + 0.12 * Math.min(2, Dc.relOf(st, 'team' + own.id)) - (v >= 80 ? 0.3 * taxHit : taxHit), 0.1, 0.97);
         if (rs > keepP) out.resign = null;
         else if (rs > keepP - 0.18 && v < 70) { out.resign.salary = r1(out.resign.salary * 0.8); out.resign.cut = true; }
         if (out.resign && p.age >= 29 && !out.waived) out.resign.loyal = { salary: r1(out.resign.salary * 0.75), years: Math.min(2, out.resign.maxYears) };
         out.resignText = out.resign ? (out.resign.cut ? 'The ' + own.nick + ' want you back, but at a discount.' : 'The ' + own.nick + ' want you back.') : 'The ' + own.nick + ' are letting you walk.';
         const n = v >= 76 ? 10 : v >= 68 ? 8 : v >= 60 ? 7 : 6, rnd = Dc.rng(st, 'market|' + L.year);
-        const teams = L.teams.filter((t) => t.id !== st.teamId).map((t) => [rnd(), t]).sort((x, y) => x[0] - y[0]).slice(0, n).map((x) => x[1]);
-        out.market = teams.map((t) => {
-          const ring = p.age >= 31 && t.wins >= 48, ti = teamInterest(st, t, v + (st.legendBonus || 0) + (ring ? 2.5 : 0)), sal = Math.max(2.3 * capFor(L.year) / 154.6, baseSal * (0.88 + rnd() * 0.17) * (t.wins < 33 ? 1.04 : 1) * (ring ? 0.7 : 1));
-          return { teamId: t.id, name: t.name, nick: teamKey(t), wins: t.wins, label: teamLabel(t, t.wins), role: role(st, t), vibe: Dc.vibe(ti.p), vouch: ti.vouched, ring: p.age >= 31 && t.wins >= 48, yes: ti.yes, reason: ti.reason, salary: r1(sal), maxYears: p.age >= 36 ? 1 : p.age >= 33 ? 2 : 4, pitched: null, ip: ti.p, space: ti.space };
+        // who can pay you: a club with cap room can offer up to its room; a club over the cap only its exception (mid-level, taxpayer mid-level, or the minimum). Clubs that can afford you come first
+        const pool = L.teams.filter((t) => t.id !== st.teamId).map((t) => ({ t, fin: NBA.Cap.finance(st, t), r: rnd() })).sort((x, y) => x.r - y.r);
+        const canPay = (x) => x.fin.space >= 0.7 * baseSal, afford = pool.filter(canPay), rest = pool.filter((x) => !canPay(x));
+        const picked = afford.slice(0, n).concat(rest.slice(0, Math.max(2, n - afford.length)));
+        out.market = picked.map(({ t, fin }) => {
+          const ring = p.age >= 31 && t.wins >= 48, ti = teamInterest(st, t, v + (st.legendBonus || 0) + (ring ? 2.5 : 0), fin), full = canPay({ fin }), sal0 = Math.max(2.3 * capFor(L.year) / 154.6, baseSal * (0.88 + rnd() * 0.17) * (t.wins < 33 ? 1.04 : 1) * (ring ? 0.7 : 1));
+          const maxOffer = r1(Math.min(mk.maxPct * cap, full ? fin.space : fin.exception.amount)), sal = Math.min(sal0, maxOffer);
+          return { teamId: t.id, name: t.name, nick: teamKey(t), wins: t.wins, label: teamLabel(t, t.wins), role: role(st, t), vibe: Dc.vibe(ti.p), vouch: ti.vouched, ring: p.age >= 31 && t.wins >= 48, yes: ti.yes, reason: ti.reason, salary: r1(sal), maxYears: p.age >= 36 ? 1 : p.age >= 33 ? 2 : 4, pitched: null, ip: ti.p, space: ti.space, cap: { kind: full ? 'Cap room' : fin.exception.kind, room: fin.space, max: maxOffer, payroll: fin.payroll, status: fin.status, capped: sal0 > maxOffer + 0.05 } };
         }).sort((a, b) => b.wins - a.wins);
         // sign-and-trade: stay long enough to be dealt, and a contender with no cap room can take you if it pays your old club in picks
         out.signTrade = null;
@@ -1419,7 +1451,7 @@
         out.offers = [];
         out.neg = {};
         if (!out.waived) { const fairOwn = out.resign ? out.resign.salary : r1(Math.max(minSalary(L), baseSal * 0.85)); out.neg[own.id] = negCtx(st, own, fairOwn, out.resign ? (out.resign.cut ? 0.5 : 0.75) : 0.2, 0.5, true, mk.maxPct * cap, out.resign ? out.resign.maxYears : maxYrsOwn); }
-        out.market.forEach((m) => { out.neg[m.teamId] = negCtx(st, L.teams[m.teamId], m.salary, m.ip, m.space, false, mk.maxPct * cap, m.maxYears); });
+        out.market.forEach((m) => { out.neg[m.teamId] = negCtx(st, L.teams[m.teamId], m.salary, m.ip, m.space, false, Math.min(mk.maxPct * cap, m.cap.max), m.maxYears); });
       } else {
         const offers = [];
         const n = mk.v >= 76 ? 6 : mk.v >= 68 ? 4 : mk.v >= 60 ? 3 : 1;
@@ -1468,6 +1500,7 @@
     const parts = [], add = (label, v) => { parts.push({ label, v }); return v; };
     let tol = 0.08;
     tol += add('Desperation', 0.32 * c.desp) + add('Other options', -0.22 * c.alts) + add('Interest in you', 0.35 * (c.interest - 0.5)) + add('Cap room', 0.18 * (c.space - 0.4));
+    if (ask.option === 'player' && ask.years >= 3) tol += add('Player option', -0.05);   // a player option on the last year costs the club flexibility
     const yd = ask.years - c.pref; tol += add('Years', yd > 0 ? -0.035 * yd : Math.min(0.02, -0.01 * yd));
     const step = ROLES.indexOf(ask.role) - ROLES.indexOf(c.offered); tol += add('Role', step > 0 ? -0.11 * step - (step >= 2 ? 0.08 : 0) : Math.min(0.05, -0.025 * step));
     const ceil = c.fair * (1 + tol), p = c.closed ? 0 : clamp(sig((ceil - ask.salary) / (0.065 * c.fair)), 0.01, 0.99);   // (not capped at the max contract: a club that offered the max is not 50-50 on it)
@@ -1477,20 +1510,21 @@
     if (!ROLES.includes(ask.role)) throw new Error('bad role');
     if (!(ask.years >= 1 && ask.years <= c.maxYears)) throw new Error('bad years');
     if (!(ask.salary >= c.minSal - 0.01 && ask.salary <= c.maxSal + 0.01)) throw new Error('bad salary');
+    if (ask.option && !(ask.option === 'player' && ask.years >= 3)) throw new Error('bad option');
   }
   function sign(st, c, terms) {
-    const res = decide(st, c.own ? 'resign' : 'switch', { teamId: c.teamId, salary: terms.salary, years: terms.years, role: terms.role, tag: 'neg' });
+    const res = decide(st, c.own ? 'resign' : 'switch', { teamId: c.teamId, salary: terms.salary, years: terms.years, role: terms.role, option: terms.option, tag: 'neg' });
     return { ok: true, text: res.text };
   }
   function negotiate(st, teamId, ask) {
     const d = st.decision, c = d && d.neg && d.neg[teamId];
     if (!c || c.closed) throw new Error('talks are over');
-    ask = { salary: r1(ask.salary), years: ask.years | 0, role: ask.role }; checkAsk(c, ask);
+    ask = { salary: r1(ask.salary), years: ask.years | 0, role: ask.role, option: ask.option === 'player' ? 'player' : null }; checkAsk(c, ask);
     const o = negOdds(st, teamId, ask), roll = NBA.Decisions.rng(st, 'neg|' + teamId + '|' + st.league.year + '|' + c.attempts)(), nick = st.league.teams[teamId].nick;
     c.attempts++;
     if (roll < o.p) return sign(st, c, ask);
     if (o.p >= 0.15 && c.attempts < 3) {
-      const counter = { salary: r1(Math.max(c.minSal, Math.min(ask.salary, c.maxSal, o.ceil * 0.985))), years: Math.min(ask.years, c.pref + 1), role: o.step > 0 ? c.offered : ask.role };
+      const counter = { salary: r1(Math.max(c.minSal, Math.min(ask.salary, c.maxSal, o.ceil * 0.985))), years: Math.min(ask.years, c.pref + 1), role: o.step > 0 ? c.offered : ask.role, option: ask.option && ask.years >= 3 && Math.min(ask.years, c.pref + 1) >= 3 && o.p >= 0.35 ? 'player' : null };
       c.counter = counter; c.msg = 'The ' + nick + ' came back with a counter: ' + counter.years + ' year' + (counter.years > 1 ? 's' : '') + ' at $' + counter.salary + 'M as a ' + counter.role.toLowerCase() + '.';
       return { ok: false, counter };
     }
@@ -1545,7 +1579,7 @@
       const t = L.teams[arg.teamId], oldT = L.teams[st.teamId], sat = arg.tag === 'sat' && action === 'switch' && (st.decision && st.decision.signTrade || []).find((x) => x.teamId === t.id);
       if (arg.tag === 'sat' && !sat) throw new Error('no such sign-and-trade');
       st.teamId = t.id; p.teamId = t.id;
-      st.contract = { salary: arg.salary, years, left: years, type: 'veteran' };
+      st.contract = { salary: arg.salary, years, left: years, type: 'veteran', opt: arg.option === 'player' && years >= 3 ? { type: 'player' } : null };
       if (sat) { (st.trades = st.trades || []).push({ year: L.year, label: NBA.seasonLabel(L.year), from: oldT.name, to: t.name, ovr: Math.round(ovr(p)), age: p.age, partner: sat.picks + ' (sign-and-trade)', requested: false }); feedAdd(st, 'trade', { old: oldT.nick, team: t.nick }); NBA.Decisions.apply(st, [{ k: 'rel', id: 'team' + oldT.id, name: oldT.name, d: 1 }]); NBA.Decisions.log(st, { kind: 'trade', title: 'Sign-and-trade', tone: 'good', text: 'Re-signed with the ' + oldT.nick + ' and was dealt to the ' + t.nick + ' for ' + sat.picks + '. The ' + oldT.nick + ' got paid for losing you.' }); }
       if (arg.role) { st.contract.role = arg.role; if (!st.autoPlay && ROLE_FX[arg.role]) NBA.Decisions.apply(st, [{ k: 'season', v: ROLE_FX[arg.role] }]); }
       if (sat) note('Sign-and-trade to ' + t.name);
@@ -1555,6 +1589,23 @@
       if (!st.autoPlay) NBA.Decisions.log(st, { kind: 'contract', title: 'Free agency', tone: 'neutral', text: (arg.tag === 'neg' ? 'Negotiated a deal with the ' + t.nick + (arg.role ? ' as a ' + arg.role.toLowerCase() : '') : arg.tag === 'loyal' ? 'Took a loyalty discount to stay with the ' + t.nick : arg.tag === 'ring' ? 'Took a pay cut to chase a ring with the ' + t.nick : action === 'switch' ? 'Signed with the ' + t.nick : 'Re-signed with the ' + t.nick) + ' for ' + years + ' year' + (years > 1 ? 's' : '') + ', $' + arg.salary + 'M a year.' });
       st.stage = 'training'; st.afterTraining = 'pro';
       return { text: (action === 'switch' ? 'Signed with the ' : 'Re-signed with the ') + t.nick + ' for ' + years + ' years, $' + arg.salary + 'M/yr.' };
+    }
+    if (action === 'extend') {
+      const ex = st.decision && st.decision.extension; if (!ex) throw new Error('no extension on offer');
+      const sal = clamp(r1(arg.salary), minSalary(L), ex.maxSal), yrs = clamp(arg.years | 0, 1, ex.maxYears);
+      c.next = { salary: sal, years: yrs }; c.ext = L.year; st.decision.extension = null;
+      NBA.Decisions.apply(st, [{ k: 'rel', id: 'team' + st.teamId, name: L.teams[st.teamId].name, d: 1 }]);
+      NBA.Decisions.log(st, { kind: 'contract', title: ex.kind, tone: 'good', text: 'Signed a ' + yrs + '-year, $' + sal + 'M-a-year extension with the ' + L.teams[st.teamId].nick + ', starting next season' + (ex.kind === 'Supermax extension' ? ' (the supermax: 35% of the cap)' : '') + '.' });
+      feedAdd(st, 'resign', { team: L.teams[st.teamId].nick });
+      st.stage = 'training'; st.afterTraining = 'pro';
+      return { text: 'Extension signed: ' + yrs + ' years, $' + sal + 'M a year from next season.' };
+    }
+    if (action === 'option') {
+      if (!(c.opt && c.opt.type === 'player' && c.left === 1)) throw new Error('no player option');
+      if (arg.take) { c.opt = null; NBA.Decisions.log(st, { kind: 'contract', title: 'Player option', tone: 'neutral', text: 'Opted in to the final year at $' + c.salary + 'M.' }); st.stage = 'training'; st.afterTraining = 'pro'; return { text: 'You opted in: $' + c.salary + 'M for the final year.' }; }
+      c.opt = null; c.left = 0; c.optOut = L.year;
+      NBA.Decisions.log(st, { kind: 'contract', title: 'Player option', tone: 'neutral', text: 'Declined the player option and went to free agency.' });
+      return { text: 'You declined the option. Time to see what the market says.', reopen: true };
     }
     throw new Error('bad action');
   }
@@ -1658,6 +1709,6 @@
     return st;
   }
 
-  Object.assign(NBA, { capFor, Game: { chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { capFor, marketCurve, Game: { chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
