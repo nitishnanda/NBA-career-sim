@@ -43,7 +43,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   const okR = /MOCKREACT/.test(res) && /MOCKHEAD/.test(res) && /MOCKFAN one/.test(res); console.log('AI reaction', okR ? 'OK' : 'MISMATCH'); if (!okR) errors.push('reaction missing');
   // "in the news": force a mention pop-up
   await page.evaluate(() => { const U = window.__NBA_UI, st = U.state; st.dec.pending = null; st.decResult = null; const Dc = window.NBA.Decisions; const items = st.matchLog; let i = 1; st.autoDec = false;
-    for (; i < items.length; i++) { if (items[i].k !== 'g' || items[i].dnp) continue; st.matchIdx = i + 1; st.dec.flags.mn = { y: st.league.year, n: 0 }; const pr = st.dec.flags.pr || (st.dec.flags.pr = { quotes: [], tally: [], feuds: {}, heads: [], rep: {} }); pr.feuds[items[i].o] = { star: 'Test Star', level: 1, y: st.league.year, quote: 'x', seen: 0 }; if (Dc.offer(st, 'mention')) break; }
+    for (; i < items.length; i++) { if (items[i].k !== 'g' || items[i].dnp) continue; { const nx = items[i + 1]; if (!nx || nx.k !== 'g' || nx.dnp || nx.inj || nx.pc || nx.cl || nx.po || nx.n === 12 || nx.n === 48 || nx.n < 5) continue; } st.matchIdx = i + 1; st.dec.flags.mn = { y: st.league.year, n: 0 }; items[i].pcast = 1; const pr = st.dec.flags.pr || (st.dec.flags.pr = { quotes: [], tally: [], feuds: {}, heads: [], rep: {} }); pr.feuds[items[i].o] = { star: 'Test Star', level: 1, y: st.league.year, quote: 'x', seen: 0 }; if (Dc.offer(st, 'mention')) break; }
     U.go(); });
   await page.waitForTimeout(800);
   const mn = await page.evaluate(() => document.body.textContent);
@@ -51,9 +51,10 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   await page.evaluate(() => { Array.from(document.querySelectorAll('.wkcard button')).find((b) => true).click(); }); await page.waitForTimeout(500);
   const mr = await page.evaluate(() => document.body.textContent); const okR2 = /MOCKMHEAD/.test(mr) && /MOCKMFAN a/.test(mr); console.log('AI mention result', okR2 ? 'OK' : 'MISMATCH'); if (!okR2) errors.push('mention result ' + mr.slice(0, 300));
   await page.evaluate(() => { const U = window.__NBA_UI, st = U.state; st.dec.pending = null; st.decResult = null; const Dc = window.NBA.Decisions; const items = st.matchLog; let i = 1;
-    for (; i < items.length; i++) { if (items[i].k !== 'g' || items[i].dnp) continue; st.matchIdx = i + 1; st.dec.flags.pod = { y: st.league.year, n: 0 }; st.dec.flags.pr.feuds[items[i].o] = { star: 'Test Star', level: 1, y: st.league.year, quote: 'x', seen: 0 }; if (Dc.offer(st, 'podcast')) break; }
-    U.go(); });
+    for (; i < items.length; i++) { if (items[i].k !== 'g' || items[i].dnp) continue; { const nx = items[i + 1]; if (!nx || nx.k !== 'g' || nx.dnp || nx.inj || nx.pc || nx.cl || nx.po || nx.n === 12 || nx.n === 48 || nx.n < 5) continue; } st.matchIdx = i + 1; st.dec.flags.pod = { y: st.league.year, n: 0 }; items[i].md = 1; delete items[i].pcast; st.dec.flags.pr.feuds[items[i].o] = { star: 'Test Star', level: 1, y: st.league.year, quote: 'x', seen: 0 }; if (Dc.offer(st, 'podcast')) break; }
+    window.__dbg = { pend: st.dec.pending && st.dec.pending.id, mi: st.matchIdx, dr: !!st.decResult }; U.go(); });
   await page.waitForTimeout(800);
+  console.log('DBG', JSON.stringify(await page.evaluate(() => window.__dbg)));
   const pod = await page.evaluate(() => document.body.textContent); const okP = /Fan podcast/.test(pod) && /MOCKPOD/.test(pod) && /MOCKPU unfiltered/.test(pod); console.log('AI podcast', okP ? 'OK' : 'MISMATCH'); if (!okP) errors.push('podcast ' + pod.slice(0, 300));
   await page.evaluate(() => { Array.from(document.querySelectorAll('.wkcard button'))[2].click(); }); await page.waitForTimeout(500);
   const pr2 = await page.evaluate(() => document.body.textContent); const okP2 = /MOCKPHEAD/.test(pr2) && /MOCKPFAN a/.test(pr2); console.log('AI podcast result', okP2 ? 'OK' : 'MISMATCH'); if (!okP2) errors.push('podcast result');

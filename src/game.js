@@ -1074,7 +1074,7 @@
   const POD_L = {
     clean: ['\u201CI let the game do the talking. {pts} on them, we got the {res}, and we move on to the next one.\u201D', '\u201CI respect {star}, I respect the {opp}. But I came to win and I did.\u201D'],
     loose: ['\u201CI am not going to lie, {pts} on those guys felt damn good. We are {rec} for a reason and the {opp} can chill.\u201D', '\u201C{star} is good, sure, but I am not scared of that dude. Check the tape, I put {pts} on his ass.\u201D'],
-    unfiltered: ['\u201CBro, the {opp} talk all that shit and then I drop {pts} on them. We are {rec}. [bleep] outta here with that noise. You know what I said. [bleep].\u201D', '\u201C{star} can talk all he wants. I put {pts} on him, we are {rec}, and he can kiss my ass about it. [bleep] him, honestly.\u201D'],
+    unfiltered: ['\u201CBro, the {opp} talk all that shit and then I drop {pts} on them. We are {rec}. Fuck outta here with that noise. And {star} is a straight-up [bleep], you know exactly what I mean.\u201D', '\u201C{star} can talk all he wants. I put {pts} on him, we are {rec}, and he can kiss my ass about it. Dude is a [bleep] and everybody in that building knows it.\u201D'],
   };
   function podcastOpen(st, it) {
     const Dc = NBA.Decisions, f = Dc.state(st).flags, L = st.league, y = L.year, m = f.pod && f.pod.y === y ? f.pod : (f.pod = { y, n: 0 });

@@ -900,3 +900,6 @@ A long injury (any named one, or 15+ missed games in a block) now stops the seas
 
 ## v87 — bleeped language
 - The strongest words on the fan podcast are censored as [bleep] (listeners know what was said, nothing is spelled out); the unfiltered option is tagged 🔇. No slurs, and nothing race-specific.
+
+## v88 — what gets bleeped
+- Normal swearing stays uncensored on the fan podcast; only the single nastiest personal insult in an unfiltered answer is [bleep]ed.
