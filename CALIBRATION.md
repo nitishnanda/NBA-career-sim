@@ -879,3 +879,6 @@ A long injury (any named one, or 15+ missed games in a block) now stops the seas
 ## v82 — Claude writes the press room and timeline (artifact only)
 - Inside the Claude artifact: all generic/post-game press questions are written fresh by Claude (with answers); story questions (your history, feuds, callbacks) get Claude-written answers; button answers get a Claude reaction, headline and fan posts that match what was said; timeline posts for games/events are Claude-written (marked ✨).
 - Plain GitHub Pages / Claude unavailable / rate-limited: hand-written banks, unchanged. No sim numbers touched. Test: `scripts/ui-ai.js` (mocked `window.claude`).
+
+## v83 — every press question is Claude-written (artifact)
+- Story questions (history, feuds, callbacks) are now reworded fresh by Claude too, keeping their facts; with the fresh generic questions, answers and reactions, nothing in the room is canned when Claude is available.

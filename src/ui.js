@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v82';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v83';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -1307,7 +1307,7 @@
       return h('div', null, h('h1', null, 'Press conference'), h('p', { class: 'muted' }, t.name + ' · ' + v.why + (gno && gno !== v.why ? ' · ' + gno : '')),
         pd.log.length ? h('div', { class: 'jlog' }, pd.log.map((x) => h('div', { class: 'jmsg' }, x.text.charAt(0) === '\uD83D' ? x.text : '🎤 ' + x.text))) : null,
         h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, 'Pick your question · ' + (v.taken + 1) + ' of ' + v.take), h('p', { class: 'small muted', style: 'margin:6px 0' }, 'Reporters are shouting. You can take ' + (v.take - v.taken) + (v.take - v.taken === 1 ? ' question' : ' questions') + ' and the rest get ignored (they will remember).'), persona, aiNote),
-        h('div', { class: 'wkgrid' }, v.candidates.map((c) => h('div', { class: 'wkcard qcard' + (c.heat >= 2 ? ' spicy' : '') }, h('div', { class: 'small muted' }, rep(c.reporter), (SRC[c.src] || c.ai) ? h('span', { class: 'badge', style: 'margin-left:8px' }, c.ai ? 'Fresh question' : SRC[c.src]) : null), h('div', { style: 'margin:8px 0' }, '“' + c.text + '”'), h('button', { class: 'primary', onclick: () => act('pick', c.idx) }, 'Take this one')))),
+        h('div', { class: 'wkgrid' }, v.candidates.map((c) => h('div', { class: 'wkcard qcard' + (c.heat >= 2 ? ' spicy' : '') }, h('div', { class: 'small muted' }, rep(c.reporter), (SRC[c.src] || c.ai) ? h('span', { class: 'badge', style: 'margin-left:8px' }, SRC[c.src] || 'Fresh question') : null), h('div', { style: 'margin:8px 0' }, '“' + c.text + '”'), h('button', { class: 'primary', onclick: () => act('pick', c.idx) }, 'Take this one')))),
         skipBar, autoDecBar());
     }
     const q = pd.ctx.pool[pd.ctx.cur];
@@ -1367,7 +1367,7 @@
         const fresh = got.slice(0, want).map((q, k) => { const cand = { i: 4000 + k, topic: 'ai', heat: q.heat, text: q.text, src: 'ai', ai: true, opts: mk(q.answers, 3, true) }; cand.reporter = q.reporter ? { id: q.reporter.name, name: q.reporter.name, outlet: q.reporter.outlet, style: q.reporter.style } : R.reporterFor(team, cand, pr.rep, Math.random); return cand; });
         const ans = ar ? NBA.Press.checkClaudeAnswers(ar, sq) : {};
         if (ctx.cur == null && !ctx.chosen.length) {
-          story.forEach((q, k) => { const a = ans['q' + k]; if (a) { q.opts = mk(a, 3, true); q.ai = true; } });
+          story.forEach((q, k) => { const a = ans['q' + k]; if (a) { q.opts = mk(a, 3, true); q.ai = true; if (a._q) q.text = a._q; } });
           if (fresh.length) ctx.pool = ctx.pool.filter((q) => q.src !== 'bank' && q.src !== 'post').concat(fresh);
         }
         noteEl.textContent = '';
