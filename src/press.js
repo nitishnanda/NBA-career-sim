@@ -593,6 +593,6 @@
     return out;
   }
 
-  Object.assign(NBA, { Press: { isProfane: (t) => PROFANE.test(String(t || '')), badmouth, claudePodcastPrompt, checkClaudePodcast, claudeMentionPrompt, checkClaudeMention, claudeAnswersPrompt, checkClaudeAnswers, claudeReactPrompt, checkClaudeReact, claudeFeedPrompt, checkClaudeFeed, readTyped, claudePrompt, checkClaude, claudeQuestionsPrompt, checkClaudeQuestions, BANK: B, TONES, ctxFor, pickQuestions, answerOptions, size: () => B.length, FILL } });
+  Object.assign(NBA, { Press: { VOICE, isProfane: (t) => PROFANE.test(String(t || '')), badmouth, claudePodcastPrompt, checkClaudePodcast, claudeMentionPrompt, checkClaudeMention, claudeAnswersPrompt, checkClaudeAnswers, claudeReactPrompt, checkClaudeReact, claudeFeedPrompt, checkClaudeFeed, readTyped, claudePrompt, checkClaude, claudeQuestionsPrompt, checkClaudeQuestions, BANK: B, TONES, ctxFor, pickQuestions, answerOptions, size: () => B.length, FILL } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

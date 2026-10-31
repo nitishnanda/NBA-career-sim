@@ -328,3 +328,5 @@ body.dlg-open { overflow: hidden; }
 .capsheet tr.me td, .capsheet tr.me th { font-weight: 700; color: #fff; } .capsheet td:first-child { text-align: left; }
 
 .igrow { margin-top: 2px; letter-spacing: .01em; } .igrep { margin: 2px 0 0 14px; font-weight: 600; }
+.repbar { flex: 1; height: 8px; border-radius: 6px; background: var(--line); overflow: hidden; min-width: 60px; } .repbar > div { height: 100%; }
+details.poseries > summary::-webkit-details-marker { margin-right: 6px; }

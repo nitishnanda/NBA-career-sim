@@ -914,3 +914,10 @@ A long injury (any named one, or 15+ missed games in a block) now stops the seas
 
 ## v91 — Instagram-comment register
 - From real examples: blunt one-liners ("Soft.", "Post the final score please 😂🥀", "Now show him playing D. Oh wait. You can't."), all-caps stan defenders, tribal stan-vs-hater lines. Posts now look like comments: IG-style usernames, a time (2h … 1w), likes and "View replies (N)". The artifact's VOICE prompt carries the same register.
+
+## v92 — the career verdict
+- New `src/report.js` (NBA.Report): ranks you against ~50 all-time greats on the same legacy formula as the Hall of Fame score (approximate real résumés), lists who beats you where and who you beat where, reads what the fans make of the career (loved/respected/divisive/disliked with traits like ring-chaser talk or empty-stats label, love/hate bar), which clubs retire your jersey, what three legends and two current stars say.
+- Retired screen shows "The verdict"; built-in text everywhere, Claude-written in the artifact (summary, fan comments, legend and star quotes; the reply is checked so invented names are dropped).
+- Hall of Fame speech: after you pick a style, a full speech (built-in fallback or Claude-written from your career) is shown.
+- Career stats: "Playoff stats by series, year by year" dropdown (round, opponent, result, GP, PTS/REB/AST, games missed).
+- Checks: `scripts/report-check.js`, `scripts/ui-report.js`.

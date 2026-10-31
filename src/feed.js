@@ -104,6 +104,8 @@
     trade: ['This is soft from the {team}. Trade for a real player.', 'Y\'all should be grateful to have {name} on your team lol'],
   };
   Object.keys(MORE).forEach((k) => { BANK[k] = (BANK[k] || []).concat(MORE[k]); });
+  BANK.careerPos = ['{name} is top {rank} all-time and yall know it. Stop playing.', '{titles} rings and {mvps} MVPs. The haters are just mad 😂', 'Say what you want, he did it for {teams} teams and still showed up every night', 'Underrated. {ppg} ppg for his whole career and nobody talks about it', 'Put some respect on his name. Real ones know.', 'My favorite player ever and it is not close 🥹', 'The hate is crazy for a guy who gave the league this much'];
+  BANK.careerNeg = ['{name} top {rank} all-time?? 😂 stop it', '{ppg} ppg with {titles} rings. Empty stats, next', 'Soft. Never had the clutch gene.', 'He played for {teams} teams chasing rings. Not a franchise guy.', 'Overrated. Always was. The numbers lie when you watch the tape.', 'Now show {name} winning when it mattered. Oh wait. You can\'t.', 'Mid career, mid legacy. Move on 🥀'];
   // instagram-style handles: real-looking usernames with digits, dots and underscores
   const IG1 = ['user', 'rizith', 'rz', 'one_two', 'moso', 'vic', 'record', 'ogk', 'jordan', 'savon', 'hoop', 'dre', 'tre', 'kay', 'big', 'lil', 'mj', 'dub', 'bucket', 'zay', 'cj', 'no_cap', 'fade', 'sixth', 'bron', 'steph', 'wemby', 'luka', 'jay', 'nate'];
   const IG2 = ['walk', 'many', 'tor', 'dave', 'daniel', 'dresser', '.1', '_sp24', '9896', '0223007049', 'szn', 'hq', 'king', '_', '23', '.tv', 'official', 'fan', '4life', '.gg', '_hoops', 'ball', 'daily', '7'];

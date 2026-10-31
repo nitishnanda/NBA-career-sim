@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v91';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v92';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -1192,7 +1192,7 @@
       h('p', { class: 'muted small' }, 'Seasons averaging a triple-double: ' + cv.career.tdSeasons + (cv.career.td30Seasons ? ' (' + cv.career.td30Seasons + ' with 30+ ppg)' : '')),
       highsSection(ps),
       h('h3', null, 'Regular season'), seasonTable(ps, false));
-    if (cv.pl.length) wrap.append(h('h3', null, 'Playoffs'), seasonTable(cv.pl, true));
+    if (cv.pl.length) wrap.append(h('h3', null, 'Playoffs'), seasonTable(cv.pl, true), playoffBySeries(cv.ps));
     if (S.collegeYears.length) wrap.append(h('h3', null, 'College'), collegeTable());
     return wrap;
   }
@@ -1211,6 +1211,49 @@
       tr.length ? h('div', { class: 'scroll', style: 'margin-top:10px' }, h('table', { class: 'st' }, h('thead', null, h('tr', null, ['Season', 'Trade', 'You (ovr)', 'Came back'].map((x) => h('th', { class: 'l' }, x)))), h('tbody', null, tr.map((x) => h('tr', null, h('td', { class: 'l' }, x.label), h('td', { class: 'l' }, x.from + ' → ' + x.to), h('td', { class: 'l' }, 'age ' + x.age + ' · ' + x.ovr), h('td', { class: 'l' }, x.partner)))))) : h('p', { class: 'muted' }, 'You were never traded.'),
       rows.length ? h('div', { class: 'small muted', style: 'margin-top:10px' }, rows.map((x) => h('div', null, x))) : null);
   }
+  // ---- the career verdict: all-time rank, who beats you where, the fans, jerseys, legends and stars; Claude writes the words in the artifact
+  let repBusy = false, repCache = null;
+  function reportData() { const key = S.proSeasons.length + '|' + (S.hof ? S.hof.score : 0) + '|' + (S.after && S.after.jersey ? 1 : 0); if (!repCache || repCache.key !== key) repCache = { key, rep: NBA.Report.build(S) }; return repCache.rep; }
+  async function aiReportUpgrade() {
+    if (repBusy || (S.reportAI && S.reportAI.done) || S.reportAITry) return; const sm = await getSample(); if (!sm) return;
+    repBusy = true; S.reportAITry = 1; try { const rep = reportData(), got = NBA.Report.checkReport(await aiJson(NBA.Report.reportPrompt(NBA.Report.factsOf(S, rep), NBA.Press.VOICE)), rep); if (got) { S.reportAI = Object.assign({ done: 1 }, got); save(); } } catch (e) { /* the built-in verdict stays */ }
+    repBusy = false; if (S && S.stage === 'retired' && !document.querySelector('.dlg-back')) render();
+  }
+  function careerReportCard() {
+    const rep = reportData(), ai = S.reportAI || {}, c = rep.cmp, f = rep.fans; setTimeout(aiReportUpgrade, 400);
+    const bar = (v, col) => h('div', { class: 'repbar' }, h('div', { style: 'width:' + v + '%;background:' + col }));
+    const row = (x, win) => h('div', { class: 'small', style: 'margin:4px 0' }, h('b', null, x.name), h('span', { class: 'muted' }, ' · ' + x.pos + ' · ' + (win ? 'you have ' : 'he has ') + x.text));
+    const quote = (arr, k) => (ai[k] || []).length ? ai[k] : rep[k].map((x) => ({ name: x.name, quote: x.quote }));
+    const legends = rep.legends.map((x) => { const a = (ai.legends || []).find((y) => y.name === x.name); return { name: x.name, quote: a ? a.quote : x.quote, up: x.beatsYou }; }), stars = rep.stars.map((x) => { const a = (ai.stars || []).find((y) => y.name === x.name); return { name: x.name, team: x.team, rival: x.rival, quote: a ? a.quote : x.quote }; });
+    const posts = (ai.posts && ai.posts.length ? ai.posts.map((t) => ({ who: NBA.Feed.igHandle(Math.random), text: t, likes: Math.round(Math.pow(Math.random(), 2) * 9000 + 30), t: NBA.Feed.AGE[Math.floor(Math.random() * NBA.Feed.AGE.length)], rp: Math.random() < 0.5 ? Math.floor(Math.random() * 40) + 1 : 0 })) : rep.posts);
+    return h('div', { class: 'card suspense' }, h('div', { class: 'row' }, h('h2', { style: 'margin:0' }, '📜 The verdict' + (ai.done ? ' ✨' : '')), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, c.rank >= c.total ? 'outside the top ' + (c.total - 1) : '#' + c.rank + ' of ' + c.total + ' all-time')),
+      h('p', { style: 'margin:10px 0' }, ai.summary || rep.summary),
+      h('div', { class: 'cap2' }, 'Where you rank'), h('div', { class: 'small muted' }, 'Compared on the same legacy formula as the Hall of Fame line, against ' + (c.total - 1) + ' of the greatest players ever.'),
+      c.above.length ? h('div', { style: 'margin-top:8px' }, h('div', { class: 'small caps muted' }, 'Ahead of you'), c.above.map((x) => row(x, false))) : h('p', { class: 'small good' }, 'Nobody on the list has a better résumé than you. You are the GOAT on this board.'),
+      c.below.length ? h('div', { style: 'margin-top:8px' }, h('div', { class: 'small caps muted' }, 'You are ahead of'), c.below.map((x) => row(x, true))) : null,
+      h('div', { class: 'cap2', style: 'margin-top:14px' }, 'What the fans think'), h('div', null, h('b', null, f.label), f.tags.length ? h('span', { class: 'muted' }, ' · ' + f.tags.join(' · ')) : null),
+      h('div', { class: 'small muted' }, ai.verdict || (f.hate + '% of the timeline is hating, ' + f.love + '% is on your side.')), h('div', { class: 'row', style: 'gap:8px;margin:6px 0' }, h('span', { class: 'small' }, 'Love'), bar(f.love, 'var(--good, #4caf50)'), h('span', { class: 'small' }, 'Hate'), bar(f.hate, 'var(--bad, #e05a47)')),
+      posts.map(feedPost),
+      h('div', { class: 'cap2', style: 'margin-top:14px' }, '🎽 Jerseys'), rep.jerseys.map((j) => h('div', { class: 'small', style: 'margin:3px 0' }, h('b', null, j.nick), ' · ' + j.years + ' season' + (j.years > 1 ? 's' : '') + (j.titles ? ' · ' + j.titles + ' title' + (j.titles > 1 ? 's' : '') : '') + ' · ', j.status === 'retired' ? h('span', { class: 'good' }, '#' + j.num + ' retired') : j.status === 'eligible' ? h('span', { class: 'good' }, 'jersey ceremony waiting (#' + j.num + ')') : j.status === 'tribute' ? h('span', null, 'tribute night, no retirement') : h('span', { class: 'muted' }, 'no jersey. ' + j.why))),
+      h('div', { class: 'cap2', style: 'margin-top:14px' }, 'What the legends say'), legends.map((x) => h('div', { class: 'small', style: 'margin:5px 0' }, h('b', null, x.name), h('span', { class: 'muted' }, x.up ? ' (ranks above you)' : ' (you passed him)'), h('div', null, '“' + x.quote.replace(/^[\u201C"]|[\u201D"]$/g, '') + '”'))),
+      h('div', { class: 'cap2', style: 'margin-top:14px' }, 'What today\'s stars say'), stars.map((x) => h('div', { class: 'small', style: 'margin:5px 0' }, h('b', null, x.name), h('span', { class: 'muted' }, ' · ' + x.team + (x.rival ? ' · your rival' : '')), h('div', null, '“' + x.quote.replace(/^[\u201C"]|[\u201D"]$/g, '') + '”'))));
+  }
+  // the induction speech: written for the style you chose (Claude in the artifact, a built-in one anywhere else)
+  let spBusy = false;
+  function speechBlock(d) {
+    if (!d.speech) return null; const style = d.speech;
+    if (!d.speechText) { d.speechText = NBA.Report.speechFallback(S, style, reportData()); save(); }
+    if (!d.speechAI && !spBusy && !d.speechTry) { d.speechTry = 1; spBusy = true; getSample().then(async (sm) => { if (sm) { try { const t = NBA.Report.checkSpeech(await aiJson(NBA.Report.speechPrompt(NBA.Report.factsOf(S, reportData()), style))); if (t) { d.speechText = t; d.speechAI = 1; save(); } } catch (e) { /* the built-in speech stays */ } } spBusy = false; if (S && S.stage === 'retired' && !document.querySelector('.dlg-back')) render(); }); }
+    return h('div', { class: 'card' }, h('div', { class: 'cap2' }, '🏛️ Your Hall of Fame speech' + (d.speechAI ? ' ✨' : '')), d.speechText.split(/\n\n+/).map((t) => h('p', { style: 'margin:8px 0;font-style:italic' }, t)));
+  }
+  // playoff stats by series, year by year
+  function playoffBySeries(ps) {
+    const yrs = (ps || []).filter((r) => r.perSeries && r.perSeries.length); if (!yrs.length) return null;
+    return h('details', { class: 'poseries', style: 'margin:10px 0' }, h('summary', { class: 'cap2', style: 'cursor:pointer' }, 'Playoff stats by series, year by year ▾'),
+      yrs.slice().reverse().map((r) => h('details', { style: 'margin:6px 0 6px 10px' }, h('summary', { style: 'cursor:pointer' }, h('b', null, r.label), h('span', { class: 'muted' }, ' · ' + (r.team || '') + ' · ' + (r.playoffText || '') + (r.playoff ? ' · ' + (r.playoff.gp || 0) + ' GP ' + f1(r.playoff.pts) + '/' + f1(r.playoff.reb) + '/' + f1(r.playoff.ast) : ''))),
+        h('div', { class: 'scroll' }, h('table', { class: 'st' }, h('thead', null, h('tr', null, ['Round', 'Opponent', 'Result', 'GP', 'PTS', 'REB', 'AST'].map((x, i) => h('th', { class: i < 3 ? 'l' : '' }, x)))),
+          h('tbody', null, r.perSeries.map((x) => h('tr', null, h('td', { class: 'l' }, x.round), h('td', { class: 'l' }, x.opp), h('td', { class: 'l' }, x.result + (x.missed ? ' (missed ' + x.missed + ')' : '')), h('td', null, String(Math.max(0, (x.gp || 0) - (x.missed || 0)))), h('td', null, f1(x.pts)), h('td', null, f1(x.reb)), h('td', null, f1(x.ast))))))))));
+  }
   // retirement is not a cliff: a jersey, a speech, and the next chapter, each once
   function afterCard() {
     const L2 = NBA.Legacy, A = L2.afterlife(S), d = A.done, run = (fn, arg) => { try { fn(S, arg); save(); render(); } catch (e) { console.error(e); } };
@@ -1219,8 +1262,8 @@
     if (A.hall) parts.push(d.speech ? h('p', { class: 'jmsg good' }, '🏛️ ' + L2.SPEECH[d.speech].text) : h('div', null, h('b', null, '🏛️ Hall of Fame speech'), h('div', { class: 'small muted' }, 'You are going in. What do you say?'), h('div', { class: 'row', style: 'flex-wrap:wrap' }, Object.keys(L2.SPEECH).map((k) => h('button', { title: L2.SPEECH[k].blurb, onclick: () => run(L2.doSpeech, k) }, L2.SPEECH[k].label)))));
     parts.push(d.path ? h('div', null, h('b', null, 'After basketball: ' + L2.PATHS[d.path.key].label), d.path.ms.map((m) => h('div', { class: 'jmsg ' + m.tone, style: 'margin:4px 0' }, 'Age ' + m.age + ': ' + m.text)))
       : h('div', null, h('b', null, 'What comes next?'), h('div', { class: 'small muted' }, 'You are done playing, not done living.'), L2.pathOptions(S).map((o) => h('div', { class: 'row', style: 'margin:6px 0' }, h('div', null, h('b', null, o.label + ' · ' + o.read), h('div', { class: 'small muted' }, o.blurb)), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => run(L2.startPath, o.key) }, 'Begin'), h('button', { class: 'ghost', onclick: () => run(L2.doPath, o.key) }, 'Skip ahead')))));
-    const b = S.brand;
-    return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Life after the game'), b && b.earned ? h('p', { class: 'small muted' }, 'Endorsement career: ' + money(Math.round(b.earned)) + ' earned, peak brand built to ' + Math.round(b.score) + '.') : null, parts);
+    const b = S.brand, sp = speechBlock(d);
+    return h('div', null, sp, h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Life after the game'), b && b.earned ? h('p', { class: 'small muted' }, 'Endorsement career: ' + money(Math.round(b.earned)) + ' earned, peak brand built to ' + Math.round(b.score) + '.') : null, parts));
   }
   // the next chapter: four decisions over the years, each a pop-up, each with a result
   function screenRetired() {
@@ -1240,7 +1283,7 @@
       (G.canComeback(S) ? (() => { let yrs = 1; return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Miss it already?'),
         h('p', { class: 'small muted' }, 'Players do come back (ask Jordan). A few years away costs you athleticism and the league moves on, but a famous name still gets a call. You are ' + p.age + (S.farewellAnnounced || S.farewellDone ? '. You told the world it was your farewell, so the fans will be split.' : '.')),
         h('div', { class: 'row' }, h('select', { onchange: (e) => { yrs = +e.target.value; } }, [1, 2, 3].filter((y) => p.age + y <= 42).map((y) => h('option', { value: y }, y + (y === 1 ? ' year away' : ' years away')))), confirmBtn('Come out of retirement', '', () => { G.comeback(S, yrs); go(); }))); })() : null),
-      afterCard(), movesCard(), journalCard(40, 'Career journal'),
+      careerReportCard(), afterCard(), movesCard(), journalCard(40, 'Career journal'),
       h('div', { class: 'card' }, careerBody()),
       h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { wipe(); S = null; boot(); } }, 'Start a new career')));
   }
