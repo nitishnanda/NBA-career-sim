@@ -925,3 +925,8 @@ A long injury (any named one, or 15+ missed games in a block) now stops the seas
 ## v93 — no spoilers, top-5 picks stay put
 - Fix: a season is simulated ahead of the games shown, so press/mention/podcast/star-injury facts used to include the year still to come (this season's record, stats and playoff result, and other teams' final records). Facts now use the career at tip-off and last season's records (`league.lastWins`).
 - Draft night: a top-5 pick almost never moves (about 1 draft in 25, and only with a big package); the "you are N picks away" text and the extra tension pause near your pick are gone.
+
+## v94 — honest grades, no swap
+- `Game.gameGrade/gradeIn`: every game gets an honest grade (great/good/ok/poor/awful) from points vs what he usually does (season average, or what his rating says), shooting efficiency and whether he did other things. 9-10 points from a player who should score more is poor, even for a rookie.
+- The grade drives who gets praised: opponents/coaches only praise good or great nights (poor nights get a dig), podcast hosts ask about a bad night and the answers own it, timeline posts pile on after poor nights even in a win, post-game press treats poor nights as bad nights. The artifact's prompts carry the grade and a GRADE_RULE (judge honestly, no warm spin on a bad box score).
+- No more hand-written-then-AI swap in the artifact: press questions, the room's reaction, mention/podcast and timeline comments are held behind a short loading state and appear once, already written by Claude (falls back to the hand-written ones after a timeout, rate limit, or when Claude is not available). Check: `scripts/ui-ai.js` ("AI no swap").

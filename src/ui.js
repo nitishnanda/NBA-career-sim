@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v93';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v94';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -757,11 +757,11 @@
   // everything the feed said this season, newest first: posts on the games you have seen plus the events (trades, awards, injuries, press) up to now
   function feedBlocks(year, idx, limit) {
     const out = [], items = S.matchLog || [];
-    items.slice(0, idx).forEach((g, i) => { if (g.k === 'g' && g.fan && g.fan.length) out.push({ at: i + 0.5, kind: g.fk, sub: g.po ? (g.rnd || 'Playoffs') : 'Game ' + g.n + ' vs ' + g.o, posts: g.fan }); });
-    ((S.dec && S.dec.flags && S.dec.flags.feed) || []).forEach((e, k) => { if (e.y === year && (e.at == null || e.at <= idx)) out.push({ at: e.at == null ? idx + 0.1 : e.at + 0.6 + k * 0.001, kind: e.kind, sub: '', posts: e.posts }); });
-    out.sort((a, b) => b.at - a.at); return limit ? out.slice(0, limit) : out;
+    items.slice(0, idx).forEach((g, i) => { if (g.k === 'g' && g.fan && g.fan.length) out.push({ at: i + 0.5, kind: g.fk, sub: g.po ? (g.rnd || 'Playoffs') : 'Game ' + g.n + ' vs ' + g.o, posts: g.fan, pending: !g.aiF && !g.aiTry && year === S.league.year }); });
+    ((S.dec && S.dec.flags && S.dec.flags.feed) || []).forEach((e, k) => { if (e.y === year && (e.at == null || e.at <= idx)) out.push({ at: e.at == null ? idx + 0.1 : e.at + 0.6 + k * 0.001, kind: e.kind, sub: '', posts: e.posts, pending: !e.ai && !e.aiTry && e.kind !== 'press' && year === S.league.year }); });
+    out.sort((a, b) => b.at - a.at); if (aiLive() && out.some((b) => b.pending) && !feedAiBusy) setTimeout(aiFeedUpgrade, 0); return limit ? out.slice(0, limit) : out;
   }
-  const feedBlock = (b) => h('div', { class: 'feedblock' }, h('div', { class: 'small caps muted' }, (FEED_LABEL[b.kind] || 'Timeline') + (b.sub ? ' · ' + b.sub : '')), b.posts.map(feedPost));
+  const feedBlock = (b) => h('div', { class: 'feedblock' }, h('div', { class: 'small caps muted' }, (FEED_LABEL[b.kind] || 'Timeline') + (b.sub ? ' · ' + b.sub : '')), (b.pending && aiLive() ? h('div', { class: 'small muted', style: 'padding:8px 0' }, '💬 Loading the comments…') : b.posts.map(feedPost)));
   function showTimeline() {
     const L = S.league, all = [];
     ((S.dec && S.dec.flags && S.dec.flags.feed) || []).slice().reverse().forEach((e) => all.push(h('div', { class: 'feedblock' }, h('div', { class: 'small caps muted' }, NBA.seasonLabel(e.y) + ' · ' + (FEED_LABEL[e.kind] || 'Timeline')), e.posts.map(feedPost))));
@@ -1312,26 +1312,30 @@
   let samplePromise = null;
   const getSample = () => (samplePromise || (samplePromise = (async () => { try { return window.claude && window.claude.use ? await window.claude.use('sample') : null; } catch (e) { return null; } })()));
   // when this page runs inside Claude, Claude writes the press questions and the answers, the room's reaction, tomorrow's headline and the timeline posts; everywhere else (and whenever Claude is busy) the hand-written banks are used
-  let aiOff = 0, feedAiBusy = false, feedAiNone = false;
-  async function aiJson(prompt) {
+  let aiOff = 0, feedAiBusy = false, feedAiNone = false, sampleOk = null;
+  getSample().then((sm) => { sampleOk = !!sm; });
+  const aiLive = () => sampleOk === true && Date.now() >= aiOff;   // Claude is here and not rate-limited: show nothing hand-written first, then swap it
+  const loadingCard = (title, msg, sub) => h('div', null, h('h1', null, title), sub ? h('p', { class: 'muted' }, sub) : null, h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, 'One moment'), h('p', { style: 'margin:6px 0' }, msg)));
+  const busyOverlay = (msg) => { const o = h('div', { class: 'busyov' }, h('div', { class: 'card suspense' }, msg)); (document.querySelector('.dlg') || document.body).append(o); return o; };
+  async function aiJson(prompt, ms) {
     const sm = await getSample(); if (!sm || Date.now() < aiOff) return null;
-    try { return await Promise.race([sm.json(prompt, { modelTier: 'quick', cache: false }), new Promise((_, rej) => setTimeout(() => rej({ code: 'timeout' }), 20000))]); }
+    try { return await Promise.race([sm.json(prompt, { modelTier: 'quick', cache: false }), new Promise((_, rej) => setTimeout(() => rej({ code: 'timeout' }), ms || 20000))]); }
     catch (e) { if (e && (e.code === 'rate_limited' || e.code === 'not_granted' || e.code === 'sampling_disabled')) aiOff = Date.now() + 60000; return null; }
   }
   async function aiFeedUpgrade() {
     if (feedAiBusy || feedAiNone || !S || !S.dec || !S.matchLog) return;
     const sm = await getSample(); if (!sm) { feedAiNone = true; return; }
     const items = S.matchLog || [], idx = S.matchIdx || 0, L = S.league, p = S.player, tm = L.teams[S.teamId], cand = [];
-    items.slice(0, idx).forEach((g, i) => { if (g.k === 'g' && g.fan && g.fan.length && !g.aiF && !g.aiTry) cand.push({ ref: g, kind: g.fk, at: i, facts: { opponent: g.o, result: (g.w ? 'W ' : 'L ') + g.f + '-' + g.a, home: !!g.h, points: g.pt, rebounds: g.rb, assists: g.as, steals: g.st, blocks: g.bk, fg: g.fgm + '/' + g.fga, playoff: !!g.po, round: g.rnd || null, game: g.n } }); });
+    items.slice(0, idx).forEach((g, i) => { if (g.k === 'g' && g.fan && g.fan.length && !g.aiF && !g.aiTry) cand.push({ ref: g, kind: g.fk, at: i, facts: { grade: G.gradeIn(S, g, i).grade, usuallyScores: G.gradeIn(S, g, i).expected, opponent: g.o, result: (g.w ? 'W ' : 'L ') + g.f + '-' + g.a, home: !!g.h, points: g.pt, rebounds: g.rb, assists: g.as, steals: g.st, blocks: g.bk, fg: g.fgm + '/' + g.fga, playoff: !!g.po, round: g.rnd || null, game: g.n } }); });
     ((S.dec.flags.feed) || []).forEach((e) => { if (e.y === L.year && !e.ai && !e.aiTry && e.kind !== 'press' && (e.at == null || e.at <= idx)) cand.push({ ref: e, kind: e.kind, at: e.at == null ? idx : e.at, facts: e.c || {} }); });
-    const todo = cand.sort((a, b) => b.at - a.at).slice(0, 4); if (!todo.length) return;
+    const todo = cand.sort((a, b) => b.at - a.at).slice(0, 4); if (!todo.length) { feedAiBusy = false; return; }
     feedAiBusy = true; todo.forEach((t) => { t.ref.aiTry = 1; });
     const events = todo.map((t, i) => ({ id: i, kind: t.kind, player: { name: p.name, pos: p.pos, team: tm.name, age: p.age, ovr: Math.round(NBA.ovr(p)) }, facts: Object.assign({ seasonSoFar: G.seasonSoFar(S, t.at), record: undefined, career: G.careerFacts(S), contractM: Math.round(S.contract.salary), compareTo: ({ PG: ['Magic Johnson', 'Stockton', 'Chris Paul', 'Steph Curry'], SG: ['Jordan', 'Kobe', 'Wade', 'Harden'], SF: ['LeBron', 'Durant', 'Pippen', 'Kawhi'], PF: ['Duncan', 'Garnett', 'Dirk', 'Giannis'], C: ['Shaq', 'Hakeem', 'Jokic', 'Kareem'] })[p.pos] || ['LeBron', 'Jordan'] }, t.facts), examples: (t.ref.fan || t.ref.posts || []).slice(0, 2).map((x) => x.text) }));
-    const got = NBA.Press.checkClaudeFeed(await aiJson(NBA.Press.claudeFeedPrompt(events)), events); let changed = 0;
+    const got = NBA.Press.checkClaudeFeed(await aiJson(NBA.Press.claudeFeedPrompt(events), 15000), events); let changed = 0;
     todo.forEach((t, i) => { if (!got[i]) return; const old = t.ref.fan || t.ref.posts || [], likes = old.map((x) => x.likes || 0).sort((a, b) => b - a), hs = NBA.Feed.HANDLES.slice().sort(() => Math.random() - 0.5);
       const posts = got[i].map((text, k) => ({ who: NBA.Feed.igHandle(Math.random), text, likes: likes[k] != null ? likes[k] : Math.round(Math.pow(Math.random(), 2) * 8000 + 12), t: NBA.Feed.AGE[Math.floor(Math.random() * NBA.Feed.AGE.length)], rp: Math.random() < 0.5 ? Math.floor(Math.pow(Math.random(), 2) * 70) + 1 : 0, ai: 1 }));
       if (t.ref.fan) { t.ref.fan = posts; t.ref.aiF = 1; } else { t.ref.posts = posts; t.ref.ai = 1; } changed++; });
-    feedAiBusy = false; if (changed) { save(); if (!LV && !document.querySelector('.dlg-back') && S && S.stage === 'season_play') render(); }
+    feedAiBusy = false; save(); if (!LV && !document.querySelector('.dlg-back') && S && S.stage === 'season_play') render(); else setTimeout(aiFeedUpgrade, 50);
   }
   const SAMPLE_MSG = { not_granted: 'Claude is switched off for this page, so the built-in reader read you.', rate_limited: 'Claude is busy right now, so the built-in reader read you.', sampling_disabled: 'Claude is unavailable here, so the built-in reader read you.' };
   // what a decision did, shown right on its own page before the games carry on (the text used to land on the season page, a game later than the choice)
@@ -1349,14 +1353,32 @@
   function screenPress() {
     const Dc = DEC(), v = Dc.view(S), t = S.league.teams[S.teamId], pd = S.dec.pending;
     const gi = S.matchLog && S.matchLog[pd.ctx.idx], post = pd.ctx.kind === 'post', gno = post && gi ? 'Final: ' + (gi.w ? 'W' : 'L') + ' ' + gi.f + '-' + gi.a + ' ' + (gi.h ? 'vs' : 'at') + ' the ' + gi.o : gi && gi.k === 'g' ? 'Before game ' + gi.n + ' of the season' + (gi.o ? ' · vs the ' + gi.o : '') : pd.ctx.why;
-    const finish = (r) => { if (!(S.dec.pending && S.dec.pending.id === 'press')) { S.decResult = { title: 'Press conference', sub: t.name + ' · ' + gno, text: r.text, tone: r.tone === 'good' ? 'good' : r.tone === 'bad' ? 'bad' : '', cap: 'The reaction', post, headline: r.headline, fans: r.fans, moods: r.moods, persona: r.persona }; saveSnap(); } save(); go(); };
-    const act = (key, arg) => { try { const ctx0 = pd.ctx, facts0 = key === 'pick' ? null : G.pressFacts(S, ctx0), r = Dc.choose(S, key, arg); finish(r); if (r && r.done && facts0) aiReact(ctx0, facts0); } catch (e) { console.error(e); } };
+    const finish = (r) => { if (!(S.dec.pending && S.dec.pending.id === 'press')) { S.decResult = { title: 'Press conference', sub: t.name + ' · ' + gno, text: r.text, tone: r.tone === 'good' ? 'good' : r.tone === 'bad' ? 'bad' : '', cap: 'The reaction', post, headline: r.headline, fans: r.fans, moods: r.moods, persona: r.persona, react: r.react, ai: r.ai }; saveSnap(); } save(); go(); };
+    const act = async (key, arg) => {
+      try {
+        const ctx0 = pd.ctx, q0 = ctx0.cur != null ? ctx0.pool[ctx0.cur] : null; let ai = null;
+        if (key !== 'pick' && key !== 'typed' && q0 && aiLive()) {
+          const o = q0.opts.find((x) => x.key === key), will = ctx0.chosen.length + 1 >= ctx0.take || ctx0.pool.length - ctx0.chosen.length - 1 <= 0;
+          if (o && will) {   // the last answer: the room's reaction, tomorrow's headline and the posts are written first, so the result shows once
+            const ov = busyOverlay('🎤 The reporters are reacting…');
+            try { const picks = ctx0.chosen.map((ix, k) => ({ asked: (ctx0.pool[ix] || {}).text, tone: (ctx0.picks[k] || {}).tone, said: (ctx0.picks[k] || {}).text })).filter((x) => x.asked).concat([{ asked: q0.text, tone: key, said: String(o.line || '').replace(/^[\u201C"]|[\u201D"]$/g, '') }]);
+              ai = NBA.Press.checkClaudeReact(await aiJson(NBA.Press.claudeReactPrompt(G.pressFacts(S, ctx0), picks), 14000)); } catch (e) { ai = null; }
+            ov.remove();
+          }
+        }
+        const r = Dc.choose(S, key, arg);
+        if (ai && r && r.done) { const hs = HANDLES.slice().sort(() => Math.random() - 0.5); r.headline = Object.assign({ outlet: 'The Wire' }, r.headline || {}, { text: ai.headline }); if (ai.fans.length) r.fans = ai.fans.map((text, k) => ({ who: '@' + hs[k % hs.length], text, likes: Math.round(Math.pow(Math.random(), 2) * 9000 + 20), ai: 1 })); r.react = ai.reaction; r.ai = 1; }
+        finish(r); if (ai && r && r.done) G.patchPressAI(S, ai.headline, r.fans);
+      } catch (e) { console.error(e); }
+    };
     const skipBar = h('div', { class: 'row', style: 'margin-top:10px' }, h('button', { class: 'ghost tiny', onclick: () => { S.noPress = true; try { Dc.autoResolve(S); } catch (e) { console.error(e); } save(); go(); } }, 'Skip press conferences from now on'), h('span', { class: 'small muted' }, 'You can switch them back on under the season controls.'));
     const persona = h('div', { class: 'small muted' }, 'Your media image: ', h('b', null, v.persona.label), ' · ' + v.persona.blurb);
     const rep = (r) => (r ? r.name + ' · ' + r.outlet : 'The press room');
     const SRC = { mem: 'Your story', callback: 'You said it', feud: 'The feud', post: 'The game', bank: '' };
     if (v.phase === 'pick') {
       const aiNote = h('div', { class: 'small muted pressnote' }, '');
+      if (!pd.ctx.aiDone && sampleOk === false) pd.ctx.aiDone = true;
+      if (!pd.ctx.aiDone) { maybeAiQuestions(pd, aiNote); return loadingCard('Press conference', '🎤 The reporters are getting their questions ready…', t.name + ' · ' + v.why); }
       maybeAiQuestions(pd, aiNote);
       return h('div', null, h('h1', null, 'Press conference'), h('p', { class: 'muted' }, t.name + ' · ' + v.why + (gno && gno !== v.why ? ' · ' + gno : '')),
         pd.log.length ? h('div', { class: 'jlog' }, pd.log.map((x) => h('div', { class: 'jmsg' }, x.text.charAt(0) === '\uD83D' ? x.text : '🎤 ' + x.text))) : null,
@@ -1407,14 +1429,14 @@
   function maybeAiQuestions(pd, noteEl) {
     const ctx = pd.ctx; if (ctx.aiDone || aiBusy) return;
     getSample().then(async (sm) => {
-      if (!sm) { ctx.aiDone = true; return; }
+      if (!sm) { ctx.aiDone = true; render(); return; }
       aiBusy = true; noteEl.textContent = '✨ The reporters in this room are Claude: they are writing fresh questions for this moment…';
       try {
         const facts = G.pressFacts(S, ctx), cast = facts.cast, gen = ctx.pool.filter((q) => q.src === 'bank' || q.src === 'post'), story = ctx.pool.filter((q) => q.src !== 'bank' && q.src !== 'post' && !q.ai);
         const want = Math.max(2, Math.min(4, gen.length || 3)), T = NBA.Press.TONES, team = S.league.teams[S.teamId], R = NBA.Reporters, pr = (DEC().state(S).flags.pr || { rep: {} });
-        const jobs = [aiJson(NBA.Press.claudeQuestionsPrompt(facts, want))];
+        const jobs = [aiJson(NBA.Press.claudeQuestionsPrompt(facts, want), 14000)];
         const sq = story.map((q, k) => ({ id: 'q' + k, text: q.text, heat: q.heat || 0 }));
-        if (sq.length) jobs.push(aiJson(NBA.Press.claudeAnswersPrompt(facts, sq)));
+        if (sq.length) jobs.push(aiJson(NBA.Press.claudeAnswersPrompt(facts, sq), 14000));
         const [qr, ar] = await Promise.all(jobs);
         const mk = (x, calmN, spicyOk) => { const spicy = spicyOk ? ['trash', 'fight'].filter((k) => x[k]) : [], calm = ['humble', 'confident', 'joke', 'deflect'].sort(() => Math.random() - 0.5).slice(0, spicy.length ? 2 : calmN); return calm.concat(spicy).map((k) => ({ key: k, label: T[k].label, line: '“' + x[k] + '”', spicy: k === 'trash' || k === 'fight' })); };
         const got = NBA.Press.checkClaudeQuestions(qr, cast);
@@ -1616,7 +1638,9 @@
   let mnBusy = false;
   function screenMention() {
     const Dc = DEC(), v = Dc.view(S), pd = S.dec.pending, ctx = pd.ctx, t = S.league.teams[S.teamId];
-    if (!ctx.aiDone && !mnBusy) { mnBusy = true; getSample().then(async (sm) => { if (!sm) { ctx.aiDone = true; mnBusy = false; return; } try { const got = NBA.Press.checkClaudeMention(await aiJson(NBA.Press.claudeMentionPrompt({ kind: ctx.kind, speaker: ctx.who, quote: ctx.quote, opponent: ctx.oppName, oppRecord: ctx.oppRecord, game: ctx.game, season: ctx.season, career: ctx.career, feud: ctx.feud, player: ctx.me, team: ctx.team }))); if (got && S.dec.pending === pd) { ctx.quote = got.quote; ctx.lines = got.lines; ctx.ai = 1; ctx.ext = { headline: got.headline, fans: got.fans }; } } catch (e) { /* the hand-written one stays */ } ctx.aiDone = true; mnBusy = false; save(); if (S.dec.pending === pd) render(); }); }
+    if (!ctx.aiDone && sampleOk === false) ctx.aiDone = true;
+    if (!ctx.aiDone && !mnBusy) { mnBusy = true; getSample().then(async (sm) => { if (!sm) { ctx.aiDone = true; mnBusy = false; render(); return; } try { const got = NBA.Press.checkClaudeMention(await aiJson(NBA.Press.claudeMentionPrompt({ kind: ctx.kind, speaker: ctx.who, quote: ctx.quote, opponent: ctx.oppName, oppLastSeason: ctx.oppLastSeason, game: ctx.game, season: ctx.season, career: ctx.career, feud: ctx.feud, player: ctx.me, team: ctx.team }), 14000)); if (got && S.dec.pending === pd) { ctx.quote = got.quote; ctx.lines = got.lines; ctx.ai = 1; ctx.ext = { headline: got.headline, fans: got.fans }; } } catch (e) { /* the hand-written one stays */ } ctx.aiDone = true; mnBusy = false; save(); if (S.dec.pending === pd) render(); }); }
+    if (!ctx.aiDone) return loadingCard('📰 In the news', 'Checking what was said…', t.name);
     const pick = (key) => { try { const r = Dc.choose(S, key); const ex = ctx.ext; S.decResult = { title: 'In the news', sub: ctx.who.name + ' · ' + ctx.oppName, text: r.text, tone: r.tone === 'good' ? 'good' : r.tone === 'bad' ? 'bad' : 'neutral', cap: r.tone === 'good' ? 'It landed' : r.tone === 'bad' ? 'It backfired' : 'The story', post: true, headline: ex && ex.headline ? { text: ex.headline, outlet: 'The Wire' } : null, fans: ex && ex.fans && ex.fans.length ? ex.fans.map((x, k) => ({ who: '@' + HANDLES[(k * 3 + 1) % HANDLES.length], text: x })) : null, ai: ex ? 1 : 0 }; const it = S.matchLog[ctx.idx]; if (it) it.md = 1; save(); go(); } catch (e) { console.error(e); } };
     return h('div', null, h('h1', null, '📰 ' + v.title), h('p', { class: 'muted' }, t.name + ' · ' + v.text),
       h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, v.who.name + ' · ' + v.who.role + (v.ai ? ' ✨' : '')), h('h2', { style: 'margin:8px 0' }, v.quote)),
@@ -1634,7 +1658,9 @@
   let podBusy = false;
   function screenPodcast() {
     const Dc = DEC(), v = Dc.view(S), pd = S.dec.pending, ctx = pd.ctx, t = S.league.teams[S.teamId];
-    if (!ctx.aiDone && !podBusy) { podBusy = true; getSample().then(async (sm) => { if (!sm) { ctx.aiDone = true; podBusy = false; return; } try { const got = NBA.Press.checkClaudePodcast(await aiJson(NBA.Press.claudePodcastPrompt({ show: ctx.show, host: ctx.host, opponent: ctx.oppName, oppStar: ctx.star, oppRecord: ctx.oppRecord, game: ctx.game, season: ctx.season, career: ctx.career, feud: ctx.feud, player: ctx.me, team: ctx.team }))); if (got && S.dec.pending === pd) { ctx.hostQ = got.host; ctx.lines = got.lines; ctx.ai = 1; ctx.ext = { headline: got.headline, fans: got.fans }; } } catch (e) { /* the hand-written lines stay */ } ctx.aiDone = true; podBusy = false; save(); if (S.dec.pending === pd) render(); }); }
+    if (!ctx.aiDone && sampleOk === false) ctx.aiDone = true;
+    if (!ctx.aiDone && !podBusy) { podBusy = true; getSample().then(async (sm) => { if (!sm) { ctx.aiDone = true; podBusy = false; render(); return; } try { const got = NBA.Press.checkClaudePodcast(await aiJson(NBA.Press.claudePodcastPrompt({ show: ctx.show, host: ctx.host, opponent: ctx.oppName, oppStar: ctx.star, oppLastSeason: ctx.oppLastSeason, game: ctx.game, season: ctx.season, career: ctx.career, feud: ctx.feud, player: ctx.me, team: ctx.team }), 14000)); if (got && S.dec.pending === pd) { ctx.hostQ = got.host; ctx.lines = got.lines; ctx.ai = 1; ctx.ext = { headline: got.headline, fans: got.fans }; } } catch (e) { /* the hand-written lines stay */ } ctx.aiDone = true; podBusy = false; save(); if (S.dec.pending === pd) render(); }); }
+    if (!ctx.aiDone) return loadingCard('🎙️ Fan podcast', 'The host is getting the questions ready…', t.name);
     const pick = (key) => { try { const r = Dc.choose(S, key), ex = ctx.ext; S.decResult = { title: 'Fan podcast', sub: ctx.show + ' · ' + t.name, text: r.text, tone: r.tone === 'good' ? 'good' : r.tone === 'bad' ? 'bad' : 'neutral', cap: r.tone === 'good' ? 'The clip' : r.tone === 'bad' ? 'The fallout' : 'The clip', post: true, headline: ex && ex.headline ? { text: ex.headline, outlet: ctx.show } : null, fans: (ex && ex.fans && ex.fans.length ? ex.fans : key === 'unfiltered' ? ['bro got bleeped mid sentence \uD83D\uDE2D', 'the way the host panicked \uD83D\uDC80 cut the mic', 'ouu shi this trash talk is lowkey real \uD83D\uDD25'] : null) ? (ex && ex.fans && ex.fans.length ? ex.fans : ['bro got bleeped mid sentence \uD83D\uDE2D', 'the way the host panicked \uD83D\uDC80 cut the mic', 'ouu shi this trash talk is lowkey real \uD83D\uDD25']).map((x, k) => ({ who: '@' + HANDLES[(k * 3 + 2) % HANDLES.length], text: x })) : null, ai: ex ? 1 : 0 }; const it = S.matchLog[ctx.idx]; if (it) it.pcast = 1; save(); go(); } catch (e) { console.error(e); } };
     return h('div', null, h('h1', null, '🎙️ ' + v.title), h('p', { class: 'muted' }, t.name + ' · ' + v.text),
       h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, v.host + ' · ' + v.show + (v.ai ? ' ✨' : '')), h('h2', { style: 'margin:8px 0' }, '“' + v.question + '”')),

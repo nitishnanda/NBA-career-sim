@@ -9,7 +9,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
     window.__prompts = [];
     const A = { humble: 'MOCKA humble line here ok', confident: 'MOCKA confident line here', joke: 'MOCKA joke line here ok', deflect: 'MOCKA deflect line here', trash: 'MOCKA trash line here ok', fight: 'MOCKA fight line here ok' };
     const sample = Object.assign(async () => ({ text: '' }), { json: async (p) => {
-      window.__prompts.push(p.slice(0, 60));
+      window.__prompts.push(p.slice(0, 60)); await new Promise((r) => setTimeout(r, 400));
       if (/fresh press-conference questions/.test(p)) return { questions: [0, 1, 2, 3].map((k) => ({ reporter: '', newReporter: k === 1 ? { name: 'Jaylen Ortega', outlet: 'Courtside Podcast', style: 'buzz' } : null, text: 'MOCKQ ' + k + ': what is going through your mind right now?', heat: 1, answers: A })) };
       if (/Write the answers a player could give/.test(p)) { const ids = JSON.parse(p.match(/The questions \(DATA\): """(.*?)"""/s)[1]).map((x) => x.id); return { answers: ids.map((id) => Object.assign({ id }, A)) }; }
       if (/React to EXACTLY/.test(p)) return { reaction: 'MOCKREACT the room nods slowly at that.', headline: 'MOCKHEAD player says what he said', fans: ['MOCKFAN one one one', 'MOCKFAN two two two', 'MOCKFAN three three'] };
@@ -28,7 +28,11 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
     window.__NBA_UI.state = st; window.__NBA_UI.go();
   });
   await page.click('text=/Tip off the .* season/');
-  await page.waitForSelector('h1:has-text("Press conference")'); await page.waitForTimeout(800);
+  await page.waitForSelector('h1:has-text("Press conference")');
+  // no swap: the first time any question card is on screen it is already the Claude-written one (a loading card shows until then)
+  const first = await page.evaluate(() => new Promise((res) => { const t0 = Date.now(), iv = setInterval(() => { const q = document.querySelector('.qcard'); if (q || Date.now() - t0 > 8000) { clearInterval(iv); res({ text: q ? Array.from(document.querySelectorAll('.qcard')).map((e) => e.textContent).join('|') : null, ms: Date.now() - t0 }); } }, 20); }));
+  const okSwap = first.text && /MOCKQ/.test(first.text); console.log('AI no swap', okSwap ? 'OK ' + first.ms + 'ms' : 'MISMATCH'); if (!okSwap) errors.push('swap: ' + JSON.stringify(first).slice(0, 200));
+  await page.waitForTimeout(300);
   const qs = await page.evaluate(() => Array.from(document.querySelectorAll('.qcard')).map((e) => e.textContent));
   const okQ = qs.length && qs.every((t) => /MOCKQ|Your story|You said|feud/i.test(t) || !/Fresh/.test(t)) && qs.some((t) => /MOCKQ/.test(t)); const okNew = await page.evaluate(() => /Jaylen Ortega/.test(document.body.textContent) && /Courtside Podcast/.test(document.body.textContent) && /New voice/.test(document.body.textContent)); if (!okNew) errors.push('no new reporter'); console.log('AI new reporter', okNew ? 'OK' : 'MISMATCH'); console.log('AI questions', okQ ? 'OK' : 'MISMATCH', qs.length); if (!okQ) errors.push('questions ' + JSON.stringify(qs));
   await page.evaluate(() => document.querySelector('.qcard button').click());
