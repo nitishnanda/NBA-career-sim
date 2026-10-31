@@ -897,3 +897,6 @@ A long injury (any named one, or 15+ missed games in a block) now stops the seas
 - Press room: swearing (broader word list) is fined; insulting the refs, the league office, owners or front office is fined too (typed answers, Claude-read answers, and button answers on the refs topic). Mild words (damn, hell) are not fined.
 - New decision `podcast` ("Fan podcast", ~1 a season, more after a feud or in the playoffs): no league fines, so the language is real. Three ways to answer (clean / get loose / fully unfiltered) with viral-or-backfire odds that move followers, media and chemistry, and can start a feud. Hand-written lines with natural swearing; in the artifact Claude writes the host question and lines from the stats.
 - No slurs anywhere: the AI prompts forbid slurs, hate and threats. Checks: `scripts/swear-check.js`.
+
+## v87 — bleeped language
+- The strongest words on the fan podcast are censored as [bleep] (listeners know what was said, nothing is spelled out); the unfiltered option is tagged 🔇. No slurs, and nothing race-specific.

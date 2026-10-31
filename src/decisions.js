@@ -623,7 +623,7 @@
       return { title: 'Fan podcast', host: ctx.host, show: ctx.show, ai: !!ctx.ai, question: ctx.hostQ, text: ctx.show + ' invited you on after the ' + (ctx.game.won ? 'win' : 'loss') + ' over the ' + ctx.opp + '. No league fines on a fan podcast, so you can say what you actually think.', options: [
         { key: 'clean', label: 'Keep it clean', blurb: L.clean, vibe: 'Safe' },
         { key: 'loose', label: 'Get loose', blurb: L.loose, vibe: 'Some swearing. Fun' },
-        { key: 'unfiltered', label: 'Fully unfiltered', blurb: L.unfiltered, vibe: 'Heavy swearing. Could go viral or sink you', spicy: true }] };
+        { key: 'unfiltered', label: 'Fully unfiltered', blurb: L.unfiltered, vibe: '\uD83D\uDD07 Heavy swearing, some of it bleeped. Could go viral or sink you', spicy: true }] };
     },
     choose(st, ctx, key) {
       const r = rng(st, 'pod-r|' + st.league.year + '|' + ctx.game.n + '|' + (ctx.game.po ? 'p' : 'r'))(), Sx = NBA.Social, nm = ctx.star; let text, tone = 'neutral', eff = [];
