@@ -70,7 +70,7 @@ let PG = null;
   const set = await arm();
   // clutch moments stop the games on the way: the first one is checked (four options with a read, not a number), then answered
   let clutchN = 0;
-  const simOn = async () => { const b = await page.$('button:has-text("Sim to playoffs")') || await page.$('button:has-text("Sim to All-Star")'); if (b) await b.click(); };
+  const simOn = async () => { if (await page.$('.dlg-back')) return; const b = await page.$('button:has-text("Sim to playoffs")') || await page.$('button:has-text("Sim to All-Star")'); if (b) await b.click(); };
   const handleHold = async () => {
     const h1 = await page.textContent('h1');
     if (/Clutch time|Game 7/.test(h1)) {
@@ -119,6 +119,7 @@ let PG = null;
       } else await page.click('.wkcard:has-text("Stay balanced") button, button:has-text("Stay balanced")');
       continue;
     }
+    if (await page.$('.dlg-back')) { const cb = await page.$('.dlg button:text-matches("Back to the season|Play the game|Continue", "i")'); if (cb) await cb.click(); await page.waitForTimeout(80); continue; }
     const nx = await page.$('button:has-text("Sim next playoff game")'); if (nx) { await nx.click(); continue; }
     if (await page.$('button:has-text("Season recap")')) break;
     await simOn();

@@ -848,3 +848,7 @@ A long injury (any named one, or 15+ missed games in a block) now stops the seas
 - **Three-Point Contest**: the stroke counts a little more (0.26 per point of rating) and you shoot with a small confidence edge (+2 rating); the money ball now pays off more often for a real shooter (18% at 70, 55% at 99), a gamble for a weak one. Win rate per entry (steady): three 92 12%, 97 42%, 99 54%. A lethal shooter invited most years wins at least once ~95% of the time; weak shooters rarely win.
 - **Slam Dunk Contest**: the three approaches are now balanced instead of the prop dominating: clean dunks +2 steady, the unseen dunk lands 30-75% by athleticism (+10, else -9), the prop +1 with a wide spread (it wins the crowd, brand +2, not the judges). Per entry at ath 88 (clean/risky/prop): 3/21/4%; 94: 19/30/14%; 99: 44/38/30%.
 - Autopilot and league stats untouched (human-only).
+
+## v78 — decisions are pop-ups
+- Press conferences, injuries, series plans, the trade deadline, All-Star Weekend, decision results, and the preseason promise / agent / camp are medium pop-ups (max 660px, centered, a bottom sheet on phones) over the season page or the preseason page, not screens of their own. The page behind is dimmed and blurred and cannot be clicked; the pop-up sits first in the page so its own title still comes first.
+- Tests updated for the overlay (a pop-up blocks the page behind it; ui-market waits for it to clear).

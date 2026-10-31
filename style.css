@@ -311,3 +311,13 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
 .lvfeed { max-height: 420px; overflow: auto; } .lvrow { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14px; } .lvrow .ck { min-width: 62px; color: var(--muted); font-variant-numeric: tabular-nums; } .lvrow.opp { opacity: .65; } .lvrow.me { color: #fff; } .lvrow.hl { font-weight: 700; }
 .lvcourt { max-width: 440px; margin: 0 auto; }
 .callout.inj { border-left-color: #ff5d5d; background: rgba(255,93,93,.12); font-weight: 600; }
+
+/* decisions are pop-ups */
+body.dlg-open { overflow: hidden; }
+.dlg-back { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(3,5,9,.66); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); animation: mfade .16s ease-out; }
+.dlg { width: min(660px, 100%); max-height: min(86vh, 900px); overflow: auto; background: #0d1118; border: 1px solid var(--line); border-radius: 22px; padding: 20px 22px 22px; box-shadow: 0 30px 90px rgba(0,0,0,.65); animation: mpop .18s ease-out; }
+.dlg h1 { font-size: 26px; margin: 0 0 6px; } .dlg > div > h1 + p, .dlg h1 + p { margin-top: 0; }
+.dlg .card { margin: 10px 0; } .dlg .wkgrid { grid-template-columns: 1fr; } .dlg .wkcard { padding: 12px 14px; }
+@media (min-width: 700px) { .dlg .wkgrid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .dlg-back { align-items: flex-end; padding: 8px; } .dlg { max-height: 88vh; border-radius: 20px 20px 14px 14px; padding: 16px; } }
+@keyframes mfade { from { opacity: 0; } to { opacity: 1; } } @keyframes mpop { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }

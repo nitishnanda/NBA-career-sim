@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v77';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v78';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -431,6 +431,8 @@
   const archLabel = (p) => D.ARCHETYPES[p.arch].name + (p.sec && D.ARCHETYPES[p.sec] ? ' + ' + D.ARCHETYPES[p.sec].name : '');
   const jersey = (name) => { let x = 7; for (let i = 0; i < name.length; i++) x = (x * 31 + name.charCodeAt(i)) % 97; return x % 99; };
   function seeded(seed) { let a = seed | 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  // a decision is a medium pop-up over whatever page you are on, never a screen of its own. It sits first in the page so its own title comes first.
+  const modal = (content) => h('div', { class: 'dlg-back' }, h('div', { class: 'dlg', role: 'dialog' }, content));
   const svgEl = (html, cls) => h('div', { html, class: cls || '' });
   function mini(vals, w, hgt) {
     w = w || 110; hgt = hgt || 26; if (vals.length < 2) return h('div', { style: 'height:' + hgt + 'px' });
@@ -555,8 +557,10 @@
   function screenSeasonPlay() {
     if (LV && S.matchLog && S.stage === 'season_play') return screenLive();
     if (!S.leagueSnap || !S.matchLog) { S.stage = 'season_recap'; save(); return screenRecap(); } // save from an older build
-    if (S.decResult) return screenDecResult();
-    if (holdAt()) { if (NBA.AllStar.active(S)) return screenAllStar(); const pid = S.dec.pending.id; return pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : pid === 'press' ? screenPress() : pid === 'injury' ? screenInjury() : screenDeadline(); }
+    // every decision is a pop-up over the season page (not a screen of its own)
+    let overlay = null;
+    if (S.decResult) overlay = screenDecResult();
+    else if (holdAt()) { if (NBA.AllStar.active(S)) overlay = screenAllStar(); else { const pid = S.dec.pending.id; overlay = pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : pid === 'press' ? screenPress() : pid === 'injury' ? screenInjury() : screenDeadline(); } if (overlay === 'again') return screenSeasonPlay(); }
     const items = S.matchLog || [], idx = S.matchIdx || 0, L = S.league, p = S.player, t = L.teams[S.teamId];
     const shown = items.slice(0, idx), done = idx >= items.length;
     const reg = shown.filter((x) => x.k === 'g' && !x.po), poG = shown.filter((x) => x.k === 'g' && x.po);
@@ -692,7 +696,7 @@
       return h('div', { class: 'callout inj' }, '🩹 You are hurt: ' + nm + '. ' + (lbl === 'Setback' ? 'A setback in rehab. ' : lbl === 'Rehab' ? 'Held out for rehab. ' : '') + 'Out ' + n + ' more game' + (n > 1 ? 's' : '') + ' · ' + back + '.');
     })();
     const wrap = h('div', { class: 'dash mt-' + mTab }, injBanner, h('div', { class: 'dtop' }, hero, quick, mtabs, telemetry), playoffPanel, h('div', { class: 'dmid' }, stream, averages, defense), planPanel, feedPanel);
-    return wrap;
+    return overlay ? h('div', null, modal(overlay), wrap) : wrap;
   }
   // click any player's name for his career page: who he is, his awards and every season on record (the record starts with this save)
   function plink(id, name) {
@@ -1156,7 +1160,7 @@
   function screenDeadline() {
     const Dc = DEC(), L = S.league, t = L.teams[S.teamId];
     if (!S.dlChecked) { S.dlChecked = true; Dc.offer(S, 'deadline'); save(); }
-    if (!(S.dec && S.dec.pending && S.dec.pending.id === 'deadline')) { S.dlDone = true; S.matchIdx++; save(); return screenSeasonPlay(); }
+    if (!(S.dec && S.dec.pending && S.dec.pending.id === 'deadline')) { S.dlDone = true; S.matchIdx++; save(); return 'again'; }
     const v = Dc.view(S), deals = (L.moves || []).filter((m) => m.year === L.year && m.phase === 'deadline');
     const reg = (S.matchLog || []).slice(0, S.matchIdx).filter((x) => x.k === 'g' && !x.po), w = reg.filter((x) => x.w).length;
     const finish = (key, arg) => {
@@ -1431,8 +1435,10 @@
     const j = ((S.dec && S.dec.journal) || []).slice().reverse(); if (!j.length) return null;
     return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, title || 'Your journal'), h('div', { class: 'jlist' }, j.slice(0, n || 40).map((e) => h('div', { class: 'jrow ' + (e.tone || '') }, h('span', { class: 'jyr' }, e.label), h('div', null, h('b', { class: 'small' }, e.title), h('div', { class: 'small' }, e.text))))));
   }
+  // the preseason decisions (promise, agent, camp) are pop-ups over the preseason page
+  function preModal(fn) { const c = fn(), bg = screenProReady(); return c === 'again' ? bg : h('div', null, modal(c), bg); }
   function screenPromise() {
-    const Dc = DEC(); if (!S.dec || !S.dec.pending || S.dec.pending.id !== 'promise') { S.stage = 'pro_ready'; return screenProReady(); }
+    const Dc = DEC(); if (!S.dec || !S.dec.pending || S.dec.pending.id !== 'promise') { S.stage = 'pro_ready'; return 'again'; }
     const v = Dc.view(S), step = (key) => { try { S.decResult = null; const r = G.choosePromise(S, key); S.flash = r.text; save(); go(); } catch (e) { console.error(e); } };
     return h('div', null, h('h1', null, v.title), h('p', { class: 'muted' }, v.text),
       h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: 'primary', onclick: () => step(o.key) }, 'Ask'))))));
@@ -1443,7 +1449,7 @@
       Ag.map((a) => h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', null, h('b', null, a.name + ' · ' + a.tag), h('div', { class: 'small muted' }, a.blurb)), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => { G.chooseAgent(S, a.id); save(); go(); } }, 'Hire')))));
   }
   function screenCamp() {
-    const Dc = DEC(); if (!S.dec || !S.dec.pending || S.dec.pending.id !== 'camp') { S.stage = 'pro_ready'; return screenProReady(); }
+    const Dc = DEC(); if (!S.dec || !S.dec.pending || S.dec.pending.id !== 'camp') { S.stage = 'pro_ready'; return 'again'; }
     const v = Dc.view(S), L = S.league;
     const n = v.partners.length, full = n >= v.slots, noAsks = v.asks <= 0;
     const act = (key, arg) => () => { try { Dc.choose(S, key, arg); save(); render(); } catch (e) { console.error(e); } };
@@ -1479,9 +1485,10 @@
     if (view === 'team' && st !== 'create') { app.append(screenTeam()); return; }
     if (view === 'league' && st !== 'create') { app.append(screenLeague()); return; }
     if (view === 'career' && st !== 'create') { app.append(screenCareer()); return; }
-    const m = { scouting: screenScouting, hs: screenHS, college_pick: screenCollegePick, college_ready: screenCollegeReady, college_decision: screenCollegeDecision, combine: screenCombine, workouts: screenWorkouts, draft_night: screenDraft, training: screenTraining, camp: screenCamp, agent: screenAgent, promise: screenPromise, pro_ready: screenProReady, season_play: screenSeasonPlay, season_recap: screenRecap, decision: screenDecision, retired: screenRetired };
+    const m = { scouting: screenScouting, hs: screenHS, college_pick: screenCollegePick, college_ready: screenCollegeReady, college_decision: screenCollegeDecision, combine: screenCombine, workouts: screenWorkouts, draft_night: screenDraft, training: screenTraining, camp: () => preModal(screenCamp), agent: () => preModal(screenAgent), promise: () => preModal(screenPromise), pro_ready: screenProReady, season_play: screenSeasonPlay, season_recap: screenRecap, decision: screenDecision, retired: screenRetired };
     if (S.flash && st !== 'decision') { app.append(h('div', { class: 'callout' }, S.flash)); S.flash = null; }
     app.append((m[st] || screenCreate)());
+    document.body.classList.toggle('dlg-open', !!app.querySelector('.dlg-back'));
   }
   function boot() { S = null; draft.name = ''; render(); }
   window.__NBA_UI = { get state() { return S; }, set state(v) { S = v; }, get live() { return LV; }, go, render, saveSnap };
