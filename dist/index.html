@@ -987,7 +987,15 @@ body.dlg-open { overflow: hidden; }
     if (opts.noRest) rest = 0;
     // the 65-game rule for awards (2024-): stars close to the line skip rest days to qualify (real stars' seasons since cluster at 65+)
     { const left = 82 - miss - (opts.extraMiss || 0); if (o >= T.qualifyOvr && !major && left - rest < 65 && left >= 65) rest = Math.min(rest, left - 65); }
-    return { gp: clamp(82 - miss - rest - (opts.extraMiss || 0), 0, 82), miss, rest, injuries: list, major, notable };
+    // when it happens (the user's own season only): some long injuries hit in the preseason (the first games are gone), some late in the year (the playoffs are at stake)
+    let when = 'mid', po = 0, late = null;
+    if (opts.user) {
+      if (miss >= 15 && (major || notable || miss >= 25)) { const r = rand(); when = r < 0.15 ? 'pre' : r < 0.29 ? 'late' : 'mid'; if (when === 'late') po = major ? 99 : notable ? (rand() < 0.6 ? 99 : rint(5, 18)) : (rand() < 0.5 ? rint(2, 16) : 0); }
+      else if (!major && rand() < 0.04 * p.prone * (A.injury || 1) * (1 + Math.max(0, p.age - 29) * 0.05)) {
+        const d = rint(10, 45), rs = rint(3, 10); late = { rs, po: d - rs > 24 ? 99 : d - rs }; if (rand() < 0.15) late.po = 99; miss += rs; when = 'late'; po = late.po;
+      }
+    }
+    return { gp: clamp(82 - miss - rest - (opts.extraMiss || 0), 0, 82), miss, rest, injuries: list, major, notable, when, po, late };
   }
   // what a major injury takes from the body: the burst (athleticism) and the durability. Drawn once; a person's rehab choice scales it later, the autopilot just takes it.
   function injuryDamage() { return { ath: 3 + rand() * 4, dur: 2 + rand() * 4, tath: 3 }; }
@@ -1237,6 +1245,7 @@ body.dlg-open { overflow: hidden; }
     L.teams.forEach((t) => { let w = t.wins - (mw - 41); if (w < 33) w -= (33 - w) * 0.22; if (w > 54) w -= (w - 54) * ((user && t.id === user.teamId && ovr(user.p) >= 88) ? T.userWinShrink : 0.2); t.wins = clamp(Math.round(w), 12, 73); t.losses = 82 - t.wins; });
     L.teams.forEach((t) => { t.power = (t.wins - 41) / 2.7 + randn() * 0.8; t.prevWins = t.wins; });
     deadlineTrades(L);
+    if (user && user.avail && user.avail.po) { const ut0 = L.teams[user.teamId]; ut0.power -= clamp((ovr(user.p) - 60) * 0.12, 0.8, 4.5) * (user.avail.po >= 99 ? 1 : clamp(user.avail.po / 16, 0.2, 0.85)); }   // the star is hurt for the playoffs: the team goes in without him
     if (user) { const ut = L.teams[user.teamId]; ut.power += clamp((ovr(user.p) - 84) * 0.1, 0, 1.5); } // superstars matter more in the playoffs: shorter rotations, more minutes
 
     // user line (needs team context)
@@ -5113,6 +5122,15 @@ body.dlg-open { overflow: hidden; }
   }
   // a logged game's rating: its own box score, plus/minus and result
   const rateItem = (it) => NBA.gameRating({ pts: it.pt, reb: it.rb, ast: it.as, stl: it.st, blk: it.bk, tov: it.to, min: it.m }, it);
+  // what the season's injury is called in the record: when it hit and what it cost
+  function injText(a) {
+    const po = a.po >= 99 ? ' It cost him the whole postseason.' : a.po > 0 ? ' It also cost him the first ' + a.po + ' playoff games.' : '';
+    if (a.late) return 'Hurt late in the year: missed the last ' + a.late.rs + ' games of the season.' + po;
+    if (a.major) return (a.when === 'pre' ? 'Suffered a ' + a.major + ' in the preseason and missed ' + a.miss + ' games, starting with opening night.' : a.when === 'late' ? 'Suffered a ' + a.major + ' late in the year and missed the last ' + a.miss + ' games.' : 'Suffered a ' + a.major + ' and missed ' + a.miss + ' games.') + po;
+    if (a.notable) return (a.when === 'pre' ? 'Hurt in the preseason: missed the first ' + a.miss + ' games with a ' + a.notable + '.' : a.when === 'late' ? 'Missed the last ' + a.miss + ' games of the year with a ' + a.notable + '.' : 'Missed ' + a.miss + ' games with a ' + a.notable + '.') + po;
+    if (a.miss >= 12) return (a.when === 'pre' ? 'Missed the start of the season (' + a.miss + ' games) with a preseason injury.' : a.when === 'late' ? 'Missed the last ' + a.miss + ' games with an injury.' : 'Missed ' + a.miss + ' games with injuries.') + po;
+    return null;
+  }
   function buildMatchLog(st, rec, line, games, series, t, injuryText, poLine) {
     const L = st.league, teams = Object.values(L.teams).filter((x) => x.id !== st.teamId);
     const total = 82, gp = games.length, miss = Math.max(0, total - gp);
@@ -5135,9 +5153,10 @@ body.dlg-open { overflow: hidden; }
     const opps = []; teams.forEach((x) => { opps.push(x, x); }); while (opps.length < total) opps.push(teams[Math.floor(rand() * teams.length)]);
     for (let i = opps.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [opps[i], opps[j]] = [opps[j], opps[i]]; }
     opps.length = total;
-    const missed = new Set();
-    if (miss >= 15) { const st0 = Math.floor(rand() * (total - miss + 1)); for (let i = 0; i < miss; i++) missed.add(st0 + i); } else { while (missed.size < miss) missed.add(Math.floor(rand() * total)); }
-    const blockInjury = miss >= 15; let firstInj = false;
+    const missed = new Set(), tail = new Set(), inf = st.injInfo, whenI = inf && inf.when;
+    if (inf && inf.short && miss >= inf.miss) { for (let i = 0; i < inf.miss; i++) { tail.add(total - 1 - i); missed.add(total - 1 - i); } while (missed.size < miss) missed.add(Math.floor(rand() * (total - inf.miss))); }
+    else if (miss >= 15) { const st0 = whenI === 'pre' ? 0 : whenI === 'late' ? total - miss : Math.floor(rand() * (total - miss + 1)); for (let i = 0; i < miss; i++) missed.add(st0 + i); } else { while (missed.size < miss) missed.add(Math.floor(rand() * total)); }
+    const isInjSlot = (i) => (tail.size ? tail.has(i) : miss >= 15); let firstInj = false;
     const played = []; for (let i = 0, k = 0; i < total; i++) if (!missed.has(i)) played.push({ slot: i, g: games[k++] });
     const boxes = {}; played.forEach((x) => { boxes[x.slot] = mk(x.g, line.fgp, line.tpp, line.ftp, line.ts); });
     // the season's shooting is the season line (fitShooting), then every game gets its shots; both on their own random streams, so nothing else moves
@@ -5151,7 +5170,7 @@ body.dlg-open { overflow: hidden; }
       const won = winSlots.has(i), b = boxes[i];
       const sc = score(won, b ? b.pt + 38 : 0);
       const it = Object.assign({ k: 'g', n: i + 1, d: dateStr(L.year, 9, 22 + Math.round(i * 1.98 + (rand() - 0.5) * 1.5)), o: opps[i].nick, oc: opps[i].city, h: rand() < 0.5 ? 1 : 0, w: won ? 1 : 0, ot: sc.ot }, { f: sc.f, a: sc.a });
-      if (b) Object.assign(it, b); else { it.dnp = blockInjury ? (injuryText || 'Injured') : 'Rest'; if (blockInjury) { it.ib = 1; if (!firstInj) { firstInj = true; if (st.injInfo) it.inj = { name: st.injInfo.name, major: st.injInfo.major, miss: st.injInfo.miss }; } } }
+      if (b) Object.assign(it, b); else { it.dnp = isInjSlot(i) ? (injuryText || 'Injured') : 'Rest'; if (isInjSlot(i)) { it.ib = 1; if (!firstInj) { firstInj = true; if (st.injInfo) it.inj = { name: st.injInfo.name, major: st.injInfo.major, miss: st.injInfo.miss, when: st.injInfo.when }; } } }
       it.ar = NBA.data.ARENAS[it.h ? t.nick : opps[i].nick] || '';
       if (b) it.pm = Math.round((it.f - it.a) * (b.m / 48) * 1.1 + randn() * 4);
       items.push(it);
@@ -5258,10 +5277,10 @@ body.dlg-open { overflow: hidden; }
     // drawn on its own stream so nothing else in the season changes; the second season's cap is 8 minutes higher
     if (p.yearsPro === 0) { const sv = NBA.rngGet(); NBA.setSeed(st.seasonSeed ^ 0x3c6ef372); p.benchCap = rand() < NBA.tuning.benchRole * (age <= 19 ? 1.25 : age >= 22 ? 0.6 : 1) ? 15 + 12 * rand() : 0; NBA.rngSet(sv); }
     if (p.yearsPro <= 1 && p.benchCap) { fx.minsCap = p.benchCap + 8 * p.yearsPro; fx.notes.push(p.yearsPro === 0 ? 'Coach is bringing you along slowly: a bench role behind the veterans for now.' : 'Still earning the coach\'s full trust: more minutes, but not a full starter\'s load yet.'); }
-    const avail = rollAvail(p, { extraMiss: fx.extraMiss });
+    const avail = rollAvail(p, { extraMiss: fx.extraMiss, user: true });
     st.injDamage = null;
     if (avail.major) { if (st.autoPlay) applyMajorInjury(p); else st.injDamage = NBA.injuryDamage(); }   // a person decides how to rehab: the damage is applied (scaled) at the end of the year
-    st.injInfo = avail.major || avail.notable ? { name: avail.major || avail.notable, major: !!avail.major, miss: avail.miss } : avail.miss >= 15 ? { name: ['sprained ankle', 'strained hamstring', 'bone bruise in the knee', 'strained groin', 'back spasms', 'sore Achilles'][avail.miss % 6], major: false, miss: avail.miss } : null;
+    st.injInfo = avail.late ? { name: ['high ankle sprain', 'sprained MCL', 'strained calf', 'hamstring strain', 'fractured finger', 'sprained wrist'][(avail.late.rs + avail.late.po) % 6], major: false, miss: avail.late.rs, when: 'late', po: avail.late.po, short: 1 } : avail.major || avail.notable ? { name: avail.major || avail.notable, major: !!avail.major, miss: avail.miss, when: avail.when, po: avail.po } : avail.miss >= 15 ? { name: ['sprained ankle', 'strained hamstring', 'bone bruise in the knee', 'strained groin', 'back spasms', 'sore Achilles'][avail.miss % 6], major: false, miss: avail.miss, when: avail.when, po: avail.po } : null;
     p.rookie = p.yearsPro === 0;
     L.teams[st.teamId].depth += fx.depth;
     let userLine = null;
@@ -5294,8 +5313,9 @@ body.dlg-open { overflow: hidden; }
     const po = res.playoffs;
     let pline = null, perSeries = [], fmvp = false, heater = false, legend = false, pform = null, resultText = 'Missed the playoffs';
     const inPost = po.userMade || (po.userSeries && po.userSeries.length > 0);   // the play-in counts: a team that loses it still had a postseason game
-    if (inPost && avail.gp < 15) {
+    if (inPost && (avail.gp < 15 || avail.po >= 99)) {
       resultText = (po.champion.id === st.teamId ? 'NBA Champions 🏆' : po.userMade ? 'Team made the playoffs' : 'Team lost in the play-in') + ' (you were injured)';
+      if (avail.gp >= 15 && po.userMade) resultText = (po.champion.id === st.teamId ? 'NBA Champions 🏆 (you watched from the bench)' : 'Lost in the ' + (po.userSeries.slice().reverse().find((s) => !s.won) || { round: 'playoffs' }).round + ' (you were injured)');
     } else if (inPost) {
       const series = po.userSeries;
       const lost = series.slice().reverse().find((s) => !s.won);   // the last loss is the one that ended it (a lost 7 v 8 play-in game is not)
@@ -5320,7 +5340,7 @@ body.dlg-open { overflow: hidden; }
       fgp: l.fgp, tpp: l.tpp, ftp: l.ftp, ts: l.ts, fga: l.fga, tpa: l.tpa, fta: l.fta, td: l.td, dd: l.dd, g40: l.g40, g50: l.g50, high: l.high, ovr: Math.round(l.ovr), usg: l.usg,
       avgTD: l.avgTD, totPts: l.totPts, totReb: l.totReb, totAst: l.totAst,
       awards: awardsHere, playoffText: resultText, playoff: pline ? { gp: pline.gp, pts: pline.pts, reb: pline.reb, ast: pline.ast, stl: pline.stl, blk: pline.blk, mins: pline.mins, fgp: pline.fgp, tpp: pline.tpp, ts: pline.ts, td: pline.td, high: pline.high, form: pform } : null,
-      perSeries, heater, legend, ranks: res.ranks, events: fx.notes, injury: avail.major ? 'Suffered a ' + avail.major + ' and missed ' + avail.miss + ' games.' : avail.notable ? 'Missed ' + avail.miss + ' games with a ' + avail.notable + '.' : avail.miss >= 12 ? 'Missed ' + avail.miss + ' games with injuries.' : null,
+      perSeries, heater, legend, ranks: res.ranks, events: fx.notes, injury: injText(avail),
       salary: st.contract.salary, mvp: A.mvp ? A.mvp.name + ' (' + r1(A.mvp.pts) + '/' + r1(A.mvp.reb) + '/' + r1(A.mvp.ast) + ')' : '', champion: po.champion.name, league: res.league,
       rookie: p.rookie, leaders: res.leaders, perfRank: 1 + res.entries.filter((e) => !e.isUser && e.l.gp >= 58 && e.l.perf > userLine.perf).length,
     };
@@ -5333,6 +5353,7 @@ body.dlg-open { overflow: hidden; }
     if (l.gpCut && !rec.injury) rec.injury = 'Suffered a season-ending injury and missed the rest of the year.';
     st.leagueSnap = { year: L.year, label: res.label, standings: res.standings, leaders: res.leaders, leadersO: res.leadersOthers, race: A.race, raceO: A.raceOthers, playin: po.playin };
     st.matchLog = buildMatchLog(st, rec, l, gl, perSeries, t, rec.injury, pline); st.matchIdx = 0;
+    manageReturn(st, rec, l); if (avail.po > 0 && avail.po < 99) playoffMiss(st, rec, perSeries, avail.po);
     shootingFromLog(rec, st.matchLog);
     if (rec.playoff) rec.playoff.rating = rec.poRating;
     rec.bests = seasonBests(st.matchLog, rec.label, rec.age);
@@ -5423,6 +5444,48 @@ body.dlg-open { overflow: hidden; }
       used.add(pk.row[0]); out.push(rowQuestion(1000 + pk.i, pk.row, c, rnd, 'mem:' + pk.row[0]));
     }
     return out;
+  }
+  // after a layoff the team eases you back: the first games back come with a minutes limit (shorter after a short injury, longer after a long one)
+  function manageReturn(st, rec, l) {
+    const items = st.matchLog; let blk = 0, changed = false;
+    items.forEach((it, i) => {
+      if (it.k !== 'g' || it.po) return;
+      if (it.dnp) { blk = it.ib ? blk + 1 : blk; return; }
+      if (blk >= 4) {
+        const n = blk >= 30 ? 5 : blk >= 15 ? 4 : blk >= 8 ? 3 : 2;
+        let k = 0, j = i; for (; items[j] && k < n; j++) { const g = items[j]; if (g.k !== 'g' || g.po) break; if (g.dnp) break; limitGame(st, g, 0.6 + 0.36 * (k / n)); k++; changed = true; }
+      }
+      blk = 0;
+    });
+    if (!changed) return;
+    const reg = items.filter((x) => x.k === 'g' && !x.po && !x.dnp), n = reg.length; if (!n) return;
+    const sumOf = (k) => reg.reduce((x, g) => x + (g[k] || 0), 0), mean = (k) => sumOf(k) / n;
+    Object.assign(rec, { mins: mean('m'), pts: mean('pt'), reb: mean('rb'), ast: mean('as'), stl: mean('st'), blk: mean('bk'), tov: mean('to'), td: reg.filter((g) => g.tg.includes('Triple-double')).length, dd: reg.filter((g) => g.tg.includes('Double-double') || g.tg.includes('Triple-double')).length,
+      g40: reg.filter((g) => g.pt >= 40).length, g50: reg.filter((g) => g.pt >= 50).length, high: Math.max.apply(null, reg.map((g) => g.pt)), totPts: sumOf('pt'), totReb: sumOf('rb'), totAst: sumOf('as'), avgRating: Math.round(mean('r') * 100) / 100 });
+    rec.avgTD = n >= 30 && rec.pts >= 10 && rec.reb >= 10 && rec.ast >= 10;
+    l.td = rec.td; l.dd = rec.dd; l.g40 = rec.g40; l.g50 = rec.g50; l.pts = rec.pts; l.totPts = rec.totPts; l.totReb = rec.totReb; l.totAst = rec.totAst; l.reb = rec.reb; l.ast = rec.ast; l.mins = rec.mins; l.high = rec.high;
+  }
+  // one game with a minutes limit: the same night at a fraction of the load
+  function limitGame(st, it, f) {
+    const r = mulberry(shotSeed(st, 7300 + it.n)), j = (lo, hi) => lo + (hi - lo) * r(), sc = (x, lo, hi) => Math.round((x || 0) * f * j(lo, hi));
+    it.m = Math.max(8, Math.round(it.m * f)); it.fga = Math.max(2, sc(it.fga, 0.9, 1.1)); it.fgm = Math.min(it.fga, sc(it.fgm, 0.85, 1.15)); it.tpa = Math.min(it.fga, sc(it.tpa, 0.9, 1.1)); it.tpm = Math.min(it.tpa, it.fgm, sc(it.tpm, 0.8, 1.2));
+    it.fta = sc(it.fta, 0.8, 1.2); it.ftm = Math.min(it.fta, sc(it.ftm, 0.9, 1.1)); it.rb = sc(it.rb, 0.8, 1.2); it.or = Math.min(it.rb, sc(it.or, 0.7, 1.3)); it.as = sc(it.as, 0.8, 1.2); it.st = sc(it.st, 0.5, 1.5); it.bk = sc(it.bk, 0.5, 1.5); it.to = sc(it.to, 0.8, 1.2); it.pf = Math.min(6, it.pf || 0);
+    it.pt = it.fgm * 2 + it.tpm + it.ftm; it.pm = Math.round((it.f - it.a) * (it.m / 48) * 1.1 + (r() - 0.5) * 4);
+    const cats = [it.pt, it.rb, it.as, it.st, it.bk].filter((x) => x >= 10).length; it.tg = ['Minutes limit'].concat(cats >= 3 ? ['Triple-double'] : cats === 2 ? ['Double-double'] : []);
+    it.r = rateItem(it); it.sh = shotsFor(it, st.player, shotSeed(st, 7500 + it.n)); it.mm = 1; it.cl = 0; delete it.pp;
+  }
+  // an injury that runs into the playoffs: the first games of the postseason are gone (the rounds were already played by the league, now without him in the building)
+  function playoffMiss(st, rec, perSeries, n) {
+    const items = st.matchLog; let left = n;
+    items.forEach((it) => { if (it.k === 'g' && it.po && left > 0) { setDnp(it, 'Injured'); it.ib = 1; delete it.g7; delete it.last; left--; } });
+    const po = items.filter((x) => x.k === 'g' && x.po && !x.dnp);
+    const sum = (a, k) => a.reduce((x, g) => x + (g[k] || 0), 0);
+    { let si = -1; const grp = []; items.forEach((x) => { if (x.k === 'hdr' && (x.ps != null || x.pi)) { si++; grp[si] = []; } else if (x.k === 'g' && x.po && si >= 0) grp[si].push(x); });
+      perSeries.forEach((sr, k) => { const g = (grp[k] || []).filter((x) => !x.dnp); sr.missed = (grp[k] || []).length - g.length; sr.pts = g.length ? sum(g, 'pt') / g.length : 0; sr.reb = g.length ? sum(g, 'rb') / g.length : 0; sr.ast = g.length ? sum(g, 'as') / g.length : 0; }); }
+    if (!po.length) { rec.playoff = null; rec.poRating = null; rec.heater = false; return; }
+    const m = (k) => sum(po, k) / po.length;
+    rec.playoff = Object.assign(rec.playoff || {}, { gp: po.length, mins: m('m'), pts: m('pt'), reb: m('rb'), ast: m('as'), stl: m('st'), blk: m('bk'), td: po.filter((g) => (g.tg || []).includes('Triple-double')).length, high: Math.max.apply(null, po.map((g) => g.pt)) });
+    const pr = po.map((x) => x.r); rec.poRating = pr.length ? Math.round(pr.reduce((a, b) => a + b, 0) / pr.length * 100) / 100 : null; rec.heater = false;
   }
   // ---- injuries with stakes: at the start of a long injury you choose how to come back; the choice edits the games and the damage to your body is scaled at the end of the year
   const INJ = {
@@ -7355,7 +7418,7 @@ body.dlg-open { overflow: hidden; }
         h('p', null, 'Triple-doubles: ', h('b', null, r.td), ' · Double-doubles: ', h('b', null, r.dd), r.g40 ? ' · 40-pt games: ' + r.g40 : '', r.avgTD ? ' · 🔥 AVERAGED A TRIPLE-DOUBLE' : ''),
         h('p', null, h('b', null, r.wins + '-' + r.losses), ' · ' + r.playoffText), awardPills, ranks, r.injury ? h('div', { class: 'callout' }, '🩹 ' + r.injury) : null, r.events.map((e) => h('div', { class: 'callout' }, e))),
       r.playoff ? h('div', { class: 'card' }, h('h2', null, 'Playoffs' + (r.legend ? ' 🔥 LEGENDARY RUN' : r.heater ? ' 🔥 on a heater' : '')), h('div', { class: 'grid stats' }, statBox(f1(r.playoff.pts), 'PPG'), statBox(f1(r.playoff.reb), 'RPG'), statBox(f1(r.playoff.ast), 'APG'), r.poRating ? h('div', { class: 'statbox' }, h('div', { class: 'big' }, ratingBadge(r.poRating, 2)), h('div', { class: 'lbl' }, 'Playoff rating')) : null), h('p', { class: 'muted small' }, r.playoff.gp + ' games · ' + (r.playoff.form != null ? 'postseason form ×' + r.playoff.form.toFixed(2) + ' (' + f1(r.playoff.pts) + ' vs ' + f1(r.pts) + ' ppg in the regular season) · ' : '') + pct(r.playoff.ts) + ' TS% · ' + r.playoff.td + ' triple-doubles · high ' + r.playoff.high),
-        h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, ['Round', 'Opponent', 'Result', 'PTS', 'REB', 'AST'].map((x, i) => h('th', { class: i < 3 ? 'l' : '' }, x)))), h('tbody', null, r.perSeries.map((s) => h('tr', null, h('td', { class: 'l' }, s.round), h('td', { class: 'l' }, s.opp), h('td', { class: 'l' }, s.result), h('td', null, f1(s.pts)), h('td', null, f1(s.reb)), h('td', null, f1(s.ast)))))))) : null,
+        h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, ['Round', 'Opponent', 'Result', 'PTS', 'REB', 'AST'].map((x, i) => h('th', { class: i < 3 ? 'l' : '' }, x)))), h('tbody', null, r.perSeries.map((s) => h('tr', null, h('td', { class: 'l' }, s.round), h('td', { class: 'l' }, s.opp), h('td', { class: 'l' }, s.result + (s.missed ? ' · missed ' + s.missed : '')), h('td', null, f1(s.pts)), h('td', null, f1(s.reb)), h('td', null, f1(s.ast)))))))) : null,
       h('div', { class: 'card ink' }, h('h2', null, 'Around the league'), h('p', null, 'Champion: ', h('b', null, r.champion), ' · MVP: ', h('b', null, r.mvp)), h('p', { class: 'muted small' }, r.league.n30 + ' players averaged 30+ this year, ' + r.league.n25 + ' averaged 25+.'), h('h3', null, 'Top scorers'), r.league.topScorers.slice(0, 5).map((t, i) => h('div', { class: 'rank-row' }, h('span', { class: 'n' }, i + 1), h('span', null, t.name), h('b', null, f1(t.ppg))))),
       (() => { const fb = feedBlocks(S.league.year, (S.matchLog || []).length, 0).slice(0, 6); return fb.length ? h('div', { class: 'card' }, h('h2', null, '📱 The timeline this year'), fb.map(feedBlock), h('div', { class: 'row' }, h('button', { class: 'ghost tiny', onclick: showTimeline }, 'See everything'))) : null; })(),
       h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { S.stage = 'decision'; S.decision = G.decisionOptions(S); go(); } }, 'Offseason decisions →')));

@@ -36,7 +36,15 @@
     if (opts.noRest) rest = 0;
     // the 65-game rule for awards (2024-): stars close to the line skip rest days to qualify (real stars' seasons since cluster at 65+)
     { const left = 82 - miss - (opts.extraMiss || 0); if (o >= T.qualifyOvr && !major && left - rest < 65 && left >= 65) rest = Math.min(rest, left - 65); }
-    return { gp: clamp(82 - miss - rest - (opts.extraMiss || 0), 0, 82), miss, rest, injuries: list, major, notable };
+    // when it happens (the user's own season only): some long injuries hit in the preseason (the first games are gone), some late in the year (the playoffs are at stake)
+    let when = 'mid', po = 0, late = null;
+    if (opts.user) {
+      if (miss >= 15 && (major || notable || miss >= 25)) { const r = rand(); when = r < 0.15 ? 'pre' : r < 0.29 ? 'late' : 'mid'; if (when === 'late') po = major ? 99 : notable ? (rand() < 0.6 ? 99 : rint(5, 18)) : (rand() < 0.5 ? rint(2, 16) : 0); }
+      else if (!major && rand() < 0.04 * p.prone * (A.injury || 1) * (1 + Math.max(0, p.age - 29) * 0.05)) {
+        const d = rint(10, 45), rs = rint(3, 10); late = { rs, po: d - rs > 24 ? 99 : d - rs }; if (rand() < 0.15) late.po = 99; miss += rs; when = 'late'; po = late.po;
+      }
+    }
+    return { gp: clamp(82 - miss - rest - (opts.extraMiss || 0), 0, 82), miss, rest, injuries: list, major, notable, when, po, late };
   }
   // what a major injury takes from the body: the burst (athleticism) and the durability. Drawn once; a person's rehab choice scales it later, the autopilot just takes it.
   function injuryDamage() { return { ath: 3 + rand() * 4, dur: 2 + rand() * 4, tath: 3 }; }
@@ -286,6 +294,7 @@
     L.teams.forEach((t) => { let w = t.wins - (mw - 41); if (w < 33) w -= (33 - w) * 0.22; if (w > 54) w -= (w - 54) * ((user && t.id === user.teamId && ovr(user.p) >= 88) ? T.userWinShrink : 0.2); t.wins = clamp(Math.round(w), 12, 73); t.losses = 82 - t.wins; });
     L.teams.forEach((t) => { t.power = (t.wins - 41) / 2.7 + randn() * 0.8; t.prevWins = t.wins; });
     deadlineTrades(L);
+    if (user && user.avail && user.avail.po) { const ut0 = L.teams[user.teamId]; ut0.power -= clamp((ovr(user.p) - 60) * 0.12, 0.8, 4.5) * (user.avail.po >= 99 ? 1 : clamp(user.avail.po / 16, 0.2, 0.85)); }   // the star is hurt for the playoffs: the team goes in without him
     if (user) { const ut = L.teams[user.teamId]; ut.power += clamp((ovr(user.p) - 84) * 0.1, 0, 1.5); } // superstars matter more in the playoffs: shorter rotations, more minutes
 
     // user line (needs team context)
