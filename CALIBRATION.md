@@ -903,3 +903,6 @@ A long injury (any named one, or 15+ missed games in a block) now stops the seas
 
 ## v88 — what gets bleeped
 - Normal swearing stays uncensored on the fan podcast; only the single nastiest personal insult in an unfiltered answer is [bleep]ed.
+
+## v89 — bleeped reactions
+- Unfiltered podcast answers get a host-panic / chat-reaction result and fallback fan posts ("bro got bleeped mid sentence"). No slurs, masked or otherwise.
