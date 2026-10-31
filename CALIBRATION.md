@@ -887,3 +887,8 @@ A long injury (any named one, or 15+ missed games in a block) now stops the seas
 - Long injuries now hit in the preseason (~15%: the first games are gone, decision pops up at game 1) or late in the year (~14%); a separate late-season injury (3–10 games, ~4%/season) can run into the playoffs.
 - A late injury can cost the first N playoff games or the whole postseason (team power drops by the star's share in the league sim, so the team really goes in without him); box scores show DNP "Injured", series table shows "missed N".
 - First games back after 4+ missed get a minutes limit (2–5 games, ramping ~60%→95%), tagged "Minutes limit". Checks: `scripts/injury2-check.js`; baseline peak OVR 76.6/76.9, ppg 12.3.
+
+## v85 — dynamic press and "In the news" pop-ups
+- Artifact: Claude invents new reporters and outlets (podcasts, local TV, radio, student papers…; "New voice" badge), and trash/fight answers must cite real facts: season line, team and opponent records, career titles/MVPs/All-Stars, a feud. `pressFacts` now carries `season`, `career`, `opponentRecord`.
+- New decision `mention` ("In the news"): after a game an opponent star, your rival or an opposing coach may talk about you (praise or a dig; ~1.5-2.5 a season, max 3, more in the playoffs or a feud). Four replies (respect / no comment / receipts / fire back) move media, chemistry and your relationship with him; the two sharper ones can start a feud. Hand-written quotes everywhere; in the artifact Claude rewrites the quote, the replies, the headline and the fan posts from the stats.
+- Tests: `scripts/mention-check.js`, `scripts/ui-ai.js` (mocked Claude).

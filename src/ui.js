@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v84';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v85';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -532,6 +532,10 @@
         if (!pend('social') && !Dc.offer(S, 'social')) it.sd = 1;
         if (pend('social')) { if (S.autoDec) { Dc.autoResolve(S); it.sd = 1; save(); return holdAt(); } return true; }
       }
+      { const prev = (S.matchIdx || 0) > 0 ? S.matchLog[S.matchIdx - 1] : null;   // somebody mentioned you after the last game: a news pop-up
+        if (!S.noSocial && !S.autoPlay && prev && prev.k === 'g' && !prev.dnp && !prev.md) {
+          if (pend('mention')) { if (S.autoDec) { Dc.autoResolve(S); prev.md = 1; save(); return holdAt(); } return true; }
+          prev.md = 1; if (Dc.offer(S, 'mention')) { if (S.autoDec) { Dc.autoResolve(S); save(); return holdAt(); } save(); return true; } } }
       if (it.cl && !it.cd) {   // last-possession calls are made only inside a live game; a simmed game just plays out
         if (S.liveMode && !bulk) return false;
         if (pend('clutch')) S.dec.pending = null;
@@ -564,7 +568,7 @@
     // every decision is a pop-up over the season page (not a screen of its own)
     let overlay = null;
     if (S.decResult) overlay = screenDecResult();
-    else if (holdAt()) { if (NBA.AllStar.active(S)) overlay = screenAllStar(); else { const pid = S.dec.pending.id; overlay = pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : pid === 'press' ? screenPress() : pid === 'injury' ? screenInjury() : pid === 'social' ? screenSocial() : screenDeadline(); } if (overlay === 'again') return screenSeasonPlay(); }
+    else if (holdAt()) { if (NBA.AllStar.active(S)) overlay = screenAllStar(); else { const pid = S.dec.pending.id; overlay = pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : pid === 'press' ? screenPress() : pid === 'injury' ? screenInjury() : pid === 'social' ? screenSocial() : pid === 'mention' ? screenMention() : screenDeadline(); } if (overlay === 'again') return screenSeasonPlay(); }
     const items = S.matchLog || [], idx = S.matchIdx || 0, L = S.league, p = S.player, t = L.teams[S.teamId];
     const shown = items.slice(0, idx), done = idx >= items.length;
     const reg = shown.filter((x) => x.k === 'g' && !x.po), poG = shown.filter((x) => x.k === 'g' && x.po);
@@ -1307,7 +1311,7 @@
       return h('div', null, h('h1', null, 'Press conference'), h('p', { class: 'muted' }, t.name + ' · ' + v.why + (gno && gno !== v.why ? ' · ' + gno : '')),
         pd.log.length ? h('div', { class: 'jlog' }, pd.log.map((x) => h('div', { class: 'jmsg' }, x.text.charAt(0) === '\uD83D' ? x.text : '🎤 ' + x.text))) : null,
         h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, 'Pick your question · ' + (v.taken + 1) + ' of ' + v.take), h('p', { class: 'small muted', style: 'margin:6px 0' }, 'Reporters are shouting. You can take ' + (v.take - v.taken) + (v.take - v.taken === 1 ? ' question' : ' questions') + ' and the rest get ignored (they will remember).'), persona, aiNote),
-        h('div', { class: 'wkgrid' }, v.candidates.map((c) => h('div', { class: 'wkcard qcard' + (c.heat >= 2 ? ' spicy' : '') }, h('div', { class: 'small muted' }, rep(c.reporter), (SRC[c.src] || c.ai) ? h('span', { class: 'badge', style: 'margin-left:8px' }, SRC[c.src] || 'Fresh question') : null), h('div', { style: 'margin:8px 0' }, '“' + c.text + '”'), h('button', { class: 'primary', onclick: () => act('pick', c.idx) }, 'Take this one')))),
+        h('div', { class: 'wkgrid' }, v.candidates.map((c) => h('div', { class: 'wkcard qcard' + (c.heat >= 2 ? ' spicy' : '') }, h('div', { class: 'small muted' }, rep(c.reporter), (SRC[c.src] || c.ai) ? h('span', { class: 'badge', style: 'margin-left:8px' }, SRC[c.src] || (c.reporter && c.reporter.fresh ? 'New voice' : 'Fresh question')) : null), h('div', { style: 'margin:8px 0' }, '“' + c.text + '”'), h('button', { class: 'primary', onclick: () => act('pick', c.idx) }, 'Take this one')))),
         skipBar, autoDecBar());
     }
     const q = pd.ctx.pool[pd.ctx.cur];
@@ -1364,7 +1368,7 @@
         const [qr, ar] = await Promise.all(jobs);
         const mk = (x, calmN, spicyOk) => { const spicy = spicyOk ? ['trash', 'fight'].filter((k) => x[k]) : [], calm = ['humble', 'confident', 'joke', 'deflect'].sort(() => Math.random() - 0.5).slice(0, spicy.length ? 2 : calmN); return calm.concat(spicy).map((k) => ({ key: k, label: T[k].label, line: '“' + x[k] + '”', spicy: k === 'trash' || k === 'fight' })); };
         const got = NBA.Press.checkClaudeQuestions(qr, cast);
-        const fresh = got.slice(0, want).map((q, k) => { const cand = { i: 4000 + k, topic: 'ai', heat: q.heat, text: q.text, src: 'ai', ai: true, opts: mk(q.answers, 3, true) }; cand.reporter = q.reporter ? { id: q.reporter.name, name: q.reporter.name, outlet: q.reporter.outlet, style: q.reporter.style } : R.reporterFor(team, cand, pr.rep, Math.random); return cand; });
+        const fresh = got.slice(0, want).map((q, k) => { const cand = { i: 4000 + k, topic: 'ai', heat: q.heat, text: q.text, src: 'ai', ai: true, opts: mk(q.answers, 3, true) }; cand.reporter = q.reporter ? { id: q.reporter.name, name: q.reporter.name, outlet: q.reporter.outlet, style: q.reporter.style, fresh: !!q.reporter.fresh } : R.reporterFor(team, cand, pr.rep, Math.random); return cand; });
         const ans = ar ? NBA.Press.checkClaudeAnswers(ar, sq) : {};
         if (ctx.cur == null && !ctx.chosen.length) {
           story.forEach((q, k) => { const a = ans['q' + k]; if (a) { q.opts = mk(a, 3, true); q.ai = true; if (a._q) q.text = a._q; } });
@@ -1557,6 +1561,16 @@
       out.push(h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: 'primary', onclick: () => step(o.key) }, v.step === 'game' ? 'Play' : 'Enter'))))), v.canPass ? h('div', { class: 'row', style: 'margin-top:10px' }, h('button', { class: 'ghost', onclick: () => step('pass') }, 'Pass on this one')) : null);
     }
     return h('div', null, out);
+  }
+  // somebody in the league talked about you: the quote, and your answer (in the artifact Claude writes the quote and the replies from the stats)
+  let mnBusy = false;
+  function screenMention() {
+    const Dc = DEC(), v = Dc.view(S), pd = S.dec.pending, ctx = pd.ctx, t = S.league.teams[S.teamId];
+    if (!ctx.aiDone && !mnBusy) { mnBusy = true; getSample().then(async (sm) => { if (!sm) { ctx.aiDone = true; mnBusy = false; return; } try { const got = NBA.Press.checkClaudeMention(await aiJson(NBA.Press.claudeMentionPrompt({ kind: ctx.kind, speaker: ctx.who, quote: ctx.quote, opponent: ctx.oppName, oppRecord: ctx.oppRecord, game: ctx.game, season: ctx.season, career: ctx.career, feud: ctx.feud, player: ctx.me, team: ctx.team }))); if (got && S.dec.pending === pd) { ctx.quote = got.quote; ctx.lines = got.lines; ctx.ai = 1; ctx.ext = { headline: got.headline, fans: got.fans }; } } catch (e) { /* the hand-written one stays */ } ctx.aiDone = true; mnBusy = false; save(); if (S.dec.pending === pd) render(); }); }
+    const pick = (key) => { try { const r = Dc.choose(S, key); const ex = ctx.ext; S.decResult = { title: 'In the news', sub: ctx.who.name + ' · ' + ctx.oppName, text: r.text, tone: r.tone === 'good' ? 'good' : r.tone === 'bad' ? 'bad' : 'neutral', cap: r.tone === 'good' ? 'It landed' : r.tone === 'bad' ? 'It backfired' : 'The story', post: true, headline: ex && ex.headline ? { text: ex.headline, outlet: 'The Wire' } : null, fans: ex && ex.fans && ex.fans.length ? ex.fans.map((x, k) => ({ who: '@' + HANDLES[(k * 3 + 1) % HANDLES.length], text: x })) : null, ai: ex ? 1 : 0 }; const it = S.matchLog[ctx.idx]; if (it) it.md = 1; save(); go(); } catch (e) { console.error(e); } };
+    return h('div', null, h('h1', null, '📰 ' + v.title), h('p', { class: 'muted' }, t.name + ' · ' + v.text),
+      h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, v.who.name + ' · ' + v.who.role + (v.ai ? ' ✨' : '')), h('h2', { style: 'margin:8px 0' }, v.quote)),
+      h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' + (o.key === 'fire' ? ' spicy' : '') }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: o.key === 'respect' ? 'primary' : '', onclick: () => pick(o.key) }, 'Say it'))))), autoDecBar());
   }
   function screenSocial() {
     const Dc = DEC(), v = Dc.view(S), s = NBA.Social.state(S);

@@ -587,6 +587,35 @@
     auto() { return { key: 'thanks' }; },
   });
 
+  // ================================================================ somebody mentions you: an opponent star or coach said something about you after the game
+  register({
+    id: 'mention', title: 'In the news', trigger: 'mention',
+    when(st) { return !st.autoPlay; },
+    open(st) { return NBA.Game.mentionOpen(st, (st.matchLog || [])[(st.matchIdx || 0) - 1]); },
+    view(st, ctx) {
+      const praise = ctx.kind === 'praise', nm = ctx.who.name;
+      const o = ctx.lines || {};
+      return { title: 'In the news', who: ctx.who, quote: ctx.quote, ai: !!ctx.ai, text: (praise ? nm + ' (' + ctx.who.role + ') spoke about you after the game.' : nm + ' (' + ctx.who.role + ') took a shot at you after the game.') + ' Want to respond?', options: [
+        { key: 'respect', label: praise ? 'Return the respect' : 'Take the high road', blurb: o.respect || (praise ? 'Thank him. Class gets noticed.' : 'Acknowledge it and move on.'), vibe: 'Safe' },
+        { key: 'ignore', label: 'No comment', blurb: o.ignore || 'Say nothing and let your game talk.', vibe: 'Quiet' },
+        { key: 'clap', label: 'Answer with the receipts', blurb: o.clap || 'Hit back with the numbers and the record.', vibe: praise ? 'Cocky. Could go either way' : 'Spicy. Could backfire' },
+        { key: 'fire', label: 'Fire back, no filter', blurb: o.fire || 'Say exactly what you think of him.', vibe: 'Loud. Starts a feud' }] };
+    },
+    choose(st, ctx, key) {
+      const r = rng(st, 'mention-r|' + st.league.year + '|' + ctx.game.n + '|' + (ctx.game.po ? 'p' : 'r'))(), G = NBA.Game, pr = G.pressState ? G.pressState(st) : null, praise = ctx.kind === 'praise'; let text, tone = 'neutral', eff = [];
+      const nm = ctx.who.name, rel = (d) => ({ k: 'rel', id: ctx.who.id, name: nm, d });
+      const feud = (lvl) => { try { const f = Dc0(st); f.feuds[ctx.opp] = { star: nm, level: lvl, y: st.league.year, quote: ctx.quote.replace(/^[\u201C"]|[\u201D"]$/g, '').slice(0, 80), seen: 0 }; } catch (e) { /* no feud book */ } };
+      if (key === 'respect') { eff = [{ k: 'meter', f: 'media', d: 0.5 }, rel(0.6)]; text = praise ? 'You thanked ' + nm + ' and the clip made the rounds: class all around.' : 'You took the high road. Reporters noted how calm you were, and ' + nm + ' had nothing to push against.'; tone = 'good'; }
+      else if (key === 'ignore') { eff = [{ k: 'meter', f: 'media', d: -0.1 }]; text = 'No comment. The story faded in a day.'; }
+      else if (key === 'clap') { const ok = r < clamp0(0.5 + 0.1 * (ctx.game.won ? 1 : -1) + (ctx.game.pts >= 25 ? 0.08 : -0.05)); if (ok) { eff = [{ k: 'meter', f: 'media', d: 0.6 }, rel(praise ? 0.2 : -0.4)]; text = 'You came back with the numbers and the record. The room loved it and ' + nm + ' went quiet.'; tone = 'good'; } else { eff = [{ k: 'meter', f: 'media', d: -0.5 }, { k: 'meter', f: 'chem', d: -0.2 }, rel(-0.6)]; text = 'The receipts did not hold up: your answer got picked apart and ' + nm + ' got the last word.'; tone = 'bad'; } if (!praise) feud(1); }
+      else { const ok = r < 0.42; if (ok) { eff = [{ k: 'meter', f: 'media', d: 0.3 }, rel(-1)]; text = 'You fired back with no filter and it went viral. This one is a feud now.'; tone = 'good'; } else { eff = [{ k: 'meter', f: 'media', d: -1 }, { k: 'meter', f: 'chem', d: -0.3 }, rel(-1)]; text = 'It went too far. The league called, the headlines ran, and ' + nm + ' could not have asked for a better gift.'; tone = 'bad'; } feud(2); }
+      return { done: true, tone, text, effects: eff, journal: key === 'respect' || key === 'ignore' ? null : { tone, text: nm + ' mentioned you in the press: ' + text } };
+    },
+    auto() { return { key: 'ignore' }; },
+  });
+  const clamp0 = (x) => Math.max(0.15, Math.min(0.85, x));
+  const Dc0 = (st) => { const f = state(st).flags; return f.pr || (f.pr = { quotes: [], tally: [], feuds: {}, heads: [], rep: {} }); };
+
   Object.assign(NBA, { Decisions: { invites, answerInvite, INV_TYPES, carry, register, state, rng, vibe, apply, offer, view, choose, autoResolve, takeSeason, log, relOf, TIERS, SKILL_WORDS, campMentors, standing } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

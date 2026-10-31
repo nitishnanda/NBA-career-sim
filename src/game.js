@@ -1036,12 +1036,44 @@
     return out.map((q) => { q.reporter = R.reporterFor(team, q, pr.rep, rnd); return q; });
   }
   // what Claude is told about a press moment (artifact only): the situation, what you said before, who is in the room
+  // what the career looks like right now: the season so far, the record, the career, in numbers a reporter (or a rival) can throw back at you
+  function seasonSoFar(st, upto) {
+    const items = (st.matchLog || []).slice(0, upto == null ? (st.matchIdx || 0) : upto).filter((x) => x.k === 'g' && !x.po), gp = items.filter((x) => !x.dnp), n = gp.length, w = items.filter((x) => x.w).length, l = items.length - w;
+    const avg = (k) => (n ? Math.round(gp.reduce((a, x) => a + (x[k] || 0), 0) / n * 10) / 10 : 0);
+    return { record: w + '-' + l, gp: n, ppg: avg('pt'), rpg: avg('rb'), apg: avg('as'), spg: avg('st'), bpg: avg('bk'), highGame: n ? Math.max.apply(null, gp.map((x) => x.pt)) : 0 };
+  }
+  function careerFacts(st) {
+    const c = st.career || {}, ps = st.proSeasons || [], aw = c.awards || {}, tot = ps.reduce((a, r) => a + (r.totPts || 0), 0);
+    return { seasons: ps.length, titles: c.titles || 0, mvps: aw.MVP || 0, allStars: aw['All-Star'] || 0, allNBA: aw['All-NBA'] || 0, scoringTitles: aw['Scoring titles'] || 0, careerPoints: Math.round(tot), lastSeason: ps.length ? { ppg: Math.round(ps[ps.length - 1].pts * 10) / 10, team: ps[ps.length - 1].team, wins: ps[ps.length - 1].wins, losses: ps[ps.length - 1].losses, playoffs: ps[ps.length - 1].playoffText } : null };
+  }
+  // an opponent star or coach talks about you: a news pop-up with what was said and a chance to answer (the quote is a hand-written one; in the artifact Claude rewrites it from the facts)
+  const MENTION = {
+    praise: { player: ['\u201C{me} is the real deal. {pts} on us and he made it look easy. You tip your cap.\u201D', '\u201CI will say it: {me} is one of the best in this league. {pts} points tonight and we could not do a thing about it.\u201D', '\u201CThat is a superstar. {me} took over and we had no answer.\u201D'],
+      coach: ['\u201CYou can game plan all week for {me} and he still gets his. {pts} tonight. Hat off.\u201D', '\u201CHe is a special player. We tried everything on {me} and he just kept making plays.\u201D', '\u201CI have a lot of respect for {me}. That is as good as it gets.\u201D'] },
+    dig: { player: ['\u201C{me} had his {pts}, sure, but we are {orec} and that is what matters. Come find me in a series.\u201D', '\u201CEveryone talks about {me}. I held him to {fg} from the field. Do not believe the hype.\u201D', '\u201CHe is good, not that good. Ask me again when he has done it for {orecw} wins.\u201D'],
+      coach: ['\u201CHe is a talented kid, but one man does not win in this league. Look at the standings.\u201D', '\u201C{me} gets all the headlines. We saw something tonight that we can use next time.\u201D', '\u201CHe took {fga} shots for {pts}. I will take that trade every night.\u201D'] },
+  };
+  function mentionOpen(st, it) {
+    const Dc = NBA.Decisions, f = Dc.state(st).flags, L = st.league, y = L.year, m = f.mn && f.mn.y === y ? f.mn : (f.mn = { y, n: 0 });
+    if (m.n >= 3 || !it || it.k !== 'g' || it.dnp) return null;
+    const pr = prState(st), opp = L.teams.find((x) => x.nick === it.o); if (!opp) return null;
+    const rnd = Dc.rng(st, 'mention|' + y + '|' + (it.po ? 'p' : 'r') + it.n + (it.rnd || '')), feud = pr.feuds[it.o], good = it.pt >= 30 || it.r >= 8.5, bad = it.r < 5.5 || it.pt <= 10;
+    const pr0 = (it.po ? 0.07 : 0.018) + (feud ? 0.14 : 0) + (good || bad ? 0.03 : 0) + Math.min(0.03, (NBA.Social.state(st).f || 0) / 400000);
+    if (rnd() > pr0) return null;
+    const star = NBA.rosterOf(L, opp)[0], coach = NBA.Room.coachOf(st, opp.id), rv = Dc.state(st).rival, rvp = rv && L.players[rv.id], rvHere = !!(rvp && rvp.teamId === opp.id);
+    const who = rvHere ? { kind: 'player', name: rvp.name, id: 'p' + rvp.id, role: 'your rival' } : rnd() < 0.62 && star ? { kind: 'player', name: star.name, id: 'p' + star.id, role: 'the ' + opp.nick + ' star' } : { kind: 'coach', name: coach.name, id: 'coach' + opp.id, role: 'head coach of the ' + opp.nick };
+    const kind = feud ? 'dig' : (good && rnd() < 0.55) || (!bad && !it.w && rnd() < 0.5) ? 'praise' : 'dig', ss = seasonSoFar(st, (st.matchIdx || 0));
+    const orec = opp.wins != null ? opp.wins + '-' + opp.losses : '?';
+    const bank = MENTION[kind][who.kind], fill = (t) => t.replace(/\{me\}/g, st.player.name).replace(/\{pts\}/g, it.pt).replace(/\{fg\}/g, it.fgm + '-' + it.fga).replace(/\{fga\}/g, it.fga).replace(/\{orec\}/g, orec).replace(/\{orecw\}/g, opp.wins != null ? opp.wins : 50);
+    m.n++;
+    return { who, kind, quote: fill(bank[Math.floor(rnd() * bank.length)]), opp: it.o, oppId: opp.id, oppName: opp.name, game: { n: it.n, po: !!it.po, round: it.rnd || '', won: !!it.w, score: it.f + '-' + it.a, pts: it.pt, reb: it.rb, ast: it.as, fg: it.fgm + '-' + it.fga, rating: it.r }, season: ss, career: careerFacts(st), feud: feud ? { with: feud.star, said: feud.quote } : null, oppRecord: orec, me: st.player.name, team: L.teams[st.teamId].name, idx: (st.matchIdx || 0) - 1 };
+  }
   function pressFacts(st, ctx) {
     const R = NBA.Reporters, pr = prState(st), c = ctx.c, p = st.player, team = st.league.teams[st.teamId], it = st.matchLog[ctx.idx];
     const cast = R.REPORTERS.concat([R.beatFor(team)]).map((r) => ({ name: r.name, outlet: r.outlet, style: r.style, edge: r.edge }));
     return { player: { name: p.name, pos: p.pos, age: p.age, years: p.yearsPro, team: team.name }, moment: ctx.why, kind: ctx.kind, opponent: ctx.opp, opponentStar: c.oppStar || null, rival: c.rival || null, record: c.rec || null,
       game: it && it.k === 'g' ? { n: it.n, home: !!it.h, ...(ctx.kind === 'post' ? { result: (it.w ? 'W ' : 'L ') + it.f + '-' + it.a, points: it.pt, rebounds: it.rb, assists: it.as } : {}) } : null,
-      mediaImage: R.PERSONAS[R.personaOf(pr.tally)].label, feud: pr.feuds[c.opp] ? { with: pr.feuds[c.opp].star, said: pr.feuds[c.opp].quote } : null,
+      season: seasonSoFar(st, ctx.idx), career: careerFacts(st), opponentRecord: (() => { const o = st.league.teams.find((x) => x.nick === ctx.opp); return o && o.wins != null ? o.wins + '-' + o.losses : null; })(), mediaImage: R.PERSONAS[R.personaOf(pr.tally)].label, feud: pr.feuds[c.opp] ? { with: pr.feuds[c.opp].star, said: pr.feuds[c.opp].quote } : null,
       recentQuotes: pr.quotes.slice(-3).map((q) => ({ tone: q.tone, said: q.text, vs: q.opp, result: q.w === 1 ? 'won' : q.w === 0 ? 'lost' : null })), alreadyCovered: ctx.pool.map((q) => q.text.slice(0, 80)), cast };
   }
   // the artifact's AI wrote the headline and the fans' posts for what you said: put them where the generic ones were filed
@@ -1853,6 +1885,6 @@
     return st;
   }
 
-  Object.assign(NBA, { capFor, marketCurve, Game: { patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { capFor, marketCurve, Game: { mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
