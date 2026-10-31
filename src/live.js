@@ -50,57 +50,79 @@
   };
   const fill = (s, c) => String(s).replace(/\{(\w+)\}/g, (m, k) => (c[k] != null ? c[k] : ''));
 
-  // the play-by-play for one game up to its last possession (or the whole game when there is no call to make)
-  function build(it, ctx) {
-    const rnd = NBA.Reporters.mulberry(hashS('live|' + ctx.key)), pick = (a) => a[Math.floor(rnd() * a.length)];
-    const me = ctx.me, ev = [], ot = it.ot ? 1 : 0;
-    const cl = ctx.clutch ? { text: ctx.clutch.text, tied: /^Tied/.test(ctx.clutch.text), need: /^Down 3/.test(ctx.clutch.text) ? 3 : 2, secs: +((/(\d+) seconds/.exec(ctx.clutch.text) || [])[1] || 8) } : null;
-    const lo = Math.min(it.f, it.a);
-    let tTot = it.f, oTot = it.a, limit = REG + OTLEN * ot, tp = null;
-    if (cl) { const op = lo - 2; tTot = Math.max(cl.tied ? op : op - cl.need, (it.pt || 0) + 20); oTot = op; limit = REG - cl.secs; tp = limit; }
-    const win = windows(it.m || 30, cl ? 0 : ot, limit, !!cl), W = win.reduce((s, [a, b]) => s + b - a, 0);
-    const tAt = () => { let u = rnd() * W; for (const [a, b] of win) { if (u < b - a) return Math.round(a + u); u -= b - a; } return Math.round(win[win.length - 1][1] - 1); };
+  // events for the stretch (t0, t1]: the player's remaining counts (rem), and the points still to be scored by his team (teamRem, his own included) and theirs (oppRem)
+  function gen(ctx, o) {
+    const rnd = o.rnd, pick = (a) => a[Math.floor(rnd() * a.length)], me = ctx.me, ev = [], rem = o.rem, t0 = o.t0, t1 = o.t1, win = o.win;
+    const W = win.reduce((s, [a, b]) => s + b - a, 0);
+    const tAt = () => { if (W <= 0) return Math.round(t0 + 2 + rnd() * Math.max(1, t1 - t0 - 4)); let u = rnd() * W; for (const [a, b] of win) { if (u < b - a) return Math.round(a + u); u -= b - a; } return Math.round(win[win.length - 1][1] - 1); };
     const nm = (list) => list.length ? list[Math.min(list.length - 1, Math.floor(Math.pow(rnd(), 1.6) * list.length))] : 'a teammate';
     const mates = ctx.mates && ctx.mates.length ? ctx.mates : ['a teammate'], opps = ctx.opps && ctx.opps.length ? ctx.opps : ['an opposing player'];
-    const line0 = blank(); STATS.forEach((k) => (line0[k] = it[k] || 0));
-    let mine = 0;   // the points your events put on your team's board
-    const add = (e) => { ev.push(Object.assign({ seq: ev.length }, e)); };
-    // shots, from the recorded shot chart when it matches the box score, else from the counts
-    let shots = ctx.shots && ctx.shots.length === it.fga && ctx.shots.filter((v) => (v >> 19) >= 3).length === it.tpa ? ctx.shots.slice() : null;
-    if (!shots) {
-      const twoA = Math.max(0, it.fga - it.tpa), twoM = Math.max(0, it.fgm - it.tpm); shots = [];
+    let mine = 0; const add = (e) => { ev.push(Object.assign({ seq: o.seq0 + ev.length }, e)); };
+    // shots: the recorded shot chart when it matches the counts, else drawn from the counts (with court spots from the caller when it can)
+    let shots = o.shots && o.shots.length === rem.fga && o.shots.filter((v) => (v >> 19) >= 3).length === rem.tpa ? o.shots.slice() : (ctx.mkShots ? ctx.mkShots(rem) : null);
+    if (!shots || shots.length !== rem.fga) {
+      const twoA = Math.max(0, rem.fga - rem.tpa), twoM = Math.max(0, rem.fgm - rem.tpm); shots = [];
       for (let i = 0; i < twoA; i++) shots.push({ z: Math.floor(rnd() * 3), made: i < twoM });
-      for (let i = 0; i < it.tpa; i++) shots.push({ z: 3 + (rnd() < 0.3 ? 0 : 1), made: i < it.tpm });
+      for (let i = 0; i < rem.tpa; i++) shots.push({ z: 3 + (rnd() < 0.3 ? 0 : 1), made: i < rem.tpm });
     } else shots = shots.map((v) => ({ z: v >> 19, made: (v >> 18) & 1, x: v & 511, y: (v >> 9) & 511 }));
     shots.forEach((s) => {
       const three = s.z >= 3, pts = s.made ? (three ? 3 : 2) : 0, txt = s.made ? pick(three ? T.mk3 : s.z === 2 ? T.mkMid : T.mk2) : pick(three ? T.ms3 : T.ms2);
       mine += pts;
       add({ t: tAt(), side: 'me', k: 'shot', text: fill(txt, { me: last(me) }), d: { fga: 1, fgm: s.made ? 1 : 0, tpa: three ? 1 : 0, tpm: three && s.made ? 1 : 0, pt: pts }, tm: pts, hl: s.made && three, shot: s.x != null ? { x: s.x, y: s.y, made: s.made, z: s.z } : null });
     });
-    // free throws in trips of two
-    const ftf = []; for (let i = 0; i < it.fta; i++) ftf.push(i < it.ftm ? 1 : 0); for (let i = ftf.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [ftf[i], ftf[j]] = [ftf[j], ftf[i]]; }
+    const ftf = []; for (let i = 0; i < rem.fta; i++) ftf.push(i < rem.ftm ? 1 : 0); for (let i = ftf.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [ftf[i], ftf[j]] = [ftf[j], ftf[i]]; }
     for (let i = 0; i < ftf.length; i += 2) { const trip = ftf.slice(i, i + 2), mk = trip.reduce((s, x) => s + x, 0); mine += mk; add({ t: tAt(), side: 'me', k: 'ft', text: last(me) + ' at the line: ' + mk + '/' + trip.length, d: { fta: trip.length, ftm: mk, pt: mk }, tm: mk }); }
-    // assists carry a teammate's basket
-    const others = Math.max(0, tTot - mine); let apts = 0; const asz = [];
-    for (let i = 0; i < (it.as || 0); i++) asz.push(rnd() < 0.3 ? 3 : 2);
+    const others = Math.max(0, o.teamRem - mine); let apts = 0; const asz = [];
+    for (let i = 0; i < (rem.as || 0); i++) asz.push(rnd() < 0.3 ? 3 : 2);
     while (asz.reduce((s, x) => s + x, 0) > others - 6 && asz.some((x) => x === 3)) asz[asz.indexOf(3)] = 2;
     asz.forEach((sz) => { if (apts + sz > others - 4) sz = 0; apts += sz; const who = nm(mates); add({ t: tAt(), side: 'me', k: 'ast', text: fill(pick(T.ast), { me: last(me), who: last(who) }), d: { as: 1 }, tm: sz, who, whoPts: sz }); });
-    for (let i = 0; i < (it.rb || 0); i++) { const off = i < (it.or || 0); add({ t: tAt(), side: 'me', k: 'reb', text: fill(pick(off ? T.oreb : T.reb), { me: last(me) }), d: off ? { rb: 1, or: 1 } : { rb: 1 } }); }
-    [['st', 'stl'], ['bk', 'blk'], ['to', 'to'], ['pf', 'pf']].forEach(([s, k]) => { for (let i = 0; i < (it[s] || 0); i++) add({ t: tAt(), side: 'me', k, text: fill(pick(T[k]), { me: last(me) }), d: { [s]: 1 }, hl: k === 'blk' }); });
-    // the rest of the points: teammates for your team, the other side for theirs
-    const chunks = (rem, side, list, label) => {
+    for (let i = 0; i < (rem.rb || 0); i++) { const off = i < (rem.or || 0); add({ t: tAt(), side: 'me', k: 'reb', text: fill(pick(off ? T.oreb : T.reb), { me: last(me) }), d: off ? { rb: 1, or: 1 } : { rb: 1 } }); }
+    [['st', 'stl'], ['bk', 'blk'], ['to', 'to'], ['pf', 'pf']].forEach(([s, k]) => { for (let i = 0; i < (rem[s] || 0); i++) add({ t: tAt(), side: 'me', k, text: fill(pick(T[k]), { me: last(me) }), d: { [s]: 1 }, hl: k === 'blk' }); });
+    const chunks = (left, side, list) => {
       let guard = 0;
-      while (rem > 0 && guard++ < 400) {
-        const sz = rem === 1 ? 1 : rem === 2 ? 2 : rem === 3 ? (rnd() < 0.5 ? 3 : 2) : (() => { const u = rnd(); return u < 0.27 ? 3 : u < 0.82 ? 2 : 1; })();
-        const who = nm(list), t = Math.round(10 + rnd() * (limit - 20));
+      while (left > 0 && guard++ < 400) {
+        const sz = left === 1 ? 1 : left === 2 ? 2 : left === 3 ? (rnd() < 0.5 ? 3 : 2) : (() => { const u = rnd(); return u < 0.27 ? 3 : u < 0.82 ? 2 : 1; })();
+        const who = nm(list), t = Math.round(t0 + 3 + rnd() * Math.max(1, t1 - t0 - 6));
         add(side === 'tm' ? { t, side: 'tm', k: 'tm', text: fill(pick(T['tm' + sz]), { who: last(who) }), tm: sz, who, whoPts: sz } : { t, side: 'opp', k: 'opp', text: fill(pick(T['op' + sz]), { who: last(who), opp: ctx.oppNick || 'opponent' }), op: sz, who, whoPts: sz });
-        rem -= sz;
+        left -= sz;
       }
     };
-    chunks(Math.max(0, tTot - mine - apts), 'tm', mates);
-    chunks(oTot, 'opp', opps);
-    ev.sort((a, b) => a.t - b.t || a.seq - b.seq);
-    return { key: ctx.key, events: ev, end: limit, final: !cl, pause: tp, clutch: cl, win, W, m: it.m || 30, line0, tp: tTot, op: oTot, me, mates, opps, f: it.f, a: it.a, ot: cl ? 0 : ot, oppNick: ctx.oppNick, nick: ctx.nick };
+    chunks(Math.max(0, o.teamRem - mine - apts), 'tm', mates);
+    chunks(Math.max(0, o.oppRem), 'opp', opps);
+    return ev;
+  }
+  const lineOf = (it) => { const o = blank(); STATS.forEach((k) => (o[k] = it[k] || 0)); return o; };
+  // the whole game up to its last possession (or to the buzzer when there is no call to make)
+  function build(it, ctx) {
+    const rnd = NBA.Reporters.mulberry(hashS('live|' + ctx.key)), ot = it.ot ? 1 : 0;
+    const cl = ctx.clutch ? { text: ctx.clutch.text, tied: /^Tied/.test(ctx.clutch.text), need: /^Down 3/.test(ctx.clutch.text) ? 3 : 2, secs: +((/(\d+) seconds/.exec(ctx.clutch.text) || [])[1] || 8) } : null;
+    const tl = { key: ctx.key, clutch: cl, ot: cl ? 0 : ot, me: ctx.me, mates: ctx.mates, opps: ctx.opps, oppNick: ctx.oppNick, nick: ctx.nick, shots0: ctx.shots };
+    totals(tl, it); tl.m = it.m || 30; tl.win = windows(tl.m, tl.ot, tl.limit, !!cl);
+    tl.events = gen(ctx, { rnd, rem: lineOf(it), t0: 0, t1: tl.limit, win: tl.win, teamRem: tl.tp, oppRem: tl.op, shots: ctx.shots, seq0: 0 }).sort((a, b) => a.t - b.t || a.seq - b.seq);
+    tl.W = tl.win.reduce((s, [a, b]) => s + b - a, 0); tl.end = tl.limit; tl.pause = cl ? tl.limit : null; tl.final = !cl; tl.line0 = lineOf(it); tl.f = it.f; tl.a = it.a;
+    return tl;
+  }
+  // the scoreboard the game is laid out to: the final score, or (with a last-possession call) the score going into it
+  function totals(tl, it) {
+    const lo = Math.min(it.f, it.a), cl = tl.clutch; tl.limit = REG + OTLEN * tl.ot;
+    if (cl) { const op = lo - 2; tl.tp = Math.max(cl.tied ? op : op - cl.need, (it.pt || 0) + 20); tl.op = op; tl.limit = REG - cl.secs; } else { tl.tp = it.f; tl.op = it.a; }
+  }
+  // after a decision at time t0 changed the game (a new line and score in `it`), lay out the rest of it again: what happened up to t0 stays, the remaining events are drawn to reach the new totals
+  function replan(tl, t0, it, ctx, extra) {
+    const rnd = NBA.Reporters.mulberry(hashS('replan|' + tl.key + '|' + t0 + '|' + (extra || ''))), s = stateAt(tl, [], t0), keep = tl.events.filter((e) => e.t <= t0);
+    totals(tl, it); tl.m = it.m || tl.m;
+    const rem = blank(); STATS.forEach((k) => (rem[k] = Math.max(0, (it[k] || 0) - s.box[k])));
+    // your floor time from here: the new minutes minus what you have played, spread over the stints that are left
+    const want = Math.max(0, Math.round(tl.m * 60 - secOn(tl.win, t0))), cur = tl.win.map(([a, b]) => [Math.max(a, t0), Math.min(b, tl.limit)]).filter(([a, b]) => b - a >= 10), curSec = cur.reduce((x, [a, b]) => x + b - a, 0);
+    const room = Math.max(0, tl.limit - t0); let nw = [];
+    if (want > 0 && room > 0) { const sec = Math.min(want, room), k = curSec ? sec / curSec : 1; if (curSec) { let at = t0; cur.forEach(([a, b], i) => { const len = Math.max(15, Math.round((b - a) * k)), st = Math.max(at, a); const e = Math.min(tl.limit, st + len); if (e - st >= 10) { nw.push([st, e]); at = e; } }); } else nw = [[t0 + 5, Math.min(tl.limit, t0 + 5 + sec)]]; }
+    if (tl.clutch && nw.length) { const l = nw[nw.length - 1]; l[1] = tl.limit; if (l[1] - l[0] < 40) l[0] = Math.max(t0, tl.limit - 40); }
+    tl.win = tl.win.map(([a, b]) => [a, Math.min(b, t0)]).filter(([a, b]) => b - a >= 10).concat(nw); tl.W = tl.win.reduce((x, [a, b]) => x + b - a, 0);
+    const maxSeq = keep.reduce((m, e) => Math.max(m, e.seq), 0) + 1;
+    const fresh = gen(ctx, { rnd, rem, t0, t1: tl.limit, win: nw, teamRem: Math.max(0, tl.tp - s.sc[0]), oppRem: Math.max(0, tl.op - s.sc[1]), shots: null, seq0: maxSeq });
+    tl.events = keep.concat(fresh.map((e) => Object.assign(e, { t: Math.max(e.t, t0 + 1) }))).sort((a, b) => a.t - b.t || a.seq - b.seq);
+    tl.line0 = lineOf(it); tl.f = it.f; tl.a = it.a; tl.end = tl.limit; if (tl.clutch) tl.pause = tl.limit;
+    return tl;
   }
 
   // after the call: the last seconds, built from what the game became (the player's changes, and the points that take both teams to the final score)
@@ -144,5 +166,35 @@
     });
     return { box, sc, per, pts, opp };
   }
-  NBA.Live = { build, ending, windows, secOn, periodOf, clockOf, stateAt, STATS, REG, OTLEN, blank };
+  // ---- the decisions inside a game: when they come up and what is asked. Effects live in the game (NBA.Game.liveDecision), which also edits the logged game.
+  const CPS = [{ id: 'open', t: 0 }, { id: 'form', t: 720 }, { id: 'rest', t: 1080 }, { id: 'half', t: 1440 }, { id: 'foul', t: 1800 }, { id: 'legs', t: 2160 }, { id: 'crunch', t: 2460 }];
+  function checkpointSpec(id, tl, state, it) {
+    const b = state.box, margin = state.sc[0] - state.sc[1], atts = b.fga, pctFg = atts ? b.fgm / atts : 0, q = (t) => Math.max(0, t);
+    if (id === 'open') return { id, title: 'Tip-off', text: 'Opening night energy, the building is loud. How do you want to start?', options: [
+      { key: 'attack', label: 'Attack early', blurb: 'Look for your shot and set the tone.', vibe: 'More shots' },
+      { key: 'table', label: 'Set the table', blurb: 'Get everyone involved early and feel the game out.', vibe: 'More passing' },
+      { key: 'lock', label: 'Lock in on defense', blurb: 'Win the first quarter with stops and let the offense come.', vibe: 'Defense first' }] };
+    if (id === 'form') {
+      if (atts >= 5 && pctFg >= 0.55) return { id: 'form', variant: 'hot', title: 'You are feeling it', text: b.pt + ' points on ' + b.fgm + '/' + b.fga + ' already, and the rim looks wide. Keep hunting, or move the ball?', options: [
+        { key: 'hunt', label: 'Keep hunting shots', blurb: 'Ride the hot hand. The defense will adjust.', vibe: 'Hot hand' }, { key: 'spread', label: 'Get teammates going', blurb: 'Use the attention you are drawing.', vibe: 'Balanced' }] };
+      if (atts >= 5 && pctFg <= 0.3) return { id: 'form', variant: 'cold', title: 'Cold start', text: 'Just ' + b.fgm + ' for ' + b.fga + ' and the crowd is noticing. How do you respond?', options: [
+        { key: 'shootout', label: 'Keep shooting through it', blurb: 'One falls and it turns. Or it does not.', vibe: 'Risky' }, { key: 'settle', label: 'Settle for easy looks', blurb: 'Cut, rebound, get to the line.', vibe: 'Steady' }, { key: 'facilitate', label: 'Go to a passing game', blurb: 'Make it about the team until the shot comes back.', vibe: 'Playmaker' }] };
+      return null;
+    }
+    if (id === 'rest') return { id, title: 'The coach looks your way', text: 'Late in the second quarter with ' + Math.floor(state.mins || 0) + ' minutes on your legs. Do you want a breather before the half?', options: [
+      { key: 'normal', label: 'Stick with the rotation', blurb: 'Whatever the coach has planned.', vibe: 'Steady' }, { key: 'stay', label: 'Stay in', blurb: 'Keep your rhythm and the pressure on.', vibe: 'More minutes' }, { key: 'rest', label: 'Take a breather', blurb: 'Sit a few minutes and come back fresh.', vibe: 'Rested' }] };
+    if (id === 'legs') return { id, title: 'Start of the fourth', text: 'You have played ' + Math.floor(state.mins || 0) + ' minutes and the building is tight. How are your legs?', options: [
+      { key: 'normal', label: 'Play it as it comes', blurb: 'Trust the rotation.', vibe: 'Steady' }, { key: 'push', label: 'Push through', blurb: 'Stay on the floor and run on adrenaline.', vibe: 'All-out' }, { key: 'sub', label: 'Ask for a quick rest', blurb: 'Two minutes on the bench, then back for the finish.', vibe: 'Smart' }] };
+    if (id === 'half') return { id, title: 'Halftime', text: (margin > 0 ? 'Up ' + margin : margin < 0 ? 'Down ' + (-margin) : 'Tied') + ' at the break. The coach asks what you want to run in the second half.', options: [
+      { key: 'pnr', label: 'Pick-and-roll with you', blurb: 'You run it all half: score or find the roller.', vibe: 'Balanced' },
+      { key: 'iso', label: 'Isolations for you', blurb: 'Clear out and go to work. High volume, high variance.', vibe: 'Hero ball' },
+      { key: 'pace', label: 'Push the pace', blurb: 'More possessions for both teams.', vibe: 'Fast and loose' },
+      { key: 'press', label: 'Pressure defense', blurb: 'Pick them up full court and force mistakes. Fouls may come.', vibe: 'Aggressive' }] };
+    if (id === 'foul') { if (b.pf < 3) return null; return { id, title: 'Foul trouble', text: 'You have ' + b.pf + ' fouls in the third quarter. The coach looks down the bench.', options: [
+      { key: 'sit', label: 'Sit for a stretch', blurb: 'Stay out of trouble and come back later.', vibe: 'Safe' }, { key: 'stay', label: 'Stay in, play carefully', blurb: 'Same minutes, a little less aggression.', vibe: 'Steady' }, { key: 'aggressive', label: 'Stay aggressive', blurb: 'Your team needs you on the floor. One more foul and it gets ugly.', vibe: 'Risky' }] }; }
+    if (id === 'crunch') { if (Math.abs(margin) > 12) return null; return { id, title: 'Crunch time', text: (margin > 0 ? 'Up ' + margin : margin < 0 ? 'Down ' + (-margin) : 'Tied') + ' with seven minutes left. The coach takes a timeout: what do you want to run?', options: [
+      { key: 'run', label: 'Run it through you', blurb: 'Take the big shots yourself.', vibe: 'Hero ball' }, { key: 'swing', label: 'Move the ball', blurb: 'Trust the offense and take what the defense gives.', vibe: 'Ball movement' }, { key: 'stops', label: 'Win it with defense', blurb: 'Get stops, run in transition and let the game come to you.', vibe: 'Defense' }] }; }
+    return null;
+  }
+  NBA.Live = { replan, lineOf, CPS, checkpointSpec, build, ending, windows, secOn, periodOf, clockOf, stateAt, STATS, REG, OTLEN, blank };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -427,6 +427,7 @@
     reset: { label: 'Call timeout and run the play', blurb: 'Set up the best look the coach can draw.' },
   };
   function clutchSituation(it) {
+    if (it.cls) return it.cls;   // fixed when the live game starts, so decisions that move the score do not change the call
     const need3 = (it.n * 7 + it.a) % 5 === 0, tied = (it.n + it.f) % 3 === 0;
     return need3 ? { text: 'Down 3 with ' + (4 + (it.n % 9)) + ' seconds left. The ball is coming to you.', need: 3 } : tied ? { text: 'Tied, ' + (5 + (it.n % 8)) + ' seconds left, the last possession is yours.', need: 2 } : { text: 'Down 2 with ' + (4 + (it.n % 9)) + ' seconds left. Inbound to you at the wing.', need: 2 };
   }
@@ -1118,6 +1119,81 @@
     return { idx: st.matchIdx, n: it.n, g7: !!it.g7, po: !!it.po, opp, oppCity: it.oc, home: !!it.h, round: it.rnd, ser: it.ser, text: sit.text, need: sit.need,
       opts: Object.keys(CL_OPTS).map((k) => ({ key: k, label: CL_OPTS[k].label, blurb: CL_OPTS[k].blurb, vibe: clVibe(od.win[k] + (rnd() - 0.5) * 0.08) })), _win: od.win };
   }
+  // ---- decisions inside a live game. Each one edits the logged game (your line, the score, the minutes) from what the game looked like at that moment (state: the box so far,
+  // the score, the minutes played), and the live game is then laid out again from there. Only a regular-season game can change its result; the margin of a close game stays close.
+  function clutchLock(st, idx) { const it = st.matchLog[idx]; if (it && it.cl && !it.cd && !it.cls) it.cls = clutchSituation(it); }
+  function liveDecision(st, idx, id, key, state) {
+    const it = st.matchLog[idx]; if (!it || it.k !== 'g') throw new Error('no game');
+    const L = st.league, p = st.player, a = p.attrs, Dc = NBA.Decisions, r = Dc.rng(st, 'livedec|' + L.year + '|' + it.n + '|' + (it.po ? 1 : 0) + '|' + id), roll = r();
+    const D = {}, add = (k, v) => { D[k] = (D[k] || 0) + v; }, sk = clamp(((a.three + a.mid + a.inside) / 3 - 60) / 30, -0.5, 1);
+    const ptsD = (n) => { while (n >= 2) { if (n >= 3 && r() < 0.3) { add('fgm', 1); add('fga', 2); add('tpm', 1); add('tpa', 2); n -= 3; } else { add('fgm', 1); add('fga', 2); n -= 2; } } if (n === 1) { add('ftm', 1); add('fta', 1); } };
+    const ptsM = (n) => { while (n >= 2) { add('fgm', -1); add('fga', -2); n -= 2; } if (n === 1) { add('ftm', -1); add('fta', -1); } };
+    let dT = 0, dO = 0, dm = 0, text = '', tone = 'neutral', foulOut = false;
+    if (id === 'open') {
+      if (key === 'attack') { if (roll < 0.25) { add('to', 1); dT -= 2; text = 'You came out firing and it got sloppy early: a turnover and a forced shot.'; tone = 'bad'; } else { ptsD(2 + (sk > 0.5 ? 1 : 0)); if (r() < 0.5) add('as', -1); dO += r() < 0.5 ? 1 : 0; text = 'You came out aggressive and the defense had to respect you right away.'; tone = 'good'; } }
+      else if (key === 'table') { add('as', 1 + (roll < 0.5 ? 1 : 0)); dT += 2; ptsM(1); text = 'You got everybody touching it early. The offense was humming.'; tone = 'good'; }
+      else { add('st', roll < 0.6 ? 1 : 0); add('bk', roll < 0.3 ? 1 : 0); dO -= 3; ptsM(2); text = 'You set the tone on defense. They could not get comfortable.'; tone = 'good'; }
+    } else if (id === 'form') {
+      if (key === 'hunt') { if (roll < 0.6 + 0.2 * sk) { ptsD(4); dT += 2; text = 'You kept cooking. Every look fell.'; tone = 'good'; } else { ptsM(2); add('to', 1); dT -= 2; text = 'The defense adjusted and you forced a few.'; tone = 'bad'; } }
+      else if (key === 'spread') { add('as', 2); ptsM(2); dT += 1; text = 'You made them pay for the attention: two assists, and the whole team got going.'; tone = 'good'; }
+      else if (key === 'shootout') { if (roll < 0.4 + 0.2 * sk) { ptsD(5); dT += 3; text = 'One finally fell, then another. The night turned around.'; tone = 'good'; } else { add('fga', 3); ptsM(2); dT -= 2; text = 'You kept firing and nothing dropped.'; tone = 'bad'; } }
+      else if (key === 'settle') { ptsD(2); add('rb', 1); text = 'You took the easy ones: a layup, a rebound, a trip to the line.'; tone = 'good'; }
+      else { add('as', 2); ptsM(1); dT += 1; text = 'You made it a passing game until the shot came back.'; tone = 'good'; }
+    } else if (id === 'rest') {
+      if (key === 'stay') { dm += 3; ptsD(2); add('to', roll < 0.4 ? 1 : 0); text = 'You stayed in and kept the rhythm going into the half.'; tone = 'good'; }
+      else if (key === 'rest') { dm -= 3; ptsM(2); text = 'You got a breather and came back for the half.'; tone = 'neutral'; }
+      else { text = 'You stuck with the rotation.'; }
+    } else if (id === 'legs') {
+      if (key === 'push') { if (roll < 0.55) { ptsD(2); add('st', 1); text = 'Fresh legs, or at least adrenaline: you made plays down the stretch.'; tone = 'good'; } else { add('to', 2); ptsM(1); dT -= 1; text = 'The legs were gone. Two sloppy turnovers cost the team.'; tone = 'bad'; } }
+      else if (key === 'sub') { dm -= 2; ptsM(1); text = 'A two-minute rest and you came back with some life.'; tone = 'neutral'; }
+      else { text = 'You played it as it came.'; }
+    } else if (id === 'half') {
+      if (key === 'pnr') { ptsD(2); add('as', 1 + (roll < 0.5 ? 1 : 0)); dT += 1; text = 'The pick-and-roll worked: you scored it, then found the roller.'; tone = 'good'; }
+      else if (key === 'iso') { if (roll < 0.45 + 0.25 * sk) { ptsD(6); dT += 2; text = 'You got your spots all half and the defense had no answer.'; tone = 'good'; } else { ptsD(2); add('fga', 4); add('to', 1); dT -= 2; text = 'The isolations bogged down. The offense stalled and the shots would not fall.'; tone = 'bad'; } }
+      else if (key === 'pace') { ptsD(2); add('rb', 1); add('to', 1); dT += 3; dO += 3; text = 'The game turned into a track meet: more shots for everyone.'; tone = 'neutral'; }
+      else { add('st', 1 + (roll < 0.4 ? 1 : 0)); add('pf', roll < 0.6 ? 1 : 0); dO -= 3; ptsM(1); text = 'The pressure rattled them: steals, rushed shots, and a couple of fouls on you.'; tone = 'good'; }
+    } else if (id === 'foul') {
+      const fp = (state.box.pf >= 4 ? 0.5 : 0.28);
+      if (key === 'sit') { dm -= 6; ptsM(3); add('rb', -1); add('as', -1); dT -= 1; text = 'You took a seat and came back later with the fouls behind you.'; tone = 'neutral'; }
+      else if (key === 'stay') { add('pf', roll < 0.3 ? 1 : 0); text = 'You played smart and stayed out of trouble.'; tone = 'good'; }
+      else if (roll < fp) { foulOut = true; dm -= 9; ptsM(5); add('rb', -2); add('as', -1); dT -= 4; text = 'You went after it and picked up your sixth foul. You fouled out and the team felt it.'; tone = 'bad'; }
+      else { ptsD(2); add('st', 1); dO -= 1; text = 'You stayed aggressive and got away with it. The team fed off it.'; tone = 'good'; }
+    } else if (id === 'crunch') {
+      if (key === 'run') { if (roll < 0.42 + 0.2 * sk) { ptsD(4); dT += 3; text = 'You took over: two big buckets down the stretch.'; tone = 'good'; } else { ptsM(1); add('to', 1); dT -= 2; text = 'You forced it and the defense was waiting.'; tone = 'bad'; } }
+      else if (key === 'swing') { add('as', 2); dT += 1; text = 'The ball moved and the open man hit his shots.'; tone = 'good'; }
+      else { dO -= 3; add('st', 1); add('bk', roll < 0.4 ? 1 : 0); ptsM(2); text = 'You locked in. They could not buy a basket.'; tone = 'good'; }
+    } else throw new Error('bad decision');
+    // apply: never below what already happened by this moment
+    const s = state.box || {}, sc = state.sc || [0, 0];
+    ['fga', 'fgm', 'tpa', 'tpm', 'fta', 'ftm', 'rb', 'or', 'as', 'st', 'bk', 'to', 'pf'].forEach((k) => { it[k] = Math.max(s[k] || 0, (it[k] || 0) + Math.round(D[k] || 0)); });
+    it.fgm = Math.min(it.fgm, it.fga); it.tpa = Math.min(it.tpa, it.fga); it.tpm = Math.min(it.tpm, it.tpa, it.fgm); it.ftm = Math.min(it.ftm, it.fta); it.or = Math.min(it.or, it.rb);
+    // what is left of the game must still be possible: no more two-point makes than two-point tries, threes likewise, free throws, offensive boards
+    { const g0 = (k) => s[k] || 0;
+      if (it.fgm - it.tpm - (g0('fgm') - g0('tpm')) < 0) it.tpm = Math.max(g0('tpm'), it.fgm - g0('fgm') + g0('tpm'));
+      const dH = (it.tpm - g0('tpm')) - (it.tpa - g0('tpa')); if (dH > 0) { it.tpa += dH; it.fga += dH; }
+      const dT2 = (it.fgm - it.tpm - (g0('fgm') - g0('tpm'))) - (it.fga - it.tpa - (g0('fga') - g0('tpa'))); if (dT2 > 0) it.fga += dT2;
+      if (it.ftm - g0('ftm') > it.fta - g0('fta')) it.fta = it.ftm - g0('ftm') + g0('fta'); if (it.or - g0('or') > it.rb - g0('rb')) it.rb = it.or - g0('or') + g0('rb'); }
+    it.fga = Math.max(it.fga, it.tpa + Math.max(0, it.fgm - it.tpm)); it.pf = foulOut ? 6 : Math.min(6, it.pf);
+    it.pt = it.fgm * 2 + it.tpm + it.ftm;
+    it.m = Math.round(clamp(it.m + dm, Math.ceil(state.mins || 0) + 1, 48 + (it.ot ? 5 : 0)));
+    let f2 = Math.max(sc[0], it.f + Math.round(dT), it.pt + 12), a2 = Math.max(sc[1], it.a + Math.round(dO)); const wasW = !!it.w, margin0 = Math.abs(it.f - it.a);
+    if (f2 === a2) { if (wasW) f2++; else a2++; }
+    if (it.po || it.cl) { if (wasW && f2 <= a2) f2 = a2 + 1; if (!wasW && f2 >= a2) a2 = f2 + 1; }   // a playoff game keeps its result; so does a game with a last-possession call to come
+    if (it.cl) { const cap = Math.max(4, margin0); if (Math.abs(f2 - a2) > cap) { if (f2 > a2) f2 = a2 + cap; else a2 = f2 + cap; } }
+    const nowW = f2 > a2;
+    if (nowW !== wasW) {
+      const rec = st.proSeasons[st.proSeasons.length - 1], d = nowW ? 1 : -1, tm = L.teams[st.teamId];
+      st.clutchDelta = (st.clutchDelta || 0) + d; rec.wins += d; rec.losses -= d; tm.wins += d; tm.losses -= d;
+      const row = st.leagueSnap && st.leagueSnap.standings && st.leagueSnap.standings.find((x) => x.id === st.teamId); if (row) { row.wins += d; row.losses -= d; }
+      it.w = nowW ? 1 : 0;
+    }
+    it.f = f2; it.a = a2; it.pm = Math.round((f2 - a2) * (it.m / 48) * 1.1);
+    (it.tg = it.tg || []).unshift({ open: 'Set the tone', form: 'Rode the form', rest: 'Rotation call', half: 'Halftime adjustment', foul: foulOut ? 'Fouled out' : 'Foul trouble', legs: 'Fourth-quarter legs', crunch: 'Crunch-time call' }[id]);
+    it.sh = shotsFor(it, p, shotSeed(st, 7000 + it.n + 31 * ['open', 'form', 'rest', 'half', 'foul', 'legs', 'crunch'].indexOf(id)));
+    it.r = rateItem(it);
+    recomputeFromLog(st);
+    return { text, tone, flipped: nowW !== wasW, foulOut };
+  }
   function resolveClutch(st, key) {
     const idx = st.matchIdx || 0, it0 = st.matchLog[idx]; if (!it0 || !it0.cl || !CL_OPTS[key]) throw new Error('no clutch moment');
     const L = st.league, p = st.player, sit = clutchSituation(it0), od = clutchOdds(st, it0, sit.need), Dc = NBA.Decisions;
@@ -1709,6 +1785,6 @@
     return st;
   }
 
-  Object.assign(NBA, { capFor, marketCurve, Game: { chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { capFor, marketCurve, Game: { liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

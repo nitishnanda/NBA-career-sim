@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v79';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v80';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -1333,9 +1333,33 @@
     const idx = S.matchIdx, L = S.league, p = S.player, tm = L.teams[S.teamId], opT = L.teams.find((x) => x.nick === it.o), Dc = DEC();
     let clutch = null;
     if (it.cl && !it.cd) { if (!(S.dec && S.dec.pending && S.dec.pending.id === 'clutch')) Dc.offer(S, 'clutch'); if (S.dec && S.dec.pending && S.dec.pending.id === 'clutch') clutch = { text: G.clutchInfo(S).text }; else it.cd = 1; }
-    const tl = NBA.Live.build(it, { key: (S.seasonSeed || 0) + '|' + it.n + '|' + (it.po ? 1 : 0), me: p.name, nick: tm.nick, oppNick: it.o, mates: NBA.rosterOf(L, tm).filter((q) => q.id !== 'user').map((q) => q.name), opps: opT ? NBA.rosterOf(L, opT).map((q) => q.name) : [], shots: it.sh || G.shotsFor(it, p, G.shotSeed(S, idx)), clutch });
+    const ctxL = { key: (S.seasonSeed || 0) + '|' + it.n + '|' + (it.po ? 1 : 0), me: p.name, nick: tm.nick, oppNick: it.o, mates: NBA.rosterOf(L, tm).filter((q) => q.id !== 'user').map((q) => q.name), opps: opT ? NBA.rosterOf(L, opT).map((q) => q.name) : [], shots: it.sh || G.shotsFor(it, p, G.shotSeed(S, idx)), clutch  };
+    ctxL.mkShots = (rem) => G.shotsFor(rem, p, G.shotSeed(S, 8000 + idx + 17 * ((ctxL._n = (ctxL._n || 0) + 1))));
+    if (clutch) G.clutchLock(S, idx);
+    const tl = NBA.Live.build(it, ctxL);
     LV = { idx, it, tl, evs: tl.events, i: 0, t: 0, speed: S.liveSpeed || 12, state: 'play', box: NBA.Live.blank(), sc: [0, 0], per: [], pts: {}, opp: {}, feed: [], shots: [], res: null, end: tl.end, lim: tl.pause != null ? tl.pause : tl.end, timer: null, run: true, newFeed: [] };
-    render(); liveRun();
+    LV.ctx = ctxL; LV.noDec = !!(clutch && it.g7); LV.cpDone = {};   // (a Game 7 with a call can rebuild the series, which would throw earlier decisions away: only the final call there)
+    LV.lim = liveLim(); liveCheckCp(); render(); liveRun();
+  }
+  // the next place the game stops: a decision coming up, the last possession, or the buzzer
+  function liveLim() { const A = LV, Lv = NBA.Live, base = A.res ? A.end : (A.tl.pause != null ? A.tl.pause : A.tl.end), cp = A.noDec ? null : Lv.CPS.find((c) => !A.cpDone[c.id] && c.t < (A.tl.clutch ? A.tl.limit - 30 : A.tl.end) && c.t >= 0); return cp ? Math.min(cp.t, base) : base; }
+  function liveMins() { const A = LV, w = A.tl.W; return w ? A.tl.m * Math.min(1, NBA.Live.secOn(A.tl.win, A.t) / w) : 0; }
+  // a decision is due when the clock reaches its time: the game stops and the pop-up asks (a spot that does not apply to this game, like foul trouble with no fouls, is skipped)
+  function liveCheckCp() {
+    const A = LV, Lv = NBA.Live; if (A.state !== 'play') return false;
+    for (const c of (A.noDec ? [] : Lv.CPS)) { if (A.cpDone[c.id] || c.t > A.t || (A.tl.clutch && c.t >= A.tl.limit - 30)) continue; A.cpDone[c.id] = true; const spec = Lv.checkpointSpec(c.id, A.tl, { box: A.box, sc: A.sc }, A.it); if (!spec) continue;
+      if (S.autoDec) { const o = spec.options.find((x) => /^(Steady|Balanced|Safe|Hot hand)/.test(x.vibe)) || spec.options[0]; liveCp(spec, o.key); return false; }
+      A.spec = spec; A.state = 'cp'; liveStop(); return true; }
+    return false;
+  }
+  function liveCp(spec, key) {
+    const A = LV, Lv = NBA.Live; if (!A) return;
+    try {
+      const r = G.liveDecision(S, A.idx, spec.id, key, { box: Object.assign({}, A.box), sc: A.sc.slice(), mins: liveMins() }); A.it = S.matchLog[A.idx];
+      Lv.replan(A.tl, A.t, A.it, A.ctx, spec.id); A.evs = A.tl.events; const ni = A.evs.findIndex((e) => e.t > A.t); A.i = ni < 0 ? A.evs.length : ni;
+      A.newFeed.push({ e: { side: 'n', k: 'note', text: spec.title + ': ' + r.text, hl: true }, ck: Lv.clockOf(A.t, 1e9) });
+      A.spec = null; A.state = 'play'; A.lim = liveLim(); save(); if (A.refs) paintLive(); if (!S.autoDec || true) { render(); liveRun(); }
+    } catch (e) { console.error(e); }
   }
   function liveRun() { liveStop(); if (!LV || LV.state !== 'play' || !LV.run) return; LV.timer = setInterval(() => { if (!LV || LV.state !== 'play') { liveStop(); return; } LV.t = Math.min(LV.t + 0.1 * LV.speed, LV.lim); liveFlush(); }, 100); }
   function liveApply(e) {
@@ -1347,10 +1371,14 @@
     A.newFeed.push({ e, ck: e.k === 'end' ? 'Final' : NBA.Live.clockOf(e.t, 1e9) });
   }
   function liveFlush() {
-    const A = LV; let n = 0; while (A.i < A.evs.length && A.evs[A.i].t <= A.t) { liveApply(A.evs[A.i++]); n++; }
-    if (A.t >= A.lim) {
-      if (A.tl.pause != null && !A.res) { A.state = 'call'; liveStop(); if (S.autoDec) { const w = S.dec.pending.ctx._win; liveDecide(Object.keys(w).sort((a, b) => w[b] - w[a])[0]); return; } render(); return; }
-      if (A.i >= A.evs.length) { A.state = 'done'; liveStop(); render(); return; }
+    const A = LV; while (A.i < A.evs.length && A.evs[A.i].t <= A.t) liveApply(A.evs[A.i++]);
+    if (A.state === 'play' && A.t >= A.lim) {
+      if (liveCheckCp()) { render(); return; }
+      A.lim = liveLim();   // a spot that did not apply to this game: on to the next stop
+      if (A.t >= A.lim) {
+        if (A.tl.pause != null && !A.res) { A.state = 'call'; liveStop(); if (S.autoDec) { const w = S.dec.pending.ctx._win; liveDecide(Object.keys(w).sort((x, y) => w[y] - w[x])[0]); return; } render(); return; }
+        if (A.i >= A.evs.length) { A.state = 'done'; liveStop(); render(); return; }
+      }
     }
     if (A.refs) paintLive();
   }
@@ -1359,7 +1387,7 @@
     try {
       const r = Dc.choose(S, key), it1 = S.matchLog[A.idx], ext = NBA.Live.ending(A.tl, it1, { key, wins: !!it1.w, text: r.text });
       A.res = { r, key, wins: !!it1.w }; A.it = it1; A.evs = A.evs.concat([{ t: A.tl.pause + 1, seq: -1, side: 'n', k: 'note', text: r.text, hl: true }], ext.events); A.evs = A.evs.slice(0, A.i).concat(A.evs.slice(A.i).sort((x, y) => x.t - y.t || x.seq - y.seq));
-      A.end = ext.end; A.lim = ext.end; A.state = 'play'; save(); render(); liveRun();
+      A.end = ext.end; A.state = 'play'; A.lim = liveLim(); save(); render(); liveRun();
     } catch (e) { console.error(e); }
   }
   function liveSkip() { const A = LV; if (!A || A.state !== 'play') return; const GE = A.tl.clutch ? NBA.Live.REG : A.tl.end; A.t = Math.min(A.lim, GE - A.t > 600 ? A.t + 600 : GE); liveFlush(); }
@@ -1386,20 +1414,26 @@
     if (A.state === 'play') {
       ctl.append(h('button', { class: 'primary', onclick: () => { A.run = !A.run; if (A.run) liveRun(); else liveStop(); render(); } }, A.run ? 'Pause' : 'Play'),
         h('div', { class: 'speed' }, h('span', null, 'SPEED'), LIVE_SPEEDS.map(([v, l]) => h('button', { class: A.speed === v ? 'on' : '', onclick: () => { A.speed = v; S.liveSpeed = v; save(); render(); if (A.run) liveRun(); } }, l))),
-        h('button', { class: 'ghost', onclick: () => liveSkip() }, remainToEnd > 600 ? '⏩ Skip 10 min' : '⏭ Skip to the end'));
+        h('button', { class: 'ghost', onclick: () => liveSkip() }, remainToEnd > 600 ? '⏩ Skip 10 min' : A.lim < GE ? '⏭ Skip to the next decision' : '⏭ Skip to the end'));
     }
     let panel = null;
+    let pop = null;
     if (A.state === 'call') {
       const v = Dc.view(S);
-      panel = h('section', { class: 'panel' }, h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, tl.clutch && it.g7 ? 'Game 7 · winner moves on' : 'Everything on one possession'), h('h2', { style: 'margin:6px 0' }, v.text), h('p', { class: 'small muted' }, 'The coach looks at you. What do you do?')),
-        h('div', { class: 'wkgrid' }, v.opts.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: 'primary', onclick: () => liveDecide(o.key) }, 'Do it'))))), autoDecBar());
+      pop = modal(h('div', null, h('h1', null, tl.clutch && it.g7 ? 'Game 7' : 'Last possession'), h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, tl.clutch && it.g7 ? 'Winner moves on' : 'Everything on one possession'), h('h2', { style: 'margin:6px 0' }, v.text), h('p', { class: 'small muted' }, 'The coach looks at you. What do you do?')),
+        h('div', { class: 'wkgrid' }, v.opts.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: 'primary', onclick: () => liveDecide(o.key) }, 'Do it'))))), autoDecBar()));
+    }
+    if (A.state === 'cp' && A.spec) {
+      const sp = A.spec, sc = A.sc;
+      pop = modal(h('div', null, h('h1', null, sp.title), h('p', { class: 'muted' }, NBA.Live.clockOf(A.t, 1e9) + ' · ' + t.nick + ' ' + sc[0] + ', ' + it.o + ' ' + sc[1]), h('div', { class: 'card suspense' }, h('p', { style: 'margin:0' }, sp.text)),
+        h('div', { class: 'wkgrid' }, sp.options.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: 'primary', onclick: () => liveCp(sp, o.key) }, 'Do it'))))), autoDecBar()));
     }
     if (A.state === 'done') {
       const fin = A.it, won = !!fin.w;
       panel = h('section', { class: 'panel' }, h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, won ? 'Final · win' : 'Final · loss'), h('h2', { style: 'margin:6px 0' }, t.nick + ' ' + fin.f + ', ' + fin.o + ' ' + fin.a + (fin.ot ? ' (OT)' : '')), h('p', null, p.name + ': ' + fin.pt + ' pts, ' + fin.rb + ' reb, ' + fin.as + ' ast on ' + fin.fgm + '/' + fin.fga + ' shooting. Match rating ', ratingBadge(fin.r || 6, 1))),
         h('div', { class: 'row' }, h('button', { class: 'primary big-btn', onclick: liveFinish }, 'Continue →')));
     }
-    const out = h('div', null, board, ctl, panel, h('div', { class: 'lvgrid' }, box, feed), court);
+    const out = h('div', null, pop, board, ctl, panel, h('div', { class: 'lvgrid' }, box, feed), court);
     setTimeout(() => { paintLive(true); }, 0);
     return out;
   }

@@ -19,11 +19,12 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   await page.click('text=/Tip off the .* season/'); await page.waitForSelector('text=Sim next game');
   await page.check('label:has-text("Watch games live") input'); await page.waitForSelector('button:has-text("Watch next game live")');
   const ck = (name, ok, extra) => { console.log(name, ok ? 'OK' : 'MISMATCH', extra ? JSON.stringify(extra) : ''); if (!ok) errors.push(name + ' ' + JSON.stringify(extra || '')); };
+  let decs = 0;
   const finish = async () => {   // run the live game fast, take the call if one comes up, stop at the final
     await page.evaluate(() => { const A = window.__NBA_UI.live; A.speed = 4000; });
     for (let k = 0; k < 40; k++) {
       if (await page.$('button:has-text("Continue →")')) return 'done';
-      if (await page.$('.wkcard button:has-text("Do it")')) return 'call';
+      if (await page.$('.dlg-back')) { const h1 = await page.textContent('.dlg-back h1'); if (/Last possession|Game 7/.test(h1)) return 'call'; decs++; await page.click('.dlg-back .wkcard button >> nth=' + (decs % 2)); await page.waitForTimeout(80); continue; }
       await page.waitForTimeout(250);
     }
     return 'stuck';
@@ -31,6 +32,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   const compare = () => page.evaluate(() => { const A = window.__NBA_UI.live, it = window.__NBA_UI.state.matchLog[A.idx], b = A.box; const keys = ['pt', 'fga', 'fgm', 'tpa', 'tpm', 'fta', 'ftm', 'rb', 'or', 'as', 'st', 'bk', 'to', 'pf']; return { diff: keys.filter((k) => (b[k] || 0) !== (it[k] || 0)), score: A.sc.join('-') + ' vs ' + it.f + '-' + it.a, shown: document.querySelector('.lvscore').textContent + '-' + document.querySelectorAll('.lvscore')[1].textContent, ok: A.sc[0] === it.f && A.sc[1] === it.a }; });
   // ---- 1. a normal game: skip ten minutes, then to the end
   await page.click('button:has-text("Watch next game live")'); await page.waitForSelector('.lvscore');
+  { const h1 = await page.textContent('.dlg-back h1'); ck('LIVE opening decision pop-up', /Tip-off/.test(h1) && (await page.$$('.dlg-back .wkcard')).length === 3, { h1 }); await page.screenshot({ path: (process.env.SHOTS || '/tmp') + '/live-pop-' + (mobile ? 'm' : 'd') + '.png' }); await page.click('.dlg-back .wkcard button >> nth=0'); await page.waitForSelector('button:has-text("Pause")'); }
   await page.click('button:has-text("Pause")');
   const t0 = await page.evaluate(() => window.__NBA_UI.live.t); await page.click('button:has-text("Skip 10 min")'); const t1 = await page.evaluate(() => window.__NBA_UI.live.t);
   const feedRows = await page.evaluate(() => document.querySelectorAll('.lvrow').length);
@@ -39,6 +41,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   await page.click('button:has-text("Play")');
   const r1 = await finish(); ck('LIVE reaches the final', r1 === 'done', { r1 });
   { const c = await compare(); ck('LIVE box and score match the log', c.diff.length === 0 && c.ok, c); }
+  ck('LIVE several decisions in one game', decs >= 2, { decs });
   const labelsLate = await page.evaluate(() => document.querySelector('.lvclock').textContent); ck('LIVE final clock', /Final/.test(labelsLate), { labelsLate });
   const idx0 = await page.evaluate(() => window.__NBA_UI.live.idx); await page.click('button:has-text("Continue →")'); await page.waitForSelector('button:has-text("Watch next game live")');
   { const s = await page.evaluate(() => ({ mi: window.__NBA_UI.state.matchIdx, live: !!window.__NBA_UI.live })); ck('LIVE continue advances the season', s.mi === idx0 + 1 && !s.live, s); }
@@ -51,9 +54,9 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
     await page.click('button:has-text("Watch next game live")'); await page.waitForSelector('.lvscore');
     const r2 = await finish(); ck('LIVE stops for the call', r2 === 'call', { r2 });
     if (r2 === 'call') {
-      const pre = await page.evaluate(() => { const A = window.__NBA_UI.live; return { clock: document.querySelector('.lvclock').textContent, diff: A.sc[1] - A.sc[0], state: A.state, text: document.querySelector('.card.suspense h2').textContent }; });
+      const pre = await page.evaluate(() => { const A = window.__NBA_UI.live; return { clock: document.querySelector('.lvclock').textContent, diff: A.sc[1] - A.sc[0], state: A.state, text: document.querySelector('.dlg-back .card.suspense h2').textContent }; });
       ck('LIVE call is a last possession', /Q4 0:/.test(pre.clock) && pre.diff >= 0 && pre.diff <= 3 && pre.state === 'call', pre);
-      await page.click('.wkcard button:has-text("Do it") >> nth=0'); const r3 = await finish(); ck('LIVE reaches the final after the call', r3 === 'done', { r3 });
+      await page.click('.dlg-back .wkcard button:has-text("Do it") >> nth=0'); const r3 = await finish(); ck('LIVE reaches the final after the call', r3 === 'done', { r3 });
       const c = await compare(); ck('LIVE clutch box and score match the log', c.diff.length === 0 && c.ok, c);
       const cd = await page.evaluate(() => { const S = window.__NBA_UI.state; return S.matchLog[window.__NBA_UI.live.idx].cd; }); ck('LIVE clutch marked done', cd === 1, { cd });
       await page.click('button:has-text("Continue →")');
