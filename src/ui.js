@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v81';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v82';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -700,6 +700,7 @@
       return h('div', { class: 'callout inj' }, '🩹 You are hurt: ' + nm + '. ' + (lbl === 'Setback' ? 'A setback in rehab. ' : lbl === 'Rehab' ? 'Held out for rehab. ' : '') + 'Out ' + n + ' more game' + (n > 1 ? 's' : '') + ' · ' + back + '.');
     })();
     const wrap = h('div', { class: 'dash mt-' + mTab }, injBanner, h('div', { class: 'dtop' }, hero, quick, mtabs, telemetry), playoffPanel, h('div', { class: 'dmid' }, stream, averages, defense), planPanel, feedPanel);
+    if (!LV) setTimeout(aiFeedUpgrade, 600);
     return overlay ? h('div', null, modal(overlay), wrap) : wrap;
   }
   // click any player's name for his career page: who he is, his awards and every season on record (the record starts with this save)
@@ -741,7 +742,7 @@
   // ------------------------------------------------------------ the timeline (feed)
   const FEED_LABEL = { big: 'Big night', td: 'Triple-double', bad: 'Rough night', streakW: 'Win streak', streakL: 'Losing streak', blowoutWin: 'Blowout win', blowoutLoss: 'Blowout loss', po: 'Series win', elim: 'Eliminated', champ: 'Champions', playin: 'Play-in', trade: 'Trade', tradeReq: 'Trade request', sign: 'Signing', resign: 'Re-signed', waived: 'Waived', injury: 'Injury', ret: 'Back on the floor', award: 'Award', allstar: 'All-Star', draft: 'Draft', retire: 'Retirement', press: 'Press room', winner: 'Game-winner', miss: 'Missed shot', hot: 'Hot take', coach: 'Coaching change', friend: 'Locker room', beef: 'Locker room', win: 'Win', loss: 'Loss' };
   const kfmt = (n) => (n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : String(n));
-  const feedPost = (p) => h('div', { class: 'fan' }, h('b', null, p.who), p.news ? ' ' : '', ' ' + p.text, h('span', { class: 'likes' }, ' ♥ ' + kfmt(p.likes || 0)));
+  const feedPost = (p) => h('div', { class: 'fan' }, h('b', null, p.who), p.news ? ' ' : '', ' ' + p.text + (p.ai ? ' ✨' : ''), h('span', { class: 'likes' }, ' ♥ ' + kfmt(p.likes || 0)));
   // everything the feed said this season, newest first: posts on the games you have seen plus the events (trades, awards, injuries, press) up to now
   function feedBlocks(year, idx, limit) {
     const out = [], items = S.matchLog || [];
@@ -1256,6 +1257,28 @@
   // Claude in the artifact: the same page also runs on plain GitHub Pages, where there is no window.claude and the built-in reader does the job
   let samplePromise = null;
   const getSample = () => (samplePromise || (samplePromise = (async () => { try { return window.claude && window.claude.use ? await window.claude.use('sample') : null; } catch (e) { return null; } })()));
+  // when this page runs inside Claude, Claude writes the press questions and the answers, the room's reaction, tomorrow's headline and the timeline posts; everywhere else (and whenever Claude is busy) the hand-written banks are used
+  let aiOff = 0, feedAiBusy = false, feedAiNone = false;
+  async function aiJson(prompt) {
+    const sm = await getSample(); if (!sm || Date.now() < aiOff) return null;
+    try { return await Promise.race([sm.json(prompt, { modelTier: 'quick', cache: false }), new Promise((_, rej) => setTimeout(() => rej({ code: 'timeout' }), 20000))]); }
+    catch (e) { if (e && (e.code === 'rate_limited' || e.code === 'not_granted' || e.code === 'sampling_disabled')) aiOff = Date.now() + 60000; return null; }
+  }
+  async function aiFeedUpgrade() {
+    if (feedAiBusy || feedAiNone || !S || !S.dec || !S.matchLog) return;
+    const sm = await getSample(); if (!sm) { feedAiNone = true; return; }
+    const items = S.matchLog || [], idx = S.matchIdx || 0, L = S.league, p = S.player, tm = L.teams[S.teamId], cand = [];
+    items.slice(0, idx).forEach((g, i) => { if (g.k === 'g' && g.fan && g.fan.length && !g.aiF && !g.aiTry) cand.push({ ref: g, kind: g.fk, at: i, facts: { opponent: g.o, result: (g.w ? 'W ' : 'L ') + g.f + '-' + g.a, home: !!g.h, points: g.pt, rebounds: g.rb, assists: g.as, steals: g.st, blocks: g.bk, fg: g.fgm + '/' + g.fga, playoff: !!g.po, round: g.rnd || null, game: g.n } }); });
+    ((S.dec.flags.feed) || []).forEach((e) => { if (e.y === L.year && !e.ai && !e.aiTry && e.kind !== 'press' && (e.at == null || e.at <= idx)) cand.push({ ref: e, kind: e.kind, at: e.at == null ? idx : e.at, facts: e.c || {} }); });
+    const todo = cand.sort((a, b) => b.at - a.at).slice(0, 4); if (!todo.length) return;
+    feedAiBusy = true; todo.forEach((t) => { t.ref.aiTry = 1; });
+    const events = todo.map((t, i) => ({ id: i, kind: t.kind, player: { name: p.name, pos: p.pos, team: tm.name, age: p.age, ovr: Math.round(NBA.ovr(p)) }, facts: t.facts, examples: (t.ref.fan || t.ref.posts || []).slice(0, 2).map((x) => x.text) }));
+    const got = NBA.Press.checkClaudeFeed(await aiJson(NBA.Press.claudeFeedPrompt(events)), events); let changed = 0;
+    todo.forEach((t, i) => { if (!got[i]) return; const old = t.ref.fan || t.ref.posts || [], likes = old.map((x) => x.likes || 0).sort((a, b) => b - a), hs = NBA.Feed.HANDLES.slice().sort(() => Math.random() - 0.5);
+      const posts = got[i].map((text, k) => ({ who: '@' + hs[k % hs.length], text, likes: likes[k] != null ? likes[k] : Math.round(Math.pow(Math.random(), 2) * 8000 + 12), ai: 1 }));
+      if (t.ref.fan) { t.ref.fan = posts; t.ref.aiF = 1; } else { t.ref.posts = posts; t.ref.ai = 1; } changed++; });
+    feedAiBusy = false; if (changed) { save(); if (!LV && !document.querySelector('.dlg-back') && S && S.stage === 'season_play') render(); }
+  }
   const SAMPLE_MSG = { not_granted: 'Claude is switched off for this page, so the built-in reader read you.', rate_limited: 'Claude is busy right now, so the built-in reader read you.', sampling_disabled: 'Claude is unavailable here, so the built-in reader read you.' };
   // what a decision did, shown right on its own page before the games carry on (the text used to land on the season page, a game later than the choice)
   function screenDecResult() {
@@ -1263,7 +1286,8 @@
     return h('div', null, h('h1', null, r.title), r.sub ? h('p', { class: 'muted' }, r.sub) : null,
       h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, r.cap || 'What happened'), sents.map((x) => h('p', { class: 'jmsg ' + (r.tone || ''), style: 'margin:8px 0' }, x))),
       r.headline ? h('div', { class: 'card' }, h('div', { class: 'cap2' }, '📰 Tomorrow\'s headline'), h('div', { class: 'headline' }, '“' + r.headline.text + '”'), h('div', { class: 'small muted' }, r.headline.outlet)) : null,
-      r.fans && r.fans.length ? h('div', { class: 'card' }, h('div', { class: 'cap2' }, '📱 The timeline'), r.fans.map((f) => h('div', { class: 'fan' }, h('b', null, f.who), ' ' + f.text))) : null,
+      r.react ? h('div', { class: 'card' }, h('div', { class: 'cap2' }, '🎤 The room ✨'), h('p', { class: 'jmsg', style: 'margin:6px 0' }, r.react)) : null,
+      r.fans && r.fans.length ? h('div', { class: 'card' }, h('div', { class: 'cap2' }, '📱 The timeline' + (r.ai ? ' ✨' : '')), r.fans.map((f) => h('div', { class: 'fan' }, h('b', null, f.who), ' ' + f.text))) : null,
       r.moods && r.moods.length ? h('div', { class: 'small muted', style: 'margin:6px 0' }, r.moods.map((m) => m.who + ' (' + m.outlet + ') ' + (m.d > 0.15 ? 'liked that' : m.d < -0.15 ? 'was not impressed' : 'took notes') + '.').join(' ')) : null,
       r.persona ? h('div', { class: 'small muted' }, 'Your media image: ', h('b', null, NBA.Reporters.PERSONAS[r.persona].label)) : null,
       h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { const r0 = S.decResult; S.decResult = null; stopAuto(); if (!(r0 && r0.post)) advanceOne(); save(); go(); } }, S.decResult && S.decResult.post ? 'Back to the season →' : 'Play the game →')));
@@ -1272,7 +1296,7 @@
     const Dc = DEC(), v = Dc.view(S), t = S.league.teams[S.teamId], pd = S.dec.pending;
     const gi = S.matchLog && S.matchLog[pd.ctx.idx], post = pd.ctx.kind === 'post', gno = post && gi ? 'Final: ' + (gi.w ? 'W' : 'L') + ' ' + gi.f + '-' + gi.a + ' ' + (gi.h ? 'vs' : 'at') + ' the ' + gi.o : gi && gi.k === 'g' ? 'Before game ' + gi.n + ' of the season' + (gi.o ? ' · vs the ' + gi.o : '') : pd.ctx.why;
     const finish = (r) => { if (!(S.dec.pending && S.dec.pending.id === 'press')) { S.decResult = { title: 'Press conference', sub: t.name + ' · ' + gno, text: r.text, tone: r.tone === 'good' ? 'good' : r.tone === 'bad' ? 'bad' : '', cap: 'The reaction', post, headline: r.headline, fans: r.fans, moods: r.moods, persona: r.persona }; saveSnap(); } save(); go(); };
-    const act = (key, arg) => { try { finish(Dc.choose(S, key, arg)); } catch (e) { console.error(e); } };
+    const act = (key, arg) => { try { const ctx0 = pd.ctx, facts0 = key === 'pick' ? null : G.pressFacts(S, ctx0), r = Dc.choose(S, key, arg); finish(r); if (r && r.done && facts0) aiReact(ctx0, facts0); } catch (e) { console.error(e); } };
     const skipBar = h('div', { class: 'row', style: 'margin-top:10px' }, h('button', { class: 'ghost tiny', onclick: () => { S.noPress = true; try { Dc.autoResolve(S); } catch (e) { console.error(e); } save(); go(); } }, 'Skip press conferences from now on'), h('span', { class: 'small muted' }, 'You can switch them back on under the season controls.'));
     const persona = h('div', { class: 'small muted' }, 'Your media image: ', h('b', null, v.persona.label), ' · ' + v.persona.blurb);
     const rep = (r) => (r ? r.name + ' · ' + r.outlet : 'The press room');
@@ -1314,27 +1338,39 @@
   }
   // the artifact's reporters are Claude: fresh questions written from this moment (what is at stake, what you said before). Anywhere else the bank is used.
   let aiBusy = false;
+  const HANDLES = ['hoopsbrain', 'courtside_carl', 'dimes_n_dubs', 'bucketsonly', 'fadeaway.fm', 'the_sixth_man', 'ankle_breaker99', 'paint_patrol', 'zone_defense_dan', 'twoway_tay'];
+  // the reporters' reaction to the answers you gave (button answers; your own words are already read by Claude)
+  async function aiReact(ctx, facts) {
+    if (!(await getSample())) return;
+    const picks = ctx.chosen.map((ix, k) => ({ asked: (ctx.pool[ix] || {}).text, tone: (ctx.picks[k] || {}).tone, said: (ctx.picks[k] || {}).text })).filter((x) => x.asked);
+    const got = NBA.Press.checkClaudeReact(await aiJson(NBA.Press.claudeReactPrompt(facts, picks))); if (!got) return;
+    const r = S.decResult; if (!r || r.title !== 'Press conference') return;
+    const hs = HANDLES.slice().sort(() => Math.random() - 0.5), fans = got.fans.map((text, k) => ({ who: '@' + hs[k % hs.length], text, likes: Math.round(Math.pow(Math.random(), 2) * 9000 + 20), ai: 1 }));
+    r.headline = Object.assign({ outlet: 'The Wire' }, r.headline || {}, { text: got.headline }); if (fans.length) r.fans = fans; r.react = got.reaction; r.ai = 1;
+    G.patchPressAI(S, got.headline, fans); save(); if (S.decResult === r && !LV) render();
+  }
+  // the artifact's reporters are Claude: every generic question is written fresh for this moment (what is at stake, what you said before), the questions tied to your story get Claude's answers
   function maybeAiQuestions(pd, noteEl) {
     const ctx = pd.ctx; if (ctx.aiDone || aiBusy) return;
     getSample().then(async (sm) => {
       if (!sm) { ctx.aiDone = true; return; }
       aiBusy = true; noteEl.textContent = '✨ The reporters in this room are Claude: they are writing fresh questions for this moment…';
       try {
-        const facts = G.pressFacts(S, ctx), cast = facts.cast;
-        const got = NBA.Press.checkClaudeQuestions(await sm.json(NBA.Press.claudeQuestionsPrompt(facts), { modelTier: 'quick', cache: false }), cast);
-        const T = NBA.Press.TONES, team = S.league.teams[S.teamId], R = NBA.Reporters, pr = (DEC().state(S).flags.pr || { rep: {} });
-        const fresh = got.slice(0, 3).map((q, k) => {
-          const spicy = ['trash', 'fight'].filter((x) => q.answers[x]), calm = ['humble', 'confident', 'joke', 'deflect'].sort(() => Math.random() - 0.5).slice(0, spicy.length ? 2 : 3);
-          const cand = { i: 4000 + k, topic: 'ai', heat: q.heat, text: q.text, src: 'ai', ai: true, opts: calm.concat(spicy).map((x) => ({ key: x, label: T[x].label, line: '\u201C' + q.answers[x] + '\u201D', spicy: x === 'trash' || x === 'fight' })) };
-          cand.reporter = q.reporter ? { id: q.reporter.name, name: q.reporter.name, outlet: q.reporter.outlet, style: q.reporter.style } : R.reporterFor(team, cand, pr.rep, Math.random);
-          return cand;
-        });
-        if (fresh.length && ctx.cur == null && !ctx.chosen.length) {
-          // the fresh ones replace the generic bank questions on offer (the stories stay)
-          const keep = ctx.pool.filter((q) => q.src !== 'bank'), gone = ctx.pool.length - keep.length, room = Math.max(gone, keep.length < 3 ? 3 - keep.length : 0);
-          ctx.pool = keep.concat(fresh.slice(0, Math.max(1, Math.min(room, 3))));
-          noteEl.textContent = '';
+        const facts = G.pressFacts(S, ctx), cast = facts.cast, gen = ctx.pool.filter((q) => q.src === 'bank' || q.src === 'post'), story = ctx.pool.filter((q) => q.src !== 'bank' && q.src !== 'post' && !q.ai);
+        const want = Math.max(2, Math.min(4, gen.length || 3)), T = NBA.Press.TONES, team = S.league.teams[S.teamId], R = NBA.Reporters, pr = (DEC().state(S).flags.pr || { rep: {} });
+        const jobs = [aiJson(NBA.Press.claudeQuestionsPrompt(facts, want))];
+        const sq = story.map((q, k) => ({ id: 'q' + k, text: q.text, heat: q.heat || 0 }));
+        if (sq.length) jobs.push(aiJson(NBA.Press.claudeAnswersPrompt(facts, sq)));
+        const [qr, ar] = await Promise.all(jobs);
+        const mk = (x, calmN, spicyOk) => { const spicy = spicyOk ? ['trash', 'fight'].filter((k) => x[k]) : [], calm = ['humble', 'confident', 'joke', 'deflect'].sort(() => Math.random() - 0.5).slice(0, spicy.length ? 2 : calmN); return calm.concat(spicy).map((k) => ({ key: k, label: T[k].label, line: '“' + x[k] + '”', spicy: k === 'trash' || k === 'fight' })); };
+        const got = NBA.Press.checkClaudeQuestions(qr, cast);
+        const fresh = got.slice(0, want).map((q, k) => { const cand = { i: 4000 + k, topic: 'ai', heat: q.heat, text: q.text, src: 'ai', ai: true, opts: mk(q.answers, 3, true) }; cand.reporter = q.reporter ? { id: q.reporter.name, name: q.reporter.name, outlet: q.reporter.outlet, style: q.reporter.style } : R.reporterFor(team, cand, pr.rep, Math.random); return cand; });
+        const ans = ar ? NBA.Press.checkClaudeAnswers(ar, sq) : {};
+        if (ctx.cur == null && !ctx.chosen.length) {
+          story.forEach((q, k) => { const a = ans['q' + k]; if (a) { q.opts = mk(a, 3, true); q.ai = true; } });
+          if (fresh.length) ctx.pool = ctx.pool.filter((q) => q.src !== 'bank' && q.src !== 'post').concat(fresh);
         }
+        noteEl.textContent = '';
       } catch (e) { noteEl.textContent = SAMPLE_MSG[e && e.code] || ''; }
       aiBusy = false; ctx.aiDone = true; save(); render();
     });

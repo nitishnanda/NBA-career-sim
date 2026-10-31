@@ -949,7 +949,7 @@
     if (opt.key && list.some((e) => e.key === opt.key)) return;
     const team = L.teams[st.teamId], rnd = NBA.Reporters.mulberry(hashS(kind + '|' + L.year + '|' + list.length + '|' + st.player.name + (opt.key || '')));
     const cc = Object.assign({ name: st.player.name, team: team ? team.nick : '', city: team ? team.city : '' }, c || {});
-    list.push({ y: L.year, at: ('at' in opt) ? opt.at : (st.stage === 'season_play' && st.matchLog ? (st.matchIdx || 0) : null), kind, key: opt.key || null, posts: opt.posts || NBA.Feed.posts(kind, cc, rnd, opt.count || 3) });
+    list.push({ y: L.year, at: ('at' in opt) ? opt.at : (st.stage === 'season_play' && st.matchLog ? (st.matchIdx || 0) : null), kind, key: opt.key || null, posts: opt.posts || NBA.Feed.posts(kind, cc, rnd, opt.count || 3), c: cc });
     f.feed = list.slice(-120); if (NBA.Social && !st.autoPlay) NBA.Social.bump(st, kind, list[list.length - 1].posts);
   }
   // ---- the press room as a story: who is asking, what you said before, who you have a feud with
@@ -989,6 +989,11 @@
       game: it && it.k === 'g' ? { n: it.n, home: !!it.h, ...(ctx.kind === 'post' ? { result: (it.w ? 'W ' : 'L ') + it.f + '-' + it.a, points: it.pt, rebounds: it.rb, assists: it.as } : {}) } : null,
       mediaImage: R.PERSONAS[R.personaOf(pr.tally)].label, feud: pr.feuds[c.opp] ? { with: pr.feuds[c.opp].star, said: pr.feuds[c.opp].quote } : null,
       recentQuotes: pr.quotes.slice(-3).map((q) => ({ tone: q.tone, said: q.text, vs: q.opp, result: q.w === 1 ? 'won' : q.w === 0 ? 'lost' : null })), alreadyCovered: ctx.pool.map((q) => q.text.slice(0, 80)), cast };
+  }
+  // the artifact's AI wrote the headline and the fans' posts for what you said: put them where the generic ones were filed
+  function patchPressAI(st, headline, fans) {
+    const f = NBA.Decisions.state(st).flags, pr = f.pr; if (pr && pr.heads && pr.heads.length && headline) pr.heads[pr.heads.length - 1].text = headline;
+    const list = f.feed || []; for (let i = list.length - 1; i >= 0; i--) { if (list[i].kind === 'press') { if (fans && fans.length) { list[i].posts = fans; list[i].ai = 1; } break; } }
   }
   function postOpen(st, it) {
     const P = NBA.Press, L = st.league, rnd = NBA.Decisions.rng(st, 'ppress|' + L.year + '|' + (it.po ? 'p' : 'r') + it.n + (it.rnd || '') + (it.pi ? 'i' : '')), bank = NBA.PostPress || [];
@@ -1794,6 +1799,6 @@
     return st;
   }
 
-  Object.assign(NBA, { capFor, marketCurve, Game: { liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { capFor, marketCurve, Game: { patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
