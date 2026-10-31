@@ -336,7 +336,7 @@
     const oppName = it.opp || null, opp = oppName ? L.teams.find((x) => x.name === oppName) : L.teams.find((x) => x.nick === it.o), c = { it };
     c.opp = opp ? opp.nick : 'other side'; c.oppCity = opp ? opp.city : '';
     const star = opp ? NBA.rosterOf(L, opp)[0] : null;
-    c.oppStar = star ? star.name : null; c.oppStarOvr = star ? ovr(star) : 70; c.oppWins = opp ? opp.wins : 41;
+    c.oppStar = star ? star.name : null; c.oppStarOvr = star ? ovr(star) : 70; const lw = (x) => (L.lastWins && x && L.lastWins[x.nick] != null ? L.lastWins[x.nick] : 41); c.oppWins = opp ? lw(opp) : 41;
     const mates = NBA.rosterOf(L, t); c.team = t.nick; c.city = t.city; c.home = !!it.h;
     const best = mates[0]; c.mate = best ? best.name : null; c.mateStar = !!(best && ovr(best) >= ovr(p) - 3);
     const rk = mates.find((q) => (q.yearsPro || 0) <= 1 && q !== best), vt = mates.slice().sort((a, b) => b.age - a.age)[0];
@@ -348,7 +348,7 @@
     const allReg = items.slice(0, idx).filter((x) => x.k === 'g' && !x.po), wl = allReg.map((x) => x.w); let s = 0; for (let i = wl.length - 1; i >= 0 && wl[i] === wl[wl.length - 1]; i--) s++;
     c.streak = s; c.streakW = s >= 4 && wl[wl.length - 1] === 1; c.streakL = s >= 4 && wl[wl.length - 1] === 0;
     const w = allReg.filter((x) => x.w).length; c.rec = w + '-' + (allReg.length - w); c.winning = allReg.length >= 12 && w / allReg.length >= 0.58; c.losing = allReg.length >= 12 && w / allReg.length <= 0.4;
-    c.contender = t.wins >= 48; c.oppContender = opp ? opp.wins >= 50 : false; c.oppWeak = opp ? opp.wins <= 30 : false;
+    { const pw = (x) => (L.lastWins && L.lastWins[x.nick] != null ? L.lastWins[x.nick] : 41); c.contender = pw(t) >= 48; c.oppContender = opp ? pw(opp) >= 50 : false; c.oppWeak = opp ? pw(opp) <= 30 : false; }
     c.veteran = p.yearsPro >= 10; c.age = p.age; c.years = p.yearsPro; c.rookieYear = p.yearsPro === 0; c.young = p.age <= 22 && p.yearsPro >= 1; c.vetYear = p.age >= 31;
     c.draft = st.draft && st.draft.slot ? st.draft.slot : '?'; c.school = st.college ? st.college.name : 'college';
     c.expiring = st.contract && st.contract.left <= 1; c.longDeal = st.contract && st.contract.years >= 4 && st.contract.left >= 3;

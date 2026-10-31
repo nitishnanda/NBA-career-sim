@@ -604,7 +604,7 @@
     for (let k = 0; k < n * 6 && events.length < n; k++) {
       const sb = 1 + Math.floor(rnd() * 34), gap = 2 + Math.floor(rnd() * 14), sa = sb + gap;
       if (sa > 55 || used.has(sb) || used.has(sa) || order[sb - 1] === order[sa - 1]) continue;
-      if (rnd() > (sb === 1 ? 0.03 : sb <= 3 ? 0.12 : sb <= 5 ? 0.35 : sb <= 8 ? 0.7 : 1)) continue;   // the top picks almost never move on the night (a #1 pick is traded about one draft in thirty)
+      if (rnd() > (sb <= 5 ? 0.012 : sb <= 8 ? 0.6 : 1)) continue;   // a top-5 pick essentially never moves on the night (only a huge package would do it): about one draft in twenty has one
       used.add(sb); used.add(sa);
       const A = L.teams[order[sa - 1]], B = L.teams[order[sb - 1]];   // A moves up from sa to sb
       order[sb - 1] = A.id; order[sa - 1] = B.id;

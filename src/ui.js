@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v92';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v93';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -314,10 +314,9 @@
       story.querySelector('.rulerwrap').replaceWith(mocksLine() || h('div'));
     };
     // how long a pick stays on screen before the next one: the top of the lottery gets the longest, your neighbours get a beat of tension, the rest of the board moves once you are in
-    const delayAfter = (r) => { if (mine >= 0 && idx > mine) return r.slot <= 30 ? 650 : 380; const next = idx; return (r.slot <= 3 ? 4200 : r.slot <= 5 ? 3400 : r.slot <= 14 ? 2500 : r.slot <= 30 ? 1700 : 1000) + (mine >= 0 && mine - next >= 0 && mine - next <= 2 ? 1600 : 0); };
-    const awayNote = (r) => { const n = mine - idx; return mine >= 0 && n >= 1 && n <= 5 ? h('div', { class: 'small gold', style: 'margin-top:6px' }, n === 1 ? 'You are next.' : 'You are ' + n + ' picks away.') : null; };
+    const delayAfter = (r) => { if (mine >= 0 && idx > mine) return r.slot <= 30 ? 650 : 380; const next = idx; return (r.slot <= 3 ? 4200 : r.slot <= 5 ? 3400 : r.slot <= 14 ? 2500 : r.slot <= 30 ? 1700 : 1000); };
     const append = (r) => { const el = prow(r); rowEls[r.slot - 1].replaceWith(el); rowEls[r.slot - 1] = el; };
-    const reveal = (r) => { append(r); idx++; S.draftProg = idx; setProg(); clock.replaceChildren(pickLine(r)); const a = awayNote(r); if (a) clock.firstChild.append(a); };
+    const reveal = (r) => { append(r); idx++; S.draftProg = idx; setProg(); clock.replaceChildren(pickLine(r)); };
     const finish = () => { auto = false; if (!S.draftSeen) { S.draftSeen = true; save(); } showWrap(); clock.replaceChildren(h('div', null, h('div', { class: 'cap2' }, 'Draft complete'), h('div', { class: 'small muted' }, N + ' picks in two rounds · ' + d.classSize + ' prospects'))); controls.replaceChildren(); };
     const setControls = () => {
       if (held) return;

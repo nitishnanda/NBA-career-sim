@@ -1546,7 +1546,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     for (let k = 0; k < n * 6 && events.length < n; k++) {
       const sb = 1 + Math.floor(rnd() * 34), gap = 2 + Math.floor(rnd() * 14), sa = sb + gap;
       if (sa > 55 || used.has(sb) || used.has(sa) || order[sb - 1] === order[sa - 1]) continue;
-      if (rnd() > (sb === 1 ? 0.03 : sb <= 3 ? 0.12 : sb <= 5 ? 0.35 : sb <= 8 ? 0.7 : 1)) continue;   // the top picks almost never move on the night (a #1 pick is traded about one draft in thirty)
+      if (rnd() > (sb <= 5 ? 0.012 : sb <= 8 ? 0.6 : 1)) continue;   // a top-5 pick essentially never moves on the night (only a huge package would do it): about one draft in twenty has one
       used.add(sb); used.add(sa);
       const A = L.teams[order[sa - 1]], B = L.teams[order[sb - 1]];   // A moves up from sa to sb
       order[sb - 1] = A.id; order[sa - 1] = B.id;
@@ -2519,7 +2519,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     open(st) { return NBA.Game.starInjuryOpen(st, (st.matchLog || [])[(st.matchIdx || 0) - 1]); },
     view(st, ctx) {
       const s = ctx.star;
-      return { title: 'Breaking news', star: s, headline: s.name + ' (' + s.nick + ') is out ' + ctx.out + ' with a ' + ctx.inj + '.', text: (ctx.season ? 'A season-ending injury. ' : '') + (ctx.contender ? 'The ' + s.nick + ' (' + s.record + ') were one of the contenders, so the whole race just changed.' : 'The ' + s.nick + ' (' + s.record + ') lose their best player.') + (ctx.rival ? ' This is your rival.' : ''), ai: !!ctx.ai, take: ctx.take, options: [
+      return { title: 'Breaking news', star: s, headline: s.name + ' (' + s.nick + ') is out ' + ctx.out + ' with a ' + ctx.inj + '.', text: (ctx.season ? 'A season-ending injury. ' : '') + (ctx.contender ? 'The ' + s.nick + (s.record ? ' (' + s.record + ')' : '') + ' were one of the contenders, so the whole race just changed.' : 'The ' + s.nick + (s.record ? ' (' + s.record + ')' : '') + ' lose their best player.') + (ctx.rival ? ' This is your rival.' : ''), ai: !!ctx.ai, take: ctx.take, options: [
         { key: 'wishes', label: 'Send your best wishes', blurb: 'A classy post wishing ' + s.name + ' a quick recovery.', vibe: 'Classy' },
         { key: 'ignore', label: 'Stay out of it', blurb: 'Not your business. Back to work.', vibe: 'Quiet' },
         { key: 'shade', label: 'Say what everyone is thinking', blurb: 'The race is wide open now, and you are not going to pretend otherwise.', vibe: 'Honest. Could look bad' }] };
@@ -4598,7 +4598,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     const oppName = it.opp || null, opp = oppName ? L.teams.find((x) => x.name === oppName) : L.teams.find((x) => x.nick === it.o), c = { it };
     c.opp = opp ? opp.nick : 'other side'; c.oppCity = opp ? opp.city : '';
     const star = opp ? NBA.rosterOf(L, opp)[0] : null;
-    c.oppStar = star ? star.name : null; c.oppStarOvr = star ? ovr(star) : 70; c.oppWins = opp ? opp.wins : 41;
+    c.oppStar = star ? star.name : null; c.oppStarOvr = star ? ovr(star) : 70; const lw = (x) => (L.lastWins && x && L.lastWins[x.nick] != null ? L.lastWins[x.nick] : 41); c.oppWins = opp ? lw(opp) : 41;
     const mates = NBA.rosterOf(L, t); c.team = t.nick; c.city = t.city; c.home = !!it.h;
     const best = mates[0]; c.mate = best ? best.name : null; c.mateStar = !!(best && ovr(best) >= ovr(p) - 3);
     const rk = mates.find((q) => (q.yearsPro || 0) <= 1 && q !== best), vt = mates.slice().sort((a, b) => b.age - a.age)[0];
@@ -4610,7 +4610,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     const allReg = items.slice(0, idx).filter((x) => x.k === 'g' && !x.po), wl = allReg.map((x) => x.w); let s = 0; for (let i = wl.length - 1; i >= 0 && wl[i] === wl[wl.length - 1]; i--) s++;
     c.streak = s; c.streakW = s >= 4 && wl[wl.length - 1] === 1; c.streakL = s >= 4 && wl[wl.length - 1] === 0;
     const w = allReg.filter((x) => x.w).length; c.rec = w + '-' + (allReg.length - w); c.winning = allReg.length >= 12 && w / allReg.length >= 0.58; c.losing = allReg.length >= 12 && w / allReg.length <= 0.4;
-    c.contender = t.wins >= 48; c.oppContender = opp ? opp.wins >= 50 : false; c.oppWeak = opp ? opp.wins <= 30 : false;
+    { const pw = (x) => (L.lastWins && L.lastWins[x.nick] != null ? L.lastWins[x.nick] : 41); c.contender = pw(t) >= 48; c.oppContender = opp ? pw(opp) >= 50 : false; c.oppWeak = opp ? pw(opp) <= 30 : false; }
     c.veteran = p.yearsPro >= 10; c.age = p.age; c.years = p.yearsPro; c.rookieYear = p.yearsPro === 0; c.young = p.age <= 22 && p.yearsPro >= 1; c.vetYear = p.age >= 31;
     c.draft = st.draft && st.draft.slot ? st.draft.slot : '?'; c.school = st.college ? st.college.name : 'college';
     c.expiring = st.contract && st.contract.left <= 1; c.longDeal = st.contract && st.contract.years >= 4 && st.contract.left >= 3;
@@ -5567,6 +5567,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
       st.shotScope = null;   // a new season's shot chart follows the playoffs once they start
       st.dlDone = false; st.dlChecked = false; st.seasonMoves = [];   // the trade deadline comes once a season
       st.poPlans = {}; st.poPress = {}; st.poForce = null; st.clutchDelta = 0;          // playoff plans, forced Game 7s and the wins your clutch calls added or took away
+      st.league.lastWins = {}; st.league.teams.forEach((t) => { st.league.lastWins[t.nick] = Math.round(t.wins); });   // last season's records (the new season is simulated ahead of the games, so its own records must never leak into questions or news)
       SNAP = JSON.stringify(st);
     }
     NBA.setSeed(st.seasonSeed);
@@ -5900,6 +5901,8 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     return out.map((q) => { q.reporter = R.reporterFor(team, q, pr.rep, rnd); return q; });
   }
   // what Claude is told about a press moment (artifact only): the situation, what you said before, who is in the room
+  const lastW = (st, t) => (st.league.lastWins && t && st.league.lastWins[t.nick] != null ? st.league.lastWins[t.nick] : null);
+  const lastRec = (st, t) => { const w = lastW(st, t); return w == null ? '' : w + '-' + (82 - w) + ' last year'; };
   // what the career looks like right now: the season so far, the record, the career, in numbers a reporter (or a rival) can throw back at you
   function seasonSoFar(st, upto) {
     const items = (st.matchLog || []).slice(0, upto == null ? (st.matchIdx || 0) : upto).filter((x) => x.k === 'g' && !x.po), gp = items.filter((x) => !x.dnp), n = gp.length, w = items.filter((x) => x.w).length, l = items.length - w;
@@ -5907,7 +5910,8 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     return { record: w + '-' + l, gp: n, ppg: avg('pt'), rpg: avg('rb'), apg: avg('as'), spg: avg('st'), bpg: avg('bk'), highGame: n ? Math.max.apply(null, gp.map((x) => x.pt)) : 0 };
   }
   function careerFacts(st) {
-    const c = st.career || {}, ps = st.proSeasons || [], aw = c.awards || {}, tot = ps.reduce((a, r) => a + (r.totPts || 0), 0);
+    // a season is simulated ahead of the games being shown: until it is played out, the career is what it was at tip-off (never the record or stats of the year still to come)
+    const live = st.stage === 'season_play' && st.pre && st.pre.career, c = live ? st.pre.career : (st.career || {}), ps = live ? (st.proSeasons || []).slice(0, -1) : (st.proSeasons || []), aw = c.awards || {}, tot = ps.reduce((a, r) => a + (r.totPts || 0), 0);
     return { seasons: ps.length, titles: c.titles || 0, mvps: aw.MVP || 0, allStars: aw['All-Star'] || 0, allNBA: aw['All-NBA'] || 0, scoringTitles: aw['Scoring titles'] || 0, careerPoints: Math.round(tot), lastSeason: ps.length ? { ppg: Math.round(ps[ps.length - 1].pts * 10) / 10, team: ps[ps.length - 1].team, wins: ps[ps.length - 1].wins, losses: ps[ps.length - 1].losses, playoffs: ps[ps.length - 1].playoffText } : null };
   }
   // injury news about the league's stars: a pop-up when a star goes down (a few a season), with what it means for the race
@@ -5920,16 +5924,16 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     stars.sort((a, b) => b.o - a.o); const pool = stars.filter((x) => m.ids.indexOf(x.q.id) < 0).slice(0, 25); if (!pool.length) return null;
     const pk = pool[Math.floor(Math.pow(rnd(), 1.6) * pool.length)], late = it.n >= 50 || it.po;
     let inj = STAR_INJ[Math.floor(rnd() * STAR_INJ.length)]; if (inj[3] && !late && rnd() < 0.6) inj = STAR_INJ[Math.floor(rnd() * 9)];
-    const weeks = inj[3] ? 0 : inj[1] + Math.floor(rnd() * (inj[2] - inj[1] + 1)), out = inj[3] ? (it.po ? 'the rest of the playoffs and next season' : 'the rest of the season') : 'about ' + weeks + (weeks === 1 ? ' week' : ' weeks'), contender = pk.t.wins >= 50;
+    const weeks = inj[3] ? 0 : inj[1] + Math.floor(rnd() * (inj[2] - inj[1] + 1)), out = inj[3] ? (it.po ? 'the rest of the playoffs and next season' : 'the rest of the season') : 'about ' + weeks + (weeks === 1 ? ' week' : ' weeks'), contender = lastW(st, pk.t) >= 50;
     m.n++; m.ids.push(pk.q.id);
     const ss = seasonSoFar(st, st.matchIdx || 0);
-    return { star: { name: pk.q.name, id: 'p' + pk.q.id, pos: pk.q.pos, ovr: Math.round(pk.o), team: pk.t.name, nick: pk.t.nick, record: pk.t.wins + '-' + pk.t.losses }, inj: inj[0], out, season: !!inj[3], contender, rival: !!(Dc.state(st).rival && Dc.state(st).rival.id === pk.q.id), you: { name: st.player.name, team: L.teams[st.teamId].name, season: ss }, game: { n: it.n, po: !!it.po }, idx: (st.matchIdx || 0) - 1 };
+    return { star: { name: pk.q.name, id: 'p' + pk.q.id, pos: pk.q.pos, ovr: Math.round(pk.o), team: pk.t.name, nick: pk.t.nick, record: lastRec(st, pk.t) }, inj: inj[0], out, season: !!inj[3], contender, rival: !!(Dc.state(st).rival && Dc.state(st).rival.id === pk.q.id), you: { name: st.player.name, team: L.teams[st.teamId].name, season: ss }, game: { n: it.n, po: !!it.po }, idx: (st.matchIdx || 0) - 1 };
   }
   // an opponent star or coach talks about you: a news pop-up with what was said and a chance to answer (the quote is a hand-written one; in the artifact Claude rewrites it from the facts)
   const MENTION = {
     praise: { player: ['\u201C{me} is the real deal. {pts} on us and he made it look easy. You tip your cap.\u201D', '\u201CI will say it: {me} is one of the best in this league. {pts} points tonight and we could not do a thing about it.\u201D', '\u201CThat is a superstar. {me} took over and we had no answer.\u201D'],
       coach: ['\u201CYou can game plan all week for {me} and he still gets his. {pts} tonight. Hat off.\u201D', '\u201CHe is a special player. We tried everything on {me} and he just kept making plays.\u201D', '\u201CI have a lot of respect for {me}. That is as good as it gets.\u201D'] },
-    dig: { player: ['\u201C{me} had his {pts}, sure, but we are {orec} and that is what matters. Come find me in a series.\u201D', '\u201CEveryone talks about {me}. I held him to {fg} from the field. Do not believe the hype.\u201D', '\u201CHe is good, not that good. Ask me again when he has done it for {orecw} wins.\u201D'],
+    dig: { player: ['\u201C{me} had his {pts}, sure, but we won {orecw} games last year and that is what matters. Come find me in a series.\u201D', '\u201CEveryone talks about {me}. I held him to {fg} from the field. Do not believe the hype.\u201D', '\u201CHe is good, not that good. Ask me again when he has won {orecw} games like we did last year.\u201D'],
       coach: ['\u201CHe is a talented kid, but one man does not win in this league. Look at the standings.\u201D', '\u201C{me} gets all the headlines. We saw something tonight that we can use next time.\u201D', '\u201CHe took {fga} shots for {pts}. I will take that trade every night.\u201D'] },
   };
   function mentionOpen(st, it) {
@@ -5942,10 +5946,10 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     const star = NBA.rosterOf(L, opp)[0], coach = NBA.Room.coachOf(st, opp.id), rv = Dc.state(st).rival, rvp = rv && L.players[rv.id], rvHere = !!(rvp && rvp.teamId === opp.id);
     const who = rvHere ? { kind: 'player', name: rvp.name, id: 'p' + rvp.id, role: 'your rival' } : rnd() < 0.62 && star ? { kind: 'player', name: star.name, id: 'p' + star.id, role: 'the ' + opp.nick + ' star' } : { kind: 'coach', name: coach.name, id: 'coach' + opp.id, role: 'head coach of the ' + opp.nick };
     const kind = feud ? 'dig' : (good && rnd() < 0.55) || (!bad && !it.w && rnd() < 0.5) ? 'praise' : 'dig', ss = seasonSoFar(st, (st.matchIdx || 0));
-    const orec = opp.wins != null ? opp.wins + '-' + opp.losses : '?';
+    const pw = lastW(st, opp), orec = pw != null ? pw + '-' + (82 - pw) : '?';
     const bank = MENTION[kind][who.kind], fill = (t) => t.replace(/\{me\}/g, st.player.name).replace(/\{pts\}/g, it.pt).replace(/\{fg\}/g, it.fgm + '-' + it.fga).replace(/\{fga\}/g, it.fga).replace(/\{orec\}/g, orec).replace(/\{orecw\}/g, opp.wins != null ? opp.wins : 50);
     m.n++;
-    return { who, kind, quote: fill(bank[Math.floor(rnd() * bank.length)]), opp: it.o, oppId: opp.id, oppName: opp.name, game: { n: it.n, po: !!it.po, round: it.rnd || '', won: !!it.w, score: it.f + '-' + it.a, pts: it.pt, reb: it.rb, ast: it.as, fg: it.fgm + '-' + it.fga, rating: it.r }, season: ss, career: careerFacts(st), feud: feud ? { with: feud.star, said: feud.quote } : null, oppRecord: orec, me: st.player.name, team: L.teams[st.teamId].name, idx: (st.matchIdx || 0) - 1 };
+    return { who, kind, quote: fill(bank[Math.floor(rnd() * bank.length)]), opp: it.o, oppId: opp.id, oppName: opp.name, game: { n: it.n, po: !!it.po, round: it.rnd || '', won: !!it.w, score: it.f + '-' + it.a, pts: it.pt, reb: it.rb, ast: it.as, fg: it.fgm + '-' + it.fga, rating: it.r }, season: ss, career: careerFacts(st), feud: feud ? { with: feud.star, said: feud.quote } : null, oppLastSeason: orec, me: st.player.name, team: L.teams[st.teamId].name, idx: (st.matchIdx || 0) - 1 };
   }
   // a fan podcast invites you on: no league fines there, the language is real (hand-written lines; in the artifact Claude writes them from the stats)
   const POD_SHOWS = ['Dead Rim Radio', 'The Late Night Hoops Hour', 'Court Side Chaos', 'Dre & Marcus Unplugged', 'The Bad Pass Podcast', 'Zone Press Live'];
@@ -5962,7 +5966,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     const rnd = Dc.rng(st, 'podcast|' + y + '|' + (it.po ? 'p' : 'r') + it.n + (it.rnd || '')), feud = pr.feuds[it.o];
     const p0 = (it.po ? 0.05 : 0.012) + (feud ? 0.1 : 0) + (it.pt >= 35 ? 0.02 : 0) + Math.min(0.02, (NBA.Social.state(st).f || 0) / 600000);
     if (rnd() > p0) return null;
-    const star = NBA.rosterOf(L, opp)[0], me = st.player.name, ss = seasonSoFar(st, st.matchIdx || 0), orec = opp.wins != null ? opp.wins + '-' + opp.losses : '?';
+    const star = NBA.rosterOf(L, opp)[0], me = st.player.name, ss = seasonSoFar(st, st.matchIdx || 0), orec = lastRec(st, opp) || '?';
     const fill = (t) => t.replace(/\{pts\}/g, it.pt).replace(/\{opp\}/g, opp.nick).replace(/\{star\}/g, star ? star.name : 'their star').replace(/\{team\}/g, L.teams[st.teamId].nick).replace(/\{rec\}/g, ss.record).replace(/\{res\}/g, it.w ? 'win' : 'loss');
     const pick = (a) => a[Math.floor(rnd() * a.length)], base = {}; Object.keys(POD_L).forEach((k) => { base[k] = fill(pick(POD_L[k])); });
     m.n++;
@@ -5973,7 +5977,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     const cast = R.REPORTERS.concat([R.beatFor(team)]).map((r) => ({ name: r.name, outlet: r.outlet, style: r.style, edge: r.edge }));
     return { player: { name: p.name, pos: p.pos, age: p.age, years: p.yearsPro, team: team.name }, moment: ctx.why, kind: ctx.kind, opponent: ctx.opp, opponentStar: c.oppStar || null, rival: c.rival || null, record: c.rec || null,
       game: it && it.k === 'g' ? { n: it.n, home: !!it.h, ...(ctx.kind === 'post' ? { result: (it.w ? 'W ' : 'L ') + it.f + '-' + it.a, points: it.pt, rebounds: it.rb, assists: it.as } : {}) } : null,
-      season: seasonSoFar(st, ctx.idx), career: careerFacts(st), opponentRecord: (() => { const o = st.league.teams.find((x) => x.nick === ctx.opp); return o && o.wins != null ? o.wins + '-' + o.losses : null; })(), mediaImage: R.PERSONAS[R.personaOf(pr.tally)].label, feud: pr.feuds[c.opp] ? { with: pr.feuds[c.opp].star, said: pr.feuds[c.opp].quote } : null,
+      season: seasonSoFar(st, ctx.idx), career: careerFacts(st), opponentLastSeason: (() => { const o = st.league.teams.find((x) => x.nick === ctx.opp); return o ? lastRec(st, o) : null; })(), mediaImage: R.PERSONAS[R.personaOf(pr.tally)].label, feud: pr.feuds[c.opp] ? { with: pr.feuds[c.opp].star, said: pr.feuds[c.opp].quote } : null,
       recentQuotes: pr.quotes.slice(-3).map((q) => ({ tone: q.tone, said: q.text, vs: q.opp, result: q.w === 1 ? 'won' : q.w === 0 ? 'lost' : null })), alreadyCovered: ctx.pool.map((q) => q.text.slice(0, 80)), cast };
   }
   // the artifact's AI wrote the headline and the fans' posts for what you said: put them where the generic ones were filed
@@ -6794,7 +6798,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v92';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v93';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -7106,10 +7110,9 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
       story.querySelector('.rulerwrap').replaceWith(mocksLine() || h('div'));
     };
     // how long a pick stays on screen before the next one: the top of the lottery gets the longest, your neighbours get a beat of tension, the rest of the board moves once you are in
-    const delayAfter = (r) => { if (mine >= 0 && idx > mine) return r.slot <= 30 ? 650 : 380; const next = idx; return (r.slot <= 3 ? 4200 : r.slot <= 5 ? 3400 : r.slot <= 14 ? 2500 : r.slot <= 30 ? 1700 : 1000) + (mine >= 0 && mine - next >= 0 && mine - next <= 2 ? 1600 : 0); };
-    const awayNote = (r) => { const n = mine - idx; return mine >= 0 && n >= 1 && n <= 5 ? h('div', { class: 'small gold', style: 'margin-top:6px' }, n === 1 ? 'You are next.' : 'You are ' + n + ' picks away.') : null; };
+    const delayAfter = (r) => { if (mine >= 0 && idx > mine) return r.slot <= 30 ? 650 : 380; const next = idx; return (r.slot <= 3 ? 4200 : r.slot <= 5 ? 3400 : r.slot <= 14 ? 2500 : r.slot <= 30 ? 1700 : 1000); };
     const append = (r) => { const el = prow(r); rowEls[r.slot - 1].replaceWith(el); rowEls[r.slot - 1] = el; };
-    const reveal = (r) => { append(r); idx++; S.draftProg = idx; setProg(); clock.replaceChildren(pickLine(r)); const a = awayNote(r); if (a) clock.firstChild.append(a); };
+    const reveal = (r) => { append(r); idx++; S.draftProg = idx; setProg(); clock.replaceChildren(pickLine(r)); };
     const finish = () => { auto = false; if (!S.draftSeen) { S.draftSeen = true; save(); } showWrap(); clock.replaceChildren(h('div', null, h('div', { class: 'cap2' }, 'Draft complete'), h('div', { class: 'small muted' }, N + ' picks in two rounds · ' + d.classSize + ' prospects'))); controls.replaceChildren(); };
     const setControls = () => {
       if (held) return;

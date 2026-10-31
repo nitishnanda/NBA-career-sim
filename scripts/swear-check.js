@@ -12,6 +12,8 @@ const base = st.earnings; st.earnings = 10;
 const mk = (pick) => ({ kind: 'game', idx, si: null, why: 'x', opp: st.matchLog[idx].o, pool: [], take: 1, chosen: [], cur: null, picks: [pick], c: { oppStarOvr: 80, winning: true, hot: false, slump: false, opp: st.matchLog[idx].o, team: 'x', me: 'S' }, headlines: [], persona: 'neutral' });
 const e0 = st.earnings; try { G.resolvePress(st, mk({ tone: 'fight', topic: 'refs', text: 'x', profane: true, badmouth: true })); } catch (e) { console.log('resolve threw', e.message); bad++; }
 t(st.earnings < e0, 'fine taken: ' + st.earnings + ' vs ' + e0);
+// no leaks: mid-season, the career facts are the career at tip-off (a rookie has no seasons yet) and no final records show up
+{ const cf = G.careerFacts(st); t(st.stage === 'season_play' && cf.seasons === 0 && !cf.lastSeason && cf.careerPoints === 0, 'careerFacts leaks the season being played: ' + JSON.stringify(cf)); t(st.league.lastWins && Object.keys(st.league.lastWins).length >= 30, 'lastWins snapshot'); }
 // podcast: appears, resolves for each answer, no money fine
 { let seen = 0; const pr = (Dc.state(st).flags.pr = Dc.state(st).flags.pr || { quotes: [], tally: [], feuds: {}, heads: [], rep: {} });
   for (let i = 1; i < st.matchLog.length && seen < 3; i++) { const it = st.matchLog[i]; if (it.k !== 'g' || it.dnp) continue; pr.feuds[it.o] = { star: 'X', level: 1, y: 1, quote: 'q', seen: 0 }; const c = JSON.parse(JSON.stringify(st)); c.matchIdx = i + 1; c.dec.pending = null; c.dec.flags.pod = { y: c.league.year, n: 0 };

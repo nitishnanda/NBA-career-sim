@@ -620,7 +620,7 @@
     open(st) { return NBA.Game.starInjuryOpen(st, (st.matchLog || [])[(st.matchIdx || 0) - 1]); },
     view(st, ctx) {
       const s = ctx.star;
-      return { title: 'Breaking news', star: s, headline: s.name + ' (' + s.nick + ') is out ' + ctx.out + ' with a ' + ctx.inj + '.', text: (ctx.season ? 'A season-ending injury. ' : '') + (ctx.contender ? 'The ' + s.nick + ' (' + s.record + ') were one of the contenders, so the whole race just changed.' : 'The ' + s.nick + ' (' + s.record + ') lose their best player.') + (ctx.rival ? ' This is your rival.' : ''), ai: !!ctx.ai, take: ctx.take, options: [
+      return { title: 'Breaking news', star: s, headline: s.name + ' (' + s.nick + ') is out ' + ctx.out + ' with a ' + ctx.inj + '.', text: (ctx.season ? 'A season-ending injury. ' : '') + (ctx.contender ? 'The ' + s.nick + (s.record ? ' (' + s.record + ')' : '') + ' were one of the contenders, so the whole race just changed.' : 'The ' + s.nick + (s.record ? ' (' + s.record + ')' : '') + ' lose their best player.') + (ctx.rival ? ' This is your rival.' : ''), ai: !!ctx.ai, take: ctx.take, options: [
         { key: 'wishes', label: 'Send your best wishes', blurb: 'A classy post wishing ' + s.name + ' a quick recovery.', vibe: 'Classy' },
         { key: 'ignore', label: 'Stay out of it', blurb: 'Not your business. Back to work.', vibe: 'Quiet' },
         { key: 'shade', label: 'Say what everyone is thinking', blurb: 'The race is wide open now, and you are not going to pretend otherwise.', vibe: 'Honest. Could look bad' }] };

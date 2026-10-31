@@ -921,3 +921,7 @@ A long injury (any named one, or 15+ missed games in a block) now stops the seas
 - Hall of Fame speech: after you pick a style, a full speech (built-in fallback or Claude-written from your career) is shown.
 - Career stats: "Playoff stats by series, year by year" dropdown (round, opponent, result, GP, PTS/REB/AST, games missed).
 - Checks: `scripts/report-check.js`, `scripts/ui-report.js`.
+
+## v93 — no spoilers, top-5 picks stay put
+- Fix: a season is simulated ahead of the games shown, so press/mention/podcast/star-injury facts used to include the year still to come (this season's record, stats and playoff result, and other teams' final records). Facts now use the career at tip-off and last season's records (`league.lastWins`).
+- Draft night: a top-5 pick almost never moves (about 1 draft in 25, and only with a big package); the "you are N picks away" text and the extra tension pause near your pick are gone.
