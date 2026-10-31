@@ -906,3 +906,8 @@ A long injury (any named one, or 15+ missed games in a block) now stops the seas
 
 ## v89 — bleeped reactions
 - Unfiltered podcast answers get a host-panic / chat-reaction result and fallback fan posts ("bro got bleeped mid sentence"). No slurs, masked or otherwise.
+
+## v90 — a meaner, realer timeline; more injuries; star injury news
+- Timeline voice rewritten: mostly critical and petty, fans quote the box score, season averages, last season, contract and record, compare him to a better player at his position ("yeah but he is not X"), and drag bad games (new kinds: brick, tov, good, talker for players who talked trash, then played badly). Praise is rare and comes with a "but". Slots missing from a context drop the line. The artifact's Claude prompts share a VOICE block describing current basketball Twitter/Reddit/TikTok speech (Reddit itself could not be fetched here, so the voice is written from general knowledge of how those spaces sound).
+- More injury types for the user (concussion, torn plantar fascia, broken leg, dislocated shoulder, hip pointer, ...).
+- New decision `starinjury` ("Breaking news"): a few times a season a league star goes down (type and timeline vary, season-ending ones only late); you can send well wishes, stay out of it, or say the quiet part (could backfire). Check: `scripts/feed2-check.js`.
