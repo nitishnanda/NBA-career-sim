@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v89';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v90';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -540,6 +540,10 @@
         if (!S.noSocial && !S.autoPlay && prev && prev.k === 'g' && !prev.dnp && !prev.pcast) {
           if (pend('podcast')) { if (S.autoDec) { Dc.autoResolve(S); prev.pcast = 1; save(); return holdAt(); } return true; }
           prev.pcast = 1; if (Dc.offer(S, 'podcast')) { if (S.autoDec) { Dc.autoResolve(S); save(); return holdAt(); } save(); return true; } } }
+      { const prev = (S.matchIdx || 0) > 0 ? S.matchLog[S.matchIdx - 1] : null;   // a star somewhere else goes down: breaking news
+        if (!S.noSocial && !S.autoPlay && prev && prev.k === 'g' && !prev.dnp && !prev.sij) {
+          if (pend('starinjury')) { if (S.autoDec) { Dc.autoResolve(S); prev.sij = 1; save(); return holdAt(); } return true; }
+          prev.sij = 1; if (Dc.offer(S, 'starinjury')) { if (S.autoDec) { Dc.autoResolve(S); save(); return holdAt(); } save(); return true; } } }
       if (it.cl && !it.cd) {   // last-possession calls are made only inside a live game; a simmed game just plays out
         if (S.liveMode && !bulk) return false;
         if (pend('clutch')) S.dec.pending = null;
@@ -572,7 +576,7 @@
     // every decision is a pop-up over the season page (not a screen of its own)
     let overlay = null;
     if (S.decResult) overlay = screenDecResult();
-    else if (holdAt()) { if (NBA.AllStar.active(S)) overlay = screenAllStar(); else { const pid = S.dec.pending.id; overlay = pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : pid === 'press' ? screenPress() : pid === 'injury' ? screenInjury() : pid === 'social' ? screenSocial() : pid === 'mention' ? screenMention() : pid === 'podcast' ? screenPodcast() : screenDeadline(); } if (overlay === 'again') return screenSeasonPlay(); }
+    else if (holdAt()) { if (NBA.AllStar.active(S)) overlay = screenAllStar(); else { const pid = S.dec.pending.id; overlay = pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : pid === 'press' ? screenPress() : pid === 'injury' ? screenInjury() : pid === 'social' ? screenSocial() : pid === 'mention' ? screenMention() : pid === 'podcast' ? screenPodcast() : pid === 'starinjury' ? screenStarInjury() : screenDeadline(); } if (overlay === 'again') return screenSeasonPlay(); }
     const items = S.matchLog || [], idx = S.matchIdx || 0, L = S.league, p = S.player, t = L.teams[S.teamId];
     const shown = items.slice(0, idx), done = idx >= items.length;
     const reg = shown.filter((x) => x.k === 'g' && !x.po), poG = shown.filter((x) => x.k === 'g' && x.po);
@@ -1280,7 +1284,7 @@
     ((S.dec.flags.feed) || []).forEach((e) => { if (e.y === L.year && !e.ai && !e.aiTry && e.kind !== 'press' && (e.at == null || e.at <= idx)) cand.push({ ref: e, kind: e.kind, at: e.at == null ? idx : e.at, facts: e.c || {} }); });
     const todo = cand.sort((a, b) => b.at - a.at).slice(0, 4); if (!todo.length) return;
     feedAiBusy = true; todo.forEach((t) => { t.ref.aiTry = 1; });
-    const events = todo.map((t, i) => ({ id: i, kind: t.kind, player: { name: p.name, pos: p.pos, team: tm.name, age: p.age, ovr: Math.round(NBA.ovr(p)) }, facts: t.facts, examples: (t.ref.fan || t.ref.posts || []).slice(0, 2).map((x) => x.text) }));
+    const events = todo.map((t, i) => ({ id: i, kind: t.kind, player: { name: p.name, pos: p.pos, team: tm.name, age: p.age, ovr: Math.round(NBA.ovr(p)) }, facts: Object.assign({ seasonSoFar: G.seasonSoFar(S, t.at), record: undefined, career: G.careerFacts(S), contractM: Math.round(S.contract.salary), compareTo: ({ PG: ['Magic Johnson', 'Stockton', 'Chris Paul', 'Steph Curry'], SG: ['Jordan', 'Kobe', 'Wade', 'Harden'], SF: ['LeBron', 'Durant', 'Pippen', 'Kawhi'], PF: ['Duncan', 'Garnett', 'Dirk', 'Giannis'], C: ['Shaq', 'Hakeem', 'Jokic', 'Kareem'] })[p.pos] || ['LeBron', 'Jordan'] }, t.facts), examples: (t.ref.fan || t.ref.posts || []).slice(0, 2).map((x) => x.text) }));
     const got = NBA.Press.checkClaudeFeed(await aiJson(NBA.Press.claudeFeedPrompt(events)), events); let changed = 0;
     todo.forEach((t, i) => { if (!got[i]) return; const old = t.ref.fan || t.ref.posts || [], likes = old.map((x) => x.likes || 0).sort((a, b) => b - a), hs = NBA.Feed.HANDLES.slice().sort(() => Math.random() - 0.5);
       const posts = got[i].map((text, k) => ({ who: '@' + hs[k % hs.length], text, likes: likes[k] != null ? likes[k] : Math.round(Math.pow(Math.random(), 2) * 8000 + 12), ai: 1 }));
@@ -1575,6 +1579,15 @@
     return h('div', null, h('h1', null, '📰 ' + v.title), h('p', { class: 'muted' }, t.name + ' · ' + v.text),
       h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, v.who.name + ' · ' + v.who.role + (v.ai ? ' ✨' : '')), h('h2', { style: 'margin:8px 0' }, v.quote)),
       h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' + (o.key === 'fire' ? ' spicy' : '') }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: o.key === 'respect' ? 'primary' : '', onclick: () => pick(o.key) }, 'Say it'))))), autoDecBar());
+  }
+  let siBusy = false;
+  function screenStarInjury() {
+    const Dc = DEC(), v = Dc.view(S), pd = S.dec.pending, ctx = pd.ctx, t = S.league.teams[S.teamId], F = NBA.Feed;
+    if (!ctx.aiDone && !siBusy) { siBusy = true; getSample().then(async (sm) => { if (!sm) { ctx.aiDone = true; siBusy = false; return; } try { const ev = [{ id: 0, kind: 'starInjury', player: { name: ctx.you.name, team: ctx.you.team }, facts: { injuredStar: ctx.star, injury: ctx.inj, out: ctx.out, seasonEnding: ctx.season, contender: ctx.contender, yourSeason: ctx.you.season } }]; const got = NBA.Press.checkClaudeFeed(await aiJson(NBA.Press.claudeFeedPrompt(ev)), ev); if (got[0] && S.dec.pending === pd) ctx.fansAI = got[0]; } catch (e) { /* the hand-written posts stay */ } ctx.aiDone = true; siBusy = false; save(); });  }
+    const pick = (key) => { try { const r = Dc.choose(S, key); const hs = F.HANDLES.slice().sort(() => Math.random() - 0.5); const fans = ctx.fansAI ? ctx.fansAI.slice(0, 3).map((x, k) => ({ who: '@' + hs[k], text: x })) : F.posts('starInjury', { name: ctx.star.name, team: ctx.star.nick }, Math.random, 3).map((x) => ({ who: x.who, text: x.text })); S.decResult = { title: 'Breaking news', sub: ctx.star.name + ' · ' + ctx.star.team, text: r.text, tone: r.tone === 'good' ? 'good' : r.tone === 'bad' ? 'bad' : 'neutral', cap: 'Your reaction', post: true, fans, ai: ctx.fansAI ? 1 : 0 }; const it = S.matchLog[ctx.idx]; if (it) it.sij = 1; save(); go(); } catch (e) { console.error(e); } };
+    return h('div', null, h('h1', null, '🚨 ' + v.title), h('p', { class: 'muted' }, t.name + ' · around the league'),
+      h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, v.star.name + ' · ' + v.star.pos + ' · ' + v.star.team), h('h2', { style: 'margin:8px 0' }, v.headline), h('p', { class: 'small muted' }, v.text)),
+      h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' + (o.key === 'shade' ? ' spicy' : '') }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: o.key === 'wishes' ? 'primary' : '', onclick: () => pick(o.key) }, 'Do it'))))), autoDecBar());
   }
   let podBusy = false;
   function screenPodcast() {

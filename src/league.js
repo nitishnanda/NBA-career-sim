@@ -24,11 +24,11 @@
     let major = null, notable = null;
     const mp = T.majorRate * T.injScale * p.prone * (A.injury || 1) * (1 + Math.max(0, p.age - 26) * 0.05) * (1 + clamp((p.target.ath - 70) / 60, 0, 0.5));
     if (rand() < mp) {
-      major = pick(['torn ACL', 'torn Achilles', 'fractured foot', 'torn meniscus', 'ruptured patellar tendon']);
+      major = pick(['torn ACL', 'torn Achilles', 'fractured foot', 'torn meniscus', 'ruptured patellar tendon', 'broken leg', 'fractured tibia', 'torn quad tendon', 'dislocated kneecap', 'torn labrum and shoulder surgery']);
       miss = rand() < T.seasonEnding ? rint(66, 82) : rint(48, 65);   // about half the majors cost the whole season (Durant 2019-20, Klay 2019-21)
     }
     if (!major && (p.injYears || []).includes(p.age)) {
-      notable = pick(['stress fracture', 'high ankle sprain', 'torn labrum', 'sports hernia', 'knee sprain', 'broken hand']);
+      notable = pick(['stress fracture', 'high ankle sprain', 'torn labrum', 'sports hernia', 'knee sprain', 'broken hand', 'concussion', 'broken wrist', 'torn plantar fascia', 'lisfranc sprain', 'torn hamstring', 'fractured orbital bone', 'dislocated shoulder']);
       miss = Math.max(miss, rint(34, 70));
     }
     const o = ovr(p);

@@ -613,6 +613,29 @@
     },
     auto() { return { key: 'ignore' }; },
   });
+  // ================================================================ breaking news: a star somewhere else goes down
+  register({
+    id: 'starinjury', title: 'Breaking news', trigger: 'starinjury',
+    when(st) { return !st.autoPlay; },
+    open(st) { return NBA.Game.starInjuryOpen(st, (st.matchLog || [])[(st.matchIdx || 0) - 1]); },
+    view(st, ctx) {
+      const s = ctx.star;
+      return { title: 'Breaking news', star: s, headline: s.name + ' (' + s.nick + ') is out ' + ctx.out + ' with a ' + ctx.inj + '.', text: (ctx.season ? 'A season-ending injury. ' : '') + (ctx.contender ? 'The ' + s.nick + ' (' + s.record + ') were one of the contenders, so the whole race just changed.' : 'The ' + s.nick + ' (' + s.record + ') lose their best player.') + (ctx.rival ? ' This is your rival.' : ''), ai: !!ctx.ai, take: ctx.take, options: [
+        { key: 'wishes', label: 'Send your best wishes', blurb: 'A classy post wishing ' + s.name + ' a quick recovery.', vibe: 'Classy' },
+        { key: 'ignore', label: 'Stay out of it', blurb: 'Not your business. Back to work.', vibe: 'Quiet' },
+        { key: 'shade', label: 'Say what everyone is thinking', blurb: 'The race is wide open now, and you are not going to pretend otherwise.', vibe: 'Honest. Could look bad' }] };
+    },
+    choose(st, ctx, key) {
+      const r = rng(st, 'starinj-r|' + st.league.year + '|' + ctx.game.n)(), s = ctx.star, Sx = NBA.Social; let text, tone = 'neutral', eff = [];
+      if (key === 'wishes') { Sx.change(st, 0.006); eff = [{ k: 'meter', f: 'media', d: 0.4 }, { k: 'rel', id: s.id, name: s.name, d: 0.6 }]; text = 'You wished ' + s.name + ' well and players around the league reposted it. Classy, and he noticed.'; tone = 'good'; }
+      else if (key === 'ignore') { eff = []; text = 'You stayed quiet. The news cycle moved on without you.'; }
+      else if (r < 0.45) { Sx.change(st, 0.02); eff = [{ k: 'meter', f: 'media', d: 0.3 }]; text = 'You said the quiet part out loud and the timeline agreed. A few people called it cold, but most called it honest.'; tone = 'good'; }
+      else { Sx.change(st, -0.01); eff = [{ k: 'meter', f: 'media', d: -0.7 }, { k: 'rel', id: s.id, name: s.name, d: -0.8 }]; text = 'It came out wrong. Clips of you "celebrating" ' + s.name + '\'s injury are everywhere and the replies are brutal.'; tone = 'bad'; }
+      return { done: true, tone, text, effects: eff, journal: key === 'shade' ? { tone, text: 'Reacted to ' + s.name + '\'s injury: ' + text } : null };
+    },
+    auto() { return { key: 'ignore' }; },
+  });
+
   // ================================================================ a fan podcast: no league fines, so the language is real
   register({
     id: 'podcast', title: 'Fan podcast', trigger: 'podcast',

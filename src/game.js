@@ -564,6 +564,7 @@
   }
   // a logged game's rating: its own box score, plus/minus and result
   const rateItem = (it) => NBA.gameRating({ pts: it.pt, reb: it.rb, ast: it.as, stl: it.st, blk: it.bk, tov: it.to, min: it.m }, it);
+  const MINOR_INJ = ['sprained ankle', 'strained hamstring', 'bone bruise in the knee', 'strained groin', 'back spasms', 'sore Achilles', 'high ankle sprain', 'sprained MCL', 'strained calf', 'hip pointer', 'jammed thumb', 'sprained wrist', 'plantar fasciitis', 'quad contusion', 'concussion protocol', 'illness', 'sore knee', 'fractured finger'];
   // what the season's injury is called in the record: when it hit and what it cost
   function injText(a) {
     const po = a.po >= 99 ? ' It cost him the whole postseason.' : a.po > 0 ? ' It also cost him the first ' + a.po + ' playoff games.' : '';
@@ -678,16 +679,18 @@
       items.forEach((x, i) => { if (x.k === 'g' && x.po && !x.dnp) { const nx = items[i + 1]; if (!nx || nx.k === 'hdr' || nx.rnd !== x.rnd) { x.last = 1; if (x.rnd !== 'First Round' || !x.w || x.g7 || x.pi) x.pp = 1; } } }); }
 
     // the timeline's take on the nights that stood out: a big game, a triple-double, a bad night, a streak, a blowout, the end of a series (own random stream)
-    { const rnd = NBA.Reporters.mulberry(shotSeed(st, 9700)), F = NBA.Feed, tm = t; let w = 0, l = 0, nFan = 0;
+    { const rnd = NBA.Reporters.mulberry(shotSeed(st, 9700)), F = NBA.Feed, tm = t; let w = 0, l = 0, nFan = 0, gp = 0, sp = 0, sr = 0, sa = 0;
+      const CMP = { PG: ['Magic Johnson', 'John Stockton', 'Chris Paul', 'Steph Curry', 'Jason Kidd'], SG: ['Michael Jordan', 'Kobe Bryant', 'Dwyane Wade', 'James Harden', 'Klay Thompson'], SF: ['LeBron James', 'Kevin Durant', 'Scottie Pippen', 'Kawhi Leonard', 'Larry Bird'], PF: ['Tim Duncan', 'Kevin Garnett', 'Dirk Nowitzki', 'Giannis Antetokounmpo', 'Charles Barkley'], C: ['Shaquille O\'Neal', 'Hakeem Olajuwon', 'Nikola Jokic', 'Kareem Abdul-Jabbar', 'Bill Russell'] };
+      const cmpList = CMP[st.player.pos] || CMP.SF, talker = (() => { const tl = (NBA.Decisions.state(st).flags.pr || { tally: [] }).tally || []; return tl.slice(-6).filter((x) => (x && (x.tone || x)) === 'trash' || (x && (x.tone || x)) === 'fight').length >= 1; })(), lastP = st.proSeasons && st.proSeasons.length ? st.proSeasons[st.proSeasons.length - 1] : null;
       items.forEach((x) => {
         if (x.k !== 'g' || x.dnp) return;
-        if (!x.po) { if (x.w) { w++; l = 0; } else { l++; w = 0; } }
+        if (!x.po) { if (x.w) { w++; l = 0; } else { l++; w = 0; } gp++; sp += x.pt; sr += x.rb; sa += x.as; }
         const margin = Math.abs(x.f - x.a), td = x.tg && x.tg.includes('Triple-double'); let kind = null, n = 0;
         if (x.po && x.last) kind = x.rnd === 'NBA Finals' && x.w ? 'champ' : x.w ? 'po' : 'elim';
         else if (x.pi) kind = x.w ? 'playin' : 'elim';
-        else if (!x.po && nFan < 14) { if (x.pt >= 40) kind = 'big'; else if (td) kind = 'td'; else if (w === 7) { kind = 'streakW'; n = 7; } else if (l === 5) { kind = 'streakL'; n = 5; } else if (x.pt <= 8 && x.m >= 20 && !x.w) kind = 'bad'; else if (margin >= 25) kind = x.w ? 'blowoutWin' : 'blowoutLoss'; }
+        else if (!x.po && nFan < 14) { if (x.pt >= 40) kind = 'big'; else if (td) kind = 'td'; else if (w === 7) { kind = 'streakW'; n = 7; } else if (l === 5) { kind = 'streakL'; n = 5; } else if (x.pt <= 8 && x.m >= 20 && !x.w) kind = x.w ? 'bad' : (talker && rnd() < 0.6 ? 'talker' : 'bad'); else if (x.fga >= 15 && x.fgm / x.fga < 0.34) kind = talker && rnd() < 0.4 ? 'talker' : 'brick'; else if (x.to >= 6) kind = 'tov'; else if (x.pt >= 28 && rnd() < 0.5) kind = 'good'; else if (margin >= 25) kind = x.w ? 'blowoutWin' : 'blowoutLoss'; }
         if (!kind) return;
-        const c = { name: st.player.name, team: tm.nick, city: tm.city, opp: x.o, pts: x.pt, reb: x.rb, ast: x.as, score: x.f + '-' + x.a, n, round: x.rnd || '' };
+        const c = { name: st.player.name, team: tm.nick, city: tm.city, opp: x.o, pts: x.pt, reb: x.rb, ast: x.as, score: x.f + '-' + x.a, n, round: x.rnd || '', pos: st.player.pos, margin, tov: x.to, mins: x.m, fg: x.fgm != null ? x.fgm + '-' + x.fga : '', fgp: x.fga ? Math.round(100 * x.fgm / x.fga) : '', salary: Math.round(st.contract.salary), cmp: cmpList[Math.floor(rnd() * cmpList.length)], cmp2: cmpList[Math.floor(rnd() * cmpList.length)], ppg: gp >= 8 ? (Math.round(sp / gp * 10) / 10).toFixed(1) : '', rpg: gp >= 8 ? (Math.round(sr / gp * 10) / 10).toFixed(1) : '', apg: gp >= 8 ? (Math.round(sa / gp * 10) / 10).toFixed(1) : '', last: lastP ? (Math.round(lastP.pts * 10) / 10).toFixed(1) : '' };
         x.fan = F.posts(kind, c, rnd, kind === 'champ' ? 4 : 3); x.fk = kind; if (!x.po) nFan++;
       }); }
     return items;
@@ -722,7 +725,7 @@
     const avail = rollAvail(p, { extraMiss: fx.extraMiss, user: true });
     st.injDamage = null;
     if (avail.major) { if (st.autoPlay) applyMajorInjury(p); else st.injDamage = NBA.injuryDamage(); }   // a person decides how to rehab: the damage is applied (scaled) at the end of the year
-    st.injInfo = avail.late ? { name: ['high ankle sprain', 'sprained MCL', 'strained calf', 'hamstring strain', 'fractured finger', 'sprained wrist'][(avail.late.rs + avail.late.po) % 6], major: false, miss: avail.late.rs, when: 'late', po: avail.late.po, short: 1 } : avail.major || avail.notable ? { name: avail.major || avail.notable, major: !!avail.major, miss: avail.miss, when: avail.when, po: avail.po } : avail.miss >= 15 ? { name: ['sprained ankle', 'strained hamstring', 'bone bruise in the knee', 'strained groin', 'back spasms', 'sore Achilles'][avail.miss % 6], major: false, miss: avail.miss, when: avail.when, po: avail.po } : null;
+    st.injInfo = avail.late ? { name: MINOR_INJ[(avail.late.rs + avail.late.po) % MINOR_INJ.length], major: false, miss: avail.late.rs, when: 'late', po: avail.late.po, short: 1 } : avail.major || avail.notable ? { name: avail.major || avail.notable, major: !!avail.major, miss: avail.miss, when: avail.when, po: avail.po } : avail.miss >= 15 ? { name: MINOR_INJ[avail.miss % MINOR_INJ.length], major: false, miss: avail.miss, when: avail.when, po: avail.po } : null;
     p.rookie = p.yearsPro === 0;
     L.teams[st.teamId].depth += fx.depth;
     let userLine = null;
@@ -1045,6 +1048,21 @@
   function careerFacts(st) {
     const c = st.career || {}, ps = st.proSeasons || [], aw = c.awards || {}, tot = ps.reduce((a, r) => a + (r.totPts || 0), 0);
     return { seasons: ps.length, titles: c.titles || 0, mvps: aw.MVP || 0, allStars: aw['All-Star'] || 0, allNBA: aw['All-NBA'] || 0, scoringTitles: aw['Scoring titles'] || 0, careerPoints: Math.round(tot), lastSeason: ps.length ? { ppg: Math.round(ps[ps.length - 1].pts * 10) / 10, team: ps[ps.length - 1].team, wins: ps[ps.length - 1].wins, losses: ps[ps.length - 1].losses, playoffs: ps[ps.length - 1].playoffText } : null };
+  }
+  // injury news about the league's stars: a pop-up when a star goes down (a few a season), with what it means for the race
+  const STAR_INJ = [['sprained ankle', 1, 3, 0], ['hamstring strain', 2, 4, 0], ['concussion', 1, 2, 0], ['sprained knee', 2, 5, 0], ['fractured hand', 4, 8, 0], ['torn meniscus', 6, 10, 0], ['stress fracture in his foot', 8, 14, 0], ['dislocated shoulder', 8, 12, 0], ['broken wrist', 6, 10, 0], ['torn ACL', 0, 0, 1], ['torn Achilles', 0, 0, 1], ['ruptured patellar tendon', 0, 0, 1]];
+  function starInjuryOpen(st, it) {
+    const Dc = NBA.Decisions, f = Dc.state(st).flags, L = st.league, y = L.year, m = f.si && f.si.y === y ? f.si : (f.si = { y, n: 0, ids: [] });
+    if (m.n >= 3 || !it || it.k !== 'g' || it.dnp || it.n < 5) return null;
+    const rnd = Dc.rng(st, 'starinj|' + y + '|' + (it.po ? 'p' : 'r') + it.n + (it.rnd || '')); if (rnd() > (it.po ? 0.04 : 0.024)) return null;
+    const stars = []; L.teams.forEach((t) => { if (t.id === st.teamId) return; NBA.rosterOf(L, t).forEach((q) => { if (q && q.id !== 'user') stars.push({ q, t, o: ovr(q) }); }); });
+    stars.sort((a, b) => b.o - a.o); const pool = stars.filter((x) => m.ids.indexOf(x.q.id) < 0).slice(0, 25); if (!pool.length) return null;
+    const pk = pool[Math.floor(Math.pow(rnd(), 1.6) * pool.length)], late = it.n >= 50 || it.po;
+    let inj = STAR_INJ[Math.floor(rnd() * STAR_INJ.length)]; if (inj[3] && !late && rnd() < 0.6) inj = STAR_INJ[Math.floor(rnd() * 9)];
+    const weeks = inj[3] ? 0 : inj[1] + Math.floor(rnd() * (inj[2] - inj[1] + 1)), out = inj[3] ? (it.po ? 'the rest of the playoffs and next season' : 'the rest of the season') : 'about ' + weeks + (weeks === 1 ? ' week' : ' weeks'), contender = pk.t.wins >= 50;
+    m.n++; m.ids.push(pk.q.id);
+    const ss = seasonSoFar(st, st.matchIdx || 0);
+    return { star: { name: pk.q.name, id: 'p' + pk.q.id, pos: pk.q.pos, ovr: Math.round(pk.o), team: pk.t.name, nick: pk.t.nick, record: pk.t.wins + '-' + pk.t.losses }, inj: inj[0], out, season: !!inj[3], contender, rival: !!(Dc.state(st).rival && Dc.state(st).rival.id === pk.q.id), you: { name: st.player.name, team: L.teams[st.teamId].name, season: ss }, game: { n: it.n, po: !!it.po }, idx: (st.matchIdx || 0) - 1 };
   }
   // an opponent star or coach talks about you: a news pop-up with what was said and a chance to answer (the quote is a hand-written one; in the artifact Claude rewrites it from the facts)
   const MENTION = {
@@ -1907,6 +1925,6 @@
     return st;
   }
 
-  Object.assign(NBA, { capFor, marketCurve, Game: { podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { capFor, marketCurve, Game: { starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
