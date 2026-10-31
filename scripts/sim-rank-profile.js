@@ -1,0 +1,7 @@
+// Sim league production by rank next to the real profile (data/real-rank-profile.json)
+require('../src/data.js'); require('../src/engine.js'); require('../src/league.js'); const N = require('../src/game.js');
+const real = require('../data/real-rank-profile.json'); const L = NBA.newLeague(2027, { real: true }); const acc = {}; const SEASONS = +process.env.N || 100;
+for (let y = 0; y < SEASONS; y++) { const r = NBA.simSeason(L, null); const e = r.entries.filter((x) => x.l.gp >= 58).sort((a, b) => b.l.perf - a.l.perf);
+  Object.keys(real).filter((k) => k[0] !== '_').forEach((k) => { const [lo, hi] = k.split('-').map(Number); e.slice(lo - 1, hi).forEach((x) => { const a = acc[k] = acc[k] || { n: 0, mpg: 0, usg: 0, ts: 0, pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, tov: 0, perf: 0 }; a.n++; a.mpg += x.l.mins; a.usg += 100 * x.l.usg; a.ts += 100 * x.l.ts; a.pts += x.l.pts; a.reb += x.l.reb; a.ast += x.l.ast; a.stl += x.l.stl; a.blk += x.l.blk; a.tov += x.l.tov; a.perf += x.l.perf; }); }); NBA.offseason(L, { draft: true }); }
+console.log('rank     ' + ['mpg', 'usg', 'ts', 'pts', 'reb', 'ast', 'stl', 'blk', 'perf'].map((k) => k.padStart(11)).join(''), '   (real / sim)');
+Object.keys(real).filter((k) => k[0] !== '_').forEach((k) => { const a = acc[k], r = real[k]; console.log(k.padEnd(8) + ['mpg', 'usg', 'ts', 'pts', 'reb', 'ast', 'stl', 'blk', 'perf'].map((m) => (r[m].toFixed(1) + '/' + (a[m] / a.n).toFixed(1)).padStart(11)).join('')); });
