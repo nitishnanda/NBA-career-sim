@@ -13,7 +13,7 @@
   function rollAvail(p, opts) {
     opts = opts || {};
     const A = D.ARCHETYPES[p.arch];
-    const lam = T.minorRate * p.prone * (A.injury || 1) * clamp(1.25 - p.attrs.dur / 110, 0.35, 1.2) * (1 + Math.max(0, p.age - 28) * 0.04);
+    const lam = T.minorRate * p.prone * (A.injury || 1) * clamp(1.25 - p.attrs.dur / 110, 0.35, 1.2) * (1 + Math.max(0, p.age - 28) * 0.04) * (opts.injMult || 1);
     const n = poisson(lam);
     let miss = 0;
     const list = [];
@@ -22,7 +22,7 @@
       miss += d; list.push(d);
     }
     let major = null, notable = null;
-    const mp = T.majorRate * T.injScale * p.prone * (A.injury || 1) * (1 + Math.max(0, p.age - 26) * 0.05) * (1 + clamp((p.target.ath - 70) / 60, 0, 0.5));
+    const mp = T.majorRate * T.injScale * p.prone * (A.injury || 1) * (1 + Math.max(0, p.age - 26) * 0.05) * (1 + clamp((p.target.ath - 70) / 60, 0, 0.5)) * (opts.injMult || 1);
     if (rand() < mp) {
       major = pick(['torn ACL', 'torn Achilles', 'fractured foot', 'torn meniscus', 'ruptured patellar tendon', 'broken leg', 'fractured tibia', 'torn quad tendon', 'dislocated kneecap', 'torn labrum and shoulder surgery']);
       miss = rand() < T.seasonEnding ? rint(66, 82) : rint(48, 65);   // about half the majors cost the whole season (Durant 2019-20, Klay 2019-21)

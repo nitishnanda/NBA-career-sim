@@ -1,7 +1,7 @@
 (function (g) {
   'use strict';
   const NBA = g.NBA;
-  if (typeof require !== 'undefined') { try { require('./picks.js'); require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./feed.js'); require('./legacy.js'); require('./intl.js'); require('./hsdata.js'); require('./eurodata.js'); require('./euro.js'); require('./report.js'); require('./social.js'); require('./room.js'); require('./live.js'); require('./allstar.js'); require('./cap.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
+  if (typeof require !== 'undefined') { try { require('./picks.js'); require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./feed.js'); require('./legacy.js'); require('./intl.js'); require('./hsdata.js'); require('./eurodata.js'); require('./euro.js'); require('./report.js'); require('./core.js'); require('./social.js'); require('./room.js'); require('./live.js'); require('./allstar.js'); require('./cap.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
   const D = NBA.data;
   const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
   const ATTRS = D.ATTRS;
@@ -987,13 +987,21 @@
     const fx = rollEvents(st, p);
     const dfx = NBA.Decisions.takeSeason(st);   // what the player's own decisions queued for this season
     fx.form += dfx.form || 0; fx.extraMiss += dfx.extraMiss || 0; fx.minsMult *= dfx.minsMult || 1; fx.depth += dfx.depth || 0;
+    // a person's own levers: load management, a rested summer, the contract year (the bulk autopilot never sets any of them)
+    let injMult = 1;
+    if (!st.autoPlay && NBA.Core) {
+      const lm = NBA.Core.LOAD[st.loadMgmt] || null, F0 = NBA.Decisions.state(st).flags;
+      if (lm && lm.miss && p.age >= 30) { fx.extraMiss += lm.miss; injMult *= lm.miss >= 12 ? 0.78 : 0.88; fx.notes.push('Load management: resting about ' + lm.miss + ' games to save the legs.'); }
+      if (F0.restedYear === L.year) injMult *= 0.85;
+      if (st.contract && st.contract.left === 1 && st.proSeasons.length >= 1) { fx.form += 0.008; fx.notes.push('Contract year: playing for the next deal.'); }
+    }
     if (!st.autoPlay) fx.minsMult *= 1 + 0.012 * clamp(NBA.Decisions.relOf(st, 'coach' + st.teamId), -3, 3) + 0.012 * NBA.Room.fitOf(st);   // a coach who trusts you and likes your game gives you a little more
     // rookie role: coaches bring some young players along off the bench whatever their talent (Kobe 15 mpg at 18, Giannis 25, Jokic 22, Harden 23 behind Westbrook and Durant);
     // real future stars' rookie minutes vary by 7-9 mpg, far more than rating alone gives. It is a cap on minutes (it only bites a rookie good enough to play more),
     // drawn on its own stream so nothing else in the season changes; the second season's cap is 8 minutes higher
     if (p.yearsPro === 0) { const sv = NBA.rngGet(); NBA.setSeed(st.seasonSeed ^ 0x3c6ef372); p.benchCap = rand() < NBA.tuning.benchRole * (age <= 19 ? 1.25 : age >= 22 ? 0.6 : 1) ? 15 + 12 * rand() : 0; NBA.rngSet(sv); }
     if (p.yearsPro <= 1 && p.benchCap) { fx.minsCap = p.benchCap + 8 * p.yearsPro; fx.notes.push(p.yearsPro === 0 ? 'Coach is bringing you along slowly: a bench role behind the veterans for now.' : 'Still earning the coach\'s full trust: more minutes, but not a full starter\'s load yet.'); }
-    const avail = rollAvail(p, { extraMiss: fx.extraMiss, user: true });
+    const avail = rollAvail(p, { extraMiss: fx.extraMiss, user: true, injMult });
     st.injDamage = null;
     if (avail.major) { if (st.autoPlay) applyMajorInjury(p); else st.injDamage = NBA.injuryDamage(); }   // a person decides how to rehab: the damage is applied (scaled) at the end of the year
     st.injInfo = avail.late ? { name: MINOR_INJ[(avail.late.rs + avail.late.po) % MINOR_INJ.length], major: false, miss: avail.late.rs, when: 'late', po: avail.late.po, short: 1 } : avail.major || avail.notable ? { name: avail.major || avail.notable, major: !!avail.major, miss: avail.miss, when: avail.when, po: avail.po } : avail.miss >= 15 ? { name: MINOR_INJ[avail.miss % MINOR_INJ.length], major: false, miss: avail.miss, when: avail.when, po: avail.po } : null;
@@ -1073,6 +1081,7 @@
     shootingFromLog(rec, st.matchLog);
     if (rec.playoff) rec.playoff.rating = rec.poRating;
     rec.bests = seasonBests(st.matchLog, rec.label, rec.age);
+    { const lm = !st.autoPlay && NBA.Core && NBA.Core.LOAD[st.loadMgmt]; if (lm && lm.save && p.age >= 30) { p.attrs.ath = clamp(p.attrs.ath + lm.save * 0.5, 8, 99); if (p.target) p.target.ath = clamp(p.target.ath + lm.save * 0.5, 8, 99); } }
     if (NBA.Euro && !st.autoPlay) NBA.Euro.yearEnd(st);   // the EuroLeague and the G League play their season too (skipped on bulk autopilot runs)
     if (NBA.onSeasonLog) NBA.onSeasonLog(st, rec);
     rec.perSeries = perSeries.map((x) => { const y = Object.assign({}, x); delete y.list; delete y.w; delete y.l; delete y.won; return y; });
@@ -1181,6 +1190,13 @@
       g40: reg.filter((g) => g.pt >= 40).length, g50: reg.filter((g) => g.pt >= 50).length, high: Math.max.apply(null, reg.map((g) => g.pt)), totPts: sumOf('pt'), totReb: sumOf('rb'), totAst: sumOf('as'), avgRating: Math.round(mean('r') * 100) / 100 });
     rec.avgTD = n >= 30 && rec.pts >= 10 && rec.reb >= 10 && rec.ast >= 10;
     l.td = rec.td; l.dd = rec.dd; l.g40 = rec.g40; l.g50 = rec.g50; l.pts = rec.pts; l.totPts = rec.totPts; l.totReb = rec.totReb; l.totAst = rec.totAst; l.reb = rec.reb; l.ast = rec.ast; l.mins = rec.mins; l.high = rec.high;
+  }
+  function scaleBox(st, it, o) {
+    const r = mulberry(shotSeed(st, 7700 + (it.n || 0) * 3 + (it.po ? 500 : 0))), j = () => 0.94 + 0.12 * r(), R = (x, f) => Math.max(0, Math.round((x || 0) * f * j()));
+    const fp = o.pts || 1; it.fga = Math.max(1, R(it.fga, fp)); it.fgm = Math.min(it.fga, R(it.fgm, fp * (fp > 1.1 ? 0.96 : 1))); it.tpa = Math.min(it.fga, R(it.tpa, fp)); it.tpm = Math.min(it.tpa, it.fgm, R(it.tpm, fp)); it.fta = R(it.fta, fp); it.ftm = Math.min(it.fta, R(it.ftm, fp));
+    it.as = R(it.as, o.ast || 1); it.rb = R(it.rb, o.reb || 1); it.or = Math.min(it.rb, it.or || 0); it.st = R(it.st, o.def || 1); it.bk = R(it.bk, o.def || 1); it.pt = it.fgm * 2 + it.tpm + it.ftm;
+    const cats = [it.pt, it.rb, it.as, it.st, it.bk].filter((x) => x >= 10).length; it.tg = (it.tg || []).filter((x) => !/double|points/.test(x)).concat(cats >= 3 ? ['Triple-double'] : cats === 2 ? ['Double-double'] : []).concat(it.pt >= 40 ? ['40+ points'] : it.pt >= 30 ? ['30+ points'] : []);
+    it.r = rateItem(it); it.sh = shotsFor(it, st.player, shotSeed(st, 7900 + (it.n || 0))); if (st.proSeasons && st.proSeasons.length && st.matchLog) recomputeFromLog(st); return it;
   }
   // one game with a minutes limit: the same night at a fraction of the load
   function limitGame(st, it, f) {
@@ -2233,6 +2249,6 @@
     return st;
   }
 
-  Object.assign(NBA, { capFor, marketCurve, Game: { hsOptions, FAMILY, familyOf, canAfford, needScholarship, INTL_PLANS, setClause, euroBuyout, intlReport, nbaInterest, draftWant, pushDraft, callupStint, assignGLeague, teamWant, pushForSpot, stintYears, stashPlayer, stashStay, joinFromStash, buyoutM, intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { capFor, marketCurve, Game: { scaleBox, hsOptions, FAMILY, familyOf, canAfford, needScholarship, INTL_PLANS, setClause, euroBuyout, intlReport, nbaInterest, draftWant, pushDraft, callupStint, assignGLeague, teamWant, pushForSpot, stintYears, stashPlayer, stashStay, joinFromStash, buyoutM, intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

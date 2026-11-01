@@ -668,6 +668,48 @@
     },
     auto() { return { key: 'clean' }; },
   });
+  // ================================================================ playoff series as stories: the moment before a big game
+  register({
+    id: 'seriesmoment', title: 'Series moment', trigger: 'seriesmoment',
+    when(st) { return !st.autoPlay && !!NBA.Core; },
+    open(st) { const idx = st.matchIdx || 0, it = (st.matchLog || [])[idx]; if (!it || it.dnp) return null; const m = NBA.Core.momentOf(st, idx); return m ? Object.assign({ idx, opp: it.o, n: it.n }, m) : null; },
+    view(st, ctx) {
+      const O = NBA.Core.MOMENT_OPTS, keys = ['takeover', 'trust', 'defense'].concat(ctx.key === 'down02' || ctx.key === 'elim' ? ['callout'] : []);
+      return { title: ctx.title, text: ctx.text, options: keys.map((k) => ({ key: k, label: O[k].label, blurb: O[k].blurb, vibe: k === 'callout' ? 'Risky. Could wake them up or split the room' : k === 'takeover' ? 'Hero ball' : k === 'trust' ? 'Team first' : 'Two-way' })) };
+    },
+    choose(st, ctx, key) {
+      const o = NBA.Core.MOMENT_OPTS[key], it = st.matchLog[ctx.idx]; if (!o || !it) return { done: true, text: '' };
+      NBA.Game.scaleBox(st, it, o); it.smd = 1;
+      const eff = []; if (o.chem) eff.push({ k: 'meter', f: 'chem', d: o.chem }); if (o.media) eff.push({ k: 'meter', f: 'media', d: o.media });
+      const won = !!it.w, line = it.pt + ' points, ' + it.rb + ' rebounds, ' + it.as + ' assists';
+      const text = (key === 'takeover' ? 'You told the coach to run everything through you tonight.' : key === 'trust' ? 'You told the group to keep moving the ball: the right play, every time.' : key === 'defense' ? 'You asked for their best player. Your night starts on the other end.' : 'You called the group out in the film room. Everybody heard it.') + ' Game ' + ctx.n + ' is next.';
+      if (key === 'callout' && !won) eff.push({ k: 'meter', f: 'chem', d: -0.3 });
+      return { done: true, tone: 'neutral', text, effects: eff, journal: { tone: won ? 'good' : 'bad', text: ctx.title + ' vs the ' + ctx.opp + ': ' + text + ' You had ' + line + (won ? ' in a win.' : ' in a loss.') } };
+    },
+    auto() { return { key: 'trust' }; },
+  });
+  // ================================================================ the co-star: whose team is it?
+  register({
+    id: 'alpha', title: 'Whose team is it?', trigger: 'alpha',
+    when(st) { return !st.autoPlay && !!NBA.Core; },
+    open(st) { const f = state(st).flags; if (f.alphaYear === st.league.year) return null; const q = NBA.Core.coStar(st); if (!q) return null; f.alphaYear = st.league.year; return { id: q.id, name: q.name, pos: q.pos, ovr: Math.round(ovr(q)), me: Math.round(ovr(st.player)), from: st.matchIdx || 0 }; },
+    view(st, ctx) {
+      return { title: 'Whose team is it?', text: 'Halfway through the season the question is everywhere: is this your team or ' + ctx.name + '\'s (' + ctx.pos + ', ' + ctx.ovr + ' OVR)? The coach wants an answer before the second half.', options: [
+        { key: 'share', label: 'Run it as a 1A and 1B', blurb: 'Split the touches and the closing shots. Nobody has to win the argument.', vibe: 'Balanced' },
+        { key: 'demand', label: 'It is my team', blurb: 'You want the ball in the last five minutes. Every night.', vibe: 'Alpha. ' + ctx.name + ' might not love it' },
+        { key: 'defer', label: 'Let him lead', blurb: 'More passing, fewer shots. You become the best second option in the league.', vibe: 'Selfless. Fewer numbers' }] };
+    },
+    choose(st, ctx, key) {
+      const items = st.matchLog || [], f = key === 'demand' ? { pts: 1.07, ast: 0.94 } : key === 'defer' ? { pts: 0.92, ast: 1.12 } : null;
+      if (f) items.forEach((x, i) => { if (i >= ctx.from && x.k === 'g' && !x.po && !x.dnp) NBA.Game.scaleBox(st, x, f); });
+      const r = rng(st, 'alpha|' + st.league.year)(); let text, tone = 'neutral', eff;
+      if (key === 'share') { eff = [{ k: 'meter', f: 'chem', d: 0.4 }, { k: 'rel', id: ctx.id, name: ctx.name, d: 0.5 }]; text = 'You and ' + ctx.name + ' agreed to share it. The locker room exhaled.'; tone = 'good'; }
+      else if (key === 'demand') { const ok = ctx.me >= ctx.ovr || r < 0.5; eff = ok ? [{ k: 'meter', f: 'media', d: 0.4 }, { k: 'rel', id: ctx.id, name: ctx.name, d: -0.4 }] : [{ k: 'meter', f: 'chem', d: -0.6 }, { k: 'rel', id: ctx.id, name: ctx.name, d: -1 }]; text = ok ? 'It is your team now. ' + ctx.name + ' accepted it, mostly.' : ctx.name + ' did not accept it. The quotes from his camp are getting colder every week.'; tone = ok ? 'good' : 'bad'; }
+      else { eff = [{ k: 'meter', f: 'chem', d: 0.6 }, { k: 'meter', f: 'locker', d: 0.3 }, { k: 'rel', id: ctx.id, name: ctx.name, d: 1 }]; text = 'You handed ' + ctx.name + ' the keys. Fewer shots for you, a happier room for everyone.'; tone = 'good'; }
+      return { done: true, tone, text, effects: eff, journal: { tone, text: 'Whose team is it? ' + text } };
+    },
+    auto() { return { key: 'share' }; },
+  });
   const clamp0 = (x) => Math.max(0.15, Math.min(0.85, x));
   const Dc0 = (st) => { const f = state(st).flags; return f.pr || (f.pr = { quotes: [], tally: [], feuds: {}, heads: [], rep: {} }); };
 

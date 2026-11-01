@@ -127,7 +127,7 @@ let PG_DBG = null;
     if (await page.$('button:has-text("Start the season")')) await page.click('button:has-text("Start the season")');
     else if (await page.$('.mcard.t3')) await page.click('button:has-text("Start the season")');
     else await page.click('h3:has-text("own game") ~ div button >> nth=0');
-    if (campN === 1) { const j = await page.evaluate(() => window.__NBA_UI.state.dec.journal.map((e) => e.kind).join()); if (!/^hs,role,promise,brand,(camp|invite)$/.test(j)) errors.push('CAMP journal ' + j); else console.log('CAMP journal OK (hs, role, promise, agent, camp)'); }
+    if (campN === 1) { const j = await page.evaluate(() => window.__NBA_UI.state.dec.journal.map((e) => e.kind).join()); if (!/^hs,role,(draft,)?promise,brand,(camp|invite)$/.test(j)) errors.push('CAMP journal ' + j); else console.log('CAMP journal OK (hs, role, promise, agent, camp)'); }
   };
   await trainLoop();
   await shot('06-pro-ready');
