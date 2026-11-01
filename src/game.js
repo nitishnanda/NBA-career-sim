@@ -153,24 +153,73 @@
     const c = NBA.Intl.clubById(id); if (!c) throw new Error('no such club');
     const first = !st.college;
     st.college = { id: c.id, name: c.n, state: c.city + ', ' + NBA.Intl.COUNTRIES[c.country].name, prestige: c.prestige, home: c.country === st.origin.country, intl: true, tier: c.tier, country: c.country, league: c.league };
-    st.clubYears = 0; st.stage = 'intl_ready';
+    st.clubYears = 0; st.stage = 'intl_ready'; st.intlPlan = null; st.euroDeal = newEuroDeal(st, c, first ? false : !!(st.euroDeal && st.euroDeal.clause));
     if (!first) NBA.Decisions.log(st, { kind: 'college', title: 'New club', tone: 'neutral', text: 'Signed with ' + c.n + ' (' + NBA.Intl.COUNTRIES[c.country].name + ', ' + NBA.Intl.TIERS[c.tier].label.toLowerCase() + ').' });
     return st.college;
+  }
+  // ---- season plans (one choice a year: how you play it), Euro contracts, the national team, and the end-of-season report
+  const INTL_PLANS = {
+    takeover: { label: 'Take the ball', blurb: 'More usage and more shots: bigger numbers and a louder name, at some cost in efficiency and wins.', usg: 1.12, mins: 2, ts: -0.01, win: -1, bonus: 0, stock: 0.4, media: 'scorer' },
+    team: { label: 'Fit in and win', blurb: 'Play within the system. Cleaner efficiency, more wins, fewer headlines.', usg: 0.95, mins: 0, ts: 0.008, win: 2.5, bonus: 0, stock: 0.2, media: 'winner' },
+    develop: { label: 'Work on one skill', blurb: 'A year of reps on your weakest area: a little less on the floor now, extra training points this summer.', usg: 0.97, mins: -1, ts: 0, win: 0, bonus: 1, stock: -0.2, media: 'project' },
+    showcase: { label: 'Showcase for scouts', blurb: 'A summer of NBA workouts and national-team work: more eyes and a better shot at the national team, a little tired in the season.', usg: 1.0, mins: 0, ts: -0.004, win: 0, bonus: 0, stock: 1.0, nat: 0.25, media: 'prospect' },
+  };
+  function newEuroDeal(st, c, clause) {
+    const tier = c.tier, T = NBA.Intl.TIERS[tier], pay = ({ academy: 0.03, domestic: 0.15, euroleague: 0.8 })[tier] * (0.7 + 0.22 * c.prestige) * (1 + 0.14 * (st.stars - 3)), years = tier === 'academy' ? 2 : tier === 'euroleague' && st.stars >= 4 ? 3 : 2;
+    const sal = Math.round(pay * (clause ? 0.78 : 1) * 100) / 100; return { club: c.n, tier, salary: sal, years, left: years, clause: !!clause, buyoutPer: tier === 'euroleague' ? 0.9 : tier === 'domestic' ? 0.5 : 0, base: Math.round(pay * 100) / 100 };
+  }
+  const euroBuyout = (st) => { const d = st.euroDeal; return d && !d.clause && d.left > 0 ? Math.round(d.salary * d.left * d.buyoutPer * 100) / 100 : 0; };
+  function setClause(st, on) { const d = st.euroDeal; if (!d) return; d.clause = !!on; d.salary = Math.round(d.base * (on ? 0.78 : 1) * 100) / 100; }
+  // the summer national-team tournament (the country's age-group or senior side)
+  function natEvent(st, rec, plan) {
+    const I = NBA.Intl, k = st.origin && st.origin.country; if (!k) return null; const S = I.NAT[k] || 3, p = st.player, o = ovr(p), age = p.age;
+    const pSel = clamp(0.16 + 0.1 * (st.stars - 1) + (o - 60) * 0.012 + (plan && plan.nat ? plan.nat : 0), 0.05, 0.92); if (rand() > pSel) return null;
+    const ev = age <= 18 ? 'FIBA U18 EuroBasket' : age <= 20 ? 'FIBA U20 EuroBasket' : 'EuroBasket / World Cup qualifiers', sc = S * 0.75 + (o - 62) * 0.06 + randn() * 1.2;
+    const res = sc >= 5.3 ? 'Gold medal' : sc >= 4.5 ? 'Silver medal' : sc >= 3.9 ? 'Bronze medal' : sc >= 3 ? 'Quarterfinals' : 'Group stage';
+    const e = expLine(p, { pace: 74, minsFixed: clamp(Math.round(22 + 0.5 * (o - 62)), 10, 30), usgMult: 1.0, tsAdj: -0.008, rebMult: 0.97, astMult: 1.0, coTax: 0 }), gs = []; for (let i = 0; i < 7; i++) gs.push(genGame({ pts: e.pts, reb: e.reb, ast: e.ast, stl: e.stl, blk: e.blk, tov: e.tov, mins: e.mins })); const sm = summarize(gs);
+    const mvp = /Gold|Silver/.test(res) && sm.pts >= (age <= 20 ? 16 : 14) && rand() < 0.45, stock = (/Gold/.test(res) ? 0.7 : /Silver|Bronze/.test(res) ? 0.45 : 0.15) + (mvp ? 0.5 : 0) + (sm.pts >= 16 ? 0.25 : 0);
+    return { event: ev, result: res, line: { gp: 7, pts: sm.pts, reb: sm.reb, ast: sm.ast, mins: sm.mins }, mvp, stock, country: I.COUNTRIES[k].name };
+  }
+  // scouts' view: which clubs would be looking at you (by where the mock drafts have you and who needs your position)
+  function nbaInterest(st, rec) {
+    const L = st.league, p = st.player, mid = rec && rec.mock ? rec.mock.mid : 25, order = L.teams.slice().sort((a, b) => a.wins - b.wins);
+    const out = order.map((t, i) => ({ t, slot: i + 1, need: NBA.teamNeeds(L, t)[p.pos] || 0 })).map((x) => Object.assign(x, { score: -Math.abs(x.slot - mid) * 0.35 + x.need * 3.2 + (st.draftSeed ? 0 : 0) })).sort((a, b) => b.score - a.score).slice(0, 3);
+    return out.map((x) => ({ nick: x.t.nick, team: x.t.name, slot: x.slot, fit: clamp(Math.round(52 + x.need * 42 - Math.abs(x.slot - mid) * 0.8), 35, 96), line: NBA.needText(L, x.t) }));
+  }
+  const MEDIA_OUTLETS = ['Hoops Abroad', 'The Draft Wire', 'Euro Prospect Report'];
+  const MEDIA_BANK = {
+    great: ['{name} was the story of the year in {league}: {pts} a night and a real case that he is ready for the NBA.', 'Scouts left the gym raving. {name} {honor}, and the buzz is already at lottery level.', '{pts} ppg against grown men is not normal for a {age}-year-old. {name} is a first-round talent.'],
+    good: ['A solid year for {name}: {pts} points and {reb} rebounds and a team that trusted him. The NBA likes what it sees.', '{name} keeps checking boxes. Not a lock, but a clear NBA-caliber prospect.', 'The tape says rotation player at the next level. {name} is moving the right way.'],
+    ok: ['A quiet year for {name} ({pts} ppg): the tools are there, the production was not loud.', 'Scouts want to see more from {name}. Nothing wrong, nothing that jumps off the screen.', '{name} is a project. The NBA will want another year of tape.'],
+    poor: ['A tough year for {name}: {pts} ppg in {mins} minutes, and the buzz cooled off.', 'Not the season anybody was hoping for. {name} needs a better role or a better year.', 'Scouts are asking whether {name} is a bust-in-waiting. The next season matters a lot.'],
+  };
+  function mediaTakes(st, rec, interest, nat) {
+    const grade = rec.pf >= 36 ? 'great' : rec.pf >= 26 ? 'good' : rec.pf >= 16 ? 'ok' : 'poor', rnd = NBA.Decisions.rng(st, 'media|' + st.league.year + '|' + rec.year), p = st.player;
+    const fill = (t) => t.replace(/\{name\}/g, p.name).replace(/\{league\}/g, rec.league).replace(/\{pts\}/g, rec.line.pts.toFixed(1)).replace(/\{reb\}/g, rec.line.reb.toFixed(1)).replace(/\{mins\}/g, Math.round(rec.line.mins)).replace(/\{age\}/g, rec.age).replace(/\{honor\}/g, rec.honors[0] ? 'earned ' + rec.honors[0] : 'showed out');
+    const bank = MEDIA_BANK[grade].slice().sort(() => rnd() - 0.5), out = MEDIA_OUTLETS.map((o, i) => ({ outlet: o, text: fill(bank[i % bank.length]) }));
+    if (nat) out[2].text = (nat.mvp ? p.name + ' was the star of the ' + nat.event + ' (' + nat.result.toLowerCase() + '): ' : 'At the ' + nat.event + ' (' + nat.result.toLowerCase() + '), ') + nat.line.pts.toFixed(1) + ' ppg for ' + nat.country + (nat.mvp ? ' and tournament MVP honors.' : '.');
+    return { grade, takes: out };
+  }
+  function intlReport(st, rec) {
+    const arr = stintYears(st), prev = arr[arr.length - 2], tr = st.lastTrainRep;
+    const prog = { ovr: rec.ovr, ovrPrev: prev ? prev.ovr : null, ppgPrev: prev ? prev.line.pts : null, tsPrev: prev ? prev.line.ts : null, minsPrev: prev ? prev.line.mins : null, trained: tr ? tr.changes.filter((c) => c.to - c.from >= 2).sort((a, b) => (b.to - b.from) - (a.to - a.from)).slice(0, 3).map((c) => ({ label: c.label, d: c.to - c.from })) : [] };
+    const interest = st.stash ? [] : nbaInterest(st, rec), m = mediaTakes(st, rec, interest, rec.nat);
+    return { prog, media: m.takes, grade: m.grade, interest, nat: rec.nat || null, deal: st.euroDeal || null, plan: rec.plan || null };
   }
   // the amateur or overseas seasons (college rows) or, for a player sent to the G League, the G League stint (its own list)
   const stintYears = (st) => (st.stash && st.stash.kind === 'gl' ? (st.glYears || (st.glYears = [])) : st.collegeYears);
   function intlSeason(st) {
     const I = NBA.Intl, p = st.player, c = st.college, T = I.TIERS[c.tier], rank = T.rank, arr = stintYears(st), yr = arr.length + 1, o = ovr(p);
-    const oEff = o + 1.5, std = [56, 63, 71, 66][rank], newcomer = !c.home && (st.clubYears || 0) === 0;
-    const minsFixed = clamp(Math.round(T.mins + 0.6 * (oEff - std) + ({ 1: 0, 2: 1, 3: 2, 4: 3, 5: 4 }[st.stars] || 0) - (newcomer ? 2 : 0)), 5, rank === 2 ? 30 : rank === 3 ? 38 : 33);
-    const e = expLine(p, { pace: T.pace, minsFixed, usgMult: T.usg * (1.02 + ({ 1: 0, 2: 0.03, 3: 0.07, 4: 0.12, 5: 0.17 }[st.stars] || 0)) * (newcomer ? 0.94 : 1), tsAdj: T.ts - 0.012 + 0.003 * (oEff - 68) / 5, rebMult: 0.97, astMult: 1.0, coTax: 0 });
+    const plan = INTL_PLANS[st.intlPlan] || INTL_PLANS.team, oEff = o + 1.5, std = [56, 63, 71, 66][rank], newcomer = !c.home && (st.clubYears || 0) === 0;
+    const minsFixed = clamp(Math.round(T.mins + 0.6 * (oEff - std) + ({ 1: 0, 2: 1, 3: 2, 4: 3, 5: 4 }[st.stars] || 0) - (newcomer ? 2 : 0) + plan.mins), 5, rank === 2 ? 30 : rank === 3 ? 38 : 33);
+    const e = expLine(p, { pace: T.pace, minsFixed, usgMult: T.usg * plan.usg * (1.02 + ({ 1: 0, 2: 0.03, 3: 0.07, 4: 0.12, 5: 0.17 }[st.stars] || 0)) * (newcomer ? 0.94 : 1), tsAdj: T.ts + plan.ts - 0.012 + 0.003 * (oEff - 68) / 5, rebMult: 0.97, astMult: 1.0, coTax: 0 });
     const av = rollAvail(p, { noRest: true }), games2 = rank === 3 ? 50 : rank === 2 ? 34 : rank === 1 ? 30 : 28, gp = clamp(games2 - Math.round(av.miss * 0.3), 8, games2);
     const m = { pts: e.pts * (1 + 0.04 * randn()), reb: e.reb, ast: e.ast, stl: e.stl * 1.05, blk: e.blk * 1.05, tov: e.tov, mins: e.mins };
     const games = []; for (let i = 0; i < gp; i++) games.push(genGame(m));
     const sm = summarize(games), sl = shootingLine(p, sm.pts, e.ts, e.usg);
     const line = { gp, mins: sm.mins, pts: sm.pts, reb: sm.reb, ast: sm.ast, stl: sm.stl, blk: sm.blk, tov: sm.tov, fgp: sl.fgp, tpp: sl.tpp, ftp: sl.ftp, ts: sl.ts, td: sm.td, high: sm.high };
     const pf = perfOf({ pts: sm.pts, reb: sm.reb, ast: sm.ast, stl: sm.stl, blk: sm.blk, tov: sm.tov, ts: sl.ts }), pfa = pf + (rank === 3 ? 5 : rank === 2 ? 9 : rank === 1 ? 4 : 0);
-    const wins = clamp(Math.round(games2 * (0.34 + 0.07 * (c.prestige - 1) * 0.9) + (oEff - 66) * 0.12 + randn() * 2.6), 4, games2 - 2);
+    const wins = clamp(Math.round(games2 * (0.34 + 0.07 * (c.prestige - 1) * 0.9) + (oEff - 66) * 0.12 + plan.win + randn() * 2.6), 4, games2 - 2);
     let tourney, champ = false;
     if (rank === 3) { const pl = wins >= games2 * 0.72 ? 4 : wins >= games2 * 0.6 ? 3 : wins >= games2 * 0.48 ? 2 : 1; tourney = ['Missed the G League playoffs', 'Lost in the first round', 'Lost in the conference finals', 'Lost in the G League Finals', 'G League champions'][clamp(pl - 1 + (rand() < 0.15 ? 1 : 0), 0, 4)]; champ = /champions/.test(tourney); }
     else if (rank === 2) { const pl = wins >= games2 * 0.78 ? 5 : wins >= games2 * 0.68 ? 4 : wins >= games2 * 0.55 ? 3 : wins >= games2 * 0.4 ? 2 : 1; tourney = ['EuroLeague: missed the playoffs', 'EuroLeague: out in the play-in', 'EuroLeague: lost in the playoffs', 'EuroLeague: Final Four', 'EuroLeague: lost in the final', 'EuroLeague: champions'][clamp(pl - 1 + (rand() < 0.15 ? 1 : 0), 0, 5)]; champ = /champions/.test(tourney); }
@@ -181,8 +230,11 @@
     else if (rank === 1) { if (pfa >= 40) honors.push(c.league + ' MVP'); else if (pfa >= 30) honors.push('All-' + c.league + ' Team'); if (p.age <= 22 && pfa >= 26) honors.push('Best Young Player'); }
     else { if (pfa >= 32) honors.push('Junior league MVP'); else if (pfa >= 24) honors.push('Junior All-Star'); }
     if (champ) honors.push(rank === 3 ? 'G League Champion' : rank === 2 ? 'EuroLeague Champion' : rank === 1 ? c.league + ' Champion' : 'Junior Champion');
-    const rec = { year: yr, label: (rank === 3 ? 'G League ' : 'Year ') + yr, age: p.age, school: c.name, record: wins + '-' + (games2 - wins), tourney, honors, line, ovr: Math.round(o), pf: pfa, league: c.league, tier: c.tier };
-    arr.push(rec); return rec;
+    const rec = { year: yr, label: (rank === 3 ? 'G League ' : 'Year ') + yr, age: p.age, school: c.name, record: wins + '-' + (games2 - wins), tourney, honors, line, ovr: Math.round(o), pf: pfa, league: c.league, tier: c.tier, plan: st.intlPlan || 'team' };
+    arr.push(rec);
+    if (plan.bonus) st.bonusPoints = (st.bonusPoints || 0) + plan.bonus;
+    if (c.tier !== 'gleague') { rec.nat = natEvent(st, rec, plan); const d = st.euroDeal; if (d) { st.earnings += d.salary; d.left--; rec.pay = d.salary; if (d.left <= 0) { d.left = 2; d.years = 2; d.salary = Math.round(d.salary * 1.12 * 100) / 100; d.base = Math.round(d.base * 1.12 * 100) / 100; rec.reSigned = true; } } }
+    st.intlPlan = null; return rec;
   }
   function intlBonus(st) {
     const I = NBA.Intl, c = st.college, last = st.collegeYears[st.collegeYears.length - 1], T = I.TIERS[c.tier];
@@ -194,6 +246,7 @@
       if (T.rank === 2 && last.line.mins < 11) b -= 1.2;   // a EuroLeague bench player is not a prospect the scouts can read
       if (last.age >= 22) b -= 0.5 * (last.age - 21);       // the older, the less projectable
     }
+    if (last) { b += (INTL_PLANS[last.plan] || { stock: 0 }).stock; if (last.nat) b += last.nat.stock; }
     if (st.collegeYears.some((y) => y.tier === 'euroleague')) b += 0.5;   // seen against grown men
     return b;
   }
@@ -344,7 +397,7 @@
     feedAdd(st, 'draft', { slot: d.slot, team: st.stash.nick }, { key: 'stash' + L.year, at: null });
     st.stage = 'training'; st.afterTraining = 'intl'; return trainingInfo(st);
   }
-  const buyoutM = (st) => ({ academy: 0, domestic: 0.4, euroleague: 1.4, gleague: 0 })[st.college.tier] || 0;
+  const buyoutM = (st) => (st.college && st.college.tier === 'gleague' ? 0 : euroBuyout(st));
   // ---- the NBA G League: the club sends you there to develop; it is the club, not you, who decides when you are back
   function assignGLeague(st, opts) {
     opts = opts || {}; const d = st.draft, L = st.league, t = L.teams[d ? d.teamId : st.teamId]; if (!t) throw new Error('no club');
@@ -403,6 +456,7 @@
     return startPro(st);
   }
   function startPro(st) {
+    if (st.origin && st.origin.intl && st.euroDeal && !st.stash && !st.euroDeal.paid) { const bo = euroBuyout(st); if (bo) { st.earnings = Math.max(0, st.earnings - bo); st.euroDeal.paid = bo; NBA.Decisions.log(st, { kind: 'draft', title: 'Buyout', tone: 'neutral', text: 'Left ' + st.euroDeal.club + ' early: a buyout of about $' + bo.toFixed(2) + 'M.' }); } else st.euroDeal.paid = 0; }
     st.stage = 'training'; st.afterTraining = 'pro_first';
     return trainingInfo(st);
   }
@@ -452,7 +506,7 @@
     progress(p);
     st.bonusPoints = 0;
     const rep = { age: p.age, ovr0: Math.round(ovr0), ovr1: Math.round(ovr(p)), trainGain: r1(ovrAfterTrain - ovr0), changes: ATTRS.map((a) => ({ key: a, label: D.ATTR_LABELS[a], from: Math.round(before[a]), to: Math.round(p.attrs[a]) })) };
-    const next = st.afterTraining;
+    st.lastTrainRep = rep; const next = st.afterTraining;
     if (next === 'college') st.stage = 'college_ready';
     else if (next === 'intl') st.stage = 'intl_ready';
     else if (next === 'pro_first') st.stage = 'pro_ready';
@@ -2129,6 +2183,6 @@
     return st;
   }
 
-  Object.assign(NBA, { capFor, marketCurve, Game: { draftWant, pushDraft, callupStint, assignGLeague, teamWant, pushForSpot, stintYears, stashPlayer, stashStay, joinFromStash, buyoutM, intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { capFor, marketCurve, Game: { INTL_PLANS, setClause, euroBuyout, intlReport, nbaInterest, draftWant, pushDraft, callupStint, assignGLeague, teamWant, pushForSpot, stintYears, stashPlayer, stashStay, joinFromStash, buyoutM, intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

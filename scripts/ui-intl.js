@@ -15,12 +15,12 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   await page.waitForSelector('text=Next: choose your club →', { timeout: 15000 }); await page.click('text=Next: choose your club →');
   await page.waitForSelector('text=Choose your first club');
   const body1 = await page.evaluate(() => document.body.textContent); const okP = /Serbia|Mega Basket|FMP Beograd/.test(body1) && /American road/.test(body1); console.log('INTL club pick', okP ? 'OK' : 'MISMATCH'); if (!okP) errors.push('pick ' + body1.slice(0, 200));
-  await page.click('.opt >> nth=0'); await page.waitForSelector('text=Play the season →');
+  await page.click('.opt >> nth=0'); await page.waitForSelector('text=Choose a plan first');
   for (let yr = 1; yr <= 2; yr++) {
-    await page.click('text=Play the season →'); await page.waitForSelector('text=Declare for the NBA Draft');
+    await page.click('button:text-is("Choose") >> nth=1'); await page.click('text=Play the season →'); await page.waitForSelector('text=Declare for the NBA Draft');
     const t = await page.evaluate(() => document.body.textContent); const okD = /Draft stock/.test(t) && /Career in Europe/.test(t) && /PPG/.test(t); console.log('INTL season ' + yr, okD ? 'OK' : 'MISMATCH'); if (!okD) errors.push('decision ' + yr);
     if (yr === 1) { const hasMove = await page.$('text=Clubs interested in you'); if (hasMove) { await page.click('.wkcard button:text("Sign") >> nth=0'); } else { await page.click('text=/^Stay with/'); }
-      await page.waitForSelector('text=/Training|Upgrade|points/i', { timeout: 8000 }).catch(() => {}); await page.evaluate(() => { const U = window.__NBA_UI, st = U.state; const G = window.NBA.Game; G.train(st, G.autoAlloc(st.player, G.trainingInfo(st).points)); U.go(); }); await page.waitForSelector('text=Play the season →'); }
+      await page.waitForSelector('text=/Training|Upgrade|points/i', { timeout: 8000 }).catch(() => {}); await page.evaluate(() => { const U = window.__NBA_UI, st = U.state; const G = window.NBA.Game; G.train(st, G.autoAlloc(st.player, G.trainingInfo(st).points)); U.go(); }); await page.waitForSelector('text=Choose a plan first'); }
   }
   await page.click('text=Declare for the NBA Draft'); await page.waitForTimeout(500);
   const stg = await page.evaluate(() => window.__NBA_UI.state.stage); const okS = stg === 'combine'; console.log('INTL declare -> combine', okS ? 'OK' : 'MISMATCH ' + stg); if (!okS) errors.push('stage ' + stg);

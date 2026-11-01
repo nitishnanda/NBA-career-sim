@@ -10,7 +10,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   await page.waitForSelector('text=G League or the roster?', { timeout: 15000 }); const dt = await page.evaluate(() => document.body.textContent); const okW = /What the .* think/.test(dt) && /two-way/i.test(dt) && /(would keep you on the NBA roster|could find you a roster spot|want you to develop first)/.test(dt); console.log('GL offer shown + tied to the club', okW ? 'OK' : 'MISMATCH'); if (!okW) errors.push('draft card ' + dt.slice(0, 200)); const hasJoin = !!(await page.$('button:text-matches("Join the NBA roster|Push for a roster spot")')); if (!hasJoin) errors.push('no roster/push button');
   await page.click('text=Sign a two-way contract'); await page.waitForTimeout(400);
   await page.evaluate(() => { const U = window.__NBA_UI, st = U.state, G = window.NBA.Game; G.train(st, G.autoAlloc(st.player, G.trainingInfo(st).points)); U.go(); });
-  await page.waitForSelector('text=Play the season →'); await page.click('text=Play the season →');
+  await page.waitForSelector('text=Choose a plan first'); await page.click('button:text-is("Choose") >> nth=1'); await page.click('text=Play the season →');
   await page.waitForSelector('text=/What the .* think/'); const t = await page.evaluate(() => document.body.textContent);
   const ok = /G League/.test(t) && /call-up|Call-up/.test(t) && /(want you back|open to it|want you to develop more)/.test(t); console.log('GL decision + verdict', ok ? 'OK' : 'MISMATCH'); if (!ok) errors.push('decision ' + t.slice(0, 300));
   const btn = await page.$('button:text-matches("Join the .* roster|Push for a spot anyway")'); if (!btn) errors.push('no join/push button');
