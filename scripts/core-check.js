@@ -15,7 +15,7 @@ N.onSeasonLog = (st, rec) => {
     { const c = clone(st); const i = c.matchLog.findIndex((x) => x.k === 'g' && !x.po && x.n === 41); c.matchIdx = i; if (Dc.offer(c, 'alpha')) { R.alpha++; const r = Dc.choose(c, ['share', 'demand', 'defer'][R.alpha % 3]); if (!r.done || !r.text) fail('alpha'); } }
     // offseason levers on a clone (the real career is not touched)
     const c = clone(st); c.league.year += 0;
-    const tg = C.targets(c); tg.forEach((x) => { if (!(x.odds >= 3 && x.odds <= 70)) fail('odds ' + x.odds); });
+    const tg = C.targets(c); tg.forEach((x) => { if (!(x.odds >= 2 && x.odds <= 80 && x.push >= 2 && x.push <= 80)) fail('odds ' + x.odds + '/' + x.push); });
     if (tg.length) { const r = C.buildTeam(c, tg[0].id, R.built % 2 ? 'demand' : 'recruit'); R.built++; if (r.ok) { R.buildOk++; if (N.Teams ? false : !N.rosterOf(c.league, c.league.teams[c.teamId]).some((q) => q.id === tg[0].id)) fail('star not moved'); } let threw = false; try { C.buildTeam(c, tg[0].id, 'recruit'); } catch (e) { threw = true; } if (!threw) fail('two moves in a summer'); }
     const nt = C.nationalTeam(c); if (nt && nt.picked) { const r = C.playNational(c, true); R.natl++; R.medals[r.finish] = (R.medals[r.finish] || 0) + 1; if (/undefined|NaN/.test(r.text)) fail('natl text ' + r.text); }
     const tot = { pts: st.proSeasons.reduce((a, s) => a + s.pts * s.gp, 0), reb: st.proSeasons.reduce((a, s) => a + s.reb * s.gp, 0), ast: st.proSeasons.reduce((a, s) => a + s.ast * s.gp, 0) };
@@ -29,3 +29,11 @@ N.onSeasonLog = (st, rec) => {
 for (let i = 0; i < 6; i++) { N.setSeed(9100 + i); const st = G.newCareer({ name: 'c' + i, pos: ['SF', 'PG', 'C'][i % 3], arch: ['scorer', 'twoway', 'shooter'][i % 3], stars: 5 }); st.autoPlay = false; st.loadMgmt = i % 2 ? 'light' : 'off'; G.auto(st, {}); }
 console.log(JSON.stringify(R));
 if (R.bad || !R.seasons || !R.built || !R.summers) { console.log('FAILED'); process.exit(1); } console.log('core OK');
+// team status drives the front office: a franchise player on a weak team is heard, a contender is not
+{ N.setSeed(77); const st = G.newCareer({ name: 'fo', pos: 'SF', arch: 'generational', stars: 5 }); let done = false;
+  try { G.auto(st, { onDecision: (s) => { if (s.proSeasons.length >= 4) throw 'stop'; } }); } catch (e) { if (e !== 'stop') throw e; }
+  const c = JSON.parse(JSON.stringify(st)); c.autoPlay = false; const t = c.league.teams[c.teamId], conf = c.league.teams.filter((x) => x.conf === t.conf);
+  conf.forEach((x) => { if (x.id !== t.id) x.wins = 45; }); t.wins = 22; c.proSeasons.forEach((x) => { if (x.teamId === t.id) x.wins = 24; }); const weak = C.teamStatus(c);
+  t.wins = 62; c.proSeasons.forEach((x) => { if (x.teamId === t.id) x.wins = 60; }); c.dec.flags.confRank = {}; const cont = C.teamStatus(c);
+  console.log(JSON.stringify({ weak: [weak.tier, weak.franchise, weak.listen], contender: [cont.tier, cont.listen] }));
+  if (weak.tier !== 'weak' || cont.tier !== 'contender' || !(weak.listen >= 70 && cont.listen <= 30)) { console.log('FAILED fo'); process.exit(1); } console.log('fo OK'); }

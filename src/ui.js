@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v102';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v103';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -1257,9 +1257,13 @@
     if (F.unhappyMsg && F.unhappyMsg.y === L.year) out.push(h('div', { class: 'callout' }, '😤 ' + F.unhappyMsg.text));
     if (coreMsg) out.push(h('div', { class: 'callout' }, coreMsg));
     // building your team
-    const fo = C.foMood(S), built = F.builtYear === L.year, tg = built ? [] : C.targets(S);
-    out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🧩 Build your team'), h('p', { class: 'small muted' }, 'Front office: ', h('b', null, C.foLabel(fo)), '. One big move a summer: recruit a star yourself, or push the front office to trade for him (better odds, but they remember being pushed).'),
-      built ? h('p', { class: 'small' }, 'You made your move this summer.') : tg.length ? h('div', null, tg.slice(0, 6).map((x) => h('div', { class: 'row', style: 'margin:6px 0' }, logo(x.team, 26), h('div', null, h('b', null, plink(x.id, x.name)), h('div', { class: 'small muted' }, x.pos + ' · ' + x.ovr + ' OVR · age ' + x.age + ' · ' + x.team + ' (' + x.teamWins + ' wins) · ~' + x.odds + '%')), h('span', { class: 'spacer' }),
+    const fo = C.foMood(S), built = F.builtYear === L.year, tg = built ? [] : C.targets(S), ts = C.teamStatus(S);
+    const tierLbl = { contender: '🏆 Contender: no need to chase stars', middle: '⚖️ In the middle: they will listen, within reason', weak: '🔧 Needs help: they are looking to strengthen the squad' }[ts.tier];
+    out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🧩 Build your team'),
+      h('div', { class: 'row small', style: 'margin:4px 0' }, h('b', null, tierLbl), h('span', { class: 'spacer' }), h('span', { class: ts.listen >= 60 ? 'pos' : ts.listen < 25 ? 'neg' : 'muted' }, 'They listen to you: ' + ts.listen + '%')),
+      h('p', { class: 'small' }, ts.why + (ts.franchise ? ' 👑 You are the franchise player.' : '')),
+      h('p', { class: 'small muted' }, 'Front office mood: ', h('b', null, C.foLabel(fo)), '. One big move a summer: recruit a star yourself (he has to want to come), or push the front office to trade for him (his team has to sell, and pushing costs you standing' + (ts.tier === 'contender' ? ', a lot on a contender' : '') + ').'),
+      built ? h('p', { class: 'small' }, 'You made your move this summer.') : tg.length ? h('div', null, tg.slice(0, 6).map((x) => h('div', { class: 'row', style: 'margin:6px 0' }, logo(x.team, 26), h('div', null, h('b', null, plink(x.id, x.name)), h('div', { class: 'small muted' }, x.pos + ' · ' + x.ovr + ' OVR · age ' + x.age + ' · ' + x.team + ' (' + x.teamWins + ' wins) · recruit ~' + x.odds + '% · push ~' + x.push + '%')), h('span', { class: 'spacer' }),
         h('button', { onclick: () => { try { const r = C.buildTeam(S, x.id, 'recruit'); coreMsg = (r.ok ? '🤝 ' : '💔 ') + r.text; save(); render(); } catch (e) { console.error(e); } } }, 'Recruit'), confirmBtn('Push the FO', '', () => { try { const r = C.buildTeam(S, x.id, 'demand'); coreMsg = (r.ok ? '📞 ' : '💔 ') + r.text; save(); render(); } catch (e) { console.error(e); } })))) : h('p', { class: 'small muted' }, 'No star is realistically available this summer.')));
     // the national team
     const nt = C.nationalTeam(S);

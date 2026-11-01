@@ -982,3 +982,10 @@ New module `src/core.js` (NBA.Core). Everything is for a person playing (gated `
 - **Small**: Summer League week in Las Vegas for rookies, contract-year bump in form.
 - Fix: the season screen no longer crashes when a pop-up result (the series recap) is raised from inside the hold chain.
 - Tests: `scripts/core-check.js` (node), `scripts/ui-core.js` (browser).
+
+## v103 — team building follows the team's needs
+
+- `NBA.Core.teamStatus`: conference rank now and over the last three seasons with the team (recorded each offseason; older seasons estimated from wins), whether you are the franchise player (best on the roster, 78+), and your level (MVP/All-NBA/26+ ppg/86+ OVR = elite).
+- Tier: **contender** (top 3 in the conference in 2 of the last 3 years) → the front office barely listens (base 6%, ~15-25% for an elite franchise player); **middle** → 45% base; **weak** (avg rank 9+ or 10th+ now) → 75% base, ~95% for an elite franchise player. Non-franchise players are heard far less (x0.35-0.7).
+- Odds now = will the FO do it × can it be done. Recruit: listen × √(his team selling × his interest). Push: listen × his team selling. Pushing a contender's front office costs more mood. A refusal says whether it was the front office or the other team.
+- UI: the stance, the reason, "They listen to you: N%", and both odds per target.

@@ -15,30 +15,57 @@
   const foMood = (st) => { const f = flags(st), k = 'fo' + st.teamId; return f[k] == null ? 0 : f[k]; };
   const setFo = (st, d) => { const f = flags(st), k = 'fo' + st.teamId; f[k] = clamp(Math.round(((f[k] || 0) + d) * 10) / 10, -3, 3); };
   const foLabel = (m) => (m >= 1.5 ? 'They will do almost anything for you' : m >= 0.5 ? 'Happy with you' : m > -0.5 ? 'Neutral' : m > -1.5 ? 'A little tired of your demands' : 'Frustrated with you');
+  // where the team stands: conference rank now and over the last three years with you, and whether you are the franchise player.
+  // The front office only listens when the squad needs it: a team that keeps finishing top 3 in its conference does not chase stars,
+  // a franchise player carrying a weak team gets what he asks for.
+  const confRankOf = (L, t) => 1 + L.teams.filter((x) => x.conf === t.conf && x.id !== t.id && x.wins > t.wins).length;
+  function teamStatus(st) {
+    const L = st.league, t = L.teams[st.teamId], f = flags(st); if (!t) return null;
+    const cr = f.confRank || (f.confRank = {}); cr[L.year + ':' + t.id] = confRankOf(L, t);
+    const rankNow = cr[L.year + ':' + t.id], recent = (st.proSeasons || []).filter((x) => x.teamId === t.id).slice(-3);
+    const rankIn = (x) => cr[x.year + ':' + t.id] != null ? cr[x.year + ':' + t.id] : x.wins >= 53 ? 2 : x.wins >= 49 ? 4 : x.wins >= 44 ? 6 : x.wins >= 38 ? 9 : 12;
+    const ranks = recent.length ? recent.map(rankIn) : [rankNow], top3 = ranks.filter((r) => r <= 3).length, avgRank = ranks.reduce((a, b) => a + b, 0) / ranks.length;
+    const me = ovr(st.player), mates = NBA.rosterOf(L, t).filter((q) => q.id !== 'user' && q.id !== st.player.id), best = mates.length ? Math.max.apply(null, mates.map(ovr)) : 0;
+    const last = recent[recent.length - 1] || {}, aw = (last.awards || []).join(' '), elite = /MVP|All-NBA/.test(aw) || (last.pts || 0) >= 26 || me >= 86, good = elite || /All-Star/.test(aw) || (last.pts || 0) >= 21 || me >= 81;
+    const franchise = me >= best + 1 && me >= 78;
+    const tier = top3 >= 2 || (ranks.length === 1 && rankNow <= 2) ? 'contender' : avgRank >= 9 || rankNow >= 10 ? 'weak' : 'middle';
+    let listen = { contender: 0.06, middle: 0.45, weak: 0.75 }[tier];
+    if (franchise) listen += tier === 'weak' ? 0.2 : tier === 'contender' ? 0.06 : 0.12; else listen *= me >= best - 2 ? 0.7 : 0.35;
+    if (elite) listen += 0.1; else if (!good) listen -= 0.1;
+    listen += foMood(st) * 0.04; listen = clamp(listen, 0.03, 0.95);
+    const why = tier === 'contender' ? 'The ' + t.nick + ' finished top 3 in the ' + (t.conf === 'E' ? 'East' : 'West') + ' ' + top3 + ' of the last ' + ranks.length + ' years. The front office: "We are not breaking up a contender."'
+      : tier === 'weak' ? (franchise ? 'You are the franchise and the team around you is not good enough (' + ord(rankNow) + ' in the ' + (t.conf === 'E' ? 'East' : 'West') + '). The front office knows it owes you help.' : 'The team is ' + ord(rankNow) + ' in the ' + (t.conf === 'E' ? 'East' : 'West') + ' and needs help, but you are not the player they are building around.')
+      : (franchise ? 'A middle-of-the-pack team (' + ord(rankNow) + ' in the ' + (t.conf === 'E' ? 'East' : 'West') + ') with you as the face of it. They will listen, within reason.' : 'A middle-of-the-pack team (' + ord(rankNow) + ' in the ' + (t.conf === 'E' ? 'East' : 'West') + '), and the big calls are not yours to make yet.');
+    return { tier, rankNow, ranks, top3, franchise, elite, listen: Math.round(listen * 100), why };
+  }
+  const ord = (n) => n + (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th');
   // the stars you could bring in: the best player of other teams, plus a few top-60 players on bad teams
   function targets(st) {
-    const L = st.league, me = st.player, mine = L.teams[st.teamId]; if (!mine) return [];
-    const out = [];
+    const L = st.league, mine = L.teams[st.teamId]; if (!mine) return [];
+    const ts = teamStatus(st), out = [];
     L.teams.forEach((t) => { if (t.id === st.teamId) return; NBA.rosterOf(L, t).slice(0, 2).forEach((q, i) => { if (ovr(q) >= 76 && (i === 0 || t.wins < 38)) out.push({ q, t }); }); });
-    return out.sort((a, b) => ovr(b.q) - ovr(a.q)).slice(0, 8).map(({ q, t }) => ({ id: q.id, name: q.name, pos: q.pos, age: q.age, ovr: Math.round(ovr(q)), team: t.nick, teamId: t.id, teamWins: t.wins, odds: pitchOdds(st, q, t) }));
+    return out.sort((a, b) => ovr(b.q) - ovr(a.q)).slice(0, 8).map(({ q, t }) => ({ id: q.id, name: q.name, pos: q.pos, age: q.age, ovr: Math.round(ovr(q)), team: t.nick, teamId: t.id, teamWins: t.wins, odds: pitchOdds(st, q, t, 'recruit', ts), push: pitchOdds(st, q, t, 'demand', ts) }));
   }
-  function pitchOdds(st, q, t) {
-    const L = st.league, me = ovr(st.player), mine = L.teams[st.teamId], my2 = NBA.rosterOf(L, mine).slice(0, 2).map(ovr);
-    let p = 0.12 + (me - 80) * 0.012 + (mine.wins - 41) * 0.006 + (41 - t.wins) * 0.006 + (q.age >= 29 ? 0.08 : q.age <= 24 ? -0.08 : 0) - (ovr(q) - 82) * 0.012 + foMood(st) * 0.04 + (flags(st).media || 0) * 0.01;
-    if (NBA.Room && NBA.Room.fitOf) p += 0.02 * NBA.Room.fitOf(st);
-    return Math.round(clamp(p, 0.03, 0.7) * 100);
+  // the chance a move happens = will the front office do it (the team's need, your standing) x can it be done (his team selling, his interest)
+  function pitchOdds(st, q, t, how, ts) {
+    ts = ts || teamStatus(st); const L = st.league, me = ovr(st.player), mine = L.teams[st.teamId], listen = ts.listen / 100;
+    const sell = clamp(0.4 + (41 - t.wins) * 0.012 + (q.age >= 30 ? 0.12 : q.age >= 28 ? 0.05 : q.age <= 24 ? -0.12 : 0) - (ovr(q) - 82) * 0.015, 0.08, 0.9);
+    const interest = clamp(0.35 + (me - 80) * 0.025 + (mine.wins - 41) * 0.006 + (t.wins < 35 ? 0.1 : 0) + (q.age >= 29 ? 0.08 : 0) + (flags(st).media || 0) * 0.01 + (NBA.Room && NBA.Room.fitOf ? 0.02 * NBA.Room.fitOf(st) : 0), 0.05, 0.95);
+    const p = how === 'demand' ? Math.min(1, listen * 1.2) * sell : listen * Math.sqrt(sell * interest);
+    return Math.round(clamp(p, 0.02, 0.8) * 100);
   }
   // recruit (his choice: a sign-and-trade he asks for) or demand (you push the front office to trade for him)
   function buildTeam(st, id, how) {
     const f = flags(st), L = st.league; if (f.builtYear === L.year) throw new Error('one big move a summer');
     const tg = targets(st).find((x) => x.id === id); if (!tg) throw new Error('not available');
     const r = rng(st, 'build|' + L.year + '|' + id + '|' + how)(), q = L.players[id], his = L.teams[tg.teamId], mine = L.teams[st.teamId];
-    const odds = (how === 'demand' ? tg.odds * 0.85 + 6 : tg.odds) / 100; f.builtYear = L.year;
-    if (how === 'demand') setFo(st, -0.6);
+    const ts = teamStatus(st), odds = (how === 'demand' ? tg.push : tg.odds) / 100; f.builtYear = L.year;
+    if (how === 'demand') setFo(st, ts.tier === 'contender' ? -1 : -0.6);
     if (r >= odds) {
       if (how === 'demand') setFo(st, -0.6);
       DC().log(st, { kind: 'trade', title: 'Team building', tone: 'bad', text: how === 'demand' ? 'You pushed the front office to trade for ' + q.name + '. The ' + his.nick + ' said no, and your bosses did not enjoy the pressure.' : 'You recruited ' + q.name + ' all summer. He stayed with the ' + his.nick + '.' });
-      return { ok: false, text: how === 'demand' ? 'The ' + his.nick + ' would not move ' + q.name + ', and the front office did not love being pushed.' : q.name + ' listened, thanked you, and stayed with the ' + his.nick + '.' };
+      const foNo = ts.listen < 35 && r < 1 - ts.listen / 100 * 0.6;
+      return { ok: false, text: foNo ? (ts.tier === 'contender' ? 'The front office shut it down: "We are a top-3 team. We are not trading our depth for ' + q.name + '."' : 'The front office did not take your call seriously. You are not the one they are building around.') + (how === 'demand' ? ' Pushing them did not help your standing.' : '') : how === 'demand' ? 'The front office tried, but the ' + his.nick + ' would not move ' + q.name + '. Your bosses did not love being pushed.' : q.name + ' listened, thanked you, and stayed with the ' + his.nick + '.' };
     }
     // the deal: he comes over for your team's best non-star (the closest rating below him); salaries are left to the cap system's normal matching
     const pool = NBA.rosterOf(L, mine).filter((x) => x.id !== 'user' && x.id !== st.player.id).sort((a, b) => ovr(b) - ovr(a));
@@ -52,7 +79,7 @@
     return { ok: true, text: q.name + ' is coming! ' + out.name + ' heads to the ' + his.nick + ' in the deal.' + (ovr(q) >= 85 ? ' The timeline is already calling it a super team.' : '') };
   }
   // the front office's mood moves with the season (called once per offseason)
-  function foSeason(st) { const f = flags(st), L = st.league; if (f.foYear === L.year) return; f.foYear = L.year; const t = L.teams[st.teamId]; if (t) setFo(st, t.wins >= 50 ? 0.4 : t.wins <= 30 ? -0.3 : 0.1); }
+  function foSeason(st) { const f = flags(st), L = st.league; teamStatus(st); if (f.foYear === L.year) return; f.foYear = L.year; const t = L.teams[st.teamId]; if (t) setFo(st, t.wins >= 50 ? 0.4 : t.wins <= 30 ? -0.3 : 0.1); }
 
   // ---------------------------------------------------------------- 2. Team USA, the Olympics and the World Cup (or your own country)
   const NON_US = new Set(['Nikola Jokic', 'Nikola Jokić', 'Giannis Antetokounmpo', 'Luka Doncic', 'Luka Dončić', 'Victor Wembanyama', 'Shai Gilgeous-Alexander', 'Domantas Sabonis', 'Pascal Siakam', 'Rudy Gobert', 'Lauri Markkanen', 'Franz Wagner', 'Moritz Wagner', 'Alperen Sengun', 'Alperen Şengün', 'Kristaps Porzingis', 'Nikola Vucevic', 'Jonas Valanciunas', 'Jamal Murray', 'RJ Barrett', 'Luguentz Dort', 'Josh Giddey', 'Dyson Daniels', 'Dennis Schroder', 'Rui Hachimura', 'Deni Avdija', 'Bogdan Bogdanovic', 'Andrew Nembhard', 'Bennedict Mathurin', 'Zach Edey', 'Dillon Brooks', 'Kelly Olynyk', 'Jakob Poeltl', 'Alex Sarr', 'Zaccharie Risacher', 'Bilal Coulibaly', 'Josh Green', 'Joe Ingles', 'Patty Mills', 'Jusuf Nurkic', 'Ivica Zubac', 'Dario Saric', 'Clint Capela', 'Nikola Topić', 'Tidjane Salaün', 'Ousmane Dieng', 'Guerschon Yabusele', 'Josh Okogie', 'Precious Achiuwa', 'Jock Landale']);
@@ -203,6 +230,6 @@
     return f.summerLeague;
   }
 
-  NBA.Core = { foMood, foLabel, targets, buildTeam, foSeason, nationalTeam, playNational, intlYear, allTime, historyCheck, ALLTIME, badges, summerOptions, doSummer, LOAD, seriesState, momentOf, MOMENT_OPTS, captainCheck, mentees, mentor, unhappyTeammate, coStar, summerLeague };
+  NBA.Core = { foMood, foLabel, teamStatus, pitchOdds, targets, buildTeam, foSeason, nationalTeam, playNational, intlYear, allTime, historyCheck, ALLTIME, badges, summerOptions, doSummer, LOAD, seriesState, momentOf, MOMENT_OPTS, captainCheck, mentees, mentor, unhappyTeammate, coStar, summerLeague };
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
