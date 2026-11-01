@@ -1051,3 +1051,13 @@ New `src/arc.js` (NBA.Arc), human careers only.
 - Fix: both now cap `fgm <= tpm + (fga - tpa)`; the live engine also only reuses the recorded shot chart when its makes match the box too (otherwise it draws the shots from the counts).
 - Checks: `scripts/live-check.js` OK (2,271 games, 204 in-game decisions); a 38,164-game sweep has no impossible lines and no chart/box disagreement.
 - Baseline: 76.57 / 12.13 (was 12.14: the phantom baskets in those games are gone).
+
+## v108 — sim as you go
+
+Game results are no longer laid out at tip-off of the season: each game's result is decided when it is played (`NBA.Game.resolveGame`, called as the season advances, when a live game starts, and for every game when you skip to the recap).
+- **The season model stays the anchor.** The season simulation still runs ahead (it keeps the league table, the user's stat line and the awards realistic), but its game-by-game results are only a provisional layout. Each regular-season game draws from the wins left in the season's budget (sampling without replacement), weighted by home court, the opponent's strength and your line that night (a 40-point night makes a win likelier). With no decisions the season ends exactly on the model's win total (simgo-check: 0 difference in 9/9 seasons) while ~45% of individual results differ from the layout.
+- **Decisions are real.** A decision puts a modifier on a game's win chance (`it.mod`): series moments (the "Win chance X% → Y%" card), the defensive assignment (+1 to +5%), a co-star's injury (−6% a game while he is out, part of it back depending on how you respond). A modifier that swings a game is a real extra win or loss: your record, the opponent's record and the standings move (a +8% edge on every game was worth +7 wins on average).
+- **Playoffs.** Inside a series the same budget applies (the deciding game stays the decider). A decision that swings a playoff game plays the rest of that series out at the matchup's odds and replays the season with that series result forced, so the bracket, the champion, the Finals MVP and your playoff line follow. The playoff line now also follows the logged games.
+- **The timeline follows real results**: a game's fan posts (streaks, blowouts, elimination, champion) are rebuilt when its result is decided; the "Regular season complete" banner shows the real record.
+- Unchanged: the play-in keeps the season model's result; the bulk autopilot never resolves games, so the calibration baseline is identical (76.57 / 12.13).
+- Tests: `scripts/simgo-check.js` (results decided live, totals hold, modifiers move wins, series valid after swings and replays).

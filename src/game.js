@@ -948,8 +948,13 @@
       // a first-round clincher is not a story; every later series end, every loss and every Game 7 is
       items.forEach((x, i) => { if (x.k === 'g' && x.po && !x.dnp) { const nx = items[i + 1]; if (!nx || nx.k === 'hdr' || nx.rnd !== x.rnd) { x.last = 1; if (x.rnd !== 'First Round' || !x.w || x.g7 || x.pi) x.pp = 1; } } }); }
 
-    // the timeline's take on the nights that stood out: a big game, a triple-double, a bad night, a streak, a blowout, the end of a series (own random stream)
-    { const rnd = NBA.Reporters.mulberry(shotSeed(st, 9700)), F = NBA.Feed, tm = t; let w = 0, l = 0, nFan = 0, gp = 0, sp = 0, sr = 0, sa = 0; const ovrNow = ovr(st.player);
+    gameFeed(st, items, t, null);
+    return items;
+  }
+
+  // the timeline's take on the nights that stood out (all games at tip-off; one game again once its result is decided live)
+  function gameFeed(st, items, t, only) {
+    const rnd = NBA.Reporters.mulberry(shotSeed(st, 9700 + (only == null ? 0 : 31 * only))), F = NBA.Feed, tm = t; let w = 0, l = 0, nFan = 0, gp = 0, sp = 0, sr = 0, sa = 0; const ovrNow = ovr(st.player);
       const CMP = { PG: ['Magic Johnson', 'John Stockton', 'Chris Paul', 'Steph Curry', 'Jason Kidd'], SG: ['Michael Jordan', 'Kobe Bryant', 'Dwyane Wade', 'James Harden', 'Klay Thompson'], SF: ['LeBron James', 'Kevin Durant', 'Scottie Pippen', 'Kawhi Leonard', 'Larry Bird'], PF: ['Tim Duncan', 'Kevin Garnett', 'Dirk Nowitzki', 'Giannis Antetokounmpo', 'Charles Barkley'], C: ['Shaquille O\'Neal', 'Hakeem Olajuwon', 'Nikola Jokic', 'Kareem Abdul-Jabbar', 'Bill Russell'] };
       const cmpList = CMP[st.player.pos] || CMP.SF, talker = (() => { const tl = (NBA.Decisions.state(st).flags.pr || { tally: [] }).tally || []; return tl.slice(-6).filter((x) => (x && (x.tone || x)) === 'trash' || (x && (x.tone || x)) === 'fight').length >= 1; })(), lastP = st.proSeasons && st.proSeasons.length ? st.proSeasons[st.proSeasons.length - 1] : null;
       items.forEach((x) => {
@@ -959,11 +964,11 @@
         if (x.po && x.last) kind = x.rnd === 'NBA Finals' && x.w ? 'champ' : x.w ? 'po' : 'elim';
         else if (x.pi) kind = x.w ? 'playin' : 'elim';
         else if (!x.po && nFan < 14) { if (x.pt >= 40) kind = 'big'; else if (td) kind = 'td'; else if (w === 7) { kind = 'streakW'; n = 7; } else if (l === 5) { kind = 'streakL'; n = 5; } else if (((g) => g.grade === 'poor' || g.grade === 'awful')(gameGrade(ovrNow, x, gp > 1 ? (sp - x.pt) / (gp - 1) : 0, gp - 1)) && x.m >= 18) kind = talker && rnd() < 0.6 ? 'talker' : 'bad'; else if (x.fga >= 15 && x.fgm / x.fga < 0.34) kind = talker && rnd() < 0.4 ? 'talker' : 'brick'; else if (x.to >= 6) kind = 'tov'; else if (x.pt >= 28 && rnd() < 0.5) kind = 'good'; else if (margin >= 25) kind = x.w ? 'blowoutWin' : 'blowoutLoss'; }
-        if (!kind) return;
+        const mine = only == null || items[only] === x;
+        if (!kind) { if (mine && only != null) { delete x.fan; delete x.fk; } return; }
         const c = { name: st.player.name, team: tm.nick, city: tm.city, opp: x.o, pts: x.pt, reb: x.rb, ast: x.as, score: x.f + '-' + x.a, n, round: x.rnd || '', pos: st.player.pos, margin, tov: x.to, mins: x.m, fg: x.fgm != null ? x.fgm + '-' + x.fga : '', fgp: x.fga ? Math.round(100 * x.fgm / x.fga) : '', salary: Math.round(st.contract.salary), cmp: cmpList[Math.floor(rnd() * cmpList.length)], cmp2: cmpList[Math.floor(rnd() * cmpList.length)], ppg: gp >= 8 ? (Math.round(sp / gp * 10) / 10).toFixed(1) : '', rpg: gp >= 8 ? (Math.round(sr / gp * 10) / 10).toFixed(1) : '', apg: gp >= 8 ? (Math.round(sa / gp * 10) / 10).toFixed(1) : '', last: lastP ? (Math.round(lastP.pts * 10) / 10).toFixed(1) : '' };
-        x.fan = F.posts(kind, c, rnd, kind === 'champ' ? 4 : 3); x.fk = kind; if (!x.po) nFan++;
-      }); }
-    return items;
+        const posts = F.posts(kind, c, rnd, kind === 'champ' ? 4 : 3); if (mine) { x.fan = posts; x.fk = kind; } if (!x.po) nFan++;
+      });
   }
 
   let SNAP = null;   // JSON of the career state at tip-off, so a mid-season game-plan change can replay the season (same league results, new user games)
@@ -1111,6 +1116,8 @@
     const L = st.league, rec = st.proSeasons[st.proSeasons.length - 1], d = wins ? 1 : -1, t = L.teams[st.teamId];
     st.clutchDelta = (st.clutchDelta || 0) + d; rec.wins += d; rec.losses -= d; t.wins += d; t.losses -= d;
     const row = st.leagueSnap && st.leagueSnap.standings && st.leagueSnap.standings.find((x) => x.id === st.teamId); if (row) { row.wins += d; row.losses -= d; }
+    const eh = (st.matchLog || []).find((x) => x.k === 'hdr' && /^Regular season complete/.test(x.text)); if (eh) eh.text = 'Regular season complete · ' + rec.wins + '-' + rec.losses;   // the banner follows the real record
+    const ot = !it.po && L.teams.find((x) => x.nick === it.o && x.id !== st.teamId); if (ot) { ot.wins -= d; ot.losses += d; const r2 = st.leagueSnap && st.leagueSnap.standings && st.leagueSnap.standings.find((x) => x.id === ot.id); if (r2) { r2.wins -= d; r2.losses += d; } }
     it.w = wins ? 1 : 0; let f = it.f, a = it.a; if (wins && f <= a) { f = a; a = it.f; if (f === a) f++; } else if (!wins && f >= a) { a = f; f = it.a; if (f === a) a++; }
     it.f = f; it.a = a; it.pm = Math.round((f - a) * (it.m / 48) * 1.1);
   }
@@ -1659,24 +1666,66 @@
     return { base: Math.round(pg * 100), pg, pser, opts: out, si: it.si, hdrIdx: h };
   }
   function momentPlay(st, idx, key) {
-    const it0 = st.matchLog[idx], od = momentOdds(st, idx), pn = od.opts[key] / 100, pg = od.pg, was = !!it0.w, r = NBA.Decisions.rng(st, 'moment|' + st.league.year + '|' + idx + '|' + key);
-    let wins = was;
-    if (!was && pn > pg && r() < (pn - pg) / (1 - pg)) wins = true;
-    else if (was && pn < pg && r() < (pg - pn) / pg) wins = false;
-    if (wins === was || !SNAP) return { flipped: false, wins: was, base: od.base, now: od.opts[key] };
-    // the series from here: the games already played, this one, then the rest played out at the matchup's odds
-    const si = it0.si, seq = []; let w = 0, l = 0;
-    st.matchLog.forEach((x, i) => { if (i < idx && x.k === 'g' && x.po && !x.pi && x.si === si) { if (x.w) w++; else l++; } });
+    const it = st.matchLog[idx], od = momentOdds(st, idx), d = (od.opts[key] - od.base) / 100;
+    it.mod = Math.round(((it.mod || 0) + d) * 1000) / 1000;   // applied when the game is played (sim as you go)
+    return { flipped: false, base: od.base, now: od.opts[key] };
+  }
+  // ---- sim as you go: a game's result is decided when it is played, not at tip-off of the season.
+  // Regular season: the season model still says how many games this team should win (that keeps the league realistic), so each night draws from
+  // the wins left in that budget, weighted by the opponent, home court and your night; a decision's modifier (it.mod) moves the odds on top and
+  // a swing it causes is a real extra win or loss. Playoffs: the same inside each series; a swing replays the rest of the series and the bracket.
+  const lgt = (p) => Math.log(p / (1 - p)), sgm = (x) => 1 / (1 + Math.exp(-x));
+  function setScore(x, won) {
+    x.w = won ? 1 : 0; let f = x.f, a = x.a; if (won && f <= a) { f = a; a = x.f; if (f === a) f++; } else if (!won && f >= a) { a = f; f = x.a; if (f === a) a++; }
+    x.f = f; x.a = a; if (x.m != null && !x.dnp) { x.pm = Math.round((f - a) * (x.m / 48) * 1.1); x.r = rateItem(x); }
+  }
+  function seriesSer(st, si) { let w = 0, l = 0; st.matchLog.forEach((x) => { if (x.k === 'g' && x.po && !x.pi && x.si === si) { if (x.w) w++; else l++; x.ser = (w === l ? 'Series tied ' : w > l ? 'Up ' : 'Down ') + Math.max(w, l) + '-' + Math.min(w, l); } }); }
+  function nightShift(st, it) {
+    const rec = st.proSeasons[st.proSeasons.length - 1] || {}, L = st.league, ot = L.teams.find((x) => x.nick === it.o), pw = L.teams.reduce((a, x) => a + (x.power || 0), 0) / L.teams.length;
+    let sh = (it.h ? 0.12 : -0.12) + (ot ? 0.05 * (pw - (ot.power || pw)) : 0);
+    if (it.dnp) sh -= 0.45; else sh += 0.45 * ((it.pt - (rec.pts || it.pt)) + 0.7 * ((it.as - (rec.ast || it.as)) + (it.rb - (rec.reb || it.rb)))) / Math.max(4, (rec.pts || 10) * 0.35);
+    return clamp(sh, -1.5, 1.5);
+  }
+  function resolveGame(st, idx) {
+    const items = st.matchLog, it = items && items[idx]; if (!it || it.k !== 'g' || it.rs || st.autoPlay) return null;
+    if (it.pi) { it.rs = 1; return { w: !!it.w, flipped: false }; }   // play-in games keep the season model's result
+    const r = mulberry(shotSeed(st, 12000 + idx * 7)), was = !!it.w, mod = it.mod || 0, team = (x) => x.k === 'g' && !x.pi && (it.po ? x.po && x.si === it.si : !x.po);
+    const sIdx = []; items.forEach((x, i) => { if (team(x)) sIdx.push(i); }); const lastI = sIdx[sIdx.length - 1];
+    // the budget: this game and the unplayed ones (a series' deciding game stays where it is so the series still ends on it)
+    const pool = sIdx.filter((i) => i >= idx && !items[i].rs && !(it.po && i === lastI)); let g = was, p = 0.5;
+    if (pool.includes(idx) && pool.length > 1) {
+      const wins = pool.filter((i) => items[i].w).length; p = wins / pool.length;
+      if (p > 0 && p < 1) p = sgm(lgt(clamp(p, 0.02, 0.98)) + nightShift(st, it));
+      g = r() < p;
+      if (g !== was) { const cand = pool.filter((i) => i !== idx && !!items[i].w === g); if (cand.length) setScore(items[cand[Math.floor(r() * cand.length)]], !g); else g = was; }
+      setScore(it, g);
+    }
+    // a decision's modifier: a real extra win (or loss) on top of the budget
+    let swing = false;
+    if (mod > 0 && !g && r() < Math.min(1, mod / Math.max(0.05, 1 - p))) swing = true; else if (mod < 0 && g && r() < Math.min(1, -mod / Math.max(0.05, p))) swing = true;
+    it.rs = 1;
+    if (swing) { g = !g; if (!it.po) flipGame(st, it, g); else playoffSwing(st, idx, g); }
+    const cur = st.matchLog[idx]; cur.rs = 1;
+    if (cur.po) seriesSer(st, cur.si);
+    recomputeFromLog(st); gameFeed(st, st.matchLog, st.league.teams[st.teamId], idx);
+    return { w: !!cur.w, flipped: !!cur.w !== was, swing };
+  }
+  // a decision swung a playoff game: the rest of the series is played out at the matchup's odds and the season replays with that series result
+  function playoffSwing(st, idx, wins) {
+    const it0 = st.matchLog[idx], si = it0.si, od = momentOdds(st, idx), r = NBA.Decisions.rng(st, 'swing|' + st.league.year + '|' + idx), seq = [];
+    let w = 0, l = 0; st.matchLog.forEach((x, i) => { if (i < idx && x.k === 'g' && x.po && !x.pi && x.si === si) { if (x.w) w++; else l++; } });
     seq.push(wins ? 1 : 0); if (wins) w++; else l++;
     while (w < 4 && l < 4) { const g = r() < od.pser ? 1 : 0; seq.push(g); if (g) w++; else l++; }
+    if (!SNAP) { setScore(it0, wins); return; }
+    const keep = JSON.parse(JSON.stringify(it0));
     st.poForce = Object.assign({}, st.poForce, { [si]: { w, l } });
     replay(st, st.seasonMoves || [], { force: true });
-    let k = 0, w1 = 0, l1 = 0;
-    st.matchLog.forEach((x, i) => { if (x.k !== 'g' || !x.po || x.pi || x.si !== si) return; if (i >= idx && k < seq.length) { const want = seq[k++]; if (!!x.w !== !!want) { const sc = gameScore(!!want, x.pt ? x.pt + 38 : 0); x.w = want; x.f = sc.f; x.a = sc.a; x.ot = sc.ot; if (x.pm != null) x.pm = Math.round((x.f - x.a) * ((x.m || 0) / 48) * 1.1); } }
-      if (x.w) w1++; else l1++; x.ser = (w1 === l1 ? 'Series tied ' : w1 > l1 ? 'Up ' : 'Down ') + Math.max(w1, l1) + '-' + Math.min(w1, l1); });
-    recomputeFromLog(st);
-    return { flipped: true, wins, base: od.base, now: od.opts[key], series: { w, l } };
+    st.matchLog[idx] = keep; setScore(keep, wins); keep.rs = 1;
+    let k = 0; st.matchLog.forEach((x, i) => { if (i > idx && x.k === 'g' && x.po && !x.pi && x.si === si) { k++; if (seq[k] != null) setScore(x, !!seq[k]); } });
+    seriesSer(st, si);
   }
+  // play (decide) every game up to an index, in order: a swing can replay the season, so the log is read again each time
+  function resolveThrough(st, end) { for (let i = 0; i < Math.min(end, (st.matchLog || []).length); i++) { const x = st.matchLog[i]; if (x.k === 'g' && !x.rs) resolveGame(st, i); } }
   function resolveClutch(st, key) {
     const idx = st.matchIdx || 0, it0 = st.matchLog[idx]; if (!it0 || !it0.cl || !CL_OPTS[key]) throw new Error('no clutch moment');
     const L = st.league, p = st.player, sit = clutchSituation(it0), od = clutchOdds(st, it0, sit.need), Dc = NBA.Decisions;
@@ -1782,6 +1831,8 @@
         g40: reg.filter((g) => g.pt >= 40).length, g50: reg.filter((g) => g.pt >= 50).length, high: Math.max.apply(null, reg.map((g) => g.pt)), totPts: sumOf(reg, 'pt'), totReb: sumOf(reg, 'rb'), totAst: sumOf(reg, 'as'), avgRating: Math.round(mean(reg, 'r') * 100) / 100 });
       rec.avgTD = n >= 30 && rec.pts >= 10 && rec.reb >= 10 && rec.ast >= 10;
     } else { Object.assign(rec, { gp: 0, mins: 0, pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, tov: 0, td: 0, dd: 0, g40: 0, g50: 0, high: 0, totPts: 0, totReb: 0, totAst: 0, avgRating: null }); rec.avgTD = false; }
+    const pog = items.filter((x) => x.k === 'g' && x.po && !x.dnp);
+    if (rec.playoff && pog.length && !st.autoPlay) { Object.assign(rec.playoff, { gp: pog.length, mins: mean(pog, 'm'), pts: mean(pog, 'pt'), reb: mean(pog, 'rb'), ast: mean(pog, 'as'), stl: mean(pog, 'st'), blk: mean(pog, 'bk') }); if (st.pre && st.playoffLines.length > st.pre.nPlayoff) Object.assign(st.playoffLines[st.playoffLines.length - 1], rec.playoff); }
     shootingFromLog(rec, items);
     st.career.td += rec.td - oldTd;
     if (!!rec.avgTD !== !!oldAvg) { const d = rec.avgTD ? 1 : -1; st.career.tdSeasons += d; if (rec.pts >= 30) st.career.td30Seasons += d; }
@@ -2288,6 +2339,6 @@
     return st;
   }
 
-  Object.assign(NBA, { capFor, marketCurve, Game: { scaleBox, momentOdds, momentPlay, hsOptions, FAMILY, familyOf, canAfford, needScholarship, INTL_PLANS, setClause, euroBuyout, intlReport, nbaInterest, draftWant, pushDraft, callupStint, assignGLeague, teamWant, pushForSpot, stintYears, stashPlayer, stashStay, joinFromStash, buyoutM, intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { capFor, marketCurve, Game: { scaleBox, momentOdds, momentPlay, resolveGame, resolveThrough, hsOptions, FAMILY, familyOf, canAfford, needScholarship, INTL_PLANS, setClause, euroBuyout, intlReport, nbaInterest, draftWant, pushDraft, callupStint, assignGLeague, teamWant, pushForSpot, stintYears, stashPlayer, stashStay, joinFromStash, buyoutM, intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

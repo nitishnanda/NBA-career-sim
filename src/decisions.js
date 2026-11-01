@@ -685,8 +685,8 @@
       const eff = []; if (o.chem) eff.push({ k: 'meter', f: 'chem', d: o.chem }); if (o.media) eff.push({ k: 'meter', f: 'media', d: o.media });
       const won = !!it.w, line = it.pt + ' points, ' + it.rb + ' rebounds, ' + it.as + ' assists';
       const text = (key === 'takeover' ? 'You told the coach to run everything through you tonight.' : key === 'trust' ? 'You told the group to keep moving the ball: the right play, every time.' : key === 'defense' ? 'You asked for their best player. Your night starts on the other end.' : 'You called the group out in the film room. Everybody heard it.') + (st.oddsWords ? ' The odds moved ' + (res.now > res.base ? 'your way.' : res.now < res.base ? 'against you.' : 'nowhere.') : ' Your win chance tonight: about ' + res.now + '% (it was ' + res.base + '%).') + ' Game ' + ctx.n + ' is next.';
-      if (key === 'callout' && !won) eff.push({ k: 'meter', f: 'chem', d: -0.3 });
-      return { done: true, tone: 'neutral', text, effects: eff, journal: { tone: won ? 'good' : 'bad', text: ctx.title + ' vs the ' + ctx.opp + ': ' + text + ' You had ' + line + (won ? ' in a win.' : ' in a loss.') + (res.flipped ? ' The approach changed the result.' : '') } };
+      if (key === 'callout') eff.push({ k: 'meter', f: 'chem', d: -0.15 });
+      return { done: true, tone: 'neutral', text, effects: eff, journal: { tone: 'neutral', text: ctx.title + ' vs the ' + ctx.opp + ': ' + text } };
     },
     auto() { return { key: 'trust' }; },
   });
@@ -772,7 +772,8 @@
       { key: 'help', label: ctx.rim ? 'Anchor the paint' : 'Roam and help', blurb: 'Stay home, protect the rim and the passing lanes.', vibe: 'Team defense' },
       { key: 'no', label: 'Save it for offense', blurb: 'Someone else takes him. You score.', vibe: 'Offense first' }] }; },
     choose(st, ctx, key) {
-      const it = st.matchLog[ctx.idx]; it.asg = key === 'take' ? 1 : 0;
+      const it = st.matchLog[ctx.idx], dv = Math.max(st.player.attrs.perD, st.player.attrs.rimP); it.asg = key === 'take' ? 1 : 0;
+      it.mod = Math.round(((it.mod || 0) + (key === 'take' ? (dv >= 82 ? 0.05 : dv >= 74 ? 0.03 : 0.01) : key === 'help' ? 0.015 : 0)) * 1000) / 1000;   // a real edge tonight: decided when the game is played
       if (key === 'take') NBA.Game.scaleBox(st, it, { pts: 0.9, ast: 1, reb: 1, def: 1.5 }); else if (key === 'help') NBA.Game.scaleBox(st, it, { pts: 0.97, reb: 1.1, def: 1.25 }); else NBA.Game.scaleBox(st, it, { pts: 1.08, def: 0.85 });
       const eff = key === 'take' ? [{ k: 'meter', f: 'media', d: 0.2 }, { k: 'meter', f: 'locker', d: 0.2 }] : [];
       return { done: true, tone: 'neutral', text: key === 'take' ? 'You asked for ' + ctx.star.name + '. The coach smiled.' : key === 'help' ? 'You will anchor the team defense tonight.' : 'Someone else gets ' + ctx.star.name + '. You are here to score.', effects: eff };
@@ -790,7 +791,8 @@
       { key: 'steady', label: 'Play your game', blurb: 'Do not force it. The system will cover.', vibe: 'Steady' }] }; },
     choose(st, ctx, key) {
       const o = key === 'stepup' ? { pts: 1.15, ast: 1.03, reb: 1.03 } : key === 'share' ? { pts: 1.05, ast: 1.15 } : { pts: 1.06, ast: 1.04 };
-      const n = NBA.Arc.scaleRange(st, ctx.idx, ctx.games, o);
+      const n = NBA.Arc.scaleRange(st, ctx.idx, ctx.games, o), m = -0.06 + (key === 'stepup' ? 0.03 : key === 'share' ? 0.02 : 0);   // without him the team is worse; how you respond gets some of it back
+      { let k = 0; (st.matchLog || []).forEach((x, i) => { if (i >= ctx.idx && k < ctx.games && x.k === 'g' && !x.po) { k++; x.mod = Math.round(((x.mod || 0) + m) * 1000) / 1000; } }); }
       const eff = key === 'share' ? [{ k: 'meter', f: 'chem', d: 0.3 }] : key === 'stepup' ? [{ k: 'meter', f: 'media', d: 0.2 }] : [];
       return { done: true, tone: 'neutral', text: (key === 'stepup' ? 'It is on you for the next ' + n + ' games.' : key === 'share' ? 'You will run the offense through everyone for the next ' + n + ' games.' : 'Same you, a few more touches for the next ' + n + ' games.') + ' ' + ctx.name + ' will be back after that.', effects: eff, journal: { tone: 'neutral', text: ctx.name + ' went down (' + ctx.inj + ', ~' + ctx.games + ' games). ' + (key === 'stepup' ? 'You carried the scoring.' : key === 'share' ? 'You got everyone involved.' : 'You stayed steady.') } };
     },

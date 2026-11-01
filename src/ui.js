@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v107';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v108';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -706,10 +706,11 @@
     return false;
   };
   function advanceOne() {
-    const items = S.matchLog; let got = false;
+    let got = false;
     if (holdAt()) return;
-    while (S.matchIdx < items.length) {
-      const it = items[S.matchIdx]; S.matchIdx++;
+    while (S.matchIdx < S.matchLog.length) {
+      if (S.matchLog[S.matchIdx].k === 'g') G.resolveGame(S, S.matchIdx);   // sim as you go: the result is decided now (a swing can rebuild the log)
+      const items = S.matchLog, it = items[S.matchIdx]; S.matchIdx++;
       if (it.k === 'g') got = true;
       if (got) { while (items[S.matchIdx] && items[S.matchIdx].k === 'hdr' && !(items[S.matchIdx].dl && !S.dlDone) && !(items[S.matchIdx].ps != null) && !items[S.matchIdx].asw) S.matchIdx++; break; }
     }
@@ -758,7 +759,7 @@
         playing ? ctl('Pause', () => { stopAuto(); render(); }, 'primary big-btn', 'pause') : ctl(S.liveMode ? (nextIsPo ? '📺 Watch next playoff game live' : '📺 Watch next game live') : nextIsPo ? 'Sim next playoff game' : 'Sim next game', sim1, 'primary big-btn', 'play'),
         !asDone && asIdx >= 0 && !nextIsPo ? ctl('Sim to All-Star', () => autoplay(() => S.matchIdx > asIdx), 'ghost', 'ff') : (regEndIdx >= 0 && idx <= regEndIdx ? ctl('Sim to playoffs', () => autoplay(() => S.matchIdx > regEndIdx), 'ghost', 'ff') : null),
         h('div', { class: 'speed' }, h('span', null, 'SPEED'), ['1x', '2x', 'inst'].map((k) => h('button', { class: speed === k ? 'on' : '', onclick: () => { speed = k; render(); } }, k === 'inst' ? 'Instant' : k))),
-        h('div', { class: 'simmini' }, ctl('Sim 10', () => { let c = 0; autoplay(() => c++ >= 10); }, 'tiny'), ctl('Skip to recap »', () => { stopAuto(); S.matchIdx = items.length; S.stage = 'season_recap'; go(); }, 'tiny'), h('label', { class: 'small muted', style: 'margin-left:10px;white-space:nowrap' }, h('input', { type: 'checkbox', checked: !S.noPress, onchange: (e) => { S.noPress = !e.target.checked; save(); } }), ' Press conferences'), h('label', { class: 'small muted', style: 'margin-left:10px;white-space:nowrap' }, h('input', { type: 'checkbox', checked: !S.noSocial, onchange: (e) => { S.noSocial = !e.target.checked; save(); } }), ' Social moments'), h('label', { class: 'small muted', style: 'margin-left:10px;white-space:nowrap' }, h('input', { type: 'checkbox', checked: !!S.liveMode, onchange: (e) => { S.liveMode = e.target.checked; save(); render(); } }), ' Watch games live')));
+        h('div', { class: 'simmini' }, ctl('Sim 10', () => { let c = 0; autoplay(() => c++ >= 10); }, 'tiny'), ctl('Skip to recap »', () => { stopAuto(); G.resolveThrough(S, S.matchLog.length); S.matchIdx = S.matchLog.length; S.stage = 'season_recap'; go(); }, 'tiny'), h('label', { class: 'small muted', style: 'margin-left:10px;white-space:nowrap' }, h('input', { type: 'checkbox', checked: !S.noPress, onchange: (e) => { S.noPress = !e.target.checked; save(); } }), ' Press conferences'), h('label', { class: 'small muted', style: 'margin-left:10px;white-space:nowrap' }, h('input', { type: 'checkbox', checked: !S.noSocial, onchange: (e) => { S.noSocial = !e.target.checked; save(); } }), ' Social moments'), h('label', { class: 'small muted', style: 'margin-left:10px;white-space:nowrap' }, h('input', { type: 'checkbox', checked: !!S.liveMode, onchange: (e) => { S.liveMode = e.target.checked; save(); render(); } }), ' Watch games live')));
     const schedule = nextIsPo || poG.length
       ? h('div', null, h('div', { class: 'row small caps' }, h('span', null, 'Postseason'), h('span', { class: 'spacer' }), h('span', null, (poG.length ? poG[poG.length - 1].rnd + ' · ' + poG[poG.length - 1].ser : 'Bracket set'))), h('div', { class: 'bar2' }, h('i', { style: 'width:100%' })))
       : h('div', null, h('div', { class: 'row small caps' }, h('span', null, 'Regular season schedule'), h('span', { class: 'spacer' }), h('span', null, 'Game ' + reg.length + ' / ' + regTotal + ' · ' + (100 * reg.length / Math.max(1, regTotal)).toFixed(0) + '%')),
@@ -1881,7 +1882,8 @@
     stopAuto(); const items = S.matchLog;
     if (holdAt()) { render(); return; }
     liveSkipHdrs(); if (holdAt()) { render(); return; }
-    const it = items[S.matchIdx];
+    if (S.matchLog[S.matchIdx] && S.matchLog[S.matchIdx].k === 'g' && !S.matchLog[S.matchIdx].dnp) G.resolveGame(S, S.matchIdx);   // decided at tip-off of this game
+    const it = S.matchLog[S.matchIdx];
     if (!it || it.k !== 'g' || it.dnp) { advanceOne(); save(); render(); return; }
     const idx = S.matchIdx, L = S.league, p = S.player, tm = L.teams[S.teamId], opT = L.teams.find((x) => x.nick === it.o), Dc = DEC();
     let clutch = null;
