@@ -315,6 +315,8 @@
   Q('origin', 'intlNoEL', 0, 'You did not play in the EuroLeague, so some scouts called you a bit of a mystery. Do you feel you have something to prove?');
   Q('draftnight', 'stashed', 0, 'The {draftTeam} drafted you and left you in Europe for {stashYears} more {stashWord}. Were you frustrated waiting?');
   Q('draftnight', 'stashed', 0, 'Being stashed overseas can feel like a team doubting you. Did it feel that way?');
+  Q('young', 'glRookie', 0, 'You spent {glYears} {glWord} in the G League before this call-up. What did that time change for you?');
+  Q('young', 'glRookie', 0, 'The {draftTeam} kept you in the G League until they felt you were ready. How hard was it to wait?');
 
   // ---------------------------------------------------------------- how the player can answer
   const TONES = {
@@ -379,7 +381,7 @@
     // the road through Europe: no college, no high school: a country, a league and a club
     c.intl = !!(st.origin && st.origin.intl); const IC = c.intl ? NBA.Intl.COUNTRIES[st.origin.country] : null;
     c.country = IC ? IC.name : ''; c.homeLeague = IC ? IC.league : ''; c.intlRookie = c.rookieYear && c.intl; c.intlEL = c.intlRookie && cy.some((y) => y.tier === 'euroleague'); c.intlHonor = c.intlRookie && !!(cl && cl.honors && cl.honors[0]); c.intlNoEL = c.intlRookie && !c.intlEL;
-    c.usRookie = c.rookieYear && !c.intl; c.stashed = c.rookieYear && !!(st.stash && st.stash.joined); c.stashYears = st.stash ? st.stash.years + 1 : ''; c.stashWord = c.stashYears === 1 ? 'year' : 'years';
+    c.usRookie = c.rookieYear && !c.intl; c.stashed = c.rookieYear && !!(st.stash && st.stash.joined && st.stash.kind !== 'gl'); c.glRookie = c.rookieYear && !!(st.stash && st.stash.joined && st.stash.kind === 'gl'); c.glYears = st.stash ? st.stash.years + 1 : ''; c.glWord = c.glYears === 1 ? 'year' : 'years'; c.stashYears = st.stash ? st.stash.years + 1 : ''; c.stashWord = c.stashYears === 1 ? 'year' : 'years';
     if (c.intl) { c.hasCollege = false; c.oneDone = false; c.fourYr = false; c.collegeTitle = false; c.collegeHonor = false; c.transferred = false; c.homeTown = IC.name; }
     c.hsPrep = c.rookieYear && /prep powerhouse/.test(hs); c.hsHome = c.rookieYear && /stayed home/.test(hs); c.hsCircuit = c.rookieYear && /circuit/.test(hs);
     // the combine and draft night, from what actually happened to him

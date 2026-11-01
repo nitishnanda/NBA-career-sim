@@ -28,7 +28,7 @@
       { n: 'Darüşşafaka Youth', city: 'Istanbul', tier: 'academy', prestige: 3, minStars: 1 }, { n: 'Bahçeşehir Koleji', city: 'Istanbul', tier: 'domestic', prestige: 3, minStars: 2 }, { n: 'Anadolu Efes', city: 'Istanbul', tier: 'euroleague', prestige: 5, minStars: 4 }, { n: 'Fenerbahçe Beko', city: 'Istanbul', tier: 'euroleague', prestige: 5, minStars: 4 } ] },
   };
   const ORDER = ['uk', 'spain', 'france', 'germany', 'italy', 'serbia', 'slovenia', 'croatia', 'lithuania', 'greece', 'turkey'];
-  const TIERS = { academy: { label: 'Youth / junior side', mins: 27, usg: 1.26, ts: 0.012, pace: 72, rank: 0, stock: -1.2 }, domestic: { label: 'Top domestic league', mins: 22, usg: 1.1, ts: 0, pace: 74, rank: 1, stock: 0.2 }, euroleague: { label: 'EuroLeague', mins: 18, usg: 0.88, ts: -0.01, pace: 71, rank: 2, stock: 2.6 } };
+  const TIERS = { academy: { label: 'Youth / junior side', mins: 27, usg: 1.26, ts: 0.012, pace: 72, rank: 0, stock: -1.2 }, domestic: { label: 'Top domestic league', mins: 22, usg: 1.1, ts: 0, pace: 74, rank: 1, stock: 0.2 }, euroleague: { label: 'EuroLeague', mins: 18, usg: 0.88, ts: -0.01, pace: 71, rank: 2, stock: 2.6 }, gleague: { label: 'NBA G League', mins: 31, usg: 1.4, ts: -0.004, pace: 84, rank: 3, stock: 0 } };
   // when a club can offer: the better the stars and the season, the higher the tier
   function clubsFor(country, stars, tierMin) {
     const c = COUNTRIES[country]; if (!c) return [];
