@@ -1006,3 +1006,21 @@ New module `src/core.js` (NBA.Core). Everything is for a person playing (gated `
   8. Lottery night for lottery teams (real odds, the draw), and push the front office for a prospect; the league's draft honours the plan (`L.draftPlan`).
 - Baseline: default mode unchanged (76.57 / 12.14); decision mode 77.02 / 12.35 (v103: 77.02 / 12.42).
 - Tests: `scripts/story-check.js`, `scripts/ui-core.js` extended, `scripts/core-check.js` extended (flips, series validity).
+
+## v105 — the world around your box score
+
+New `src/world.js` (NBA.World); everything is for a person playing, and game details come from a hash of the game (no season random stream moves).
+1. **Teammates on the court**: every game has your top four teammates' lines and the opponent's two best players (from their season lines, with hot nights), shown in a "Full box" drop-down under the featured game; a callout when a teammate drops 33+ or an opposing star 38+.
+2. **The game told by quarters**: quarter-by-quarter scores (sum to the final; overtime games are tied after four) and a one-line game story ("Down 8 at the half, then a 33-point third quarter turned it").
+3. **The other 29 teams**: each summer, "Around the league": risers and fallers (vs last season), tanking teams and their young cornerstone, dynasties, the old star weighing retirement, the young riser, and an unhappy star on a bad team who asks out and is really traded to a contender.
+4. **Agent**: reads your market value vs pay, the extension (and the bigger number you would qualify for), who has the money; in free agency he can leak your interest in a suitor (their offer +6%, your team's front office -0.4).
+5. **All-Star**: the top vote-getter starter is a captain and drafts his team (the best / your guys / your rival first, with different effects; drafting the best gives +5% to win the game); the All-Star Game box shows the top scorers on both sides.
+6. **Offseason tabs**: Team moves (build your team, free-agent meetings, lottery, coach, agent), League & teammates (around the league, Team USA, rival, teammates, mentee, unhappy teammate), Life & money (life events, incentives).
+7. **Awards night**: for each race you finished top 3 in: vote share, how close it was, and a speech (thank the team / your family / the doubters) or a reaction (congratulate / "I was robbed").
+8. **Evolve your game** (30+, every two summers, 1 upgrade point): add a three, move to the post, become a playmaker, or a defensive anchor.
+9. **Incentives**: one ask per contract (All-Star $2M, 70 games $1.5M, All-NBA $4M, title $3M), paid each summer the condition is met.
+10. **The championship moment**: the Finals recap becomes "🏆 NBA CHAMPIONS", and the season recap has a trophy card with your playoff line and the parade speech.
+11. **Jersey numbers**: pick a number on each new team; retired numbers are blocked (real retired numbers for the big franchises), a teammate's number can be bought (stars may refuse); history on the career page.
+- **Fix**: "no social pop-ups", "no press" and live mode now survive a mid-season replay (a trade or buyout used to switch them back on).
+- Tests: `scripts/world-check.js` (quarters always sum to the final, stories clean, incentives pay, jerseys, captain draft); `scripts/ui-core.js` covers tabs, agent, jersey, full box, champion card; `ui-allstar` and `ui-market` fixed (they were blocked by news pop-ups since v101).
+- Baseline: default mode unchanged (76.57 / 12.14).

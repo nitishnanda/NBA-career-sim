@@ -26,9 +26,12 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   if (nRec.length) { await nRec[0].click(); await page.waitForTimeout(400); t = await page.evaluate(() => document.body.innerText); ok('OFFSEASON recruit resolves', /(is coming|listened, thanked you|front office shut it down|did not take your call)/.test(t) && /They listen to you: \d+%/.test(t) && /made your move/i.test(t)); }
   // national team: force an event year and a selection
   const nt = await page.evaluate(() => { const st = window.__NBA_UI.state; while ((st.league.year + 1) % 4 !== 0) st.league.year++; const n = window.NBA.Core.nationalTeam(st); window.__NBA_UI.go(); return n && { picked: n.picked, rank: n.rank, team: n.team }; });
-  await page.waitForTimeout(400); t = await page.evaluate(() => document.body.innerText);
+  await page.waitForTimeout(400); await page.click('button:text-matches("League & teammates")'); await page.waitForTimeout(300); t = await page.evaluate(() => document.body.innerText);
+  ok('OFFSEASON tabs: league storylines', /Around the league this summer|Nothing here/i.test(t));
   if (nt && nt.picked) { ok('OFFSEASON Team USA card', /Team USA wants you/i.test(t), nt); await page.click('button:text-matches("Represent")'); await page.waitForTimeout(300); t = await page.evaluate(() => document.body.innerText); ok('OFFSEASON Olympics result', /Olympics: (Gold|Silver|Bronze|Quarterfinals|Group)/.test(t), t.match(/Team USA at[^\n]*/)); }
   else console.log('national team: not selected', JSON.stringify(nt));
+  await page.click('button:text-matches("Life & money")'); await page.waitForTimeout(300); t = await page.evaluate(() => document.body.innerText); ok('OFFSEASON tabs: life & money', /Incentives|Nothing here|Someone special|The wedding|Your city|Give back|An investment|Take care of home|A new baby/i.test(t));
+  await page.click('button:text-matches("Team moves")'); await page.waitForTimeout(200); t = await page.evaluate(() => document.body.innerText); ok('OFFSEASON agent card', /Your agent/i.test(t));
   // training: the summer program
   await page.evaluate(() => { const st = window.__NBA_UI.state; st.stage = 'training'; st.afterTraining = 'pro'; window.__NBA_UI.go(); });
   await page.waitForTimeout(400); t = await page.evaluate(() => document.body.innerText);
@@ -41,9 +44,15 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   await page.evaluate(() => { const st = window.__NBA_UI.state, G = window.NBA.Game; G.train(st, G.autoAlloc(st.player, G.trainingInfo(st).points)); st.player.age = Math.max(31, st.player.age); st.contract.left = 1; st.stage = 'pro_ready'; window.__NBA_UI.go(); });
   await page.waitForTimeout(400); t = await page.evaluate(() => document.body.innerText);
   ok('PRESEASON load management + contract year', /Load management/i.test(t) && /Contract year/i.test(t));
+  ok('PRESEASON jersey card', /Pick your number/i.test(t));
+  await page.fill('input[type=number]', '77'); await page.click('button:text-is("Wear it")'); await page.waitForTimeout(300);
+  let jn = await page.evaluate(() => window.__NBA_UI.state.jersey); if (!jn) { const b = await page.$('button:text-matches("Buy it from")'); if (b) { await b.click(); await page.waitForTimeout(200); } jn = await page.evaluate(() => window.__NBA_UI.state.jersey); if (!jn) { await page.fill('input[type=number]', '98'); await page.click('button:text-is("Wear it")'); await page.waitForTimeout(200); jn = await page.evaluate(() => window.__NBA_UI.state.jersey); } }
+  ok('PRESEASON jersey picked', !!jn, jn);
   await page.click('button:text-matches("Light rest")'); const lm = await page.evaluate(() => window.__NBA_UI.state.loadMgmt); ok('PRESEASON load mgmt set', lm === 'light', { lm });
   // the season: notes, the history panel, then a playoff series moment and the recap
   await page.click('button:text-matches("Tip off")'); await page.waitForTimeout(800);
+  { const fb = await page.evaluate(() => { const st = window.__NBA_UI.state; st.matchIdx = 6; st.matchLog.slice(0, 6).forEach((x) => { x.pd = x.ppd = x.sd = x.md = x.pcast = x.sij = x.cd = 1; }); st.dec.pending = null; st.decResult = null; window.__NBA_UI.go(); const d = document.querySelector('details.wbox'); if (d) d.open = true; return d ? d.innerText : null; });
+    ok('SEASON full box (teammates + quarters + story)', fb && /Q1/.test(fb) && /Your teammates/i.test(fb) && /📖/.test(fb), (fb || '').slice(0, 160)); await page.evaluate(() => { const st = window.__NBA_UI.state; st.matchIdx = 0; window.__NBA_UI.go(); }); }
   t = await page.evaluate(() => document.body.innerText); ok('SEASON history watch panel', /History watch/i.test(t) && /all-time|top-50/i.test(t));
   const mo = await page.evaluate(() => { const st = window.__NBA_UI.state, C = window.NBA.Core; const i = st.matchLog.findIndex((x, k) => x.k === 'g' && x.po && !x.pi && !x.dnp && C.momentOf(st, k)); return { i, n: st.matchLog.length, lm: st.proSeasons[st.proSeasons.length - 1].gp }; });
   if (mo.i >= 0) {
@@ -61,5 +70,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   await page.evaluate(() => { const st = window.__NBA_UI.state; st.decResult = null; st.dec.pending = null; st.matchIdx = st.matchLog.length; st.stage = 'season_recap'; window.__NBA_UI.go(); });
   const cr = await page.evaluate(() => { const b = Array.from(document.querySelectorAll('button')).find((x) => /career/i.test(x.textContent)); if (b) b.click(); return !!b; }); await page.waitForTimeout(500);
   t = await page.evaluate(() => document.body.innerText); ok('CAREER badges + history', /Badges/i.test(t) && /History watch/i.test(t), { cr });
+  { const rc = await page.evaluate(() => { const st = window.__NBA_UI.state, r = st.proSeasons[st.proSeasons.length - 1]; if (!r.awards.includes('NBA Champion')) r.awards.push('NBA Champion'); st.stage = 'season_recap'; window.__NBA_UI.go(); return document.body.innerText; });
+    ok('RECAP champion card + parade', /NBA CHAMPIONS/i.test(rc) && /This is for the city/i.test(rc)); await page.click('button:text-matches("This is for the city")'); await page.waitForTimeout(200); const t2 = await page.evaluate(() => document.body.innerText); ok('RECAP parade resolves', /🎉/.test(t2)); }
   await browser.close(); console.log(errors.length ? 'errors: ' + JSON.stringify(errors).slice(0, 800) : 'errors: none'); process.exit(errors.length ? 1 : 0);
 })();

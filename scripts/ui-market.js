@@ -25,6 +25,7 @@ let PG = null;
   const answerPress = async () => { for (let k = 0; k < 10; k++) { if (await page.$('.qcard button')) await page.click('.qcard button >> nth=0'); else if (await page.$('.wkcard button')) await page.click('.wkcard button >> nth=0'); else break; await page.waitForTimeout(60); } };
   // ---- 1. the deadline: a trade request comes due with suitors
   await page.click('text=/Tip off the .* season/');
+  await page.evaluate(() => { const S = window.__NBA_UI.state; S.noSocial = true; S.matchLog.forEach((x) => { if (x.k === 'g' && !x.po) { x.md = x.pcast = x.sij = x.h_alpha = x.h_rumor = x.h_benched = x.h_buyout = 1; } }); });   // keep the news pop-ups out of this test's way
   // the opener is a hyped game: the press room comes first. Three kinds of answer, each with the words you would say; a trash-talk option appears when a question has bite
   await page.waitForSelector('h1:has-text("Press conference")');
   const pk0 = await page.evaluate(() => ({ cards: document.querySelectorAll('.qcard').length, reporters: Array.from(document.querySelectorAll('.qcard .small.muted')).filter((e) => / · /.test(e.textContent)).length, image: /media image/i.test(document.body.innerText) }));

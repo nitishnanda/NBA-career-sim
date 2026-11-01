@@ -4408,6 +4408,172 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
 })(typeof window !== 'undefined' ? window : globalThis);
 
 (function (g) {
+  'use strict';
+  // The world around your box score: teammates' and opponents' lines and the game told by quarters, the other 29 teams' storylines,
+  // an agent who works, awards night, evolving your game as the body ages, contract incentives, the championship moment, and your jersey number.
+  // Human careers only. Game details are derived from a hash of the game (nothing in the season's random streams moves).
+  const NBA = (g.NBA = g.NBA || {});
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  const ovr = (p) => NBA.ovr(p);
+  const DC = () => NBA.Decisions;
+  const flags = (st) => DC().state(st).flags;
+  const hashS = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+  const mul = (seed) => { let a = seed >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+  const gameRng = (st, it, k) => mul(hashS((st.player.name || '') + '|' + st.league.year + '|' + (it.po ? 'p' : 'r') + it.n + '|' + (it.o || '') + '|' + k));
+
+  // ---------------------------------------------------------------- 1-2. the rest of the box score and the game by quarters
+  const seasonLine = (q, year) => { const h = q.hist || [], row = h.find((x) => x[0] === year) || h[h.length - 1]; return row ? { pts: row[4] / 10, reb: row[5] / 10, ast: row[6] / 10 } : { pts: Math.max(4, (ovr(q) - 55) * 0.8), reb: 4, ast: 2.5 }; };
+  function lineFor(r, base, won, star) { const hot = r() < (star ? 0.05 : 0.025) ? 1.45 : 1, f = (0.72 + 0.56 * r()) * hot * (won ? 1.04 : 0.96); return { pts: Math.max(0, Math.round(base.pts * f)), reb: Math.max(0, Math.round(base.reb * (0.6 + 0.8 * r()))), ast: Math.max(0, Math.round(base.ast * (0.55 + 0.9 * r()))) }; }
+  function boxOf(st, it) {
+    if (!it || it.k !== 'g' || it.dnp == null && it.pt == null) return null; const L = st.league, t = L.teams[st.teamId], ot = L.teams.find((x) => x.nick === it.o); if (!t) return null;
+    const r = gameRng(st, it, 'box'), mates = NBA.rosterOf(L, t).filter((q) => q.id !== 'user' && q.id !== st.player.id).slice(0, 4), opp = ot ? NBA.rosterOf(L, ot).slice(0, 2) : [];
+    const ours = mates.map((q, i) => Object.assign({ id: q.id, name: q.name, pos: q.pos }, lineFor(r, seasonLine(q, L.year), !!it.w, i === 0)));
+    const theirs = opp.map((q, i) => Object.assign({ id: q.id, name: q.name, pos: q.pos }, lineFor(r, seasonLine(q, L.year), !it.w, i === 0)));
+    return { ours, theirs, quarters: quarters(st, it), story: null };
+  }
+  function quarters(st, it) {
+    if (it.f == null || it.a == null) return null; const r = gameRng(st, it, 'q'), split = (tot, n) => { const w = Array.from({ length: n }, () => 0.8 + 0.4 * r()), s = w.reduce((a, b) => a + b, 0), out = w.map((x) => Math.round(tot * x / s)); out[n - 1] += tot - out.reduce((a, b) => a + b, 0); return out; };
+    let f = it.f, a = it.a, ot = null;
+    if (it.ot) { const m = it.f - it.a, fo = Math.max(8, Math.abs(m) + 3) + Math.floor(r() * 5); ot = [fo, fo - m]; f -= ot[0]; a -= ot[1]; }
+    const qf = split(f, 4), qa = split(a, 4); if (ot) { qf.push(ot[0]); qa.push(ot[1]); }
+    return { us: qf, them: qa };
+  }
+  function gameStory(st, it) {
+    const q = quarters(st, it); if (!q) return ''; const cum = (arr, n) => arr.slice(0, n).reduce((a, b) => a + b, 0), half = cum(q.us, 2) - cum(q.them, 2), three = cum(q.us, 3) - cum(q.them, 3);
+    const big = q.us.slice(0, 4).map((x, i) => [x - q.them[i], i]).sort((a, b) => Math.abs(b[0]) - Math.abs(a[0]))[0], qn = ['first', 'second', 'third', 'fourth'][big[1]];
+    let s = half > 0 ? 'Up ' + half + ' at the half' : half < 0 ? 'Down ' + -half + ' at the half' : 'Tied at the half';
+    s += it.w ? (half < 0 ? ', then a ' + q.us[2] + '-point third quarter turned it' : three > 10 ? ' and never let it get close' : ', and you held on late') : (half > 0 ? ', then it slipped away' + (big[0] < 0 ? ' in the ' + qn + ' quarter' : '') : three < -10 ? ' and it was over before the fourth' : ' and the comeback fell short');
+    if (it.ot) s += '. Overtime decided it'; return s + '.';
+  }
+
+  // ---------------------------------------------------------------- 3. the other 29 teams
+  function leagueStories(st) {
+    const f = flags(st), L = st.league; if (f.lgStories && f.lgStories.y === L.year) return f.lgStories.list;
+    const lw = L.lastWins || {}, out = [], r = mul(hashS('lg|' + st.player.name + '|' + L.year)), others = L.teams.filter((t) => t.id !== st.teamId);
+    others.slice().sort((a, b) => Math.abs(b.wins - (lw[b.nick] || b.wins)) - Math.abs(a.wins - (lw[a.nick] || a.wins))).slice(0, 4).forEach((t) => { const was = lw[t.nick]; if (was == null) return; const d = t.wins - was; if (d >= 12) out.push({ k: 'rise', t: t.nick, text: '📈 The ' + t.nick + ' jumped from ' + was + ' to ' + t.wins + ' wins. Nobody saw it coming.' }); else if (was >= 50 && t.wins <= 40) out.push({ k: 'fall', t: t.nick, text: '📉 The ' + t.nick + ' fell from ' + was + ' wins to ' + t.wins + '. The window might be closing.' }); });
+    const bottom = others.slice().sort((a, b) => a.wins - b.wins).slice(0, 3);
+    bottom.forEach((t) => { const y = NBA.rosterOf(L, t).filter((q) => q.age <= 22).sort((a, b) => ovr(b) - ovr(a))[0]; if (y) out.push({ k: 'tank', t: t.nick, text: '🧱 The ' + t.nick + ' (' + t.wins + ' wins) are all in on the rebuild around ' + y.name + ' (' + y.age + '). Lottery balls, here they come.' }); });
+    others.forEach((t) => { const h = t.hist || []; const titles = h.slice(-3).filter((x) => x.po >= 5).length; if (titles >= 2) out.push({ k: 'dyn', t: t.nick, text: '👑 The ' + t.nick + ' have won ' + titles + ' of the last ' + Math.min(3, h.length) + ' titles. Dynasty talk is everywhere.' }); });
+    // the stars: the old guard, the unhappy star (a real move), the young riser
+    const stars = []; others.forEach((t) => NBA.rosterOf(L, t).slice(0, 2).forEach((q) => stars.push({ q, t }))); stars.sort((a, b) => ovr(b.q) - ovr(a.q));
+    const old = stars.find((x) => x.q.age >= 35); if (old) out.push({ k: 'old', t: old.t.nick, text: '🕰️ ' + old.q.name + ' (' + old.q.age + ') says he will decide on retirement "when it feels right". Every arena is treating it like a farewell.' });
+    const young = stars.find((x) => x.q.age <= 22 && ovr(x.q) >= 78); if (young) out.push({ k: 'young', t: young.t.nick, text: '🌟 ' + young.q.name + ' (' + young.q.age + ', ' + young.t.nick + ') is the next one. Scouts are using the word "franchise".' });
+    const sad = stars.slice(0, 20).find((x) => x.t.wins <= 30 && x.q.age >= 26);
+    if (sad && r() < 0.6) { const dest = others.filter((t) => t.id !== sad.t.id && t.wins >= 45).sort((a, b) => b.wins - a.wins)[Math.floor(r() * 3)], back = dest && NBA.rosterOf(L, dest).filter((q) => q.id !== 'user')[2];
+      if (dest && back) { NBA.swapPlayers(L, sad.t, sad.q, dest, back); (L.moves = L.moves || []).push({ year: L.year, phase: 'offseason', text: sad.q.name + ' requested a trade from the ' + sad.t.nick + ' and got it: he is a ' + dest.nick + ' now (' + back.name + ' goes back)', a: sad.t.nick, b: dest.nick }); out.unshift({ k: 'trade', t: dest.nick, text: '🚨 ' + sad.q.name + ' asked out of the ' + sad.t.nick + ' (' + sad.t.wins + ' wins) and got his wish: he joins the ' + dest.nick + '. The West/East just shifted.'.replace('West/East', dest.conf === 'E' ? 'East' : 'West') }); } }
+    f.lgStories = { y: L.year, list: out.slice(0, 7) }; return f.lgStories.list;
+  }
+
+  // ---------------------------------------------------------------- 4. an agent who works
+  function agentAdvice(st, d) {
+    const out = [], c = st.contract; if (!c || !d) return out;
+    if (d.marketSalary && c.salary && d.marketSalary > c.salary * 1.25 && c.left >= 1) out.push('You are underpaid: the market says about $' + Math.round(d.marketSalary) + 'M a year and you make $' + Math.round(c.salary) + 'M. Be patient; your next deal is where it gets fixed.');
+    if (d.extension) out.push(d.extension.crit ? 'There is a bigger number if you make ' + d.extension.crit + ' next season. Betting on yourself could pay, but an injury would cost you.' : 'The extension on the table is fair. Signing now buys security; waiting buys leverage.');
+    if (d.market && d.market.length) { const top = d.market.slice().sort((a, b) => (b.salary || 0) - (a.salary || 0)).slice(0, 3); out.push('The money is with ' + top.map((m) => 'the ' + (m.nick || m.name)).join(', ') + '.'); }
+    if (c.left === 1 && !d.expiring) out.push('Contract year next season. Every game is an audition.');
+    if (!out.length) out.push('Quiet summer. Play well and the money will come.');
+    return out;
+  }
+  function leak(st, d, teamId) {
+    const f = flags(st), L = st.league; if (f.leakYear === L.year) throw new Error('one leak a summer'); f.leakYear = L.year;
+    const m = (d.market || []).find((x) => x.teamId === teamId); if (!m) throw new Error('no such suitor'); m.salary = Math.round((m.salary || 0) * 1.06 * 10) / 10; m.leaked = true;
+    if (NBA.Core) NBA.Core.setFo(st, -0.4); DC().apply(st, [{ k: 'meter', f: 'media', d: 0.2 }]);
+    DC().log(st, { kind: 'brand', title: 'Agent', tone: 'neutral', text: 'Your agent leaked your interest in the ' + (m.nick || m.name) + '. Their number went up; your own front office was not thrilled.' });
+    return { text: 'Your agent leaked that you love the ' + (m.nick || m.name) + '. Their offer went up about 6%. Your current team noticed.' };
+  }
+
+  // ---------------------------------------------------------------- 7. awards night
+  const RACE = { mvp: 'MVP', dpoy: 'Defensive Player of the Year', roy: 'Rookie of the Year', mip: 'Most Improved Player' };
+  function awardsNight(st) {
+    const L = st.league, rec = st.proSeasons[st.proSeasons.length - 1], snap = st.leagueSnap; if (!rec || !snap || !snap.race) return [];
+    const out = [];
+    Object.keys(RACE).forEach((k) => { const list = (snap.race[k] || []).slice().sort((a, b) => b.s - a.s); const i = list.findIndex((x) => x.isUser); if (i < 0 || i > 2) return;
+      const ex = list.map((x) => Math.exp(x.s / 7)), tot = ex.reduce((a, b) => a + b, 0) || 1, won = i === 0 && (rec.awards || []).some((a) => a.indexOf(RACE[k] === 'MVP' ? 'MVP' : RACE[k]) === 0 || a === RACE[k]);
+      out.push({ key: k, award: RACE[k], rank: i + 1, won: i === 0, share: Math.round(ex[i] / tot * 100), winner: list[0].isUser ? null : list[0].name, gap: i ? Math.round((ex[0] - ex[i]) / tot * 100) : Math.round((ex[0] - (ex[1] || 0)) / tot * 100) }); });
+    return out;
+  }
+  function awardSpeech(st, key, choice) {
+    const f = flags(st), L = st.league, an = (f.awardNight = f.awardNight || {}), k = L.year + ':' + key; if (an[k]) throw new Error('done'); an[k] = choice;
+    const r = mul(hashS('speech|' + st.player.name + '|' + k))(); let text, eff;
+    if (choice === 'team') { eff = [{ k: 'meter', f: 'locker', d: 0.4 }, { k: 'meter', f: 'chem', d: 0.3 }]; text = 'You called your teammates up on stage. The room will remember that.'; }
+    else if (choice === 'family') { eff = [{ k: 'meter', f: 'media', d: 0.4 }]; text = 'You thanked your family and your mom cried. The clip did numbers.'; }
+    else if (choice === 'doubters') { eff = r < 0.55 ? [{ k: 'meter', f: 'media', d: 0.5 }] : [{ k: 'meter', f: 'media', d: -0.4 }]; text = r < 0.55 ? 'You named every doubter. The timeline loved it.' : 'The doubters speech came off bitter. Even on your big night.'; }
+    else if (choice === 'classy') { eff = [{ k: 'meter', f: 'media', d: 0.3 }]; text = 'You congratulated the winner and meant it. Class.'; }
+    else { eff = [{ k: 'meter', f: 'media', d: -0.3 }, { k: 'meter', f: 'locker', d: 0.1 }]; text = 'You said the vote was a joke. Half the internet agrees with you; the other half calls you salty.'; if (NBA.Social && NBA.Social.change) NBA.Social.change(st, 0.01); }
+    DC().apply(st, eff); DC().log(st, { kind: 'award', title: 'Awards night', tone: 'neutral', text });
+    return { text };
+  }
+
+  // ---------------------------------------------------------------- 8. evolving your game as the body ages
+  const EVOLVE = {
+    stretch: { label: 'Add a real three', blurb: 'Hours of catch-and-shoot: your range grows while the legs fade.', attrs: { three: 3, mid: 1 } },
+    post: { label: 'Move to the post', blurb: 'Footwork, fadeaways, bully ball. Old-man game.', attrs: { inside: 2.5, mid: 1.5, reb: 1 } },
+    play: { label: 'Become a playmaker', blurb: 'See the floor, run the offense, make everyone better.', attrs: { passing: 2.5, iq: 1.5 } },
+    anchor: { label: 'Become a defensive anchor', blurb: 'Positioning over athleticism: talk, rotate, protect.', attrs: { perD: 1.5, rimP: 1.5, iq: 1 } },
+  };
+  const canEvolve = (st) => st.player.age >= 30 && st.contract && (flags(st).evolveYear == null || st.league.year - flags(st).evolveYear >= 2);
+  function evolve(st, key) {
+    if (!canEvolve(st)) throw new Error('not now'); const e = EVOLVE[key]; if (!e) throw new Error('no such path'); const p = st.player; flags(st).evolveYear = st.league.year;
+    Object.keys(e.attrs).forEach((a) => { p.attrs[a] = clamp(p.attrs[a] + e.attrs[a], 8, 99); if (p.target && p.target[a] != null) p.target[a] = clamp(p.target[a] + e.attrs[a] * 0.7, 8, 99); });
+    st.bonusPoints = (st.bonusPoints || 0) - 1; DC().log(st, { kind: 'camp', title: 'Evolution', tone: 'good', text: 'You reinvented your game: ' + e.label.toLowerCase() + '.' });
+    return { text: e.label + ': done. ' + e.blurb + ' (It cost one upgrade point of summer time.)' };
+  }
+
+  // ---------------------------------------------------------------- 9. contract incentives
+  const INCENT = { allstar: { label: 'All-Star bonus', pay: 2, test: (r) => (r.awards || []).some((a) => /^All-Star/.test(a)) }, games: { label: '70 games played', pay: 1.5, test: (r) => r.gp >= 70 }, allnba: { label: 'All-NBA bonus', pay: 4, test: (r) => (r.awards || []).some((a) => /All-NBA/.test(a)) }, title: { label: 'Championship bonus', pay: 3, test: (r) => (r.awards || []).some((a) => /Champion/.test(a) && !/Scoring|Contest/.test(a)) } };
+  const cKey = (st) => st.contract ? st.contract.salary + ':' + st.contract.years : '';
+  function addIncentive(st, kind) {
+    const f = flags(st), c = st.contract; if (!c || c.type === 'rookie') throw new Error('no deal'); if (f.incent && f.incent.c === cKey(st)) throw new Error('one per contract');
+    const fo = NBA.Core ? NBA.Core.foMood(st) : 0, r = mul(hashS('inc|' + st.player.name + '|' + st.league.year + kind))(), ok = r < clamp(0.55 + fo * 0.1, 0.2, 0.9);
+    f.incent = { c: cKey(st), kind: ok ? kind : null, y: st.league.year };
+    return ok ? { ok, text: 'The front office agreed: ' + INCENT[kind].label + ' worth $' + INCENT[kind].pay + 'M a season.' } : { ok, text: 'The front office said no to the ' + INCENT[kind].label.toLowerCase() + '.' };
+  }
+  function payIncentives(st) {
+    const f = flags(st), inc = f.incent, rec = st.proSeasons[st.proSeasons.length - 1]; if (!inc || !inc.kind || !rec || rec.year <= inc.y || inc.paid === st.league.year || inc.c !== cKey(st)) return null;
+    inc.paid = st.league.year; const k = INCENT[inc.kind];
+    if (!k.test(rec)) return { ok: false, text: 'Incentive missed: no ' + k.label.toLowerCase() + ' this season.' };
+    st.earnings = (st.earnings || 0) + k.pay; return { ok: true, text: '💰 Incentive hit: ' + k.label + ', +$' + k.pay + 'M.' };
+  }
+
+  // ---------------------------------------------------------------- 10. the championship moment
+  function champMoment(st) {
+    const rec = st.proSeasons[st.proSeasons.length - 1]; if (!rec || !(rec.awards || []).some((a) => /^(NBA )?Champion/.test(a))) return null;
+    const fmvp = (rec.awards || []).some((a) => /Finals MVP/.test(a)), rings = (st.career.awards || {}).Championships || 1, done = (flags(st).parade || {})[st.league.year];
+    return { rings, fmvp, done, po: rec.playoff, team: st.league.teams[st.teamId].nick };
+  }
+  function parade(st, key) {
+    const f = flags(st), pr = (f.parade = f.parade || {}); if (pr[st.league.year]) throw new Error('done'); pr[st.league.year] = key;
+    const T = { humble: ['"This is for the city." You let the fans have the moment.', [{ k: 'meter', f: 'media', d: 0.4 }, { k: 'meter', f: 'locker', d: 0.3 }]], repeat: ['"We are not done." You told the city to save the date for next year.', [{ k: 'meter', f: 'media', d: 0.5 }, { k: 'season', v: { form: 0.003 } }]], doubters: ['You named every person who said you could not win the big one. The parade crowd roared.', [{ k: 'meter', f: 'media', d: 0.3 }]] }[key];
+    DC().apply(st, T[1]); DC().log(st, { kind: 'award', title: 'Parade', tone: 'good', text: T[0] }); if (NBA.Social && NBA.Social.change) NBA.Social.change(st, 0.03);
+    return { text: T[0] };
+  }
+
+  // ---------------------------------------------------------------- 11. your number
+  const RETIRED = { Bulls: [4, 10, 23, 33], Celtics: [1, 2, 3, 5, 6, 10, 14, 15, 16, 17, 18, 19, 21, 22, 23, 24, 25, 31, 32, 33, 34, 35], Lakers: [8, 13, 16, 22, 24, 25, 32, 33, 34, 42, 44, 52, 99], Warriors: [13, 14, 16, 17, 24, 42], Knicks: [10, 12, 15, 19, 22, 24, 33], Heat: [1, 3, 6, 10, 23, 32, 33, 40], Spurs: [6, 9, 12, 13, 20, 21, 32, 44, 50], Mavericks: [12, 15, 22, 24, 41], Pistons: [1, 2, 3, 4, 10, 11, 15, 16, 21, 32, 40], '76ers': [2, 3, 4, 6, 10, 13, 15, 24, 32, 34], Rockets: [11, 22, 23, 24, 33, 34, 45], Jazz: [1, 7, 9, 12, 14, 32, 35, 53], Suns: [5, 6, 7, 9, 13, 24, 31, 32, 33, 34, 42, 44], Bucks: [1, 2, 4, 8, 10, 14, 16, 32, 33] };
+  function jerseyNeed(st) { const j = st.jersey; return !!st.contract && !st.autoPlay && (!j || j.teamId !== st.teamId); }
+  function jerseyTaken(st, teamId) {
+    const L = st.league, t = L.teams[teamId], ret = RETIRED[t.nick] || [], r = mul(hashS('jt|' + t.nick + '|' + L.year)), mates = NBA.rosterOf(L, t).filter((q) => q.id !== 'user').slice(0, 13), taken = {};
+    mates.forEach((q) => { let n; do { n = Math.floor(r() * 56); } while (ret.includes(n) || taken[n]); taken[n] = { id: q.id, name: q.name, star: ovr(q) >= 80 }; });
+    return { retired: ret, taken };
+  }
+  function pickJersey(st, num, buy) {
+    const L = st.league, t = L.teams[st.teamId], n = Math.round(+num); if (!(n >= 0 && n <= 99)) throw new Error('0 to 99');
+    const tk = jerseyTaken(st, st.teamId); if (tk.retired.includes(n)) return { ok: false, text: '#' + n + ' is retired by the ' + t.nick + '. Pick another one.' };
+    const owner = tk.taken[n];
+    if (owner && !buy) return { ok: false, owner, text: owner.name + ' wears #' + n + '. You could buy it from him' + (owner.star ? ' (he is a star, so it will not be cheap)' : '') + '.' };
+    let text = 'You will wear #' + n + ' for the ' + t.nick + '.';
+    if (owner) { const price = owner.star ? 2 : 0.5, r = mul(hashS('jbuy|' + owner.id + '|' + L.year))(); if (owner.star && r < 0.5) return { ok: false, text: owner.name + ' would not sell #' + n + ' at any price. Pick another one.' };
+      st.earnings = Math.max(0, (st.earnings || 0) - price); DC().apply(st, [{ k: 'rel', id: owner.id, name: owner.name, d: 0.4 }]); text = 'You bought #' + n + ' from ' + owner.name + ' for $' + price + 'M (and a watch). ' + text; }
+    const prev = st.jersey; st.jersey = { num: n, teamId: st.teamId, team: t.nick, y: L.year }; (st.jerseys = st.jerseys || []).push({ num: n, team: t.nick, y: L.year });
+    if (prev && prev.num !== n) text += ' (You wore #' + prev.num + ' with the ' + prev.team + '.)';
+    DC().log(st, { kind: 'brand', title: 'Jersey', tone: 'neutral', text }); return { ok: true, text };
+  }
+
+  NBA.World = { boxOf, quarters, gameStory, leagueStories, agentAdvice, leak, awardsNight, awardSpeech, RACE, EVOLVE, canEvolve, evolve, INCENT, addIncentive, payIncentives, champMoment, parade, jerseyNeed, jerseyTaken, pickJersey, RETIRED };
+  if (typeof module !== 'undefined') module.exports = NBA;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+(function (g) {
   // Your following: how many people follow you, what moves it (rating, awards, brand, the press, going viral) and what it is worth (sponsors pay for reach).
   // The number lives in the decision flags (thousands), so it survives a season replay. Human careers only.
   const NBA = (g.NBA = g.NBA || {});
@@ -4857,7 +5023,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     if ((p.yearsPro || 0) <= 1) { inv.rising = true; steps.push('rising'); }
     if (threeRank < 8 && p.attrs.three >= 76) { inv.three = true; steps.push('three'); }
     if (dunkRank < 6 && p.attrs.ath >= 82 && p.age <= 29 && NBA.ovr(p) < 86) { inv.dunk = true; steps.push('dunk'); }
-    if (R.sel) { inv.game = true; steps.push('game'); }
+    if (R.sel) { inv.game = true; if (R.starter && R.rank === 1 && !st.autoPlay) steps.push('captain'); steps.push('game'); }   // the top vote-getter in a conference is a captain: he drafts his team
     // left off the roster: a close miss can still get in when an All-Star is hurt (the commissioner names a replacement); otherwise it stings
     const rr = rng(st, 'replace'); let replaced = false, snub = false;
     if (!R.sel && R.rank && R.rank >= 13 && R.rank <= 16 && rr() < 0.3) replaced = true;
@@ -4912,7 +5078,8 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
   function allStarGame(st, key) {
     const rnd = rng(st, 'game|' + key), R = st.asRoster, rec = st.proSeasons[st.proSeasons.length - 1], p = st.player;
     const avg = (l) => l.reduce((s, x) => s + x.ovr, 0) / Math.max(1, l.length), mine = R.E.some((x) => x.isUser) ? 'E' : 'W', opp = mine === 'E' ? 'W' : 'E';
-    const pw = clamp(0.5 + 0.02 * (avg(R[mine]) - avg(R[opp])) + (key === 'compete' ? 0.012 : 0), 0.3, 0.7), won = rnd() < pw, margin = 2 + Math.floor(rnd() * 14), tot = 318 + Math.floor(rnd() * 30);
+    const cap = (flags(st).asw || {}).res ? flags(st).asw.res.captain : null;
+    const pw = clamp(0.5 + 0.02 * (avg(R[mine]) - avg(R[opp])) + (key === 'compete' ? 0.012 : 0) + (cap === 'best' ? 0.05 : 0), 0.3, 0.75), won = rnd() < pw, margin = 2 + Math.floor(rnd() * 14), tot = 318 + Math.floor(rnd() * 30);
     const hi = Math.round((tot + margin) / 2), lo = tot - hi, f = won ? hi : lo, a = won ? lo : hi;
     const ppg = rec ? rec.pts : 15, k = { compete: 1.12, cruise: 0.8, showtime: 0.95 }[key] * (R.starter ? 1 : 0.85);
     const pts = Math.max(2, Math.round(ppg * 0.85 * k + (rnd() - 0.4) * 9)), reb = Math.max(0, Math.round((rec ? rec.reb : 5) * 0.65 * k + (rnd() - 0.5) * 4)), ast = Math.max(0, Math.round((rec ? rec.ast : 3) * 0.7 * k + (key === 'showtime' ? 3 : 0) + (rnd() - 0.5) * 3));
@@ -4927,7 +5094,9 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     let mvp = won ? zu > top.z : zu > top.z + 1.8;
     const cnt = (st.career.awards || {})['All-Star Game MVP'] || 0; if (mvp && cnt >= 3) mvp = rnd() < (cnt >= 4 ? 0.08 : 0.35);
     const npcMvp = top.x;
-    return { won, f, a, mine, pts, reb, ast, mins, mvp, mvpName: mvp ? p.name : npcMvp.name };
+    // the rest of the box: the top scorers on both sides
+    const others = R[mine].concat(R[opp]).filter((x) => !x.isUser).map((x) => ({ x, z: perf(x) })).sort((u, v) => v.z - u.z).slice(0, 5).map(({ x, z }) => [x.name + (R[mine].includes(x) ? '' : ' (opp)'), Math.max(6, Math.round(18 + z * 7 + (x.name === npcMvp.name && !mvp ? 8 : 0))), Math.max(1, Math.round(4 + rnd() * 6)), Math.max(1, Math.round(3 + rnd() * 6)), Math.round(18 + rnd() * 10)]);
+    return { won, f, a, mine, pts, reb, ast, mins, mvp, mvpName: mvp ? p.name : npcMvp.name, others };
   }
   const risingStars = (st, key) => {
     const rnd = rng(st, 'rising|' + key), o = NBA.ovr(st.player), pw = clamp(0.5 + (key === 'allout' ? 0.03 : 0), 0.3, 0.7), won = rnd() < pw, rec = st.proSeasons[st.proSeasons.length - 1], k = key === 'allout' ? 1.1 : 0.85;
@@ -4942,14 +5111,16 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     dunk: [{ key: 'safe', label: 'Clean and smooth', blurb: 'Polished dunks the judges always like.', vibe: 'Steady' }, { key: 'ambitious', label: 'Something nobody has seen', blurb: 'A 10 if it lands. A bad miss if it does not.', vibe: 'Risky' }, { key: 'prop', label: 'Bring a prop and a guest', blurb: 'Jump over a celebrity. The crowd will talk about it, the judges might not.', vibe: 'Showtime' }],
     game: [{ key: 'compete', label: 'Play like it counts', blurb: 'Hard defense, real minutes, chase the MVP.', vibe: 'Serious' }, { key: 'cruise', label: 'Cruise and enjoy it', blurb: 'Smile, trade jokes with the guys you guard all year.', vibe: 'Relaxed' }, { key: 'showtime', label: 'Showtime', blurb: 'Lobs, behind-the-back passes, a crowd-pleaser.', vibe: 'Entertainer' }],
   };
+  OPTS.captain = [{ key: 'best', label: 'Draft the best players', blurb: 'Win the game. Take the three best players on the board.', vibe: 'Competitive (better odds tonight)' }, { key: 'friends', label: 'Draft your guys', blurb: 'Teammates and friends first. It is a party.', vibe: 'Loyal' }, { key: 'rival', label: 'Draft your rival first', blurb: 'Pick the man you cannot stand with the first pick. Television gold.', vibe: 'Viral' }];
+  const R0 = (st) => { const R = st.asRoster || { E: [], W: [] }; return (R.E || []).concat(R.W || []); };
   OPTS.three2 = OPTS.three.map((o) => Object.assign({}, o, { blurb: o.blurb.replace('Trust the stroke', 'For the title: trust the stroke') })); OPTS.dunk2 = OPTS.dunk;
-  const TITLE = { rising: 'Rising Stars', three: 'Three-Point Contest', three2: 'Three-Point Contest final', dunk: 'Slam Dunk Contest', dunk2: 'Slam Dunk Contest: the last dunk', game: 'The All-Star Game' };
+  const TITLE = { captain: 'All-Star captain', rising: 'Rising Stars', three: 'Three-Point Contest', three2: 'Three-Point Contest final', dunk: 'Slam Dunk Contest', dunk2: 'Slam Dunk Contest: the last dunk', game: 'The All-Star Game' };
   function view(st) {
     const f = flags(st).asw, step = f.steps[f.i], R = st.asRoster || { E: [], W: [] };
     if (f.last) return { step, title: f.last.title, text: f.last.text, tone: f.last.tone, rows: f.last.rows, result: true, options: [] };
     if (step === 'intro') return { step, title: 'All-Star Weekend', text: f.replaced ? 'An All-Star got hurt and the commissioner called your name: you are in as an injury replacement.' : f.snub ? 'You were left off the All-Star team (' + R.rank + 'th in your conference). The fans and the media have noticed.' : R.sel ? (R.starter ? 'You were voted a starter: the fans, the players and the media put you in the starting five.' : 'The coaches picked you as a reserve.') + ' The whole league is in town.' : 'You are not an All-Star this year, but you were invited to the weekend.', roster: R, fan: R.fan, fanRank: R.fanRank, votes: R.votes, invites: f.inv, snub: f.snub, options: [] };
     if (step === 'recap') return { step, title: 'Weekend recap', text: (f.res.lines || []).join(' ') || 'A quiet weekend.', awards: f.res.awards || [], options: [] };
-    return { step, title: TITLE[step], text: { rising: 'Rookies and second-years play a showcase game. The hosts want you in it.', three: 'You are one of the best shooters in the league and the contest wants you. Round one: how do you shoot it?', three2: 'You are in the final. How do you shoot it for the title?', dunk: 'Your athleticism got you an invite to the dunk contest. Your first dunk: what do you try?', dunk2: 'One dunk left. What do you try?', game: 'You are in the game. How do you play it?' }[step], options: OPTS[step], canPass: step !== 'game' && step !== 'three2' && step !== 'dunk2' };
+    return { step, title: TITLE[step], text: { captain: 'You got the most fan votes in your conference, so you are a captain: you draft your own All-Star team, live on television. Who goes first?', rising: 'Rookies and second-years play a showcase game. The hosts want you in it.', three: 'You are one of the best shooters in the league and the contest wants you. Round one: how do you shoot it?', three2: 'You are in the final. How do you shoot it for the title?', dunk: 'Your athleticism got you an invite to the dunk contest. Your first dunk: what do you try?', dunk2: 'One dunk left. What do you try?', game: 'You are in the game. How do you play it?' }[step], options: OPTS[step], canPass: step !== 'game' && step !== 'three2' && step !== 'dunk2' };
   }
   // answering the current step: runs it, files the result, applies what it earns
   function answer(st, key) {
@@ -4983,6 +5154,17 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
       lines.push(d.win ? 'Won the Slam Dunk Contest.' : 'Slam Dunk Contest: finished ' + ['', '2nd', '3rd', '4th'][d.place - 1] + '.');
       D.log(st, { kind: 'asw', title: 'Slam Dunk Contest', tone: d.win ? 'good' : 'neutral', text });
       r = { title: 'Slam Dunk Contest final', text, tone: d.win ? 'good' : 'neutral', rows: d.field.map((x) => [x.name, x.d1, x.d2, x.tot]), cols: ['Dunker', 'Dunk 1', 'Dunk 2', 'Total'] };
+    } else if (step === 'captain') {
+      const all = R0(st), pool = all.filter((x) => !x.isUser).sort((a, b) => b.ovr - a.ovr), d = NBA.Decisions.state(st), rv = d.rival, myT = st.league.teams[st.teamId];
+      let picks;
+      if (key === 'best') picks = pool.slice(0, 3);
+      else if (key === 'friends') { const rel = d.rel || {}; picks = pool.filter((x) => (rel[x.id] && rel[x.id].v > 0) || (myT && x.team === myT.nick)).slice(0, 3); if (picks.length < 3) picks = picks.concat(pool.filter((x) => !picks.includes(x)).slice(0, 3 - picks.length)); }
+      else { const r0 = rv && pool.find((x) => x.id === rv.id); picks = (r0 ? [r0] : []).concat(pool.filter((x) => !r0 || x.id !== r0.id).slice(0, r0 ? 2 : 3)); }
+      f.res.captain = key; const names = picks.map((x) => x.name).join(', ');
+      if (key === 'best') bump(st, { media: 0.2 }); else if (key === 'friends') { NBA.Decisions.apply(st, [{ k: 'meter', f: 'chem', d: 0.3 }]); bump(st, { media: 0.1 }); } else { bump(st, { media: 0.8, brand: 2 }); if (rv) NBA.Decisions.apply(st, [{ k: 'rel', id: rv.id, name: rv.name, d: 0.5 }]); }
+      const text = 'Your first three picks: ' + names + '. ' + (key === 'best' ? 'Pure basketball: you stacked the deck.' : key === 'friends' ? 'You took your guys. The other captain got the better talent, but your bench was having the most fun.' : 'You drafted your rival first. The arena gasped and the clip is everywhere.');
+      lines.push('All-Star captain: drafted ' + names + '.'); NBA.Decisions.log(st, { kind: 'asw', title: 'All-Star captain', tone: 'good', text });
+      r = { title: 'All-Star draft', text, tone: 'good', rows: picks.map((x, i) => ['#' + (i + 1), x.name, x.team, x.ovr]), cols: ['Pick', 'Player', 'Team', 'OVR'] };
     } else if (step === 'rising') {
       const g = risingStars(st, key); f.res.rising = g;
       const text = (g.won ? 'Your team won Rising Stars ' : 'Your team lost Rising Stars ') + g.f + '-' + g.a + ' and you had ' + g.pts + ' points.' + (g.mvp ? ' You were named MVP.' : '');
@@ -4996,7 +5178,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
       if (g.mvp) { grant(st, 'All-Star Game MVP'); bump(st, { media: 1.2, brand: 5 }); feed('asmvp', { name: p.name }); } else bump(st, { media: key === 'showtime' ? 0.5 : 0.2, brand: key === 'showtime' ? 2 : 1 });
       lines.push('All-Star Game: ' + (g.won ? 'won' : 'lost') + ' ' + g.f + '-' + g.a + ', ' + g.pts + '/' + g.reb + '/' + g.ast + (g.mvp ? ', MVP' : '') + '.');
       D.log(st, { kind: 'asw', title: 'All-Star Game', tone: g.mvp ? 'good' : 'neutral', text });
-      r = { title: 'The All-Star Game', text, tone: g.mvp || g.won ? 'good' : 'neutral', rows: [[p.name, g.pts, g.reb, g.ast, g.mins]], cols: ['Player', 'PTS', 'REB', 'AST', 'MIN'] };
+      r = { title: 'The All-Star Game', text, tone: g.mvp || g.won ? 'good' : 'neutral', rows: [[p.name, g.pts, g.reb, g.ast, g.mins]].concat(g.others || []).sort((a, b) => b[1] - a[1]), cols: ['Player', 'PTS', 'REB', 'AST', 'MIN'] };
     }
     f.last = r; return r;
   }
@@ -5706,7 +5888,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
 (function (g) {
   'use strict';
   const NBA = g.NBA;
-  if (typeof require !== 'undefined') { try { require('./picks.js'); require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./feed.js'); require('./legacy.js'); require('./intl.js'); require('./hsdata.js'); require('./eurodata.js'); require('./euro.js'); require('./report.js'); require('./core.js'); require('./story.js'); require('./social.js'); require('./room.js'); require('./live.js'); require('./allstar.js'); require('./cap.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
+  if (typeof require !== 'undefined') { try { require('./picks.js'); require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./feed.js'); require('./legacy.js'); require('./intl.js'); require('./hsdata.js'); require('./eurodata.js'); require('./euro.js'); require('./report.js'); require('./core.js'); require('./story.js'); require('./world.js'); require('./social.js'); require('./room.js'); require('./live.js'); require('./allstar.js'); require('./cap.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
   const D = NBA.data;
   const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
   const ATTRS = D.ATTRS;
@@ -7518,11 +7700,11 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
   // Replay the season from its tip-off snapshot with the player's changes applied (a new game plan, a mid-season move): the league's results come from the same seeds,
   // the games already shown stay exactly as they were, and everything after comes from the new situation.
   function replay(st, moves, opt) {
-    const keep = { idx: st.matchIdx || 0, shotTab: st.shotTab, shotScope: st.shotScope, log: st.matchLog, view: st.view, dec: st.dec, dlDone: st.dlDone, dlChecked: st.dlChecked, style: st.style, styleSeq: st.styleSeq, poPlans: st.poPlans, poPress: st.poPress, poForce: st.poForce, clutchDelta: st.clutchDelta || 0, clutchStats: st.career && st.career.clutch, autoDec: st.autoDec };
+    const keep = { idx: st.matchIdx || 0, shotTab: st.shotTab, shotScope: st.shotScope, log: st.matchLog, view: st.view, dec: st.dec, dlDone: st.dlDone, dlChecked: st.dlChecked, style: st.style, styleSeq: st.styleSeq, poPlans: st.poPlans, poPress: st.poPress, poForce: st.poForce, clutchDelta: st.clutchDelta || 0, clutchStats: st.career && st.career.clutch, autoDec: st.autoDec, noSocial: st.noSocial, noPress: st.noPress, liveMode: st.liveMode };
     const snapObj = JSON.parse(SNAP), startTeam = snapObj.teamId;
     Object.keys(st).forEach((k) => delete st[k]); Object.assign(st, snapObj);
     NBA.Decisions.carry(st, keep.dec);
-    st.style = opt.style || keep.style; st.styleSeq = opt.seq || keep.styleSeq; st.dlDone = keep.dlDone; st.dlChecked = keep.dlChecked; st.seasonMoves = moves; st.poPlans = keep.poPlans || {}; st.poPress = keep.poPress || {}; st.poForce = keep.poForce || null; st.clutchDelta = keep.clutchDelta; if (keep.clutchStats) st.career.clutch = keep.clutchStats; if (keep.autoDec) st.autoDec = true;
+    st.style = opt.style || keep.style; st.styleSeq = opt.seq || keep.styleSeq; st.dlDone = keep.dlDone; st.dlChecked = keep.dlChecked; st.seasonMoves = moves; st.poPlans = keep.poPlans || {}; st.poPress = keep.poPress || {}; st.poForce = keep.poForce || null; st.clutchDelta = keep.clutchDelta; if (keep.clutchStats) st.career.clutch = keep.clutchStats; if (keep.autoDec) st.autoDec = true; ['noSocial', 'noPress', 'liveMode'].forEach((k) => { if (keep[k] != null) st[k] = keep[k]; });   // the player's own switches survive a replay
     moves.forEach((m) => applyMoveState(st, m));
     playSeason(st, { rerun: true });
     const force = moves.length > 0 || !!st.poForce || !!opt.force;
@@ -7996,7 +8178,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v104';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v105';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -8450,7 +8632,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
         h('div', { class: 'ctl' }, h('button', { disabled: !add, onclick: () => { alloc[a] = add - 1; render(); } }, '−'), h('button', { disabled: left <= 0 || add >= 4, onclick: () => { alloc[a] = add + 1; render(); } }, '+')));
     });
     return h('div', null, h('h1', null, 'Offseason training'),
-      h('p', { class: 'muted' }, 'Spend upgrade points (max +4 per attribute). Gains shrink at high ratings and after 31. Natural development and aging happen after you confirm.'), summerCard(),
+      h('p', { class: 'muted' }, 'Spend upgrade points (max +4 per attribute). Gains shrink at high ratings and after 31. Natural development and aging happen after you confirm.'), summerCard(), evolveCard(),
       h('div', { class: 'card' }, h('div', { class: 'row' }, h('h2', { style: 'margin:0' }, left + ' / ' + info.points + ' points left'), h('span', { class: 'spacer' }), h('button', { onclick: () => { alloc = G.autoAlloc(S.player, info.points); render(); } }, 'Auto-allocate'), h('button', { onclick: () => { alloc = {}; render(); } }, 'Reset')), rows,
         h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { try { report = G.train(S, alloc); alloc = {}; go(); } catch (e) { console.error(e); } } }, 'Confirm & advance the offseason'))));
   }
@@ -8470,9 +8652,23 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
         h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { report = null; go(); } }, 'Continue →'))));
   }
 
+  let jerseyMsg = null, jerseyNum = 23;
+  function jerseyCard() {
+    const W = NBA.World; if (!W || S.autoPlay || !S.contract) return null; const t = S.league.teams[S.teamId];
+    if (!W.jerseyNeed(S)) return h('p', { class: 'small muted' }, '👕 #' + S.jersey.num + ' · ' + t.nick);
+    const tk = W.jerseyTaken(S, S.teamId), owner = jerseyMsg && jerseyMsg.owner, inp = h('input', { type: 'number', min: 0, max: 99, value: jerseyNum, style: 'width:70px', oninput: (e) => { jerseyNum = +e.target.value; } });
+    const go2 = (buy) => { try { const r = W.pickJersey(S, jerseyNum, buy); jerseyMsg = r.ok ? null : r; if (r.ok) S.flash = '👕 ' + r.text; save(); render(); } catch (e) { jerseyMsg = { text: e.message }; render(); } };
+    return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '👕 Pick your number'), h('p', { class: 'small muted' }, (S.jersey ? 'New team, new number? You wore #' + S.jersey.num + ' with the ' + S.jersey.team + '. ' : '') + 'Retired by the ' + t.nick + ': ' + (tk.retired.length ? tk.retired.join(', ') : 'none') + '.'),
+      h('div', { class: 'row' }, inp, h('button', { class: 'primary', onclick: () => go2(false) }, 'Wear it'), owner ? h('button', { onclick: () => go2(true) }, 'Buy it from ' + owner.name) : null), jerseyMsg ? h('p', { class: 'small' }, jerseyMsg.text) : null);
+  }
+  function evolveCard() {
+    const W = NBA.World; if (!W || S.autoPlay || !S.contract || S.afterTraining !== 'pro' || !W.canEvolve(S)) return null;
+    return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🧬 Evolve your game'), h('p', { class: 'small muted' }, 'You are ' + S.player.age + '. The legs will not be what they were, so add something to your game (costs one upgrade point; once every two summers).'),
+      h('div', { class: 'wkgrid' }, Object.keys(W.EVOLVE).map((k) => { const e = W.EVOLVE[k]; return h('div', { class: 'wkcard' }, h('b', null, e.label), h('div', { class: 'small', style: 'margin:6px 0' }, e.blurb), h('div', { class: 'small vibe' }, Object.keys(e.attrs).map((a) => D.ATTR_LABELS[a] + ' +' + e.attrs[a]).join(' · ')), h('button', { onclick: () => { try { S.flash = '🧬 ' + W.evolve(S, k).text; alloc = {}; save(); render(); } catch (e2) { console.error(e2); } } }, 'Do it')); })));
+  }
   function corePreseason() {
     const C = NBA.Core; if (!C || S.autoPlay) return null;
-    const p = S.player, c = S.contract, out = [], isRook = S.proSeasons.length === 0;
+    const p = S.player, c = S.contract, out = [], isRook = S.proSeasons.length === 0; const jc = jerseyCard(); if (jc) out.push(jc);
     if (isRook && !S.stash) { const sl = C.summerLeague(S); out.push(h('div', { class: 'callout' }, '🎰 Summer League in Las Vegas: ' + sl.pts + ' points, ' + sl.reb + ' rebounds, ' + sl.ast + ' assists a game. ' + sl.verdict + '.' + (sl.honor ? ' ' + sl.honor + '.' : ''))); }
     const cap = C.captainCheck(S); if (cap) out.push(h('div', { class: 'callout' }, '©️ ' + cap));
     else if (S.dec.flags.captain === S.teamId) out.push(h('p', { class: 'small muted' }, '©️ Team captain'));
@@ -8573,6 +8769,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     const smvp = won && pl.length && avg('pt') >= 22 ? 'You were the best player in the series.' : !won && pl.length && avg('pt') >= 28 ? 'You did your part. It was not enough.' : '';
     const swing = gs.find((x, i) => { let a = 0, b = 0; for (let k = 0; k <= i; k++) { if (gs[k].w) a++; else b++; } return (won && a > b && i > 0 && !gs[i - 1].w && x.w) || (!won && b > a && i > 0 && gs[i - 1].w && !x.w); });
     const text = (won ? 'You beat the ' + opp + ' ' + w + '-' + l + '.' : 'The ' + opp + ' beat you ' + l + '-' + w + '.') + (pl.length ? ' You averaged ' + avg('pt') + ' points, ' + avg('rb') + ' rebounds and ' + avg('as') + ' assists.' : ' You did not play in the series.') + (best ? ' Your best night: Game ' + best.n + ', ' + best.pt + ' points' + (best.w ? ' in a win.' : ' in a loss.') : '') + (swing ? ' The turning point was Game ' + swing.n + '.' : '') + (smvp ? ' ' + smvp : '');
+    if (won && rnd === 'NBA Finals') return { title: '🏆 NBA CHAMPIONS', sub: t.name + ' beat the ' + opp + ' ' + w + '-' + l, text: 'You are a champion. ' + text + ' The confetti is falling, the hats are on, and the trophy is yours.', tone: 'good', cap: 'The Finals', post: true };
     return { title: (won ? '✅ ' : '❌ ') + rnd, sub: t.name + ' vs the ' + opp + ' · ' + (won ? 'won' : 'lost') + ' ' + Math.max(w, l) + '-' + Math.min(w, l), text, tone: won ? 'good' : 'bad', cap: 'Series recap', post: true };
   }
   const holdAt = () => {
@@ -8771,9 +8968,9 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
       h('div', { class: 'tiles4' }, [[feat.pt, 'PTS'], [feat.as, 'AST'], [feat.rb, 'REB'], [(feat.pm > 0 ? '+' : '') + feat.pm, '+/-']].map(([v, l]) => h('div', { class: 'tile' }, h('b', null, v), h('span', null, l)))),
       h('div', { class: 'kv' }, h('span', null, 'Shooting split'), h('b', null, feat.fgm + '/' + feat.fga + ' FG (' + Math.round(100 * feat.fgm / Math.max(1, feat.fga)) + '%) · ' + feat.tpm + '/' + feat.tpa + ' 3PT · ' + feat.ftm + '/' + feat.fta + ' FT')),
       h('div', { class: 'kv' }, h('span', null, 'Rebounds'), h('b', null, feat.or + ' OFF · ' + (feat.rb - feat.or) + ' DEF (' + feat.rb + ' TOT)')),
-      h('div', { class: 'kv' }, h('span', null, 'Hustle / discipline'), h('b', null, feat.st + ' STL · ' + feat.bk + ' BLK · ' + feat.to + ' TO · ' + feat.pf + ' PF'))) : null;
+      h('div', { class: 'kv' }, h('span', null, 'Hustle / discipline'), h('b', null, feat.st + ' STL · ' + feat.bk + ' BLK · ' + feat.to + ' TO · ' + feat.pf + ' PF')), worldBox(feat)) : null;
     const stream = h('section', { class: 'panel mp', 'data-mt': 'box' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '☰'), h('h2', null, 'Sim stream & box score'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, 'Last ' + Math.max(0, last3.length) + ' games')),
-      last3.length ? last3.map(streamRow) : h('p', { class: 'muted' }, 'No games yet. Hit "Sim next game" to start the season.'), featured,
+      last3.length ? last3.map(streamRow) : h('p', { class: 'muted' }, 'No games yet. Hit "Sim next game" to start the season.'), hotMate(last3[0]), featured,
       h('button', { class: 'wide', onclick: () => showGameLog(shown) }, '▤ View full ' + (reg.length + poG.length) + '-game game log'));
 
     // ---- season averages
@@ -8829,6 +9026,20 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     const wrap = h('div', { class: 'dash mt-' + mTab }, injBanner, h('div', { class: 'dtop' }, hero, quick, mtabs, telemetry), playoffPanel, h('div', { class: 'dmid' }, stream, averages, defense), planPanel, histPanel, feedPanel);
     if (!LV) setTimeout(aiFeedUpgrade, 600);
     return overlay ? h('div', null, modal(overlay), wrap) : wrap;
+  }
+  // the rest of the box score: your teammates and their best players, the game by quarters and how it went
+  function worldBox(g) {
+    const W = NBA.World; if (!W || S.autoPlay || !g) return null; const b = W.boxOf(S, g); if (!b) return null; const q = b.quarters, t = S.league.teams[S.teamId];
+    const row = (x) => h('div', { class: 'row small', style: 'margin:2px 0' }, h('span', null, plink(x.id, x.name), h('em', { class: 'muted' }, ' ' + x.pos)), h('span', { class: 'spacer' }), h('b', null, x.pts), h('span', { class: 'muted' }, ' pts · ' + x.reb + ' reb · ' + x.ast + ' ast'));
+    return h('details', { class: 'wbox', style: 'margin-top:8px' }, h('summary', { class: 'small' }, '📋 Full box: teammates, their stars, the quarters'),
+      q ? h('table', { class: 'qtab small', style: 'margin:6px 0;border-collapse:collapse' }, h('tr', null, h('th', null, ''), q.us.map((_, i) => h('th', { style: 'padding:0 8px' }, i < 4 ? 'Q' + (i + 1) : 'OT')), h('th', { style: 'padding:0 8px' }, 'F')),
+        h('tr', null, h('td', null, ab(t.nick)), q.us.map((x) => h('td', { style: 'padding:0 8px;text-align:center' }, x)), h('td', { style: 'padding:0 8px' }, h('b', null, g.f))), h('tr', null, h('td', null, ab(g.o)), q.them.map((x) => h('td', { style: 'padding:0 8px;text-align:center' }, x)), h('td', { style: 'padding:0 8px' }, h('b', null, g.a)))) : null,
+      h('p', { class: 'small', style: 'margin:4px 0' }, '📖 ' + W.gameStory(S, g)),
+      h('div', { class: 'small caps muted', style: 'margin-top:6px' }, 'Your teammates'), b.ours.map(row), h('div', { class: 'small caps muted', style: 'margin-top:6px' }, 'The ' + g.o), b.theirs.map(row));
+  }
+  function hotMate(g) {
+    const W = NBA.World; if (!W || S.autoPlay || !g || g.dnp) return null; const b = W.boxOf(S, g); if (!b) return null; const hot = b.ours.find((x) => x.pts >= 33), opp = b.theirs.find((x) => x.pts >= 38);
+    return hot ? h('div', { class: 'callout' }, '🔥 ' + hot.name + ' went off for ' + hot.pts + ' ' + (g.w ? 'in the win.' : 'in the loss.')) : opp ? h('div', { class: 'callout' }, '😤 ' + opp.name + ' dropped ' + opp.pts + ' on you.') : null;
   }
   // chasing history: where the career totals (as of the games played so far) sit on the all-time lists
   let histSeen = { idx: -1, news: [] };
@@ -9181,6 +9392,19 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     return h('div', { class: 'dash' }, h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '▣'), h('h2', null, S.player.name + ' · career'), h('span', { class: 'spacer' }), h('button', { class: 'ghost tiny', title: 'Download this career as a file (for bug reports)', onclick: exportSave }, '⬇ Export save')), careerBody()));
   }
 
+  function champCard() {
+    const W = NBA.World; if (!W || S.autoPlay) return null; const c = W.champMoment(S); if (!c) return null;
+    return h('div', { class: 'card suspense', style: 'text-align:center' }, h('div', { style: 'font-size:46px' }, '🏆'), h('h2', { style: 'margin:4px 0' }, 'NBA CHAMPIONS'), h('p', null, 'The ' + c.team + ' are champions' + (c.rings > 1 ? ' (ring #' + c.rings + ' for you)' : ', and you have your first ring') + '.' + (c.fmvp ? ' You are the Finals MVP.' : '')),
+      c.po ? h('p', { class: 'small muted' }, 'Your playoffs: ' + c.po.pts.toFixed(1) + ' points, ' + c.po.reb.toFixed(1) + ' rebounds, ' + c.po.ast.toFixed(1) + ' assists in ' + c.po.gp + ' games.') : null,
+      c.done ? h('p', { class: 'small' }, '🎉 ' + ((S.dec.journal.slice().reverse().find((j) => j.title === 'Parade') || {}).text || '')) : h('div', null, h('p', { class: 'small muted' }, 'The parade. You have the mic:'), [['humble', '"This is for the city"'], ['repeat', '"We are not done"'], ['doubters', 'Name the doubters']].map(([k, l]) => h('button', { style: 'margin:3px', onclick: () => { try { W.parade(S, k); save(); render(); } catch (e) { console.error(e); } } }, l))));
+  }
+  function awardsCard() {
+    const W = NBA.World; if (!W || S.autoPlay) return null; const list = W.awardsNight(S); if (!list.length) return null; const an = S.dec.flags.awardNight || {}, y = S.league.year;
+    return h('div', { class: 'card' }, h('h2', { style: 'margin-top:0' }, '🎤 Awards night'), list.map((a) => { const said = an[y + ':' + a.key];
+      return h('div', { style: 'margin:8px 0' }, h('div', { class: 'row' }, h('b', null, a.award), h('span', { class: 'spacer' }), h('span', { class: a.won ? 'pos' : 'muted' }, a.won ? '🏅 You won · ' + a.share + '% of the vote' : 'You finished ' + ord(a.rank) + ' (' + a.share + '%) · ' + a.winner + ' won')),
+        h('div', { class: 'bar2' }, h('i', { style: 'width:' + a.share + '%' })), a.won && a.gap <= 8 ? h('div', { class: 'small muted' }, 'It was close: ' + a.gap + ' points of vote share.') : null,
+        said ? h('div', { class: 'small' }, '✔ ' + ((S.dec.journal.slice().reverse().find((j) => j.title === 'Awards night') || {}).text || 'Said your piece.')) : h('div', { class: 'row', style: 'gap:4px;margin-top:4px;flex-wrap:wrap' }, (a.won ? [['team', 'Thank the team'], ['family', 'Thank your family'], ['doubters', 'Speak to the doubters']] : [['classy', 'Congratulate him'], ['salty', 'Say you were robbed']]).map(([k, l]) => h('button', { class: 'tiny', onclick: () => { try { W.awardSpeech(S, a.key, k); save(); render(); } catch (e) { console.error(e); } } }, l)))); }));
+  }
   function screenRecap() {
     const r = S.proSeasons[S.proSeasons.length - 1];
     const p = S.player;
@@ -9191,7 +9415,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     const rk = (cls, l, v, sub) => h('div', { class: 'kpi ' + cls }, h('div', { class: 'k-lbl' }, l), h('div', { class: 'k-val' }, v), sub);
     const recKpis = h('div', { class: 'kpis' }, rk('hot', 'Points', f1(r.pts), dl(r.pts, pr && pr.pts)), rk('', 'Rebounds', f1(r.reb), dl(r.reb, pr && pr.reb)), rk('', 'Assists', f1(r.ast), dl(r.ast, pr && pr.ast)),
       h('div', { class: 'kpi ink' }, h('div', { class: 'k-lbl' }, 'Avg rating'), h('div', { style: 'margin-top:8px' }, r.avgRating ? ratingBadge(r.avgRating, 2) : '–'), h('div', { class: 'k-sub' }, r.wins + '-' + r.losses + (r.poRating ? ' · playoffs ' + r.poRating.toFixed(2) : ''))));
-    return h('div', null, h('h1', null, r.label + ' season recap'), recKpis,
+    return h('div', null, h('h1', null, r.label + ' season recap'), recKpis, champCard(), awardsCard(),
       h('div', { class: 'card' }, h('p', { class: 'muted' }, r.team + ' · age ' + r.age + ' · OVR ' + r.ovr + ' · ' + money(r.salary)),
         h('div', { class: 'grid stats' }, statBox(f1(r.stl), 'SPG'), statBox(f1(r.blk), 'BPG'), statBox(r.gp, 'Games'), statBox(r.td, 'Triple-doubles')),
         h('p', { style: 'margin-top:10px' }, 'FG ' + pct(r.fgp) + '% · 3P ' + pct(r.tpp) + '% · FT ' + pct(r.ftp) + '% · TS ' + pct(r.ts) + '% · ' + f1(r.mins) + ' mpg · High game ' + r.high),
@@ -9244,12 +9468,12 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
   function screenDecision() { decModal = null; const pg = screenDecision0(); return decModal ? h('div', null, modal(decModal), pg) : pg; }
   // the rest of the summer: free-agent meetings, the coach, the rival, life, teammates, lottery night
   let storyMsg = null;
-  function storyOffseason(out) {
+  function storyOffseason(out, B) {
     const X = NBA.Story; if (!X) return; const F = S.dec.flags, L = S.league, t = L.teams[S.teamId], d = S.decision || {};
     if (storyMsg) out.push(h('div', { class: 'callout' }, storyMsg));
     // free agency: the meetings
     if (d.expiring && d.market && d.market.length) {
-      out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🤝 Free-agent meetings'), h('p', { class: 'small muted' }, 'Every suitor makes its pitch. You can also make it conditional: "I sign if you get him." They want you, so they will try; whether the other team sells is another story.'),
+      B.moves.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🤝 Free-agent meetings'), h('p', { class: 'small muted' }, 'Every suitor makes its pitch. You can also make it conditional: "I sign if you get him." They want you, so they will try; whether the other team sells is another story.'),
         d.market.slice(0, 5).map((m) => { const pc = X.pitchOf(S, m.teamId); if (!pc) return null; const asked = (F.faCond || {})[m.teamId] === L.year, tg = asked ? [] : X.faTargets(S, m.teamId);
           return h('details', { class: 'fa-meet', style: 'margin:6px 0' }, h('summary', null, h('b', null, 'The ' + pc.nick), ' · ' + pc.status + ' (' + ord(pc.rank) + ' in the ' + pc.conf + ', ' + pc.wins + ' wins) · you would be ' + pc.role),
             h('div', { class: 'small', style: 'margin:6px 0 6px 12px' }, h('div', null, '🗣️ "' + pc.pitch + '"'), h('div', null, '⭐ Best players: ' + pc.top.map((q) => q.name + ' (' + q.ovr + ')').join(', ')), pc.coach ? h('div', null, '📋 Coach ' + pc.coach.name + ', ' + pc.coach.style + (pc.coach.fit > 0 ? ' · fits your game' : pc.coach.fit < 0 ? ' · does not fit your game' : '')) : null, h('div', null, '🏙️ ' + pc.market),
@@ -9265,19 +9489,36 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
         body.push(h('div', { class: 'big' }, '#' + slot), h('p', { class: 'small' }, jumped ? '🎉 The ping-pong balls loved you: up from the ' + ord(lt.seed) + ' spot.' : fell ? '💔 You slid down the board.' : 'Right where the odds said.'));
         if (pl.lobby) body.push(h('p', { class: 'small' }, pl.lobby.ok ? '✅ The front office will take your guy at #' + slot + ': ' + pl.cls[slot - 1].name + '.' : 'The front office will draft its own board at #' + slot + '.'));
         else body.push(h('p', { class: 'small muted' }, 'Want a say? Push for a prospect (the front office decides).'), X.prospects(S).map((q) => h('div', { class: 'row small', style: 'margin:3px 0' }, h('span', null, q.rank + '. ' + q.name + ' · ' + q.pos + ' · ' + q.age + ' · ' + q.ovr + ' OVR'), h('span', { class: 'spacer' }), h('button', { class: 'tiny', onclick: () => { try { storyMsg = '🎓 ' + X.lobby(S, q.id).text; save(); render(); } catch (e) { console.error(e); } } }, 'Push for him')))); }
-      out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🎱 Lottery night'), body));
+      B.moves.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🎱 Lottery night'), body));
     }
     // the coach
     const fc = X.fireCoachOdds(S);
-    if (fc && F.fireYear !== L.year && !d.expiring) out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '📋 The coach'), h('p', { class: 'small muted' }, fc.coach.name + ' (' + NBA.Room.STYLES[fc.coach.style].label + ', since ' + NBA.seasonLabel(fc.coach.since) + '). ' + (fc.fit > 0 ? 'His system fits you.' : fc.fit < 0 ? 'His system does not fit your game.' : 'His system is fine for you.') + ' You could go to the front office and ask for a new coach (~' + fc.odds + '%). If it fails, he will know.'),
+    if (fc && F.fireYear !== L.year && !d.expiring) B.moves.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '📋 The coach'), h('p', { class: 'small muted' }, fc.coach.name + ' (' + NBA.Room.STYLES[fc.coach.style].label + ', since ' + NBA.seasonLabel(fc.coach.since) + '). ' + (fc.fit > 0 ? 'His system fits you.' : fc.fit < 0 ? 'His system does not fit your game.' : 'His system is fine for you.') + ' You could go to the front office and ask for a new coach (~' + fc.odds + '%). If it fails, he will know.'),
       confirmBtn('Ask the front office to fire him', '', () => { try { const r = X.fireCoach(S); storyMsg = (r.ok ? '🔥 ' : '😬 ') + r.text; save(); render(); } catch (e) { console.error(e); } })));
     // the rival
-    X.rivalRecord(S); const rc = X.rivalCard(S); if (rc) out.push(rivalBox(rc));
+    X.rivalRecord(S); const rc = X.rivalCard(S); if (rc) B.world.push(rivalBox(rc));
     // teammates
-    const mn = X.mateNews(S); if (mn.length) out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '👥 Your teammates this year'), mn.map((x) => h('div', { class: 'small' }, x))));
+    const mn = X.mateNews(S); if (mn.length) B.world.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '👥 Your teammates this year'), mn.map((x) => h('div', { class: 'small' }, x))));
     // life
     const lf = X.lifeOpen(S); if (lf) { const ev = X.LIFE[lf.key];
-      out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🏡 ' + ev.title), h('p', { class: 'small muted' }, ev.text), lf.done ? h('p', { class: 'small' }, '✔ ' + ((S.dec.journal.slice().reverse().find((j) => j.title === ev.title) || {}).text || 'Done.')) : h('div', { class: 'wkgrid' }, ev.opts.map((o) => h('div', { class: 'wkcard' }, h('b', null, o[1]), h('div', { class: 'small', style: 'margin:6px 0' }, o[2]), h('button', { onclick: () => { try { X.lifeChoose(S, o[0]); save(); render(); } catch (e) { console.error(e); } } }, 'Choose')))))); }
+      B.life.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🏡 ' + ev.title), h('p', { class: 'small muted' }, ev.text), lf.done ? h('p', { class: 'small' }, '✔ ' + ((S.dec.journal.slice().reverse().find((j) => j.title === ev.title) || {}).text || 'Done.')) : h('div', { class: 'wkgrid' }, ev.opts.map((o) => h('div', { class: 'wkcard' }, h('b', null, o[1]), h('div', { class: 'small', style: 'margin:6px 0' }, o[2]), h('button', { onclick: () => { try { X.lifeChoose(S, o[0]); save(); render(); } catch (e) { console.error(e); } } }, 'Choose')))))); }
+  }
+  let worldMsg = null;
+  function worldOffseason(B) {
+    const W = NBA.World; if (!W) return; const d = S.decision || {}, F = S.dec.flags, L = S.league;
+    if (worldMsg) B.moves.unshift(h('div', { class: 'callout' }, worldMsg));
+    const pay = W.payIncentives(S); if (pay) { F.incMsg = { y: L.year, text: pay.text }; save(); }
+    if (F.incMsg && F.incMsg.y === L.year) B.life.unshift(h('div', { class: 'callout' }, F.incMsg.text));
+    // the agent
+    const ag = d.brand && d.brand.agent, adv = W.agentAdvice(S, d), leaked = F.leakYear === L.year;
+    B.moves.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🕴️ Your agent' + (ag ? ': ' + ag.name : '')), adv.map((x) => h('p', { class: 'small', style: 'margin:4px 0' }, '• ' + x)),
+      d.expiring && d.market && d.market.length && !leaked ? h('div', null, h('p', { class: 'small muted' }, 'Want me to leak your interest in a team? Their number goes up; your current team will not love it.'), d.market.slice(0, 3).map((m) => h('button', { class: 'tiny', style: 'margin:2px', onclick: () => { try { worldMsg = '📰 ' + W.leak(S, d, m.teamId).text; save(); render(); } catch (e) { console.error(e); } } }, 'Leak: the ' + (m.nick || m.name)))) : leaked ? h('p', { class: 'small muted' }, 'You already leaked one this summer.') : null));
+    // contract incentives
+    const inc = F.incent, cur = inc && S.contract && inc.c === (S.contract.salary + ':' + S.contract.years);
+    if (S.contract && S.contract.type !== 'rookie' && !d.expiring) B.life.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🧾 Incentives'), cur ? h('p', { class: 'small' }, inc.kind ? 'Your deal has a ' + W.INCENT[inc.kind].label.toLowerCase() + ' ($' + W.INCENT[inc.kind].pay + 'M a season).' : 'The front office turned your incentive down for this contract.')
+      : h('div', null, h('p', { class: 'small muted' }, 'One ask per contract: add a bonus clause. The front office decides.'), Object.keys(W.INCENT).map((k) => h('button', { class: 'tiny', style: 'margin:2px', onclick: () => { try { worldMsg = '🧾 ' + W.addIncentive(S, k).text; save(); render(); } catch (e) { console.error(e); } } }, W.INCENT[k].label + ' ($' + W.INCENT[k].pay + 'M)')))));
+    // the league
+    const ls = W.leagueStories(S); if (ls.length) B.world.unshift(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🌍 Around the league this summer'), ls.map((x) => h('p', { class: 'small', style: 'margin:4px 0' }, x.text))));
   }
   function classCard() {
     if (!NBA.Story || !S.class || !S.contract) return null; const c = NBA.Story.classmates(S); if (!c.list.length) return null;
@@ -9292,18 +9533,18 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
       h('p', { class: 'small' }, rc.verdict));
   }
   // the NBA career's own summer: the front office, building your team, the national team, a mentee, a teammate who wants out
-  let coreMsg = null;
-  function coreOffseason(out) {
+  let coreMsg = null, offTab = 'moves';
+  function coreOffseason(out) { const B = { moves: [], world: [], life: [] };
     const C = NBA.Core; if (!C || !S.contract || S.autoPlay || !S.league.teams[S.teamId]) return;
     const F = S.dec.flags, L = S.league, t = L.teams[S.teamId];
     C.foSeason(S);
     if (F.unhappySeen !== L.year) { F.unhappySeen = L.year; const u = C.unhappyTeammate(S); if (u) F.unhappyMsg = { y: L.year, text: u }; save(); }
-    if (F.unhappyMsg && F.unhappyMsg.y === L.year) out.push(h('div', { class: 'callout' }, '😤 ' + F.unhappyMsg.text));
+    if (F.unhappyMsg && F.unhappyMsg.y === L.year) B.world.push(h('div', { class: 'callout' }, '😤 ' + F.unhappyMsg.text));
     if (coreMsg) out.push(h('div', { class: 'callout' }, coreMsg));
     // building your team
     const fo = C.foMood(S), built = F.builtYear === L.year, tg = built ? [] : C.targets(S), ts = C.teamStatus(S);
     const tierLbl = { contender: '🏆 Contender: no need to chase stars', middle: '⚖️ In the middle: they will listen, within reason', weak: '🔧 Needs help: they are looking to strengthen the squad' }[ts.tier];
-    out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🧩 Build your team'),
+    B.moves.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🧩 Build your team'),
       h('div', { class: 'row small', style: 'margin:4px 0' }, h('b', null, tierLbl), h('span', { class: 'spacer' }), h('span', { class: ts.listen >= 60 ? 'pos' : ts.listen < 25 ? 'neg' : 'muted' }, 'They listen to you: ' + ts.listen + '%')),
       h('p', { class: 'small' }, ts.why + (ts.franchise ? ' 👑 You are the franchise player.' : '')),
       h('p', { class: 'small muted' }, 'Front office mood: ', h('b', null, C.foLabel(fo)), '. One big move a summer: recruit a star yourself (he has to want to come), or push the front office to trade for him (his team has to sell, and pushing costs you standing' + (ts.tier === 'contender' ? ', a lot on a contender' : '') + ').'),
@@ -9311,13 +9552,15 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
         h('button', { onclick: () => { try { const r = C.buildTeam(S, x.id, 'recruit'); coreMsg = (r.ok ? '🤝 ' : '💔 ') + r.text; save(); render(); } catch (e) { console.error(e); } } }, 'Recruit'), confirmBtn('Push the FO', '', () => { try { const r = C.buildTeam(S, x.id, 'demand'); coreMsg = (r.ok ? '📞 ' : '💔 ') + r.text; save(); render(); } catch (e) { console.error(e); } })))) : h('p', { class: 'small muted' }, 'No star is realistically available this summer.')));
     // the national team
     const nt = C.nationalTeam(S);
-    if (nt && nt.picked && F.natYear !== nt.ev.y) out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, (nt.team === 'Team USA' ? '🇺🇸 ' : '🌍 ') + nt.team + ' wants you'), h('p', { class: 'small muted' }, 'You were selected for ' + nt.ev.name + '. ' + (nt.team === 'Team USA' && nt.mates.length ? 'The roster: ' + nt.mates.slice(0, 8).join(', ') + '.' : 'Your country needs its best player.') + ' A summer of basketball: a shot at a medal, a little less rest.'),
+    if (nt && nt.picked && F.natYear !== nt.ev.y) B.world.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, (nt.team === 'Team USA' ? '🇺🇸 ' : '🌍 ') + nt.team + ' wants you'), h('p', { class: 'small muted' }, 'You were selected for ' + nt.ev.name + '. ' + (nt.team === 'Team USA' && nt.mates.length ? 'The roster: ' + nt.mates.slice(0, 8).join(', ') + '.' : 'Your country needs its best player.') + ' A summer of basketball: a shot at a medal, a little less rest.'),
       h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { try { const r = C.playNational(S, true); coreMsg = (r.medal === 'Gold' ? '🥇 ' : r.medal === 'Silver' ? '🥈 ' : r.medal === 'Bronze' ? '🥉 ' : '🏀 ') + r.text; save(); render(); } catch (e) { console.error(e); } } }, 'Represent ' + nt.country), h('button', { onclick: () => { try { const r = C.playNational(S, false); coreMsg = r.text; save(); render(); } catch (e) { console.error(e); } } }, 'Rest this summer'))));
-    storyOffseason(out);
+    storyOffseason(out, B); worldOffseason(B);
     // a mentee
     const mt = F.mentorYear === L.year ? [] : C.mentees(S);
-    if (mt.length) out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🧑‍🏫 Take a young teammate under your wing'), h('p', { class: 'small muted' }, 'He gets better and the room notices. It costs you one upgrade point of your own gym time.'),
+    if (mt.length) B.world.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🧑‍🏫 Take a young teammate under your wing'), h('p', { class: 'small muted' }, 'He gets better and the room notices. It costs you one upgrade point of your own gym time.'),
       mt.map((q) => h('div', { class: 'row', style: 'margin:6px 0' }, h('div', null, h('b', null, plink(q.id, q.name)), h('div', { class: 'small muted' }, q.pos + ' · age ' + q.age + ' · ' + q.ovr + ' OVR')), h('span', { class: 'spacer' }), h('button', { onclick: () => { try { coreMsg = '🧑‍🏫 ' + C.mentor(S, q.id).text; save(); render(); } catch (e) { console.error(e); } } }, 'Mentor him')))));
+    const TABS = [['moves', '🧩 Team moves'], ['world', '🌍 League & teammates'], ['life', '🏡 Life & money']]; if (!B[offTab] || (!B[offTab].length && B.moves.length)) offTab = B[offTab] && B[offTab].length ? offTab : 'moves';
+    out.push(h('div', { class: 'offtabs row', style: 'margin:12px 0 6px;gap:6px;flex-wrap:wrap' }, TABS.map(([k, l]) => h('button', { class: offTab === k ? 'primary' : '', onclick: () => { offTab = k; render(); } }, l + (B[k].length ? ' (' + B[k].length + ')' : '')))), h('div', { class: 'offtab' }, B[offTab].length ? B[offTab] : h('p', { class: 'small muted' }, 'Nothing here this summer.')));
   }
   function screenDecision0() {
     const d = S.decision || (S.decision = G.decisionOptions(S));
@@ -9453,7 +9696,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
       (() => { const pt = playoffTotals(cv.pl); return pt ? h('div', null, h('h3', null, 'Playoff career'), h('div', { class: 'grid stats' }, pt.rating ? ratingBox(pt.rating, 'Playoff avg rating') : null, statBox(f1(pt.pts), 'PPG'), statBox(f1(pt.reb), 'RPG'), statBox(f1(pt.ast), 'APG'), statBox(f1(pt.stl), 'SPG'), statBox(f1(pt.blk), 'BPG'), statBox(pt.gp.toLocaleString(), 'Playoff games'), statBox(pt.totPts.toLocaleString(), 'Playoff points'), statBox(pt.totReb.toLocaleString(), 'Playoff rebounds'), statBox(pt.totAst.toLocaleString(), 'Playoff assists'), statBox(cv.career.titles || 0, 'Championships'))) : null; })(),
       h('div', { style: 'margin-top:8px' }, Object.keys(aw).map((k) => h('span', { class: 'pill gold' }, aw[k] + '× ' + k))),
       h('p', { class: 'muted small' }, 'Seasons averaging a triple-double: ' + cv.career.tdSeasons + (cv.career.td30Seasons ? ' (' + cv.career.td30Seasons + ' with 30+ ppg)' : '')),
-      badgesCard(), S.contract ? historyPanel(false) : null, NBA.Story && NBA.Story.rivalCard(S) ? rivalBox(NBA.Story.rivalCard(S)) : null, classCard(),
+      badgesCard(), S.jerseys && S.jerseys.length ? h('p', { class: 'small muted' }, '👕 ' + S.jerseys.map((j) => '#' + j.num + ' ' + j.team).join(' · ')) : null, S.contract ? historyPanel(false) : null, NBA.Story && NBA.Story.rivalCard(S) ? rivalBox(NBA.Story.rivalCard(S)) : null, classCard(),
       highsSection(ps),
       h('h3', null, 'Regular season'), seasonTable(ps, false));
     if (cv.pl.length) wrap.append(h('h3', null, 'Playoffs'), seasonTable(cv.pl, true), playoffBySeries(cv.ps));

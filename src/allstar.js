@@ -59,7 +59,7 @@
     if ((p.yearsPro || 0) <= 1) { inv.rising = true; steps.push('rising'); }
     if (threeRank < 8 && p.attrs.three >= 76) { inv.three = true; steps.push('three'); }
     if (dunkRank < 6 && p.attrs.ath >= 82 && p.age <= 29 && NBA.ovr(p) < 86) { inv.dunk = true; steps.push('dunk'); }
-    if (R.sel) { inv.game = true; steps.push('game'); }
+    if (R.sel) { inv.game = true; if (R.starter && R.rank === 1 && !st.autoPlay) steps.push('captain'); steps.push('game'); }   // the top vote-getter in a conference is a captain: he drafts his team
     // left off the roster: a close miss can still get in when an All-Star is hurt (the commissioner names a replacement); otherwise it stings
     const rr = rng(st, 'replace'); let replaced = false, snub = false;
     if (!R.sel && R.rank && R.rank >= 13 && R.rank <= 16 && rr() < 0.3) replaced = true;
@@ -114,7 +114,8 @@
   function allStarGame(st, key) {
     const rnd = rng(st, 'game|' + key), R = st.asRoster, rec = st.proSeasons[st.proSeasons.length - 1], p = st.player;
     const avg = (l) => l.reduce((s, x) => s + x.ovr, 0) / Math.max(1, l.length), mine = R.E.some((x) => x.isUser) ? 'E' : 'W', opp = mine === 'E' ? 'W' : 'E';
-    const pw = clamp(0.5 + 0.02 * (avg(R[mine]) - avg(R[opp])) + (key === 'compete' ? 0.012 : 0), 0.3, 0.7), won = rnd() < pw, margin = 2 + Math.floor(rnd() * 14), tot = 318 + Math.floor(rnd() * 30);
+    const cap = (flags(st).asw || {}).res ? flags(st).asw.res.captain : null;
+    const pw = clamp(0.5 + 0.02 * (avg(R[mine]) - avg(R[opp])) + (key === 'compete' ? 0.012 : 0) + (cap === 'best' ? 0.05 : 0), 0.3, 0.75), won = rnd() < pw, margin = 2 + Math.floor(rnd() * 14), tot = 318 + Math.floor(rnd() * 30);
     const hi = Math.round((tot + margin) / 2), lo = tot - hi, f = won ? hi : lo, a = won ? lo : hi;
     const ppg = rec ? rec.pts : 15, k = { compete: 1.12, cruise: 0.8, showtime: 0.95 }[key] * (R.starter ? 1 : 0.85);
     const pts = Math.max(2, Math.round(ppg * 0.85 * k + (rnd() - 0.4) * 9)), reb = Math.max(0, Math.round((rec ? rec.reb : 5) * 0.65 * k + (rnd() - 0.5) * 4)), ast = Math.max(0, Math.round((rec ? rec.ast : 3) * 0.7 * k + (key === 'showtime' ? 3 : 0) + (rnd() - 0.5) * 3));
@@ -129,7 +130,9 @@
     let mvp = won ? zu > top.z : zu > top.z + 1.8;
     const cnt = (st.career.awards || {})['All-Star Game MVP'] || 0; if (mvp && cnt >= 3) mvp = rnd() < (cnt >= 4 ? 0.08 : 0.35);
     const npcMvp = top.x;
-    return { won, f, a, mine, pts, reb, ast, mins, mvp, mvpName: mvp ? p.name : npcMvp.name };
+    // the rest of the box: the top scorers on both sides
+    const others = R[mine].concat(R[opp]).filter((x) => !x.isUser).map((x) => ({ x, z: perf(x) })).sort((u, v) => v.z - u.z).slice(0, 5).map(({ x, z }) => [x.name + (R[mine].includes(x) ? '' : ' (opp)'), Math.max(6, Math.round(18 + z * 7 + (x.name === npcMvp.name && !mvp ? 8 : 0))), Math.max(1, Math.round(4 + rnd() * 6)), Math.max(1, Math.round(3 + rnd() * 6)), Math.round(18 + rnd() * 10)]);
+    return { won, f, a, mine, pts, reb, ast, mins, mvp, mvpName: mvp ? p.name : npcMvp.name, others };
   }
   const risingStars = (st, key) => {
     const rnd = rng(st, 'rising|' + key), o = NBA.ovr(st.player), pw = clamp(0.5 + (key === 'allout' ? 0.03 : 0), 0.3, 0.7), won = rnd() < pw, rec = st.proSeasons[st.proSeasons.length - 1], k = key === 'allout' ? 1.1 : 0.85;
@@ -144,14 +147,16 @@
     dunk: [{ key: 'safe', label: 'Clean and smooth', blurb: 'Polished dunks the judges always like.', vibe: 'Steady' }, { key: 'ambitious', label: 'Something nobody has seen', blurb: 'A 10 if it lands. A bad miss if it does not.', vibe: 'Risky' }, { key: 'prop', label: 'Bring a prop and a guest', blurb: 'Jump over a celebrity. The crowd will talk about it, the judges might not.', vibe: 'Showtime' }],
     game: [{ key: 'compete', label: 'Play like it counts', blurb: 'Hard defense, real minutes, chase the MVP.', vibe: 'Serious' }, { key: 'cruise', label: 'Cruise and enjoy it', blurb: 'Smile, trade jokes with the guys you guard all year.', vibe: 'Relaxed' }, { key: 'showtime', label: 'Showtime', blurb: 'Lobs, behind-the-back passes, a crowd-pleaser.', vibe: 'Entertainer' }],
   };
+  OPTS.captain = [{ key: 'best', label: 'Draft the best players', blurb: 'Win the game. Take the three best players on the board.', vibe: 'Competitive (better odds tonight)' }, { key: 'friends', label: 'Draft your guys', blurb: 'Teammates and friends first. It is a party.', vibe: 'Loyal' }, { key: 'rival', label: 'Draft your rival first', blurb: 'Pick the man you cannot stand with the first pick. Television gold.', vibe: 'Viral' }];
+  const R0 = (st) => { const R = st.asRoster || { E: [], W: [] }; return (R.E || []).concat(R.W || []); };
   OPTS.three2 = OPTS.three.map((o) => Object.assign({}, o, { blurb: o.blurb.replace('Trust the stroke', 'For the title: trust the stroke') })); OPTS.dunk2 = OPTS.dunk;
-  const TITLE = { rising: 'Rising Stars', three: 'Three-Point Contest', three2: 'Three-Point Contest final', dunk: 'Slam Dunk Contest', dunk2: 'Slam Dunk Contest: the last dunk', game: 'The All-Star Game' };
+  const TITLE = { captain: 'All-Star captain', rising: 'Rising Stars', three: 'Three-Point Contest', three2: 'Three-Point Contest final', dunk: 'Slam Dunk Contest', dunk2: 'Slam Dunk Contest: the last dunk', game: 'The All-Star Game' };
   function view(st) {
     const f = flags(st).asw, step = f.steps[f.i], R = st.asRoster || { E: [], W: [] };
     if (f.last) return { step, title: f.last.title, text: f.last.text, tone: f.last.tone, rows: f.last.rows, result: true, options: [] };
     if (step === 'intro') return { step, title: 'All-Star Weekend', text: f.replaced ? 'An All-Star got hurt and the commissioner called your name: you are in as an injury replacement.' : f.snub ? 'You were left off the All-Star team (' + R.rank + 'th in your conference). The fans and the media have noticed.' : R.sel ? (R.starter ? 'You were voted a starter: the fans, the players and the media put you in the starting five.' : 'The coaches picked you as a reserve.') + ' The whole league is in town.' : 'You are not an All-Star this year, but you were invited to the weekend.', roster: R, fan: R.fan, fanRank: R.fanRank, votes: R.votes, invites: f.inv, snub: f.snub, options: [] };
     if (step === 'recap') return { step, title: 'Weekend recap', text: (f.res.lines || []).join(' ') || 'A quiet weekend.', awards: f.res.awards || [], options: [] };
-    return { step, title: TITLE[step], text: { rising: 'Rookies and second-years play a showcase game. The hosts want you in it.', three: 'You are one of the best shooters in the league and the contest wants you. Round one: how do you shoot it?', three2: 'You are in the final. How do you shoot it for the title?', dunk: 'Your athleticism got you an invite to the dunk contest. Your first dunk: what do you try?', dunk2: 'One dunk left. What do you try?', game: 'You are in the game. How do you play it?' }[step], options: OPTS[step], canPass: step !== 'game' && step !== 'three2' && step !== 'dunk2' };
+    return { step, title: TITLE[step], text: { captain: 'You got the most fan votes in your conference, so you are a captain: you draft your own All-Star team, live on television. Who goes first?', rising: 'Rookies and second-years play a showcase game. The hosts want you in it.', three: 'You are one of the best shooters in the league and the contest wants you. Round one: how do you shoot it?', three2: 'You are in the final. How do you shoot it for the title?', dunk: 'Your athleticism got you an invite to the dunk contest. Your first dunk: what do you try?', dunk2: 'One dunk left. What do you try?', game: 'You are in the game. How do you play it?' }[step], options: OPTS[step], canPass: step !== 'game' && step !== 'three2' && step !== 'dunk2' };
   }
   // answering the current step: runs it, files the result, applies what it earns
   function answer(st, key) {
@@ -185,6 +190,17 @@
       lines.push(d.win ? 'Won the Slam Dunk Contest.' : 'Slam Dunk Contest: finished ' + ['', '2nd', '3rd', '4th'][d.place - 1] + '.');
       D.log(st, { kind: 'asw', title: 'Slam Dunk Contest', tone: d.win ? 'good' : 'neutral', text });
       r = { title: 'Slam Dunk Contest final', text, tone: d.win ? 'good' : 'neutral', rows: d.field.map((x) => [x.name, x.d1, x.d2, x.tot]), cols: ['Dunker', 'Dunk 1', 'Dunk 2', 'Total'] };
+    } else if (step === 'captain') {
+      const all = R0(st), pool = all.filter((x) => !x.isUser).sort((a, b) => b.ovr - a.ovr), d = NBA.Decisions.state(st), rv = d.rival, myT = st.league.teams[st.teamId];
+      let picks;
+      if (key === 'best') picks = pool.slice(0, 3);
+      else if (key === 'friends') { const rel = d.rel || {}; picks = pool.filter((x) => (rel[x.id] && rel[x.id].v > 0) || (myT && x.team === myT.nick)).slice(0, 3); if (picks.length < 3) picks = picks.concat(pool.filter((x) => !picks.includes(x)).slice(0, 3 - picks.length)); }
+      else { const r0 = rv && pool.find((x) => x.id === rv.id); picks = (r0 ? [r0] : []).concat(pool.filter((x) => !r0 || x.id !== r0.id).slice(0, r0 ? 2 : 3)); }
+      f.res.captain = key; const names = picks.map((x) => x.name).join(', ');
+      if (key === 'best') bump(st, { media: 0.2 }); else if (key === 'friends') { NBA.Decisions.apply(st, [{ k: 'meter', f: 'chem', d: 0.3 }]); bump(st, { media: 0.1 }); } else { bump(st, { media: 0.8, brand: 2 }); if (rv) NBA.Decisions.apply(st, [{ k: 'rel', id: rv.id, name: rv.name, d: 0.5 }]); }
+      const text = 'Your first three picks: ' + names + '. ' + (key === 'best' ? 'Pure basketball: you stacked the deck.' : key === 'friends' ? 'You took your guys. The other captain got the better talent, but your bench was having the most fun.' : 'You drafted your rival first. The arena gasped and the clip is everywhere.');
+      lines.push('All-Star captain: drafted ' + names + '.'); NBA.Decisions.log(st, { kind: 'asw', title: 'All-Star captain', tone: 'good', text });
+      r = { title: 'All-Star draft', text, tone: 'good', rows: picks.map((x, i) => ['#' + (i + 1), x.name, x.team, x.ovr]), cols: ['Pick', 'Player', 'Team', 'OVR'] };
     } else if (step === 'rising') {
       const g = risingStars(st, key); f.res.rising = g;
       const text = (g.won ? 'Your team won Rising Stars ' : 'Your team lost Rising Stars ') + g.f + '-' + g.a + ' and you had ' + g.pts + ' points.' + (g.mvp ? ' You were named MVP.' : '');
@@ -198,7 +214,7 @@
       if (g.mvp) { grant(st, 'All-Star Game MVP'); bump(st, { media: 1.2, brand: 5 }); feed('asmvp', { name: p.name }); } else bump(st, { media: key === 'showtime' ? 0.5 : 0.2, brand: key === 'showtime' ? 2 : 1 });
       lines.push('All-Star Game: ' + (g.won ? 'won' : 'lost') + ' ' + g.f + '-' + g.a + ', ' + g.pts + '/' + g.reb + '/' + g.ast + (g.mvp ? ', MVP' : '') + '.');
       D.log(st, { kind: 'asw', title: 'All-Star Game', tone: g.mvp ? 'good' : 'neutral', text });
-      r = { title: 'The All-Star Game', text, tone: g.mvp || g.won ? 'good' : 'neutral', rows: [[p.name, g.pts, g.reb, g.ast, g.mins]], cols: ['Player', 'PTS', 'REB', 'AST', 'MIN'] };
+      r = { title: 'The All-Star Game', text, tone: g.mvp || g.won ? 'good' : 'neutral', rows: [[p.name, g.pts, g.reb, g.ast, g.mins]].concat(g.others || []).sort((a, b) => b[1] - a[1]), cols: ['Player', 'PTS', 'REB', 'AST', 'MIN'] };
     }
     f.last = r; return r;
   }
