@@ -7,8 +7,8 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   page.on('pageerror', (e) => errors.push('PAGEERROR ' + e.message));
   await page.goto('file://' + path.resolve(__dirname, '../dist/index.html'));
   await page.evaluate(() => { const N = window.NBA, G = N.Game; N.setSeed(9703); const st = G.newCareer({ name: 'GL Test', pos: 'SF', arch: 'twoway', stars: 2 }); st.autoPlay = true; const o = G.collegeOptions(st); G.chooseCollege(st, o[o.length - 1].id); G.playCollege(st); G.declare(st); G.runCombine(st, true); G.enterDraft(st); st.draft.glOffer = true; st.draft.stashOffer = false; st.autoPlay = false; st.draftSeen = true; window.__NBA_UI.state = st; window.__NBA_UI.go(); });
-  await page.waitForSelector('text=G League assignment', { timeout: 15000 }); console.log('GL offer shown');
-  await page.click('text=Develop in the G League'); await page.waitForTimeout(400);
+  await page.waitForSelector('text=G League or the roster?', { timeout: 15000 }); const dt = await page.evaluate(() => document.body.textContent); const okW = /What the .* think/.test(dt) && /two-way/i.test(dt) && /(would keep you on the NBA roster|could find you a roster spot|want you to develop first)/.test(dt); console.log('GL offer shown + tied to the club', okW ? 'OK' : 'MISMATCH'); if (!okW) errors.push('draft card ' + dt.slice(0, 200)); const hasJoin = !!(await page.$('button:text-matches("Join the NBA roster|Push for a roster spot")')); if (!hasJoin) errors.push('no roster/push button');
+  await page.click('text=Sign a two-way contract'); await page.waitForTimeout(400);
   await page.evaluate(() => { const U = window.__NBA_UI, st = U.state, G = window.NBA.Game; G.train(st, G.autoAlloc(st.player, G.trainingInfo(st).points)); U.go(); });
   await page.waitForSelector('text=Play the season →'); await page.click('text=Play the season →');
   await page.waitForSelector('text=/What the .* think/'); const t = await page.evaluate(() => document.body.textContent);

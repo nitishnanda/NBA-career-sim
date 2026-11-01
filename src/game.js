@@ -199,9 +199,25 @@
   }
   function playIntl(st) {
     const p = st.player, rec = intlSeason(st);
+    if (st.stash && st.stash.kind === 'gl') callupStint(st, rec);
     NBA.runYear(st.league, { draft: false });
     rec.mock = NBA.mockRange(st.league, p, stockBonus(st)); rec.mustDeclare = rec.year >= 5 && !st.stash; st.clubYears = (st.clubYears || 0) + 1;
     st.stage = 'intl_decision'; return rec;
+  }
+  // mid-season: the club recalls you for a stretch (a two-way player always gets some days, up to 50); how it goes feeds the club's view of you, and a good run can end the assignment
+  function callupStint(st, rec) {
+    const sh = st.stash, p = st.player, L = st.league, w = teamWant(st), rnd = NBA.Decisions.rng(st, 'callup|' + L.year + '|' + sh.years);
+    const pc = clamp(0.12 + 0.06 * w.score + 0.02 * (rec.pf - 25) + (sh.twoWay ? 0.3 : 0), 0, 0.92); if (!(rnd() < pc || (sh.twoWay && rnd() < 0.75))) return;
+    const maxG = sh.twoWay ? Math.max(0, 50 - sh.nbaGames) : 30, games = Math.max(2, Math.min(maxG, Math.round((sh.twoWay ? 12 : 5) + rnd() * (sh.twoWay ? 30 : 18) + Math.max(0, w.score) * 0.8))); if (maxG < 2) return;
+    const me = ovr(p), t = L.teams[sh.teamId], ros = NBA.rosterOf(L, t).filter((q) => q.id !== 'user').sort((a, b) => ovr(b) - ovr(a)), thr = ros.length >= 9 ? ovr(ros[8]) : 55;
+    const mins = clamp(Math.round(6 + 0.9 * (me - thr + 4) + (w.verdict === 'wants' ? 4 : 0)), 3, 24), e = expLine(p, { pace: 99, minsFixed: mins, usgMult: 0.78, tsAdj: -0.02, rebMult: 0.95, astMult: 0.95, coTax: 0 });
+    const gs = []; for (let i = 0; i < games; i++) gs.push(genGame({ pts: e.pts, reb: e.reb, ast: e.ast, stl: e.stl, blk: e.blk, tov: e.tov, mins: e.mins })); const sm = summarize(gs);
+    const base = gameGrade(me, { pt: sm.pts, m: sm.mins, fga: sm.pts * 0.85, fgm: sm.pts * 0.4, fta: 0, rb: sm.reb, as: sm.ast, st: sm.stl, bk: sm.blk }, 0, 0).grade, good = base === 'good' || base === 'great' || (sm.pts >= 8 && me >= thr - 2), poor = base === 'poor' || base === 'awful' && sm.pts < 4;
+    const at = Math.round(18 + rnd() * 20); sh.nbaGames += games;
+    rec.callup = { at, games, team: sh.nick, twoWay: !!sh.twoWay, line: { gp: games, mins: sm.mins, pts: sm.pts, reb: sm.reb, ast: sm.ast }, good, poor };
+    if (sh.twoWay && sh.twoPay) st.earnings += sh.twoPay;
+    if (good && w.score >= -1 && rnd() < 0.5) { sh.converted = true; rec.callup.converted = true; }
+    NBA.Decisions.log(st, { kind: 'draft', title: 'Called up', tone: good ? 'good' : 'neutral', text: 'Called up by the ' + sh.nick + ' around game ' + at + ' of the G League year: ' + games + ' NBA game' + (games > 1 ? 's' : '') + ', ' + sm.pts.toFixed(1) + ' ppg in ' + sm.mins.toFixed(0) + ' minutes.' + (rec.callup.converted ? ' They offered to bring you on full time.' : '') });
   }
   function stayIntl(st) { NBA.npcDraft(st.league); st.stage = 'training'; st.afterTraining = 'intl'; return trainingInfo(st); }
   function moveClub(st, id) { chooseClub(st, id); return stayIntl(st); }
@@ -330,28 +346,42 @@
   }
   const buyoutM = (st) => ({ academy: 0, domestic: 0.4, euroleague: 1.4, gleague: 0 })[st.college.tier] || 0;
   // ---- the NBA G League: the club sends you there to develop; it is the club, not you, who decides when you are back
-  function assignGLeague(st) {
-    const d = st.draft, L = st.league, t = L.teams[d ? d.teamId : st.teamId]; if (!t) throw new Error('no club');
-    st.stash = { kind: 'gl', teamId: t.id, team: t.name, nick: t.nick, slot: d && d.slot ? d.slot : null, y: L.year, years: 0, news: [] }; if (d) d.stashed = true;
+  function assignGLeague(st, opts) {
+    opts = opts || {}; const d = st.draft, L = st.league, t = L.teams[d ? d.teamId : st.teamId]; if (!t) throw new Error('no club');
+    st.stash = { kind: 'gl', teamId: t.id, team: t.name, nick: t.nick, slot: d && d.slot ? d.slot : null, y: L.year, years: 0, news: [], twoWay: !!opts.twoWay, nbaGames: 0 }; if (d) d.stashed = true;
+    if (opts.twoWay) { st.stash.twoPay = r1(capFor(L.year) * 0.0072); st.contract = { salary: st.stash.twoPay, years: 2, left: 2, type: 'twoway' }; }
     st.college = { id: 'gl:' + t.id, name: t.nick + ' G League affiliate', state: t.city + ' (NBA G League)', prestige: 3, home: true, intl: true, tier: 'gleague', country: 'us', league: 'NBA G League' };
     st.glYears = st.glYears || []; st.clubYears = 0; st.teamId = -1; st.player.teamId = -1;
-    NBA.Decisions.log(st, { kind: 'draft', title: 'G League', tone: 'neutral', text: 'The ' + t.nick + ' assigned you to their G League affiliate to develop. They decide when you are ready.' });
+    NBA.Decisions.log(st, { kind: 'draft', title: opts.twoWay ? 'Two-way contract' : 'G League', tone: 'neutral', text: opts.twoWay ? 'You signed a two-way contract with the ' + t.nick + ': mostly the G League, with up to 50 days with the NBA club.' : 'The ' + t.nick + ' assigned you to their G League affiliate to develop. They decide when you are ready.' });
     st.stage = 'training'; st.afterTraining = 'intl'; return trainingInfo(st);
   }
   // what the club thinks right now: do they want you back, or do they want you to develop more?
-  function teamWant(st) {
-    const sh = st.stash, L = st.league, p = st.player, t = L.teams[sh.teamId], ros = NBA.rosterOf(L, t).filter((q) => q.id !== 'user').sort((a, b) => ovr(b) - ovr(a)), arr = stintYears(st), last = arr[arr.length - 1];
+  function wantCalc(st, teamId, last, years, bonus, bonusReason) {
+    const L = st.league, p = st.player, t = L.teams[teamId], ros = NBA.rosterOf(L, t).filter((q) => q.id !== 'user').sort((a, b) => ovr(b) - ovr(a));
     const me = ovr(p), thr = ros.length >= 9 ? ovr(ros[8]) : 55, thr5 = ros.length >= 5 ? ovr(ros[4]) : 60, needs = NBA.teamNeeds(L, t), need = needs[p.pos] || 0, rank = 1 + ros.filter((q) => ovr(q) > me).length;
-    const perf = last ? clamp((last.pf - 20) * 0.22, -3, 4) : 0, ageB = p.age <= 20 ? -1.5 : p.age >= 23 ? 1 : 0, wait = sh.years >= 2 ? 1.5 * (sh.years - 1) : 0;
-    const score = (me - thr) * 1.1 + perf + need * 3 + ageB + wait, reasons = [];
+    const perf = last ? clamp((last.pf - 20) * 0.22, -3, 4) : 0, ageB = p.age <= 20 ? -1.5 : p.age >= 23 ? 1 : 0, wait = years >= 2 ? 1.5 * (years - 1) : 0;
+    const score = (me - thr) * 1.1 + perf + need * 3 + ageB + wait + (bonus || 0), reasons = [];
     reasons.push('You rate ' + Math.round(me) + ' OVR; the ' + t.nick + ' rotation starts around ' + Math.round(thr) + ' (their 9th man) and their starters around ' + Math.round(thr5) + '. You would be their #' + rank + ' on the depth chart.');
     if (last) reasons.push(last.pf >= 30 ? 'Your last year was strong (' + last.line.pts.toFixed(1) + ' ppg), and the staff noticed.' : last.pf >= 20 ? 'Your last year was solid but not special (' + last.line.pts.toFixed(1) + ' ppg).' : 'Your last year was quiet (' + last.line.pts.toFixed(1) + ' ppg): the staff wants to see more.');
+    if (bonusReason) reasons.push(bonusReason);
     if (need >= 0.5) reasons.push('They are short at ' + p.pos + ' and a roster spot is open.'); else if (need < 0.15) reasons.push('They are deep at your position, so there is no hole to fill.');
     if (p.age <= 20) reasons.push('You are only ' + p.age + ': the club would rather be patient.');
     const verdict = score >= 2.5 ? 'wants' : score >= -3 ? 'open' : 'develop';
     return { score: Math.round(score * 10) / 10, verdict, reasons, rank, thr: Math.round(thr), team: t.nick };
   }
+  function teamWant(st) {
+    const sh = st.stash, arr = stintYears(st), last = arr[arr.length - 1], cu = last && last.callup;
+    const bonus = (sh.converted ? 6 : 0) + (cu ? (cu.good ? 2.5 : cu.poor ? -1.5 : 0.5) : 0), why = sh.converted ? 'They already offered to convert you after your call-up.' : cu ? (cu.good ? 'You played well when they called you up (' + cu.line.pts.toFixed(1) + ' ppg in ' + cu.games + ' games).' : cu.poor ? 'Your call-up did not go well (' + cu.line.pts.toFixed(1) + ' ppg in ' + cu.games + ' games).' : 'Your call-up was fine but not memorable.') : '';
+    return wantCalc(st, sh.teamId, last, sh.years, bonus, why);
+  }
+  // draft night: would the club keep you on its NBA roster right now, or does it want you in the G League / overseas?
+  function draftWant(st) { const cy = st.collegeYears || [], last = cy[cy.length - 1]; return wantCalc(st, st.draft.teamId, last ? { pf: last.pf, line: last.line } : null, 0, 0, ''); }
   // asking for a spot the club does not think you have earned: sometimes they give in, sometimes it sours things
+  function pushDraft(st) {   // asking for a roster spot on draft night when the club wanted you in the G League or overseas
+    const w = draftWant(st), d = st.draft, r = NBA.Decisions.rng(st, 'pushd|' + st.league.year)(), pOk = clamp(0.3 + 0.05 * w.score, 0.04, 0.6);
+    if (r < pOk) return { ok: true, text: 'The ' + d.team + ' agreed: you start on the NBA roster.' };
+    NBA.Decisions.apply(st, [{ k: 'meter', f: 'media', d: -0.2 }]); return { ok: false, text: 'The ' + d.team + ' said no: they want you to develop first.' };
+  }
   function pushForSpot(st) {
     const w = teamWant(st), r = NBA.Decisions.rng(st, 'push|' + st.league.year + '|' + st.stash.years)(), pOk = clamp(0.38 + 0.05 * w.score, 0.05, 0.7);
     if (r < pOk) { NBA.Decisions.log(st, { kind: 'draft', title: 'Pushed for a spot', tone: 'good', text: 'You pushed the ' + st.stash.nick + ' for a roster spot and they agreed.' }); return { ok: true, text: 'The ' + st.stash.nick + ' gave in: you are on the roster.' }; }
@@ -366,7 +396,7 @@
   }
   function joinFromStash(st) {
     const sh = st.stash, L = st.league, p = st.player, bo = buyoutM(st);
-    if (sh.kind !== 'gl') { st.contract = sh.slot ? rookieDeal(st, sh.slot) : rookieDeal(st, null); if (bo) st.earnings = Math.max(0, st.earnings - bo); }
+    if (sh.kind !== 'gl' || sh.twoWay) { st.contract = sh.slot ? rookieDeal(st, sh.slot) : rookieDeal(st, null); if (bo) st.earnings = Math.max(0, st.earnings - bo); }
     st.teamId = sh.teamId; p.teamId = sh.teamId; st.draft.team = sh.team; st.draft.teamId = sh.teamId; st.draft.cameOver = L.year; sh.joined = L.year;
     NBA.Decisions.log(st, { kind: 'draft', title: sh.kind === 'gl' ? 'Called up' : 'Came over', tone: 'good', text: sh.kind === 'gl' ? 'After ' + (sh.years + 1) + ' G League year' + (sh.years ? 's' : '') + ', the ' + sh.nick + ' called you up to the roster.' : 'After ' + (sh.years + 1) + ' more year' + (sh.years ? 's' : '') + ' with ' + st.college.name + ', you joined the ' + sh.nick + (bo ? ' (buyout: $' + bo.toFixed(1) + 'M)' : '') + ' on a rookie deal.' });
     feedAdd(st, 'sign', { name: p.name, team: sh.nick }, { key: 'stashjoin' + L.year, at: null });
@@ -2099,6 +2129,6 @@
     return st;
   }
 
-  Object.assign(NBA, { capFor, marketCurve, Game: { assignGLeague, teamWant, pushForSpot, stintYears, stashPlayer, stashStay, joinFromStash, buyoutM, intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { capFor, marketCurve, Game: { draftWant, pushDraft, callupStint, assignGLeague, teamWant, pushForSpot, stintYears, stashPlayer, stashStay, joinFromStash, buyoutM, intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
