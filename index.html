@@ -1081,13 +1081,14 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
       ATTRS.forEach((a) => (p.attrs[a] = clamp(p.attrs[a] + d, 8, 99)));
     }
     p.yearsPro = Math.max(0, age - 19); p.teamId = teamId; p.real = true;
+    const rl = row[6]; if (rl && rl.length >= 8) p.rl = { y: rl[0], age0: age, pts: rl[3], reb: rl[4], ast: rl[5], stl: rl[6], blk: rl[7] };   // the real 2025-26 line (or the last healthy one): the next seasons grow out of it
     return p;
   }
   function buildReal(L) {
     const R = NBA.real;
     L.teams.forEach((t) => {
       (R.TEAMS[t.nick] || []).forEach((row) => { const p = makeReal(L, row, t.id); L.players[p.id] = p; t.core.push(p.id); });
-      if (R.WINS[t.nick] != null) t.prevWins = R.WINS[t.nick];
+      if (R.WINS[t.nick] != null) { t.prevWins = R.WINS[t.nick]; t.realW = R.WINS[t.nick]; L.realY = 2025; }
       fillCore(L, t);
     });
     R.ROOKIES.forEach((r) => {
@@ -1132,6 +1133,23 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
   const perfOf = (l) => l.pts * (1 + 2.2 * (l.ts - 0.57)) + 1.15 * l.reb + 1.5 * l.ast + 2 * (l.stl + l.blk) - 1.1 * l.tov;
   function defScore(p, l) {
     return 4 * l.blk + 3.5 * l.stl + 0.12 * Math.max(p.attrs.rimP, p.attrs.perD);
+  }
+  // Real players' first seasons grow out of their real line: the real 2025-26 production, aged with real year-over-year curves (young players rise, 30+ decline,
+  // assists age best, the very top regresses), blended with the sim's own line (roster, role, injuries). The anchor fades: 78% in the next season, 68%, 50%, 35%...
+  // Deterministic per player and season (a hash, not the league's random stream).
+  const hashS = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+  const AGE_P = (a) => (a <= 21 ? 1.1 : a <= 22 ? 1.07 : a <= 23 ? 1.05 : a <= 24 ? 1.03 : a <= 26 ? 1.015 : a <= 28 ? 1 : a <= 29 ? 0.985 : a <= 30 ? 0.97 : a <= 31 ? 0.955 : a <= 32 ? 0.94 : a <= 33 ? 0.92 : a <= 34 ? 0.9 : a <= 35 ? 0.88 : a <= 36 ? 0.86 : a <= 37 ? 0.83 : 0.8);
+  const ANCHOR_W = [0, 0.78, 0.68, 0.5, 0.35, 0.22, 0.12];
+  function realAnchor(L, p, l) {
+    const r = p.rl; if (!r) return; const n = L.year - (r.y - 1); if (n < 1 || n >= ANCHOR_W.length) return;
+    let fp = 1, fr = 1, fa = 1; for (let k = 1; k <= n; k++) { const age = r.age0 - 1 + k, f = AGE_P(age); fp *= f; fr *= 1 + (f - 1) * 0.7; fa *= 1 + (f - 1) * 0.6; }   // boards and assists age more gently than scoring
+    let tp = r.pts * fp; if (tp > 30) tp = 30 + (tp - 30) * Math.pow(0.9, n);
+    // noise per player, season and league (the salt comes from this season's already-random league state)
+    let a = hashS(p.name + '|' + L.year + '|' + (L.anchorSalt || 0)) || 1; const u = () => { a ^= a << 13; a >>>= 0; a ^= a >>> 17; a ^= a << 5; a >>>= 0; return a / 4294967296; }, nz = () => 1 + 0.155 * (u() + u() + u() - 1.5);   // real lines move ~9% a year either way (a bell curve, not a flat band)
+    const T = { pts: tp * nz(), reb: r.reb * fr * nz(), ast: r.ast * fa * nz(), stl: r.stl * fr, blk: r.blk * fr }, w = ANCHOR_W[n];
+    const ws = Math.min(0.92, w + 0.12);   // the shape of a line (boards, dimes, stocks) is who a player is: anchored a little harder than scoring
+    ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k) => { const ww = k === 'pts' ? w : ws; if (T[k] != null && isFinite(T[k])) l[k] = ww * T[k] + (1 - ww) * l[k]; });
+    l.perf = perfOf(l);
   }
   function lineFromExp(p, e, gp, form) {
     const sh = 1 + T.formSd * randn();
@@ -1248,10 +1266,12 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
       t.wins = 41 + T.winsPerPt * (t.S - meanS) + t.depth + randn() * 4.6;
     });
     // roster continuity: a team does not flip from the lottery to the top seed in one summer
-    L.teams.forEach((t) => { t.wins = 0.9 * t.wins + 0.1 * (t.prevWins == null ? 41 : t.prevWins); });
+    const nR = L.realY != null ? L.year - L.realY : 99;
+    L.teams.forEach((t) => { if (t.realW != null && nR === 1) t.wins = 0.58 * t.wins + 0.42 * (41 + 0.66 * (t.realW - 41)); else if (t.realW != null && nR === 2) t.wins = 0.7 * t.wins + 0.3 * (41 + 0.5 * (t.realW - 41)) + 0.1 * ((t.prevWins == null ? 41 : t.prevWins) - 41); else t.wins = 0.9 * t.wins + 0.1 * (t.prevWins == null ? 41 : t.prevWins); });
     const mw = sum(L.teams.map((t) => t.wins)) / L.teams.length;
     // real tails: more truly bad teams, fewer 60+ juggernauts
     L.teams.forEach((t) => { let w = t.wins - (mw - 41); if (w < 33) w -= (33 - w) * 0.22; if (w > 54) w -= (w - 54) * ((user && t.id === user.teamId && ovr(user.p) >= 88) ? T.userWinShrink : 0.2); t.wins = clamp(Math.round(w), 12, 73); t.losses = 82 - t.wins; });
+    if (L.forceWins) { L.teams.forEach((t) => { const fw = L.forceWins[t.id]; if (fw != null) { t.wins = fw; t.losses = 82 - fw; } }); delete L.forceWins; }   // the season as it was really played (a human career's live results): seeding, playoffs and awards follow it
     L.teams.forEach((t) => { t.power = (t.wins - 41) / 2.7 + randn() * 0.8; t.prevWins = t.wins; });
     deadlineTrades(L);
     if (user && user.avail && user.avail.po) { const ut0 = L.teams[user.teamId]; ut0.power -= clamp((ovr(user.p) - 60) * 0.12, 0.8, 4.5) * (user.avail.po >= 99 ? 1 : clamp(user.avail.po / 16, 0.2, 0.85)); }   // the star is hurt for the playoffs: the team goes in without him
@@ -1265,12 +1285,13 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
       user.line = user.getLine(user.ctx);
     }
     // everyone else
+    L.anchorSalt = Math.round(L.teams.reduce((a, t) => a + (t.pace || 0) * 1000 + (t.wins || 0), 0));
     const lines = {};
     allPlayers.forEach((p) => {
       const t = L.teams[p.teamId];
       const roster = teamRoster(L, t, user);
       const e = expLine(p, { coTax: coTaxFor(p, roster), fr: franchiseFor(p, roster), tsAdj: gravityFor(p, roster), wins: t.wins, pace: t.pace, rookie: p.rookie, minsFloor: p.rookie ? NBA.rookieFloor(p.draftSlot) : 0 });
-      const l = lineFromExp(p, e, avail[p.id].gp);
+      const l = lineFromExp(p, e, avail[p.id].gp); if (p.rl) realAnchor(L, p, l);
       l.id = p.id; l.teamId = p.teamId; l.wins = t.wins;
       lines[p.id] = l;
       entries.push({ p, l, t, id: p.id });
@@ -1898,7 +1919,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
   ];
 
   // approximate 2025-26 records, used only so year-one win totals have some continuity
-  const WINS = {"Spurs": 62, "Pistons": 60, "Thunder": 60, "Knicks": 53, "Cavaliers": 52, "Magic": 45, "Clippers": 42, "Warriors": 37, "Bucks": 32, "Pelicans": 26, "Grizzlies": 25, "Pacers": 19, "Wizards": 17};
+  const WINS = {"Pistons": 60, "Celtics": 56, "Knicks": 53, "Cavaliers": 52, "Raptors": 46, "Hawks": 46, "76ers": 45, "Magic": 45, "Hornets": 44, "Heat": 43, "Bucks": 32, "Bulls": 31, "Nets": 20, "Pacers": 19, "Wizards": 17, "Thunder": 64, "Spurs": 62, "Nuggets": 54, "Lakers": 53, "Rockets": 52, "Timberwolves": 49, "Suns": 45, "Trail Blazers": 42, "Clippers": 42, "Warriors": 37, "Pelicans": 26, "Mavericks": 26, "Grizzlies": 25, "Kings": 22, "Jazz": 22};
 
   g.NBA.real = { TEAMS, ROOKIES, WINS, asOf: '2026-10-20' };
   if (typeof module !== 'undefined') module.exports = g.NBA;
@@ -7142,6 +7163,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     st.leagueSnap = { year: L.year, label: res.label, standings: res.standings, leaders: res.leaders, leadersO: res.leadersOthers, race: A.race, raceO: A.raceOthers, playin: po.playin };
     st.matchLog = buildMatchLog(st, rec, l, gl, perSeries, t, rec.injury, pline); st.matchIdx = 0;
     manageReturn(st, rec, l); if (avail.po > 0 && avail.po < 99) playoffMiss(st, rec, perSeries, avail.po);
+    if (!st.autoPlay) { st.layWins = {}; L.teams.forEach((x) => { st.layWins[x.id] = x.wins; }); }
     shootingFromLog(rec, st.matchLog);
     if (rec.playoff) rec.playoff.rating = rec.poRating;
     rec.bests = seasonBests(st.matchLog, rec.label, rec.age);
@@ -7764,10 +7786,24 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     if (mod > 0 && !g && r() < Math.min(1, mod / Math.max(0.05, 1 - p))) swing = true; else if (mod < 0 && g && r() < Math.min(1, -mod / Math.max(0.05, p))) swing = true;
     it.rs = 1;
     if (swing) { g = !g; if (!it.po) flipGame(st, it, g); else playoffSwing(st, idx, g); }
+    const cur0 = st.matchLog[idx]; cur0.rs = 1;
+    if (!cur0.po && !st.matchLog.some((x) => x.k === 'g' && !x.po && !x.rs)) reseed(st, idx);   // the regular season is over: the standings are what was really played
     const cur = st.matchLog[idx]; cur.rs = 1;
     if (cur.po) seriesSer(st, cur.si);
     recomputeFromLog(st); gameFeed(st, st.matchLog, st.league.teams[st.teamId], idx);
     return { w: !!cur.w, flipped: !!cur.w !== was, swing };
+  }
+  // the regular season as it was really played: if live results moved any team's record, the league re-seeds from the real records
+  // (seeding, the play-in, the bracket, the awards' team-wins inputs), keeping every game already played
+  function reseed(st, idx) {
+    const L = st.league, lay = st.layWins || {}; if (!SNAP || (st.reseed && st.reseed.y === L.year)) return false;
+    if (!L.teams.some((t) => lay[t.id] != null && lay[t.id] !== t.wins)) return false;
+    const map = {}; L.teams.forEach((t) => { map[t.id] = t.wins; }); st.reseed = { y: L.year, map };
+    const keep = JSON.parse(JSON.stringify(st.matchLog[idx])), myW = L.teams[st.teamId].wins;
+    replay(st, st.seasonMoves || [], { force: true });
+    st.matchLog[idx] = keep; recomputeFromLog(st);
+    const rec = st.proSeasons[st.proSeasons.length - 1]; rec.wins = st.matchLog.filter((x) => x.k === 'g' && !x.po && x.w).length; rec.losses = st.matchLog.filter((x) => x.k === 'g' && !x.po).length - rec.wins;
+    return true;
   }
   // a decision swung a playoff game: the rest of the series is played out at the matchup's odds and the season replays with that series result
   function playoffSwing(st, idx, wins) {
@@ -7928,11 +7964,12 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
   // Replay the season from its tip-off snapshot with the player's changes applied (a new game plan, a mid-season move): the league's results come from the same seeds,
   // the games already shown stay exactly as they were, and everything after comes from the new situation.
   function replay(st, moves, opt) {
-    const keep = { idx: st.matchIdx || 0, shotTab: st.shotTab, shotScope: st.shotScope, log: st.matchLog, view: st.view, dec: st.dec, dlDone: st.dlDone, dlChecked: st.dlChecked, style: st.style, styleSeq: st.styleSeq, poPlans: st.poPlans, poPress: st.poPress, poForce: st.poForce, clutchDelta: st.clutchDelta || 0, clutchStats: st.career && st.career.clutch, autoDec: st.autoDec, noSocial: st.noSocial, noPress: st.noPress, liveMode: st.liveMode };
+    const keep = { idx: st.matchIdx || 0, shotTab: st.shotTab, shotScope: st.shotScope, log: st.matchLog, view: st.view, dec: st.dec, dlDone: st.dlDone, dlChecked: st.dlChecked, style: st.style, styleSeq: st.styleSeq, poPlans: st.poPlans, poPress: st.poPress, poForce: st.poForce, clutchDelta: st.clutchDelta || 0, clutchStats: st.career && st.career.clutch, autoDec: st.autoDec, reseed: st.reseed, noSocial: st.noSocial, noPress: st.noPress, liveMode: st.liveMode };
     const snapObj = JSON.parse(SNAP), startTeam = snapObj.teamId;
     Object.keys(st).forEach((k) => delete st[k]); Object.assign(st, snapObj);
     NBA.Decisions.carry(st, keep.dec);
     st.style = opt.style || keep.style; st.styleSeq = opt.seq || keep.styleSeq; st.dlDone = keep.dlDone; st.dlChecked = keep.dlChecked; st.seasonMoves = moves; st.poPlans = keep.poPlans || {}; st.poPress = keep.poPress || {}; st.poForce = keep.poForce || null; st.clutchDelta = keep.clutchDelta; if (keep.clutchStats) st.career.clutch = keep.clutchStats; if (keep.autoDec) st.autoDec = true; ['noSocial', 'noPress', 'liveMode'].forEach((k) => { if (keep[k] != null) st[k] = keep[k]; });   // the player's own switches survive a replay
+    if (keep.reseed && keep.reseed.y === st.league.year) { st.reseed = keep.reseed; st.league.forceWins = Object.assign({}, keep.reseed.map); }
     moves.forEach((m) => applyMoveState(st, m));
     playSeason(st, { rerun: true });
     const force = moves.length > 0 || !!st.poForce || !!opt.force;
@@ -8398,7 +8435,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     return st;
   }
 
-  Object.assign(NBA, { capFor, marketCurve, Game: { scaleBox, momentOdds, momentPlay, resolveGame, resolveThrough, hsOptions, FAMILY, familyOf, canAfford, needScholarship, INTL_PLANS, setClause, euroBuyout, intlReport, nbaInterest, draftWant, pushDraft, callupStint, assignGLeague, teamWant, pushForSpot, stintYears, stashPlayer, stashStay, joinFromStash, buyoutM, intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { capFor, marketCurve, Game: { scaleBox, momentOdds, momentPlay, resolveGame, resolveThrough, reseed, hsOptions, FAMILY, familyOf, canAfford, needScholarship, INTL_PLANS, setClause, euroBuyout, intlReport, nbaInterest, draftWant, pushDraft, callupStint, assignGLeague, teamWant, pushForSpot, stintYears, stashPlayer, stashStay, joinFromStash, buyoutM, intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -8406,7 +8443,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v108';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v109';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
