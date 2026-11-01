@@ -17,6 +17,11 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   await page.waitForTimeout(800);
   let t = await page.evaluate(() => document.body.innerText);
   ok('OFFSEASON build your team card', /Build your team/i.test(t) && /Front office/i.test(t), t.slice(0, 200));
+  { const exp = await page.evaluate(() => !!(window.__NBA_UI.state.decision || {}).expiring); ok('OFFSEASON coach card (hidden in free agency)', exp ? /Free-agent meetings/i.test(t) : /The coach/i.test(t) && /fire him/i.test(t), { exp }); }
+  const lot = await page.evaluate(() => { const st = window.__NBA_UI.state, L = st.league, t = L.teams[st.teamId]; L.teams.forEach((x) => { if (x.id !== t.id) x.wins = Math.max(x.wins, 30); }); t.wins = 18; window.__NBA_UI.go(); return true; });
+  await page.waitForTimeout(300); t = await page.evaluate(() => document.body.innerText); ok('OFFSEASON lottery card', /Lottery night/i.test(t) && /for the #1 pick/.test(t));
+  await page.click('button:text-matches("Watch the lottery")'); await page.waitForTimeout(300); t = await page.evaluate(() => document.body.innerText); ok('OFFSEASON lottery drawn + prospects', /Push for him/i.test(t));
+  await page.click('button:text-is("Push for him") >> nth=-1'); await page.waitForTimeout(300); t = await page.evaluate(() => document.body.innerText); ok('OFFSEASON lobby resolves', /(front office listened|draft their own board|will be gone before your pick)/.test(t));
   const nRec = await page.$$('button:text-is("Recruit")'); ok('OFFSEASON recruit targets', nRec.length >= 1, { n: nRec.length });
   if (nRec.length) { await nRec[0].click(); await page.waitForTimeout(400); t = await page.evaluate(() => document.body.innerText); ok('OFFSEASON recruit resolves', /(is coming|listened, thanked you|front office shut it down|did not take your call)/.test(t) && /They listen to you: \d+%/.test(t) && /made your move/i.test(t)); }
   // national team: force an event year and a selection
@@ -42,7 +47,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   t = await page.evaluate(() => document.body.innerText); ok('SEASON history watch panel', /History watch/i.test(t) && /all-time|top-50/i.test(t));
   const mo = await page.evaluate(() => { const st = window.__NBA_UI.state, C = window.NBA.Core; const i = st.matchLog.findIndex((x, k) => x.k === 'g' && x.po && !x.pi && !x.dnp && C.momentOf(st, k)); return { i, n: st.matchLog.length, lm: st.proSeasons[st.proSeasons.length - 1].gp }; });
   if (mo.i >= 0) {
-    await page.evaluate((i) => { const st = window.__NBA_UI.state; st.matchLog.forEach((x, k) => { if (k < i) { x.pd = x.ppd = x.sd = x.md = x.pcast = x.sij = x.cd = x.ad = x.smd = x.recap = 1; } else { delete x.pp; delete x.pc; x.md = x.pcast = x.sij = x.cd = 1; if (k > i) x.smd = 1; } }); st.dlDone = true; st.poPlans = { 0: 'balanced', 1: 'balanced', 2: 'balanced', 3: 'balanced' }; st.poPress = { 0: null, 1: null, 2: null, 3: null }; st.dec.pending = null; st.dec.flags.injChoice = { y: st.league.year }; st.matchIdx = i; window.__NBA_UI.go(); }, mo.i);
+    await page.evaluate((i) => { const st = window.__NBA_UI.state; st.matchLog.forEach((x, k) => { if (k < i) { x.pd = x.ppd = x.sd = x.md = x.pcast = x.sij = x.cd = x.ad = x.h_alpha = x.h_rumor = x.h_buyout = x.h_benched = x.smd = x.recap = 1; } else { delete x.pp; delete x.pc; x.md = x.pcast = x.sij = x.cd = 1; if (k > i) x.smd = 1; } }); st.dlDone = true; st.poPlans = { 0: 'balanced', 1: 'balanced', 2: 'balanced', 3: 'balanced' }; st.poPress = { 0: null, 1: null, 2: null, 3: null }; st.dec.pending = null; st.dec.flags.injChoice = { y: st.league.year }; st.matchIdx = i; window.__NBA_UI.go(); }, mo.i);
     await page.waitForTimeout(600); t = await page.evaluate(() => document.body.innerText);
     ok('PLAYOFFS series moment pop-up', /(Down 0-2|Win or go home|Close it out|Swing game)/i.test(t) && /Trust the system/i.test(t), t.slice(0, 160));
     await page.click('.wkcard:has-text("Trust the system") button'); await page.waitForTimeout(400); t = await page.evaluate(() => document.body.innerText);

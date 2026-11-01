@@ -29,14 +29,18 @@
     const last = recent[recent.length - 1] || {}, aw = (last.awards || []).join(' '), elite = /MVP|All-NBA/.test(aw) || (last.pts || 0) >= 26 || me >= 86, good = elite || /All-Star/.test(aw) || (last.pts || 0) >= 21 || me >= 81;
     const franchise = me >= best + 1 && me >= 78;
     const tier = top3 >= 2 || (ranks.length === 1 && rankNow <= 2) ? 'contender' : avgRank >= 9 || rankNow >= 10 ? 'weak' : 'middle';
-    let listen = { contender: 0.06, middle: 0.45, weak: 0.75 }[tier];
+    // standing: a consistent top-10 player (or one with MVPs, rings, All-NBA teams) gets heard anywhere, and stars want to play with him
+    const lgRank = 1 + Object.values(L.players).filter((q) => q.id !== 'user' && q.id !== st.player.id && q.teamId != null && ovr(q) > me).length;
+    const last3 = (st.proSeasons || []).slice(-3), cnt = (re) => last3.filter((x) => (x.awards || []).some((a) => re.test(a))).length, caw = st.career.awards || {};
+    const standing = Math.min(4, 0.6 * cnt(/All-NBA/) + 0.25 * cnt(/All-Star/) + Math.min(2, caw.MVP || 0) + 0.5 * Math.min(2, caw.Championships || 0) + (lgRank <= 5 ? 1.2 : lgRank <= 10 ? 0.9 : lgRank <= 20 ? 0.4 : 0));
+    let listen = { contender: 0.1, middle: 0.5, weak: 0.78 }[tier] + Math.min(0.3, standing * 0.08);
     if (franchise) listen += tier === 'weak' ? 0.2 : tier === 'contender' ? 0.06 : 0.12; else listen *= me >= best - 2 ? 0.7 : 0.35;
     if (elite) listen += 0.1; else if (!good) listen -= 0.1;
     listen += foMood(st) * 0.04; listen = clamp(listen, 0.03, 0.95);
     const why = tier === 'contender' ? 'The ' + t.nick + ' finished top 3 in the ' + (t.conf === 'E' ? 'East' : 'West') + ' ' + top3 + ' of the last ' + ranks.length + ' years. The front office: "We are not breaking up a contender."'
       : tier === 'weak' ? (franchise ? 'You are the franchise and the team around you is not good enough (' + ord(rankNow) + ' in the ' + (t.conf === 'E' ? 'East' : 'West') + '). The front office knows it owes you help.' : 'The team is ' + ord(rankNow) + ' in the ' + (t.conf === 'E' ? 'East' : 'West') + ' and needs help, but you are not the player they are building around.')
       : (franchise ? 'A middle-of-the-pack team (' + ord(rankNow) + ' in the ' + (t.conf === 'E' ? 'East' : 'West') + ') with you as the face of it. They will listen, within reason.' : 'A middle-of-the-pack team (' + ord(rankNow) + ' in the ' + (t.conf === 'E' ? 'East' : 'West') + '), and the big calls are not yours to make yet.');
-    return { tier, rankNow, ranks, top3, franchise, elite, listen: Math.round(listen * 100), why };
+    return { tier, rankNow, ranks, top3, franchise, elite, lgRank, standing: Math.round(standing * 10) / 10, listen: Math.round(listen * 100), why: why + (standing >= 2 ? ' Your standing in the league (top ' + (lgRank <= 5 ? 5 : lgRank <= 10 ? 10 : 20) + ', with the résumé to match) carries weight.' : '') };
   }
   const ord = (n) => n + (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th');
   // the stars you could bring in: the best player of other teams, plus a few top-60 players on bad teams
@@ -49,10 +53,10 @@
   // the chance a move happens = will the front office do it (the team's need, your standing) x can it be done (his team selling, his interest)
   function pitchOdds(st, q, t, how, ts) {
     ts = ts || teamStatus(st); const L = st.league, me = ovr(st.player), mine = L.teams[st.teamId], listen = ts.listen / 100;
-    const sell = clamp(0.4 + (41 - t.wins) * 0.012 + (q.age >= 30 ? 0.12 : q.age >= 28 ? 0.05 : q.age <= 24 ? -0.12 : 0) - (ovr(q) - 82) * 0.015, 0.08, 0.9);
-    const interest = clamp(0.35 + (me - 80) * 0.025 + (mine.wins - 41) * 0.006 + (t.wins < 35 ? 0.1 : 0) + (q.age >= 29 ? 0.08 : 0) + (flags(st).media || 0) * 0.01 + (NBA.Room && NBA.Room.fitOf ? 0.02 * NBA.Room.fitOf(st) : 0), 0.05, 0.95);
+    const sell = clamp(0.5 + (41 - t.wins) * 0.012 + (q.age >= 30 ? 0.12 : q.age >= 28 ? 0.05 : q.age <= 24 ? -0.12 : 0) - (ovr(q) - 82) * 0.015, 0.08, 0.9);
+    const interest = clamp(0.45 + (ts.standing || 0) * 0.07 + (me - 80) * 0.02 + (mine.wins - 41) * 0.006 + (t.wins < 35 ? 0.1 : 0) + (q.age >= 29 ? 0.08 : 0) + (flags(st).media || 0) * 0.01 + (NBA.Room && NBA.Room.fitOf ? 0.02 * NBA.Room.fitOf(st) : 0), 0.05, 0.95);
     const p = how === 'demand' ? Math.min(1, listen * 1.2) * sell : listen * Math.sqrt(sell * interest);
-    return Math.round(clamp(p, 0.02, 0.8) * 100);
+    return Math.round(clamp(p, 0.03, 0.85) * 100);
   }
   // recruit (his choice: a sign-and-trade he asks for) or demand (you push the front office to trade for him)
   function buildTeam(st, id, how) {
@@ -230,6 +234,6 @@
     return f.summerLeague;
   }
 
-  NBA.Core = { foMood, foLabel, teamStatus, pitchOdds, targets, buildTeam, foSeason, nationalTeam, playNational, intlYear, allTime, historyCheck, ALLTIME, badges, summerOptions, doSummer, LOAD, seriesState, momentOf, MOMENT_OPTS, captainCheck, mentees, mentor, unhappyTeammate, coStar, summerLeague };
+  NBA.Core = { foMood, setFo, foLabel, teamStatus, pitchOdds, targets, buildTeam, foSeason, nationalTeam, playNational, intlYear, allTime, historyCheck, ALLTIME, badges, summerOptions, doSummer, LOAD, seriesState, momentOf, MOMENT_OPTS, captainCheck, mentees, mentor, unhappyTeammate, coStar, summerLeague };
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

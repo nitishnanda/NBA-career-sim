@@ -194,7 +194,9 @@
     while (wa < 4 && wb < 4) {
       if (playGame(ra, rb, hc[g++])) wa++; else wb++;
     }
-    if (fx && fx.force && wa + wb === 7) {   // a Game 7 the player decided: the series ends 4-3 for whoever he made it
+    if (fx && fx.force && typeof fx.force === 'object') {   // a series the player swung mid-way (a playoff moment): the result he played out
+      const aUser = fx.uid === a.id; wa = aUser ? fx.force.w : fx.force.l; wb = aUser ? fx.force.l : fx.force.w;
+    } else if (fx && fx.force && wa + wb === 7) {   // a Game 7 the player decided: the series ends 4-3 for whoever he made it
       const aUser = fx.uid === a.id, want = fx.force === 'win' ? (aUser ? 'a' : 'b') : (aUser ? 'b' : 'a');
       if ((wa > wb ? 'a' : 'b') !== want) { const t = wa; wa = wb; wb = t; }
     }
@@ -585,8 +587,9 @@
     });
   }
   function npcDraft(L) {
-    const order = lotteryOrder(L);
-    const cls = draftClass(L, 72).sort((a, b) => b.stock - a.stock);
+    const plan = L.draftPlan && L.draftPlan.year === L.year ? L.draftPlan : null; L.draftPlan = null;   // lottery night already ran for a human career (and he may have lobbied for a pick)
+    const order = plan ? plan.order.map((id) => L.teams[id]) : lotteryOrder(L);
+    const cls = plan ? plan.cls : draftClass(L, 72).sort((a, b) => b.stock - a.stock);
     addRookies(L, cls.slice(0, 60).map((p, i) => ({ p, slot: i + 1 })), order);
     return { order };
   }

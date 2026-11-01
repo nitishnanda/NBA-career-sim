@@ -2,6 +2,8 @@
   // The career verdict: where you rank among the all-time greats, who beats you where, what the fans make of you, which teams retire your number,
   // what legends and current stars say, and a Hall of Fame speech. Everything here is facts and fallbacks; the artifact's Claude writes the words from them.
   const NBA = (g.NBA = g.NBA || {});
+  // cut long AI text at a sentence end (or a word, with an ellipsis), never mid-word
+  const sentCut = (t, n) => { if (t.length <= n) return t; const c = t.slice(0, n), e = Math.max(c.lastIndexOf('. '), c.lastIndexOf('! '), c.lastIndexOf('? ')); if (e >= n * 0.5) return c.slice(0, e + 1); const w = c.lastIndexOf(' '); return (w > 0 ? c.slice(0, w) : c).replace(/[,;:\s]+$/, '') + '…'; };
   // approximate real career résumés (an all-time list, not a database): mvp, finals mvp, titles, dpoy, all-nba 1st/2nd/3rd, all-defense, all-star, scoring titles, roy, points, rebounds, assists
   const GOATS = [
     ['Michael Jordan', 'SG', 5, 6, 6, 1, 10, 1, 0, 9, 14, 10, 1, 32292, 6672, 5633], ['LeBron James', 'SF', 4, 4, 4, 0, 13, 3, 2, 6, 21, 1, 1, 42000, 11800, 11700], ['Kareem Abdul-Jabbar', 'C', 6, 2, 6, 0, 10, 5, 0, 11, 19, 2, 1, 38387, 17440, 5660],
@@ -104,7 +106,7 @@
       + 'Reply with ONLY JSON: {"summary": "...", "fans": {"verdict": "...", "posts": ["...", "...", "...", "..."]}, "legends": [{"name": "...", "quote": "..."}], "stars": [{"name": "...", "quote": "..."}]}';
   }
   function checkReport(r, rep) {
-    if (!r || typeof r !== 'object') return null; const clip = (x, n) => String(x == null ? '' : x).replace(/[\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
+    if (!r || typeof r !== 'object') return null; const clip = (x, n) => sentCut(String(x == null ? '' : x).replace(/[\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim(), n);
     const summary = clip(r.summary, 900); if (summary.length < 60) return null;
     const byName = (arr, list) => (Array.isArray(arr) ? arr : []).map((x) => (x && list.find((y) => y.name === clip(x.name, 60)) ? { name: clip(x.name, 60), quote: clip(x.quote, 260) } : null)).filter((x) => x && x.quote.length >= 10);
     return { summary, verdict: clip(r.fans && r.fans.verdict, 200), posts: r.fans && Array.isArray(r.fans.posts) ? r.fans.posts.map((x) => clip(x, 170)).filter((x) => x.length >= 4).slice(0, 5) : [], legends: byName(r.legends, rep.legends), stars: byName(r.stars, rep.stars) };

@@ -1,7 +1,7 @@
 (function (g) {
   'use strict';
   const NBA = g.NBA;
-  if (typeof require !== 'undefined') { try { require('./picks.js'); require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./feed.js'); require('./legacy.js'); require('./intl.js'); require('./hsdata.js'); require('./eurodata.js'); require('./euro.js'); require('./report.js'); require('./core.js'); require('./social.js'); require('./room.js'); require('./live.js'); require('./allstar.js'); require('./cap.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
+  if (typeof require !== 'undefined') { try { require('./picks.js'); require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./feed.js'); require('./legacy.js'); require('./intl.js'); require('./hsdata.js'); require('./eurodata.js'); require('./euro.js'); require('./report.js'); require('./core.js'); require('./story.js'); require('./social.js'); require('./room.js'); require('./live.js'); require('./allstar.js'); require('./cap.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
   const D = NBA.data;
   const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
   const ATTRS = D.ATTRS;
@@ -1638,13 +1638,47 @@
     recomputeFromLog(st);
     return { text, tone, flipped: nowW !== wasW, foulOut };
   }
+  // ---- playoff moments that change the game: the approach moves this game's win chance; a flipped game plays the rest of the series out again
+  function momentOdds(st, idx) {
+    const L = st.league, it = st.matchLog[idx], t = L.teams[st.teamId]; let h = idx; while (h > 0 && st.matchLog[h].k !== 'hdr') h--;
+    const hdr = st.matchLog[h], ot = L.teams.find((x) => x.name === hdr.opp) || L.teams.find((x) => x.nick === it.o), pa = t.power || 0, pb = ot ? ot.power || 0 : pa;
+    const pg = clamp(1 / (1 + Math.exp(-0.145 * (pa - pb + (it.h ? 2.5 : -2.5)))), 0.15, 0.85), pser = clamp(1 / (1 + Math.exp(-0.145 * (pa - pb))), 0.15, 0.85);
+    const p = st.player, me = ovr(p), mates = NBA.rosterOf(L, t).filter((q) => q.id !== 'user' && q.id !== p.id).map(ovr).sort((a, b) => b - a), F = NBA.Decisions.state(st).flags, chem = F.chem || 0, locker = F.locker || 0, def = Math.max(p.attrs.perD, p.attrs.rimP);
+    const d = {
+      takeover: (me >= (mates[0] || 0) + 3 ? 0.12 : 0.03) + (me >= 86 ? 0.04 : me < 78 ? -0.08 : 0),
+      trust: (chem >= 1 ? 0.08 : chem <= -1 ? -0.05 : 0.03) + ((mates[0] || 0) >= 80 ? 0.04 : 0) + ((mates[1] || 0) >= 76 ? 0.03 : 0),
+      defense: def >= 82 ? 0.12 : def >= 72 ? 0.05 : -0.04,
+      callout: locker + chem >= 1 ? 0.13 : locker + chem <= -1 ? -0.12 : -0.02,
+    };
+    const out = {}; Object.keys(d).forEach((k) => { out[k] = Math.round(clamp(pg + d[k], 0.05, 0.95) * 100); });
+    return { base: Math.round(pg * 100), pg, pser, opts: out, si: it.si, hdrIdx: h };
+  }
+  function momentPlay(st, idx, key) {
+    const it0 = st.matchLog[idx], od = momentOdds(st, idx), pn = od.opts[key] / 100, pg = od.pg, was = !!it0.w, r = NBA.Decisions.rng(st, 'moment|' + st.league.year + '|' + idx + '|' + key);
+    let wins = was;
+    if (!was && pn > pg && r() < (pn - pg) / (1 - pg)) wins = true;
+    else if (was && pn < pg && r() < (pg - pn) / pg) wins = false;
+    if (wins === was || !SNAP) return { flipped: false, wins: was, base: od.base, now: od.opts[key] };
+    // the series from here: the games already played, this one, then the rest played out at the matchup's odds
+    const si = it0.si, seq = []; let w = 0, l = 0;
+    st.matchLog.forEach((x, i) => { if (i < idx && x.k === 'g' && x.po && !x.pi && x.si === si) { if (x.w) w++; else l++; } });
+    seq.push(wins ? 1 : 0); if (wins) w++; else l++;
+    while (w < 4 && l < 4) { const g = r() < od.pser ? 1 : 0; seq.push(g); if (g) w++; else l++; }
+    st.poForce = Object.assign({}, st.poForce, { [si]: { w, l } });
+    replay(st, st.seasonMoves || [], { force: true });
+    let k = 0, w1 = 0, l1 = 0;
+    st.matchLog.forEach((x, i) => { if (x.k !== 'g' || !x.po || x.pi || x.si !== si) return; if (i >= idx && k < seq.length) { const want = seq[k++]; if (!!x.w !== !!want) { const sc = gameScore(!!want, x.pt ? x.pt + 38 : 0); x.w = want; x.f = sc.f; x.a = sc.a; x.ot = sc.ot; if (x.pm != null) x.pm = Math.round((x.f - x.a) * ((x.m || 0) / 48) * 1.1); } }
+      if (x.w) w1++; else l1++; x.ser = (w1 === l1 ? 'Series tied ' : w1 > l1 ? 'Up ' : 'Down ') + Math.max(w1, l1) + '-' + Math.min(w1, l1); });
+    recomputeFromLog(st);
+    return { flipped: true, wins, base: od.base, now: od.opts[key], series: { w, l } };
+  }
   function resolveClutch(st, key) {
     const idx = st.matchIdx || 0, it0 = st.matchLog[idx]; if (!it0 || !it0.cl || !CL_OPTS[key]) throw new Error('no clutch moment');
     const L = st.league, p = st.player, sit = clutchSituation(it0), od = clutchOdds(st, it0, sit.need), Dc = NBA.Decisions;
     const r = Dc.rng(st, 'clutch|' + L.year + '|' + it0.n + '|' + (it0.po ? 1 : 0)), roll = r(), wins = roll < od.win[key], was = !!it0.w, g7 = !!it0.g7, rnd2 = r(), si = it0.si, n = it0.n;
     st.career.clutch = st.career.clutch || { moments: 0, wins: 0, shots: 0, shotWins: 0 };
     const cs = st.career.clutch; cs.moments++; if (wins) cs.wins++; if (key === 'shot') { cs.shots++; if (wins) cs.shotWins++; }
-    if (g7 && wins !== was) { st.poForce = Object.assign({}, st.poForce, { [si]: wins ? 'win' : 'loss' }); replay(st, st.seasonMoves || [], { force: true }); }
+    if (g7 && wins !== was) { st.poForce = Object.assign({}, st.poForce, { [si]: wins ? { w: 4, l: 3 } : { w: 3, l: 4 } }); replay(st, st.seasonMoves || [], { force: true }); }
     const it = st.matchLog[idx];
     // the game itself: score, record and the box score agree with the call
     if (!g7 && wins !== was) flipGame(st, it, wins);
@@ -2249,6 +2283,6 @@
     return st;
   }
 
-  Object.assign(NBA, { capFor, marketCurve, Game: { scaleBox, hsOptions, FAMILY, familyOf, canAfford, needScholarship, INTL_PLANS, setClause, euroBuyout, intlReport, nbaInterest, draftWant, pushDraft, callupStint, assignGLeague, teamWant, pushForSpot, stintYears, stashPlayer, stashStay, joinFromStash, buyoutM, intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { capFor, marketCurve, Game: { scaleBox, momentOdds, momentPlay, hsOptions, FAMILY, familyOf, canAfford, needScholarship, INTL_PLANS, setClause, euroBuyout, intlReport, nbaInterest, draftWant, pushDraft, callupStint, assignGLeague, teamWant, pushForSpot, stintYears, stashPlayer, stashStay, joinFromStash, buyoutM, intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

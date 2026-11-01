@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v103';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v104';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -659,9 +659,10 @@
         if (!pend('seriesmoment') && !Dc.offer(S, 'seriesmoment')) it.smd = 1;
         if (pend('seriesmoment')) { if (S.autoDec) { Dc.autoResolve(S); it.smd = 1; save(); return holdAt(); } return true; }
       }
-      if (!S.autoPlay && NBA.Core && !it.po && it.n === 41 && !it.ad) {   // the co-star question at the halfway mark
-        if (!pend('alpha') && !Dc.offer(S, 'alpha')) it.ad = 1;
-        if (pend('alpha')) { if (S.autoDec) { Dc.autoResolve(S); it.ad = 1; save(); return holdAt(); } return true; }
+      for (const [id, n] of [['benched', 25], ['rumor', 38], ['alpha', 41], ['buyout', 58]]) {   // the co-star question, a coach cutting your minutes, trade rumors, the buyout market
+        const fk = 'h_' + id; if (S.autoPlay || it.po || it.n !== n || it[fk]) continue;
+        if (!pend(id) && !Dc.offer(S, id)) { it[fk] = 1; continue; }
+        if (pend(id)) { if (S.autoDec) { Dc.autoResolve(S); it[fk] = 1; save(); return holdAt(); } return true; }
       }
       if (it.cl && !it.cd) {   // last-possession calls are made only inside a live game; a simmed game just plays out
         if (S.liveMode && !bulk) return false;
@@ -695,7 +696,7 @@
     // every decision is a pop-up over the season page (not a screen of its own)
     let overlay = null;
     if (S.decResult) overlay = screenDecResult();
-    else if (holdAt()) { if (S.decResult) overlay = screenDecResult(); else if (NBA.AllStar.active(S)) overlay = screenAllStar(); else if (!(S.dec && S.dec.pending)) overlay = null; else { const pid = S.dec.pending.id; overlay = pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : pid === 'press' ? screenPress() : pid === 'injury' ? screenInjury() : pid === 'social' ? screenSocial() : pid === 'mention' ? screenMention() : pid === 'podcast' ? screenPodcast() : pid === 'starinjury' ? screenStarInjury() : pid === 'seriesmoment' || pid === 'alpha' ? screenSimpleDec() : screenDeadline(); } if (overlay === 'again') return screenSeasonPlay(); }
+    else if (holdAt()) { if (S.decResult) overlay = screenDecResult(); else if (NBA.AllStar.active(S)) overlay = screenAllStar(); else if (!(S.dec && S.dec.pending)) overlay = null; else { const pid = S.dec.pending.id; overlay = pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : pid === 'press' ? screenPress() : pid === 'injury' ? screenInjury() : pid === 'social' ? screenSocial() : pid === 'mention' ? screenMention() : pid === 'podcast' ? screenPodcast() : pid === 'starinjury' ? screenStarInjury() : ['seriesmoment', 'alpha', 'rumor', 'buyout', 'benched'].includes(pid) ? screenSimpleDec() : screenDeadline(); } if (overlay === 'again') return screenSeasonPlay(); }
     const items = S.matchLog || [], idx = S.matchIdx || 0, L = S.league, p = S.player, t = L.teams[S.teamId];
     const shown = items.slice(0, idx), done = idx >= items.length;
     const reg = shown.filter((x) => x.k === 'g' && !x.po), poG = shown.filter((x) => x.k === 'g' && x.po);
@@ -1247,6 +1248,55 @@
   // the offseason page, with the late-career / locker-room / new-coach decision as a pop-up over it
   let decModal = null;
   function screenDecision() { decModal = null; const pg = screenDecision0(); return decModal ? h('div', null, modal(decModal), pg) : pg; }
+  // the rest of the summer: free-agent meetings, the coach, the rival, life, teammates, lottery night
+  let storyMsg = null;
+  function storyOffseason(out) {
+    const X = NBA.Story; if (!X) return; const F = S.dec.flags, L = S.league, t = L.teams[S.teamId], d = S.decision || {};
+    if (storyMsg) out.push(h('div', { class: 'callout' }, storyMsg));
+    // free agency: the meetings
+    if (d.expiring && d.market && d.market.length) {
+      out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🤝 Free-agent meetings'), h('p', { class: 'small muted' }, 'Every suitor makes its pitch. You can also make it conditional: "I sign if you get him." They want you, so they will try; whether the other team sells is another story.'),
+        d.market.slice(0, 5).map((m) => { const pc = X.pitchOf(S, m.teamId); if (!pc) return null; const asked = (F.faCond || {})[m.teamId] === L.year, tg = asked ? [] : X.faTargets(S, m.teamId);
+          return h('details', { class: 'fa-meet', style: 'margin:6px 0' }, h('summary', null, h('b', null, 'The ' + pc.nick), ' · ' + pc.status + ' (' + ord(pc.rank) + ' in the ' + pc.conf + ', ' + pc.wins + ' wins) · you would be ' + pc.role),
+            h('div', { class: 'small', style: 'margin:6px 0 6px 12px' }, h('div', null, '🗣️ "' + pc.pitch + '"'), h('div', null, '⭐ Best players: ' + pc.top.map((q) => q.name + ' (' + q.ovr + ')').join(', ')), pc.coach ? h('div', null, '📋 Coach ' + pc.coach.name + ', ' + pc.coach.style + (pc.coach.fit > 0 ? ' · fits your game' : pc.coach.fit < 0 ? ' · does not fit your game' : '')) : null, h('div', null, '🏙️ ' + pc.market),
+              asked ? h('div', { class: 'muted' }, 'You already made your ask to them.') : tg.map((x) => h('div', { class: 'row', style: 'margin:4px 0' }, h('span', null, 'Sign if they get ' + x.name + ' (' + x.ovr + ', ' + x.team + ') · ~' + x.odds + '%'), h('span', { class: 'spacer' }), h('button', { class: 'tiny', onclick: () => { try { const r = X.faCondition(S, m.teamId, x.id); storyMsg = (r.ok ? '✅ ' : '❌ ') + r.text; save(); render(); } catch (e) { console.error(e); } } }, 'Ask')))));
+        })));
+    }
+    // lottery night
+    const lt = X.lotteryInfo(S);
+    if (lt && !d.mustRetire) {
+      const body = [h('p', { class: 'small muted' }, 'The ' + t.nick + ' had the ' + ord(lt.seed) + '-worst record: ' + lt.top1 + '% for the #1 pick, about ' + lt.top4 + '% for the top 4.')];
+      if (!lt.plan) body.push(h('button', { class: 'primary', onclick: () => { X.runLottery(S); save(); render(); } }, '🎱 Watch the lottery'));
+      else { const pl = lt.plan, slot = lt.pick, jumped = slot < lt.seed, fell = slot > lt.seed;
+        body.push(h('div', { class: 'big' }, '#' + slot), h('p', { class: 'small' }, jumped ? '🎉 The ping-pong balls loved you: up from the ' + ord(lt.seed) + ' spot.' : fell ? '💔 You slid down the board.' : 'Right where the odds said.'));
+        if (pl.lobby) body.push(h('p', { class: 'small' }, pl.lobby.ok ? '✅ The front office will take your guy at #' + slot + ': ' + pl.cls[slot - 1].name + '.' : 'The front office will draft its own board at #' + slot + '.'));
+        else body.push(h('p', { class: 'small muted' }, 'Want a say? Push for a prospect (the front office decides).'), X.prospects(S).map((q) => h('div', { class: 'row small', style: 'margin:3px 0' }, h('span', null, q.rank + '. ' + q.name + ' · ' + q.pos + ' · ' + q.age + ' · ' + q.ovr + ' OVR'), h('span', { class: 'spacer' }), h('button', { class: 'tiny', onclick: () => { try { storyMsg = '🎓 ' + X.lobby(S, q.id).text; save(); render(); } catch (e) { console.error(e); } } }, 'Push for him')))); }
+      out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🎱 Lottery night'), body));
+    }
+    // the coach
+    const fc = X.fireCoachOdds(S);
+    if (fc && F.fireYear !== L.year && !d.expiring) out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '📋 The coach'), h('p', { class: 'small muted' }, fc.coach.name + ' (' + NBA.Room.STYLES[fc.coach.style].label + ', since ' + NBA.seasonLabel(fc.coach.since) + '). ' + (fc.fit > 0 ? 'His system fits you.' : fc.fit < 0 ? 'His system does not fit your game.' : 'His system is fine for you.') + ' You could go to the front office and ask for a new coach (~' + fc.odds + '%). If it fails, he will know.'),
+      confirmBtn('Ask the front office to fire him', '', () => { try { const r = X.fireCoach(S); storyMsg = (r.ok ? '🔥 ' : '😬 ') + r.text; save(); render(); } catch (e) { console.error(e); } })));
+    // the rival
+    X.rivalRecord(S); const rc = X.rivalCard(S); if (rc) out.push(rivalBox(rc));
+    // teammates
+    const mn = X.mateNews(S); if (mn.length) out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '👥 Your teammates this year'), mn.map((x) => h('div', { class: 'small' }, x))));
+    // life
+    const lf = X.lifeOpen(S); if (lf) { const ev = X.LIFE[lf.key];
+      out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🏡 ' + ev.title), h('p', { class: 'small muted' }, ev.text), lf.done ? h('p', { class: 'small' }, '✔ ' + ((S.dec.journal.slice().reverse().find((j) => j.title === ev.title) || {}).text || 'Done.')) : h('div', { class: 'wkgrid' }, ev.opts.map((o) => h('div', { class: 'wkcard' }, h('b', null, o[1]), h('div', { class: 'small', style: 'margin:6px 0' }, o[2]), h('button', { onclick: () => { try { X.lifeChoose(S, o[0]); save(); render(); } catch (e) { console.error(e); } } }, 'Choose')))))); }
+  }
+  function classCard() {
+    if (!NBA.Story || !S.class || !S.contract) return null; const c = NBA.Story.classmates(S); if (!c.list.length) return null;
+    return h('details', { class: 'card' }, h('summary', null, h('b', null, '🎓 Your draft class: where are they now'), c.you ? ' · you went #' + c.you : ''),
+      h('p', { class: 'small muted' }, 'Best of the class right now: ' + c.best.map((q) => q.name + ' (' + q.ovr + ')').join(', ') + (c.gone ? ' · ' + c.gone + ' are already out of the league' : '')),
+      c.list.map((q) => h('div', { class: 'row small', style: 'margin:3px 0' }, h('span', { style: 'width:34px' }, '#' + q.slot), h('span', null, plink(q.id, q.name)), h('span', { class: 'spacer' }), h('span', { class: 'muted' }, q.team + ' · ' + q.ovr + ' OVR' + (Object.keys(q.awd).length ? ' · ' + Object.keys(q.awd).slice(0, 2).map((k) => q.awd[k] + '× ' + k).join(', ') : '')))));
+  }
+  function rivalBox(rc) {
+    return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🔥 Rivalry: ' + rc.name), h('p', { class: 'small muted' }, (rc.team === 'retired' ? 'Retired' : rc.team + (rc.ovr ? ' · ' + rc.ovr + ' OVR' : '')) + ' · rivals since ' + rc.since),
+      h('div', { class: 'row small' }, h('span', null, 'Head to head: ', h('b', null, rc.w + '-' + rc.l)), h('span', { class: 'spacer' }), h('span', null, rc.meets.length ? 'Playoff meetings: ' + rc.meets.map((m) => NBA.seasonLabel(m.y) + ' ' + m.rnd + ' (' + (m.won ? 'you, ' : 'him, ') + Math.max(m.w, m.l) + '-' + Math.min(m.w, m.l) + ')').join(' · ') : 'No playoff meetings yet')),
+      h('div', { style: 'margin:8px 0' }, h('div', { class: 'small caps muted' }, 'The debate'), h('div', { class: 'bar2' }, h('i', { style: 'width:' + rc.share + '%' })), h('div', { class: 'row small' }, h('span', null, 'You ' + rc.share + '%'), h('span', { class: 'spacer' }), h('span', null, rc.name.split(' ').slice(-1)[0] + ' ' + (100 - rc.share) + '%'))),
+      h('p', { class: 'small' }, rc.verdict));
+  }
   // the NBA career's own summer: the front office, building your team, the national team, a mentee, a teammate who wants out
   let coreMsg = null;
   function coreOffseason(out) {
@@ -1269,6 +1319,7 @@
     const nt = C.nationalTeam(S);
     if (nt && nt.picked && F.natYear !== nt.ev.y) out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, (nt.team === 'Team USA' ? '🇺🇸 ' : '🌍 ') + nt.team + ' wants you'), h('p', { class: 'small muted' }, 'You were selected for ' + nt.ev.name + '. ' + (nt.team === 'Team USA' && nt.mates.length ? 'The roster: ' + nt.mates.slice(0, 8).join(', ') + '.' : 'Your country needs its best player.') + ' A summer of basketball: a shot at a medal, a little less rest.'),
       h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { try { const r = C.playNational(S, true); coreMsg = (r.medal === 'Gold' ? '🥇 ' : r.medal === 'Silver' ? '🥈 ' : r.medal === 'Bronze' ? '🥉 ' : '🏀 ') + r.text; save(); render(); } catch (e) { console.error(e); } } }, 'Represent ' + nt.country), h('button', { onclick: () => { try { const r = C.playNational(S, false); coreMsg = r.text; save(); render(); } catch (e) { console.error(e); } } }, 'Rest this summer'))));
+    storyOffseason(out);
     // a mentee
     const mt = F.mentorYear === L.year ? [] : C.mentees(S);
     if (mt.length) out.push(h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🧑‍🏫 Take a young teammate under your wing'), h('p', { class: 'small muted' }, 'He gets better and the room notices. It costs you one upgrade point of your own gym time.'),
@@ -1408,7 +1459,7 @@
       (() => { const pt = playoffTotals(cv.pl); return pt ? h('div', null, h('h3', null, 'Playoff career'), h('div', { class: 'grid stats' }, pt.rating ? ratingBox(pt.rating, 'Playoff avg rating') : null, statBox(f1(pt.pts), 'PPG'), statBox(f1(pt.reb), 'RPG'), statBox(f1(pt.ast), 'APG'), statBox(f1(pt.stl), 'SPG'), statBox(f1(pt.blk), 'BPG'), statBox(pt.gp.toLocaleString(), 'Playoff games'), statBox(pt.totPts.toLocaleString(), 'Playoff points'), statBox(pt.totReb.toLocaleString(), 'Playoff rebounds'), statBox(pt.totAst.toLocaleString(), 'Playoff assists'), statBox(cv.career.titles || 0, 'Championships'))) : null; })(),
       h('div', { style: 'margin-top:8px' }, Object.keys(aw).map((k) => h('span', { class: 'pill gold' }, aw[k] + '× ' + k))),
       h('p', { class: 'muted small' }, 'Seasons averaging a triple-double: ' + cv.career.tdSeasons + (cv.career.td30Seasons ? ' (' + cv.career.td30Seasons + ' with 30+ ppg)' : '')),
-      badgesCard(), S.contract ? historyPanel(false) : null,
+      badgesCard(), S.contract ? historyPanel(false) : null, NBA.Story && NBA.Story.rivalCard(S) ? rivalBox(NBA.Story.rivalCard(S)) : null, classCard(),
       highsSection(ps),
       h('h3', null, 'Regular season'), seasonTable(ps, false));
     if (cv.pl.length) wrap.append(h('h3', null, 'Playoffs'), seasonTable(cv.pl, true), playoffBySeries(cv.ps));
@@ -1486,8 +1537,15 @@
     return h('div', null, sp, h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Life after the game'), b && b.earned ? h('p', { class: 'small muted' }, 'Endorsement career: ' + money(Math.round(b.earned)) + ' earned, peak brand built to ' + Math.round(b.score) + '.') : null, parts));
   }
   // the next chapter: four decisions over the years, each a pop-up, each with a result
+  function ownerCard() {
+    const X = NBA.Story; if (!X || !S.contract && !S.proSeasons.length) return null; const st = S.after && S.after.stake;
+    if (st) return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🏢 Owner'), h('p', null, 'You own ' + st.pct + '% of the ' + st.nick + ' (paid about $' + st.cost + 'M).'));
+    const opts = X.stakeOptions(S); if (!opts.length) return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🏢 Buy into a team'), h('p', { class: 'small muted' }, 'Team stakes start around $35M for 1% of a small-market club. Your career earnings (' + money(S.earnings || 0) + ') are not there yet.'));
+    return h('details', { class: 'card' }, h('summary', null, h('b', null, '🏢 Buy into a team'), ' · career earnings ' + money(S.earnings || 0)), h('p', { class: 'small muted' }, 'A minority stake: a seat in the owners\' meetings and your name on the arena banner. Values are rough.'),
+      opts.map((o) => h('div', { class: 'row small', style: 'margin:4px 0' }, h('span', null, o.pct + '% of the ' + o.nick + ' (team worth ~$' + (o.value / 1000).toFixed(1) + 'B)'), h('span', { class: 'spacer' }), confirmBtn('Buy for ~$' + o.cost + 'M', '', () => { try { S.flash = X.buyStake(S, o.teamId).text; save(); render(); } catch (e) { console.error(e); } }))));
+  }
   function screenRetired() {
-    const pg = screenRetired0(), run = S.after && S.after.run; if (!run) return pg;
+    const pg = screenRetired0(); if (pg && pg.append) pg.append(ownerCard() || ''); const run = S.after && S.after.run; if (!run) return pg;
     const L2 = NBA.Legacy;
     if (S.afterRes) { const r = S.afterRes; return h('div', null, modal(h('div', null, h('h1', null, r.done ? 'The chapter closes' : 'How it went'), h('div', { class: 'card suspense' }, h('p', { class: 'jmsg ' + r.tone, style: 'margin:0' }, r.text)), h('div', { class: 'row' }, h('button', { class: 'primary big-btn', onclick: () => { S.afterRes = null; save(); render(); } }, r.done ? 'See how it all turned out' : 'Continue →')))), pg); }
     const sp = L2.pathStep(S); if (!sp) return pg;
@@ -1871,10 +1929,10 @@
   }
   function screenSimpleDec() {
     const Dc = DEC(), v = Dc.view(S), pd = S.dec.pending, t = S.league.teams[S.teamId], it = S.matchLog[S.matchIdx || 0] || {};
-    const pick = (key) => { try { const id = pd.id, r = Dc.choose(S, key); S.decResult = { title: v.title, sub: t.name + (id === 'seriesmoment' ? ' vs the ' + it.o + ' · Game ' + it.n : ''), text: r.text, tone: r.tone === 'good' ? 'good' : r.tone === 'bad' ? 'bad' : 'neutral', cap: id === 'seriesmoment' ? 'How it went' : 'The decision', post: id !== 'seriesmoment' }; if (id === 'seriesmoment') { it.smd = 1; } else it.ad = 1; save(); go(); } catch (e) { console.error(e); } };
-    return h('div', null, h('h1', null, (pd.id === 'seriesmoment' ? '🏀 ' : '👑 ') + v.title), h('p', { class: 'muted' }, t.name),
+    const pick = (key) => { try { const id = pd.id, r = Dc.choose(S, key); S.decResult = { title: v.title, sub: t.name + (id === 'seriesmoment' ? ' vs the ' + it.o + ' · Game ' + it.n : ''), text: r.text, tone: r.tone === 'good' ? 'good' : r.tone === 'bad' ? 'bad' : 'neutral', cap: id === 'seriesmoment' ? 'How it went' : 'The decision', post: id !== 'seriesmoment' }; if (id === 'seriesmoment') { it.smd = 1; } else { const it2 = S.matchLog[S.matchIdx || 0]; if (it2) it2['h_' + id] = 1; } save(); go(); } catch (e) { console.error(e); } };
+    return h('div', null, h('h1', null, ({ seriesmoment: '🏀 ', alpha: '👑 ', rumor: '📰 ', buyout: '✍️ ', benched: '🪑 ' }[pd.id] || '') + v.title), h('p', { class: 'muted' }, t.name),
       h('div', { class: 'card suspense' }, h('p', null, v.text)),
-      h('div', { class: 'wkgrid' }, v.options.map((o, i) => h('div', { class: 'wkcard' + (o.key === 'callout' || o.key === 'demand' ? ' spicy' : '') }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: i === 0 ? 'primary' : '', onclick: () => pick(o.key) }, 'Go with this'))))), autoDecBar());
+      h('div', { class: 'wkgrid' }, v.options.map((o, i) => h('div', { class: 'wkcard' + (['callout', 'demand', 'open', 'public'].includes(o.key) ? ' spicy' : '') }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: i === 0 ? 'primary' : '', onclick: () => pick(o.key) }, 'Go with this'))))), autoDecBar());
   }
   let siBusy = false;
   function screenStarInjury() {

@@ -674,17 +674,19 @@
     when(st) { return !st.autoPlay && !!NBA.Core; },
     open(st) { const idx = st.matchIdx || 0, it = (st.matchLog || [])[idx]; if (!it || it.dnp) return null; const m = NBA.Core.momentOf(st, idx); return m ? Object.assign({ idx, opp: it.o, n: it.n }, m) : null; },
     view(st, ctx) {
-      const O = NBA.Core.MOMENT_OPTS, keys = ['takeover', 'trust', 'defense'].concat(ctx.key === 'down02' || ctx.key === 'elim' ? ['callout'] : []);
-      return { title: ctx.title, text: ctx.text, options: keys.map((k) => ({ key: k, label: O[k].label, blurb: O[k].blurb, vibe: k === 'callout' ? 'Risky. Could wake them up or split the room' : k === 'takeover' ? 'Hero ball' : k === 'trust' ? 'Team first' : 'Two-way' })) };
+      const O = NBA.Core.MOMENT_OPTS, keys = ['takeover', 'trust', 'defense'].concat(ctx.key === 'down02' || ctx.key === 'elim' ? ['callout'] : []), od = NBA.Game.momentOdds(st, ctx.idx);
+      const tag = (k) => { const n = od.opts[k], d = n - od.base; return 'Win chance ' + od.base + '% → ' + n + '%' + (d >= 8 ? ' 🔥' : d <= -5 ? ' ⚠️' : ''); };
+      return { title: ctx.title, text: ctx.text + ' Going in, the numbers give you about a ' + od.base + '% chance to win tonight.', base: od.base, options: keys.map((k) => ({ key: k, label: O[k].label, blurb: O[k].blurb, vibe: tag(k) + ' · ' + (k === 'callout' ? 'risky' : k === 'takeover' ? 'hero ball' : k === 'trust' ? 'team first' : 'two-way') })) };
     },
     choose(st, ctx, key) {
-      const o = NBA.Core.MOMENT_OPTS[key], it = st.matchLog[ctx.idx]; if (!o || !it) return { done: true, text: '' };
+      const o = NBA.Core.MOMENT_OPTS[key]; if (!o || !st.matchLog[ctx.idx]) return { done: true, text: '' };
+      const res = NBA.Game.momentPlay(st, ctx.idx, key), it = st.matchLog[ctx.idx];   // may play the rest of the series again (a flipped game)
       NBA.Game.scaleBox(st, it, o); it.smd = 1;
       const eff = []; if (o.chem) eff.push({ k: 'meter', f: 'chem', d: o.chem }); if (o.media) eff.push({ k: 'meter', f: 'media', d: o.media });
       const won = !!it.w, line = it.pt + ' points, ' + it.rb + ' rebounds, ' + it.as + ' assists';
-      const text = (key === 'takeover' ? 'You told the coach to run everything through you tonight.' : key === 'trust' ? 'You told the group to keep moving the ball: the right play, every time.' : key === 'defense' ? 'You asked for their best player. Your night starts on the other end.' : 'You called the group out in the film room. Everybody heard it.') + ' Game ' + ctx.n + ' is next.';
+      const text = (key === 'takeover' ? 'You told the coach to run everything through you tonight.' : key === 'trust' ? 'You told the group to keep moving the ball: the right play, every time.' : key === 'defense' ? 'You asked for their best player. Your night starts on the other end.' : 'You called the group out in the film room. Everybody heard it.') + ' Your win chance tonight: about ' + res.now + '% (it was ' + res.base + '%). Game ' + ctx.n + ' is next.';
       if (key === 'callout' && !won) eff.push({ k: 'meter', f: 'chem', d: -0.3 });
-      return { done: true, tone: 'neutral', text, effects: eff, journal: { tone: won ? 'good' : 'bad', text: ctx.title + ' vs the ' + ctx.opp + ': ' + text + ' You had ' + line + (won ? ' in a win.' : ' in a loss.') } };
+      return { done: true, tone: 'neutral', text, effects: eff, journal: { tone: won ? 'good' : 'bad', text: ctx.title + ' vs the ' + ctx.opp + ': ' + text + ' You had ' + line + (won ? ' in a win.' : ' in a loss.') + (res.flipped ? ' The approach changed the result.' : '') } };
     },
     auto() { return { key: 'trust' }; },
   });
@@ -709,6 +711,56 @@
       return { done: true, tone, text, effects: eff, journal: { tone, text: 'Whose team is it? ' + text } };
     },
     auto() { return { key: 'share' }; },
+  });
+  // ================================================================ trade rumors about you (before the deadline)
+  register({
+    id: 'rumor', title: 'Trade rumors', trigger: 'rumor',
+    when(st) { return !st.autoPlay && !!NBA.Story; },
+    open(st) { return NBA.Story.rumorOpen(st); },
+    view(st, ctx) { return { title: 'Trade rumors', text: ctx.text, options: [
+      { key: 'shut', label: 'Shut it down', blurb: '"I am not going anywhere. I want to win here." The front office appreciates it.', vibe: 'Loyal' },
+      { key: 'quiet', label: 'Say nothing', blurb: 'Let your agent handle the noise.', vibe: 'Neutral' },
+      { key: 'open', label: 'Welcome it', blurb: '"I want to compete for a title." Your front office will shop you at the deadline.', vibe: 'You want out. The room will hear it' }] }; },
+    choose(st, ctx, key) {
+      const f = state(st).flags, C = NBA.Core; let text, tone = 'neutral', eff = [];
+      if (key === 'shut') { if (C) C.setFo(st, 0.5); eff = [{ k: 'meter', f: 'media', d: 0.3 }, { k: 'meter', f: 'locker', d: 0.3 }]; text = 'You shut the rumors down. The front office took you off the table, for now.'; tone = 'good'; }
+      else if (key === 'quiet') { eff = [{ k: 'meter', f: 'chem', d: -0.1 }]; text = 'You said nothing. The rumors kept going for a week, then faded.'; }
+      else { f.tradeReq = st.league.year; if (C) C.setFo(st, -0.5); eff = [{ k: 'meter', f: 'chem', d: -0.4 }, { k: 'meter', f: 'media', d: 0.2 }]; text = 'You said you want to compete for a title. Everyone heard "get me out". The front office will shop you before the deadline, and the ' + ctx.suitor + ' are interested.'; if (NBA.Game.feedAdd) NBA.Game.feedAdd(st, 'tradeReq', { old: st.league.teams[st.teamId].nick }, { key: 'rumor' + st.league.year, at: null }); }
+      return { done: true, tone, text, effects: eff, journal: key === 'quiet' ? null : { tone, text: 'Trade rumors: ' + text } };
+    },
+    auto() { return { key: 'quiet' }; },
+  });
+  // ================================================================ the buyout market: a veteran on a bad team picks a contender for the run
+  register({
+    id: 'buyout', title: 'Buyout', trigger: 'buyout',
+    when(st) { return !st.autoPlay && !!NBA.Story; },
+    open(st) { return NBA.Story.buyoutOpen(st); },
+    view(st, ctx) { const L = st.league; return { title: 'Buyout', text: ctx.text, options: ctx.opts.map((o) => ({ key: 't' + o.teamId, label: 'Sign with the ' + o.nick, blurb: L.teams[o.teamId].wins + '-win pace last we checked; ' + o.role + ' for the playoff run.', vibe: 'Ring chase' })).concat([{ key: 'stay', label: 'Finish the season here', blurb: 'Keep your money and your word.', vibe: 'Loyal' }]) }; },
+    choose(st, ctx, key) {
+      if (key === 'stay') return { done: true, tone: 'neutral', text: 'You turned the buyout down and finished the year with your team.', effects: [{ k: 'meter', f: 'locker', d: 0.3 }] };
+      const id = +key.slice(1), L = st.league, old = L.teams[st.teamId], t = L.teams[id], sal = NBA.Game.minSalary ? NBA.Game.minSalary(L) : 1.2;
+      NBA.Game.midSeasonMove(st, { kind: 'sign', teamId: id, salary: sal, text: 'bought out by the ' + old.nick + ', signed with the ' + t.nick });
+      return { done: true, tone: 'good', text: 'Bought out by the ' + old.nick + ' and signed with the ' + t.nick + ' for the rest of the season. Time to chase a ring.', journal: { tone: 'good', text: 'Bought out by the ' + old.nick + ', signed with the ' + t.nick + ' for the playoff run.' } };
+    },
+    auto() { return { key: 'stay' }; },
+  });
+  // ================================================================ the coach cuts your minutes
+  register({
+    id: 'benched', title: 'Reduced role', trigger: 'benched',
+    when(st) { return !st.autoPlay && !!NBA.Story; },
+    open(st) { return NBA.Story.benchOpen(st); },
+    view(st, ctx) { return { title: 'Reduced role', text: ctx.text, options: [
+      { key: 'accept', label: 'Accept it and work', blurb: 'Fewer minutes for ten games. Earn it back.', vibe: 'Professional' },
+      { key: 'meet', label: 'Ask for a meeting', blurb: 'Hear what he wants and tell him what you need.', vibe: 'Could go either way' },
+      { key: 'public', label: 'Go public', blurb: 'Tell the media you deserve to play.', vibe: 'Messy. Might work' }] }; },
+    choose(st, ctx, key) {
+      const r = rng(st, 'bench|' + st.league.year)(), S2 = NBA.Story; let text, tone = 'neutral', eff = [];
+      if (key === 'accept') { S2.cutMinutes(st, ctx.idx, 10, 0.82); eff = [{ k: 'meter', f: 'locker', d: 0.3 }, { k: 'meter', f: 'chem', d: 0.2 }]; text = 'You took it and went to work. Ten games of fewer minutes, and the coach noticed the attitude.'; tone = 'good'; }
+      else if (key === 'meet') { if (r < 0.5) { text = 'The meeting went well: he heard you, you heard him, and your minutes stay.'; tone = 'good'; eff = [{ k: 'meter', f: 'chem', d: 0.2 }]; } else { S2.cutMinutes(st, ctx.idx, 10, 0.82); text = 'He listened, then cut your minutes anyway. Ten games to win him back.'; tone = 'bad'; } }
+      else { if (r < 0.35) { eff = [{ k: 'meter', f: 'media', d: 0.2 }, { k: 'meter', f: 'chem', d: -0.3 }]; text = 'It worked: the pressure got to him and your minutes are back. The room thinks you went over his head.'; tone = 'good'; } else { S2.cutMinutes(st, ctx.idx, 15, 0.78); eff = [{ k: 'meter', f: 'media', d: -0.5 }, { k: 'meter', f: 'chem', d: -0.5 }]; text = 'It backfired. He cut you deeper, for fifteen games, and the quotes are all over the internet.'; tone = 'bad'; } }
+      return { done: true, tone, text, effects: eff, journal: { tone, text: 'Reduced role under ' + ctx.coach + ': ' + text } };
+    },
+    auto() { return { key: 'accept' }; },
   });
   const clamp0 = (x) => Math.max(0.15, Math.min(0.85, x));
   const Dc0 = (st) => { const f = state(st).flags; return f.pr || (f.pr = { quotes: [], tally: [], feuds: {}, heads: [], rep: {} }); };

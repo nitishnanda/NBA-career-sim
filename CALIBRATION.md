@@ -989,3 +989,20 @@ New module `src/core.js` (NBA.Core). Everything is for a person playing (gated `
 - Tier: **contender** (top 3 in the conference in 2 of the last 3 years) → the front office barely listens (base 6%, ~15-25% for an elite franchise player); **middle** → 45% base; **weak** (avg rank 9+ or 10th+ now) → 75% base, ~95% for an elite franchise player. Non-franchise players are heard far less (x0.35-0.7).
 - Odds now = will the FO do it × can it be done. Recruit: listen × √(his team selling × his interest). Push: listen × his team selling. Pushing a contender's front office costs more mood. A refusal says whether it was the front office or the other team.
 - UI: the stance, the reason, "They listen to you: N%", and both odds per target.
+
+## v104 — moments that change games, recruiting by standing, and the rest of an NBA life
+
+- **Fix**: AI text is never cut mid-sentence any more (every checker cuts at a sentence end, or a word with "…"); the Euro/draft media takes ask for at most 45 words and allow 420 characters.
+- **Recruiting by standing**: `teamStatus` adds your league rank (top 5 / 10 / 20 by OVR) and résumé (All-NBA and All-Star in the last 3 years, MVPs, rings) as "standing" (0-4): +8% front-office listening per point (max +30%), +7% star interest per point. Bases relaxed (contender 10%, middle 50%, weak 78%; selling 0.5, interest 0.45). Elite players on contenders now get ~58% listening, franchise players on mid teams ~95%.
+- **Series moments change the game**: each approach moves tonight's win chance (shown on the card: "Win chance 52% → 64%"), from fit: take over (you vs your best teammate), trust the system (chemistry, the second and third options), take their best player (perimeter/rim defense), call them out (room and chemistry). The roll is coupled to the original result (a loss can become a win only when the chance went up, and the other way round). A flipped game plays the rest of the series out at the matchup's odds and the season is replayed with that series result forced (`poForce[si] = {w,l}`; Game 7 calls now use the same form). Series stay valid (core-check: 24 moments, 2-6 flips, every series ends at exactly 4 wins).
+- **New `src/story.js` (NBA.Story)**:
+  1. Free-agent meetings: each suitor's pitch (status and conference rank, best players, coach and fit, market size, your role) and "I sign if you get him" (they want you; the other team's selling decides).
+  2. Trade rumors (game 38, bad record / bad FO mood / expiring deal): shut it down, stay quiet, or welcome it (files a trade request for the deadline). The buyout market (game 58, 29+, expiring, sub-.420 team): pick a contender, signed at the minimum via the mid-season move replay.
+  3. Coaches: ask the front office to fire the coach (odds from listening x fit), a new coach whose style fits you; a coach whose system does not fit can cut your minutes after a poor stretch (accept / meeting / go public), reshaping the next 10-15 box scores.
+  4. Rivalries: a head-to-head book per season, playoff meetings, and the debate share (awards, rings, head to head).
+  5. (The award ladder for MVP/DPOY/ROY/MIP was already live.)
+  6. Life: partner, wedding, kids, a house for your parents, a foundation, investments (a start-up can 4x or vanish), city life; after retiring, buy a 1-5% stake in a team with career earnings.
+  7. Teammates' breakouts and declines each summer; your draft class "where are they now".
+  8. Lottery night for lottery teams (real odds, the draw), and push the front office for a prospect; the league's draft honours the plan (`L.draftPlan`).
+- Baseline: default mode unchanged (76.57 / 12.14); decision mode 77.02 / 12.35 (v103: 77.02 / 12.42).
+- Tests: `scripts/story-check.js`, `scripts/ui-core.js` extended, `scripts/core-check.js` extended (flips, series validity).
