@@ -2853,6 +2853,8 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
 [ "In some ways, yes. We play against pros every week and the physicality is real. But the NBA is its own world and I am still learning.", "I think so. I played against grown men, in front of real crowds, for real stakes. I feel ready.", "Yes, because the food in the NBA hotel is the same as the food in the EuroLeague hotel. Both are rough.", "I do not compare. Every player has their own path and mine is mine.", "", "" ],
 [ "It means a lot, but you are right, it is a fresh start. Everybody here is great and I start from zero.", "It is nice, and it means I was doing something right. But I want to earn it here too.", "It is on the shelf next to my other trophy: a participation medal from a youth tournament.", "It is in the past. I am focused on now.", "", "" ],
 [ "A little. People are curious and I want to show who I really am. I think I have a lot to show.", "I do not mind being a mystery. I would rather let the game answer the questions.", "The mystery is gone. Now you just have to deal with how good I am.", "I do not worry about what people say. I just play.", "", "" ],
+[ "A little, honestly. But it was the right call. I got stronger, I learned the game, and I came over ready. I owe them for being patient.", "No. I used the time to get better and now I am here. You will see the difference.", "Frustrated? I got to play more minutes in Europe than I would have on their bench. That is not a bad deal.", "It is in the past. I am here now.", "", "" ],
+[ "No, I trust them. They told me it was about development, and they were right. I am a better player because of it.", "A little at first, but I used it as fuel. I came over to prove I belong.", "They stashed me for the same reason you stash good wine. It had to age. It is ready now.", "Everyone is on their own timeline. Mine just had a long layover.", "", "" ],
   ];
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -4646,6 +4648,8 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
   Q('origin', 'intlEL', 0, 'People say EuroLeague players are more ready for the NBA than college players. Do you agree?');
   Q('origin', 'intlHonor', 0, 'You were named {honor} before the draft. Does that mean anything here, or is it a fresh start?');
   Q('origin', 'intlNoEL', 0, 'You did not play in the EuroLeague, so some scouts called you a bit of a mystery. Do you feel you have something to prove?');
+  Q('draftnight', 'stashed', 0, 'The {draftTeam} drafted you and left you in Europe for {stashYears} more {stashWord}. Were you frustrated waiting?');
+  Q('draftnight', 'stashed', 0, 'Being stashed overseas can feel like a team doubting you. Did it feel that way?');
 
   // ---------------------------------------------------------------- how the player can answer
   const TONES = {
@@ -4710,7 +4714,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     // the road through Europe: no college, no high school: a country, a league and a club
     c.intl = !!(st.origin && st.origin.intl); const IC = c.intl ? NBA.Intl.COUNTRIES[st.origin.country] : null;
     c.country = IC ? IC.name : ''; c.homeLeague = IC ? IC.league : ''; c.intlRookie = c.rookieYear && c.intl; c.intlEL = c.intlRookie && cy.some((y) => y.tier === 'euroleague'); c.intlHonor = c.intlRookie && !!(cl && cl.honors && cl.honors[0]); c.intlNoEL = c.intlRookie && !c.intlEL;
-    c.usRookie = c.rookieYear && !c.intl;
+    c.usRookie = c.rookieYear && !c.intl; c.stashed = c.rookieYear && !!(st.stash && st.stash.joined); c.stashYears = st.stash ? st.stash.years + 1 : ''; c.stashWord = c.stashYears === 1 ? 'year' : 'years';
     if (c.intl) { c.hasCollege = false; c.oneDone = false; c.fourYr = false; c.collegeTitle = false; c.collegeHonor = false; c.transferred = false; c.homeTown = IC.name; }
     c.hsPrep = c.rookieYear && /prep powerhouse/.test(hs); c.hsHome = c.rookieYear && /stayed home/.test(hs); c.hsCircuit = c.rookieYear && /circuit/.test(hs);
     // the combine and draft night, from what actually happened to him
@@ -5143,7 +5147,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
   function playIntl(st) {
     const p = st.player, rec = intlSeason(st);
     NBA.runYear(st.league, { draft: false });
-    rec.mock = NBA.mockRange(st.league, p, stockBonus(st)); rec.mustDeclare = rec.year >= 5; st.clubYears = (st.clubYears || 0) + 1;
+    rec.mock = NBA.mockRange(st.league, p, stockBonus(st)); rec.mustDeclare = rec.year >= 5 && !st.stash; st.clubYears = (st.clubYears || 0) + 1;
     st.stage = 'intl_decision'; return rec;
   }
   function stayIntl(st) { NBA.npcDraft(st.league); st.stage = 'training'; st.afterTraining = 'intl'; return trainingInfo(st); }
@@ -5239,16 +5243,45 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     st.draft = { slot, team: team.name, teamId: team.id, draftedBy: res.draftedBy ? res.draftedBy.name : team.name, draftedById: res.draftedBy ? res.draftedBy.id : team.id, userTrade: res.userTrade, trades: res.trades, workouts: st.workouts ? { done: st.workouts.done, invites: st.workouts.invites.map((x) => ({ id: x.id, nick: x.nick })) } : null, year: st.league.year, board: res.board, college: st.college.name, mockRank: res.mockRank, mocks: mk ? { ranks: mk.ranks, outlets: mk.outlets.map((o) => o.name) } : null, combineBonus: p.cmb ? p.cmb.bonus : 0, tested: st.combine.test, classSize: res.classSize, teamRec: team.wins + '-' + team.losses };
     st.teamId = team.id; p.teamId = team.id;
     feedAdd(st, 'draft', { slot: slot || 'UD', team: team.nick }, { key: 'draft', at: null });
-    const cap = capNow(st.league);
-    let sal, yrs;
-    // rookie scale as a share of the cap: the #1 pick earns ~9% of it, then -4.2% per slot
-    const capY = capFor(st.league.year);
+    st.contract = rookieDeal(st, slot);
+    // an international prospect who is not ready can be drafted and stashed: the club keeps his rights and he stays in Europe (about one in two late picks, rarely a lottery pick)
+    if (st.origin && st.origin.intl && slot) {
+      const rr = mulberry((st.draftSeed || 1) ^ 0x57a5), pS = slot <= 8 ? 0.04 : slot <= 14 ? 0.2 : slot <= 22 ? 0.45 : slot <= 30 ? 0.62 : 0.8, ready = clamp((ovr(p) - 60) * 0.012, 0, 0.25);
+      st.draft.stashOffer = rr() < clamp(pS + (p.age <= 19 ? 0.1 : 0) - ready, 0, 0.92);
+    }
+    st.stage = 'draft_night';
+    return st.draft;
+  }
+  // rookie scale as a share of the cap: the #1 pick earns ~9% of it, then -4.2% per slot
+  function rookieDeal(st, slot) {
+    const capY = capFor(st.league.year); let sal, yrs;
     if (slot && slot <= 30) { sal = capY * 0.0892 * Math.pow(0.958, slot - 1); yrs = 4; }
     else if (slot) { sal = capY * Math.max(0.0097, 0.0149 - (slot - 31) * 0.00023); yrs = 3; }
     else { sal = capY * 0.0084; yrs = 2; }
-    st.contract = { salary: r1(sal), years: yrs, left: yrs, type: 'rookie', teamOpt: !!(slot && slot <= 30) };   // first-rounders: the club holds options on years 3 and 4
-    st.stage = 'draft_night';
-    return st.draft;
+    return { salary: r1(sal), years: yrs, left: yrs, type: 'rookie', teamOpt: !!(slot && slot <= 30) };   // first-rounders: the club holds options on years 3 and 4
+  }
+  // ---- draft and stash: the club holds the rights, you play on in Europe, and you choose when to come over (at most three more years)
+  function stashPlayer(st) {
+    const d = st.draft, L = st.league; if (!d || !d.slot) throw new Error('nothing to stash');
+    st.stash = { teamId: d.teamId, team: d.team, nick: L.teams[d.teamId].nick, slot: d.slot, y: L.year, years: 0, news: [] }; d.stashed = true;
+    st.teamId = -1; st.player.teamId = -1; st.contract = null;
+    NBA.Decisions.log(st, { kind: 'draft', title: 'Stashed', tone: 'neutral', text: 'The ' + st.stash.nick + ' drafted you at #' + d.slot + ' and stashed you: they keep your rights while you play on with ' + st.college.name + '.' });
+    feedAdd(st, 'draft', { slot: d.slot, team: st.stash.nick }, { key: 'stash' + L.year, at: null });
+    st.stage = 'training'; st.afterTraining = 'intl'; return trainingInfo(st);
+  }
+  const buyoutM = (st) => ({ academy: 0, domestic: 0.4, euroleague: 1.4 })[st.college.tier] || 0;
+  function stashStay(st) {
+    const sh = st.stash, L = st.league; sh.years++;
+    if (NBA.Decisions.rng(st, 'stash|' + L.year)() < 0.22) { const others = L.teams.filter((t) => t.id !== sh.teamId), nt = others[Math.floor(NBA.Decisions.rng(st, 'stash2|' + L.year)() * others.length)]; sh.news.push('Your rights were traded from the ' + sh.nick + ' to the ' + nt.nick + '.'); sh.teamId = nt.id; sh.team = nt.name; sh.nick = nt.nick; st.draft.team = nt.name; st.draft.teamId = nt.id; }
+    return stayIntl(st);
+  }
+  function joinFromStash(st) {
+    const sh = st.stash, L = st.league, p = st.player, bo = buyoutM(st);
+    st.contract = rookieDeal(st, sh.slot); if (bo) st.earnings = Math.max(0, st.earnings - bo);
+    st.teamId = sh.teamId; p.teamId = sh.teamId; st.draft.team = sh.team; st.draft.teamId = sh.teamId; st.draft.cameOver = L.year; sh.joined = L.year;
+    NBA.Decisions.log(st, { kind: 'draft', title: 'Came over', tone: 'good', text: 'After ' + (sh.years + 1) + ' more year' + (sh.years ? 's' : '') + ' with ' + st.college.name + ', you joined the ' + sh.nick + (bo ? ' (buyout: $' + bo.toFixed(1) + 'M)' : '') + ' on a rookie deal.' });
+    feedAdd(st, 'sign', { name: p.name, team: sh.nick }, { key: 'stashjoin' + L.year, at: null });
+    return startPro(st);
   }
   function startPro(st) {
     st.stage = 'training'; st.afterTraining = 'pro_first';
@@ -6977,7 +7010,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     return st;
   }
 
-  Object.assign(NBA, { capFor, marketCurve, Game: { intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { capFor, marketCurve, Game: { stashPlayer, stashStay, joinFromStash, buyoutM, intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -6985,7 +7018,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v95';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v96';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -7163,7 +7196,17 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
       S.collegeYears.length ? h('div', { class: 'card' }, h('h2', null, 'Career in Europe so far'), collegeTable()) : null);
   }
   function screenIntlDecision() {
-    const y = S.collegeYears[S.collegeYears.length - 1], l = y.line, mock = y.mock, c = S.college, moves = NBA.Intl.moveOptions(S, c);
+    const y = S.collegeYears[S.collegeYears.length - 1], l = y.line, mock = y.mock, c = S.college, moves = NBA.Intl.moveOptions(S, c), sh = S.stash;
+    if (sh && !sh.joined) {
+      const bo = G.buyoutM(S);
+      return h('div', null, h('h1', null, '📦 Stashed by the ' + sh.nick + ' · ' + y.label + ' complete'),
+        h('div', { class: 'card' }, h('div', { class: 'grid stats' }, statBox(f1(l.pts), 'PPG'), statBox(f1(l.reb), 'RPG'), statBox(f1(l.ast), 'APG'), statBox(f1(l.mins), 'MPG'), statBox(f1(l.blk), 'BPG'), statBox(pct(l.ts) + '%', 'TS%')), h('p', { style: 'margin-top:12px' }, h('b', null, y.record), ' · ' + y.tourney + ' · ' + c.name), y.honors.length ? h('div', null, y.honors.map((x) => h('span', { class: 'pill gold' }, '🏅 ' + x))) : null),
+        sh.news.length ? h('div', { class: 'callout' }, '📰 ' + sh.news.join(' ')) : null,
+        h('div', { class: 'card' }, h('h2', null, 'Come over or stay?'), h('p', { class: 'small muted' }, 'The ' + sh.nick + ' hold your rights as the #' + sh.slot + ' pick of ' + sh.y + '. You have been stashed ' + sh.years + ' year' + (sh.years === 1 ? '' : 's') + (sh.years >= 3 ? ': it is time to come over.' : '.') + ' Joining now means the rookie scale for that pick' + (bo ? ' and a buyout of about $' + bo.toFixed(1) + 'M to leave ' + c.name : '') + '. Another year overseas means more development and a bigger role, with no NBA clock running.'),
+          h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { G.joinFromStash(S); alloc = {}; go(); } }, 'Join the ' + sh.nick + ' now'), sh.years >= 3 ? null : h('button', { onclick: () => { G.stashStay(S); alloc = {}; go(); } }, 'Another year with ' + c.name))),
+        moves.length && sh.years < 3 ? h('div', { class: 'card' }, h('h2', null, 'Clubs interested in you'), h('div', { class: 'wkgrid' }, moves.map((m) => h('div', { class: 'wkcard' }, h('b', null, m.flag + ' ' + m.n), h('div', { class: 'small muted' }, m.city + ' · ' + m.league), h('div', { class: 'small' }, tierTag(m.tier)), h('div', { style: 'margin-top:8px' }, h('button', { onclick: () => { G.moveClub(S, m.id); alloc = {}; go(); } }, 'Sign')))))) : null,
+        h('div', { class: 'card' }, h('h2', null, 'Career in Europe'), collegeTable()));
+    }
     return h('div', null, h('h1', null, c.name + ' · ' + y.label + ' complete'),
       h('div', { class: 'card' }, h('div', { class: 'grid stats' }, statBox(f1(l.pts), 'PPG'), statBox(f1(l.reb), 'RPG'), statBox(f1(l.ast), 'APG'), statBox(f1(l.mins), 'MPG'), statBox(f1(l.blk), 'BPG'), statBox(pct(l.ts) + '%', 'TS%')),
         h('p', { style: 'margin-top:12px' }, h('b', null, y.record), ' · ' + y.tourney + ' · ' + NBA.Intl.TIERS[y.tier].label), y.honors.length ? h('div', null, y.honors.map((x) => h('span', { class: 'pill gold' }, '🏅 ' + x))) : null),
@@ -7317,7 +7360,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
       const tops = board.slice(0, 5), others = board.filter((r) => !r.isUser), steal = others.slice().sort((a, b) => (b.slot - b.mockRank) - (a.slot - a.mockRank))[0], reach = others.slice().sort((a, b) => (a.slot - a.mockRank) - (b.slot - b.mockRank))[0];
       wrap.replaceChildren(
         h('section', { class: 'card callout reveal' }, d.slot ? h('div', null, h('div', { class: 'big' }, '#' + d.slot + ' pick' + (d.userTrade ? ' · traded' : '')), h('p', null, 'With the ' + ord(d.slot) + ' pick in the ' + d.year + ' NBA Draft, the ' + (d.draftedBy || d.team) + ' select ', h('b', null, S.player.name), ' of ' + d.college + '.'), d.userTrade ? h('p', null, h('b', null, 'Then: '), d.userTrade.text + '. You are a ' + d.userTrade.toNick.replace(/s$/, '') + ' now.') : null, h('p', { class: 'muted small' }, verdict)) : h('div', null, h('div', { class: 'big' }, 'Undrafted'), h('p', null, 'Your name was never called. You signed a minimum deal with the ' + d.team + ' right after the draft. Prove them wrong.'), h('p', { class: 'muted small' }, verdict)),
-          h('p', null, 'Rookie contract: ' + money(S.contract.salary) + ' × ' + S.contract.years + ' years'), h('button', { class: 'primary', onclick: () => { G.startPro(S); alloc = {}; go(); } }, 'Start my NBA career →')),
+          h('p', null, 'Rookie contract: ' + money(S.contract.salary) + ' × ' + S.contract.years + ' years'), d.stashOffer ? h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '📦 Draft and stash'), h('p', { class: 'small' }, 'The ' + t.nick + ' like you but do not think you are ready for NBA minutes yet. They want to keep your rights and leave you in Europe to develop: you stay with ' + S.college.name + ' and come over when you and they decide (up to three more years). Your rookie scale is fixed by the pick, ' + (NBA.Intl.TIERS[S.college.tier].rank >= 1 ? 'but leaving a club early costs a buyout (about $' + G.buyoutM(S).toFixed(1) + 'M).' : 'and there is no buyout to pay.')), h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { G.startPro(S); alloc = {}; go(); } }, 'Come over now'), h('button', { onclick: () => { G.stashPlayer(S); alloc = {}; go(); } }, 'Stay in Europe (stashed)'))) : h('button', { class: 'primary', onclick: () => { G.startPro(S); alloc = {}; go(); } }, 'Start my NBA career →')),
         h('section', { class: 'card' }, h('h2', null, 'Your landing spot'), h('div', { class: 'row' }, logo(t.nick, 44), h('div', null, h('b', null, t.name), d.userTrade ? h('div', { class: 'small gold' }, 'Drafted by the ' + d.draftedBy + ', traded to the ' + t.nick) : null, h('div', { class: 'small muted' }, 'Last season ' + (t.wins + '-' + t.losses) + ' · ' + (t.conf === 'W' ? 'West' : 'East')))),
           h('div', { class: 'small', style: 'margin-top:8px' }, h('b', null, 'Core: '), ros.map((q) => q.name + ' (' + Math.round(NBA.ovr(q)) + ')').join(' · ')), h('div', { class: 'small muted' }, 'You arrive as a ' + myOvr + ' OVR, which would rank ' + ord(rank) + ' on the roster today.')),
         h('section', { class: 'card' }, h('h2', null, 'Class notes'), h('div', { class: 'small' }, h('b', null, 'Top of the board: '), tops.map((r) => r.slot + '. ' + r.name + ' (' + r.nick + ')').join(' · ')),
