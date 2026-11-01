@@ -319,6 +319,8 @@
   Q('young', 'glRookie', 0, 'The {draftTeam} kept you in the G League until they felt you were ready. How hard was it to wait?');
   Q('origin', 'poorRookie', 0, 'You grew up with very little. What does it mean to your family that you made it here?');
   Q('origin', 'poorRookie', 0, 'Your first NBA paycheck changes things back home. What was the first thing you did for your family?');
+  Q('origin', 'hsFamous', 0, 'You went to {hsName}, the same school as {hsAlum}. Did walking those halls push you?');
+  Q('origin', 'hsSchool', 0, 'What do the people back at {hsName} say about you making it?');
 
   // ---------------------------------------------------------------- how the player can answer
   const TONES = {
@@ -383,7 +385,7 @@
     // the road through Europe: no college, no high school: a country, a league and a club
     c.intl = !!(st.origin && st.origin.intl); const IC = c.intl ? NBA.Intl.COUNTRIES[st.origin.country] : null;
     c.country = IC ? IC.name : ''; c.homeLeague = IC ? IC.league : ''; c.intlRookie = c.rookieYear && c.intl; c.intlEL = c.intlRookie && cy.some((y) => y.tier === 'euroleague'); c.intlHonor = c.intlRookie && !!(cl && cl.honors && cl.honors[0]); c.intlNoEL = c.intlRookie && !c.intlEL;
-    c.usRookie = c.rookieYear && !c.intl; c.poorRookie = c.rookieYear && !!(st.family && (st.family.tier === 'poor' || st.family.tier === 'working')); c.stashed = c.rookieYear && !!(st.stash && st.stash.joined && st.stash.kind !== 'gl'); c.glRookie = c.rookieYear && !!(st.stash && st.stash.joined && st.stash.kind === 'gl'); c.glYears = st.stash ? st.stash.years + 1 : ''; c.glWord = c.glYears === 1 ? 'year' : 'years'; c.stashYears = st.stash ? st.stash.years + 1 : ''; c.stashWord = c.stashYears === 1 ? 'year' : 'years';
+    c.usRookie = c.rookieYear && !c.intl; c.hsSchool = c.rookieYear && !!st.hs; c.hsName = st.hs ? st.hs.n : ''; c.hsAlum = st.hs && st.hs.alumni && st.hs.alumni[0] ? st.hs.alumni[0] : ''; c.hsFamous = c.hsSchool && !!c.hsAlum; c.poorRookie = c.rookieYear && !!(st.family && (st.family.tier === 'poor' || st.family.tier === 'working')); c.stashed = c.rookieYear && !!(st.stash && st.stash.joined && st.stash.kind !== 'gl'); c.glRookie = c.rookieYear && !!(st.stash && st.stash.joined && st.stash.kind === 'gl'); c.glYears = st.stash ? st.stash.years + 1 : ''; c.glWord = c.glYears === 1 ? 'year' : 'years'; c.stashYears = st.stash ? st.stash.years + 1 : ''; c.stashWord = c.stashYears === 1 ? 'year' : 'years';
     if (c.intl) { c.hasCollege = false; c.oneDone = false; c.fourYr = false; c.collegeTitle = false; c.collegeHonor = false; c.transferred = false; c.homeTown = IC.name; }
     c.hsPrep = c.rookieYear && /prep powerhouse/.test(hs); c.hsHome = c.rookieYear && /stayed home/.test(hs); c.hsCircuit = c.rookieYear && /circuit/.test(hs);
     // the combine and draft night, from what actually happened to him

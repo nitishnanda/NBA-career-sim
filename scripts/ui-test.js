@@ -39,9 +39,9 @@ let PG_DBG = null;
   // high school: three paths, each with a read (not a number); then the college pick, then the role you take in your first year
   await page.click('text=Next: high school');
   await page.waitForSelector('h1:has-text("finish high school")'); await shot('02b-high-school');
-  const hs = await page.evaluate(() => ({ opts: document.querySelectorAll('.wkcard').length, vibes: document.querySelectorAll('.wkcard .vibe').length, stage: window.__NBA_UI.state.stage }));
-  const okHs = hs.opts === 3 && hs.vibes === 3 && hs.stage === 'hs'; console.log('HIGH SCHOOL', okHs ? 'OK' : 'MISMATCH', JSON.stringify(hs)); if (!okHs) errors.push('HS ' + JSON.stringify(hs));
-  await page.click('.wkcard >> nth=0 >> button');
+  const hs = await page.evaluate(() => ({ opts: document.querySelectorAll('.wkcard').length, vibes: document.querySelectorAll('.wkcard .vibe').length, stage: window.__NBA_UI.state.stage, alumni: /Famous alumni/.test(document.body.innerText), national: /National prep powerhouses/i.test(document.body.innerText) }));
+  const okHs = hs.opts >= 5 && hs.vibes === hs.opts && hs.stage === 'hs' && hs.alumni && hs.national; console.log('HIGH SCHOOL', okHs ? 'OK' : 'MISMATCH', JSON.stringify(hs)); if (!okHs) errors.push('HS ' + JSON.stringify(hs));
+  await page.click('.wkcard:not(.locked) >> nth=0 >> button');
   await page.waitForSelector('text=Choose my college');
   const hsj = await page.evaluate(() => window.__NBA_UI.state.dec.journal.length); if (hsj !== 1) errors.push('HS journal ' + hsj);
   await page.click('text=Choose my college');

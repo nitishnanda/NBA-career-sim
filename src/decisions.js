@@ -336,8 +336,17 @@
         { key: 'circuit', label: 'Chase the summer circuit', blurb: 'Showcases against the best in the country. You could blow up, or you could wear yourself down.', vibe: ctx.breakP ? 'High risk, high reward' : 'A grind: little to gain at the top' },
       ] };
     },
-    choose(st, ctx, key) {
+    choose(st, ctx, key, arg) {
       const p = st.player, rnd = rng(st, 'hs')();
+      // a real school: the national prep powerhouses play like 'prep', an in-state powerhouse in between, a local school like staying home
+      if (key === 'school') {
+        const sc = (NBA.Game.hsOptions(st) || [])[+arg]; if (!sc) throw new Error('no such school'); if (sc.locked) throw new Error(sc.locked);
+        st.hs = { n: sc.n, city: sc.city, state: sc.state, kind: sc.kind, alumni: (sc.alumni || []).map((a) => a[0]).slice(0, 3) };
+        const fam = sc.alumni && sc.alumni.length ? ' (the school of ' + sc.alumni.slice(0, 2).map((a) => a[0]).join(' and ') + ')' : '';
+        if (sc.kind === 'national') return { done: true, tone: 'good', text: 'You went to ' + sc.n + fam + ': the coaching sharpened your game and every scout knows your name.', effects: [{ k: 'attr', a: 'iq', d: 1.2 }, { k: 'player', f: 'vis', d: 0.1 }], journal: { tone: 'good', text: 'Spent senior year at ' + sc.n + ' (' + sc.city + '), a national prep powerhouse: better coaching, more eyes on you.' } };
+        if (sc.kind === 'power') return { done: true, tone: 'good', text: 'You played at ' + sc.n + fam + ', one of the best programs in the state: good coaching and real exposure.', effects: [{ k: 'attr', a: 'iq', d: 0.7 }, { k: 'attr', a: ctx.top, d: 0.6 }, { k: 'player', f: 'vis', d: 0.05 }], journal: { tone: 'good', text: 'Played senior year at ' + sc.n + ' in ' + sc.city + ', a state powerhouse.' } };
+        return { done: true, tone: 'neutral', text: 'You stayed home at ' + sc.n + fam + ' and carried the team. It made you tougher, even if fewer people watched.', effects: [{ k: 'attr', a: ctx.top, d: 1.4 }, { k: 'player', f: 'work', d: 0.05 }, { k: 'player', f: 'vis', d: -0.05 }], journal: { tone: 'neutral', text: 'Stayed home at ' + sc.n + ' (' + sc.city + ') for senior year and carried the team. Tougher, but fewer scouts saw it.' } };
+      }
       if (key === 'prep' && !NBA.Game.canAfford(st, 'prep').ok) throw new Error('prep school is out of reach');
       if (key === 'prep') return { done: true, tone: 'good', text: 'You went to a prep powerhouse: the coaching sharpened your game and the scouts know your name.', effects: [{ k: 'attr', a: 'iq', d: 1.2 }, { k: 'player', f: 'vis', d: 0.1 }], journal: { tone: 'good', text: 'Spent senior year at a national prep powerhouse: better coaching, more eyes on you.' } };
       if (key === 'home') return { done: true, tone: 'neutral', text: 'You stayed home and carried the team. It made you tougher, even if fewer people watched.', effects: [{ k: 'attr', a: ctx.top, d: 1.4 }, { k: 'player', f: 'work', d: 0.05 }, { k: 'player', f: 'vis', d: -0.05 }], journal: { tone: 'neutral', text: 'Stayed home for senior year and carried the team. Tougher, but fewer scouts saw it.' } };

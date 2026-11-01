@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v100';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v101';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -1823,7 +1823,21 @@
     const Dc = DEC(), pend = S.dec && S.dec.pending && S.dec.pending.id === 'hs';
     if (!pend && !S.hsResult) { S.stage = 'college_pick'; return screenCollegePick(); }
     if (!pend) return h('div', null, h('h1', null, 'Senior year'), h('div', { class: 'card' }, h('p', null, S.hsResult.text), h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { S.stage = 'college_pick'; S.hsResult = null; go(); } }, 'Choose my college →'))));
-    const v = Dc.view(S);
+    const v = Dc.view(S), schools = G.hsOptions(S);
+    if (schools.length) {
+      const pick = (i) => { try { S.hsResult = Dc.choose(S, 'school', i); save(); go(); } catch (e) { S.flash = e.message; render(); } };
+      const card = (sc, i) => h('div', { class: 'wkcard' + (sc.locked ? ' locked' : '') }, h('b', null, sc.n), h('div', { class: 'small muted' }, (sc.kind === 'national' ? sc.city : sc.city + ', ' + sc.state) + ' · ' + ({ national: '🏆 National prep powerhouse (boarding)', power: '⭐ State powerhouse', local: '🏠 Local school' })[sc.kind] + (sc.priv && sc.kind !== 'national' ? ' · private' : '')),
+        sc.alumni && sc.alumni.length ? h('div', { class: 'small', style: 'margin:6px 0' }, h('b', null, 'Famous alumni: '), sc.alumni.map((a) => a[0]).join(', '), sc.nNBA > 3 ? h('span', { class: 'muted' }, ' + ' + (sc.nNBA - 3) + ' more NBA players') : null) : h('div', { class: 'small muted', style: 'margin:6px 0' }, 'No NBA players yet. You could be the first.'),
+        sc.alumni && sc.alumni[0] ? h('div', { class: 'small muted' }, sc.alumni[0][1].slice(0, 110)) : null,
+        h('div', { class: 'small vibe' }, sc.locked ? '🔒 ' + sc.locked : sc.paidBy ? '🎓 Paid for by your scholarship' : sc.kind === 'national' ? 'Elite coaching, every scout in the building, modest numbers' : sc.kind === 'power' ? 'Good coaching and real exposure' : 'You are the whole offense; fewer scouts see you'),
+        h('div', { style: 'margin-top:8px' }, h('button', { class: 'primary', disabled: !!sc.locked, onclick: () => pick(i) }, 'Enroll')));
+      const home = schools.map((sc, i) => [sc, i]).filter(([sc]) => sc.kind !== 'national'), nat = schools.map((sc, i) => [sc, i]).filter(([sc]) => sc.kind === 'national'), circ = v.options.find((o) => o.key === 'circuit');
+      return h('div', null, h('h1', null, 'Where do you finish high school?'), h('p', { class: 'muted' }, 'Real schools in ' + S.player.home + ' and the national prep powerhouses, with the NBA players who came through them. Where you go decides how good your game is when you arrive and how many people have seen it.'),
+        h('p', { class: 'small' }, '🏠 Family: ' + G.familyOf(S).label + (G.needScholarship(S) ? ' · 🎓 need-based scholarship' : '') + ' · public schools are free; private schools and boarding academies cost money.'),
+        home.length ? h('div', { class: 'card' }, h('h2', null, 'Schools in ' + S.player.home), h('div', { class: 'wkgrid' }, home.map(([sc, i]) => card(sc, i)))) : null,
+        h('div', { class: 'card' }, h('h2', null, 'National prep powerhouses'), h('div', { class: 'wkgrid' }, nat.map(([sc, i]) => card(sc, i)))),
+        circ ? h('div', { class: 'card' }, h('h2', null, 'Or: chase the summer circuit'), h('p', { class: 'small' }, circ.blurb), h('div', { class: 'small vibe' }, circ.vibe), h('button', { onclick: () => { try { S.hsResult = Dc.choose(S, 'circuit'); save(); go(); } catch (e) { console.error(e); } } }, 'Hit the circuit')) : null);
+    }
     return h('div', null, h('h1', null, 'Where do you finish high school?'), h('p', { class: 'muted' }, 'This is your recruiting year. It decides how good your game is when you arrive and how many people have seen it. Every path has a price.'),
       h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' + (o.locked ? ' locked' : '') }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.locked ? '🔒 ' + o.locked : o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: 'primary', disabled: !!o.locked, onclick: () => { try { S.hsResult = Dc.choose(S, o.key); save(); go(); } catch (e) { console.error(e); } } }, 'Choose'))))));
   }

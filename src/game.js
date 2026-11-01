@@ -1,7 +1,7 @@
 (function (g) {
   'use strict';
   const NBA = g.NBA;
-  if (typeof require !== 'undefined') { try { require('./picks.js'); require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./feed.js'); require('./legacy.js'); require('./intl.js'); require('./eurodata.js'); require('./euro.js'); require('./report.js'); require('./social.js'); require('./room.js'); require('./live.js'); require('./allstar.js'); require('./cap.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
+  if (typeof require !== 'undefined') { try { require('./picks.js'); require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./feed.js'); require('./legacy.js'); require('./intl.js'); require('./hsdata.js'); require('./eurodata.js'); require('./euro.js'); require('./report.js'); require('./social.js'); require('./room.js'); require('./live.js'); require('./allstar.js'); require('./cap.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
   const D = NBA.data;
   const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
   const ATTRS = D.ATTRS;
@@ -77,12 +77,21 @@
   const needScholarship = (st) => { const t = (st.family && st.family.tier) || 'comfortable'; return (t === 'poor' || t === 'working') && st.stars >= 4; };
   // what a step costs, and whether the family (or a scholarship) can cover it
   function canAfford(st, what) {
-    const f = familyOf(st).funds, sch = needScholarship(st), need = { prep: 2, walkon: 2, abroad: 2, usroute: 3, showcase: 2 }[what] || 0;
+    const f = familyOf(st).funds, sch = needScholarship(st), need = { prep: 2, walkon: 2, abroad: 2, usroute: 3, showcase: 2, privatehs: 1 }[what] || 0;
     if (what === 'showcase' && st.college && NBA.Intl && NBA.Intl.TIERS[st.college.tier] && NBA.Intl.TIERS[st.college.tier].rank >= 2) return { ok: true, why: 'The club pays for the trips.' };
     if (f >= need) return { ok: true, why: '' };
     if (sch && what !== 'walkon') return { ok: true, why: 'Covered by your need-based scholarship.', scholarship: true };
-    const w = { prep: 'Prep school tuition is out of reach for your family', walkon: 'A walk-on spot means paying tuition: your family cannot', abroad: 'Moving abroad to an academy costs money your family does not have', usroute: 'Prep school and a move to the US cost far more than your family can pay', showcase: 'NBA workouts and showcase travel cost money your family does not have' }[what] || 'Your family cannot afford it';
+    const w = { privatehs: 'Private-school tuition is out of reach for your family', prep: 'Prep school tuition is out of reach for your family', walkon: 'A walk-on spot means paying tuition: your family cannot', abroad: 'Moving abroad to an academy costs money your family does not have', usroute: 'Prep school and a move to the US cost far more than your family can pay', showcase: 'NBA workouts and showcase travel cost money your family does not have' }[what] || 'Your family cannot afford it';
     return { ok: false, why: w + (st.stars >= 4 ? '.' : ' (need-based scholarships go to 4-star prospects and up).') };
+  }
+  // ---- real high schools: the ones in your home state, plus the national boarding prep powerhouses (NBA.HS, built from Wikipedia)
+  const PRIVATE_RE = /Catholic|Academy|Preparatory|Prep\b|Christian|Country Day|Jesuit|Lutheran|Newman|Ensworth|Punahou|Brophy|Gonzaga|DeMatha|Mater Dei|Sierra Canyon|Harvard-Westlake|Pace|Kingswood|Sanford|Salesianum|Trinity|Brother Martin|St\.|Saint|Bishop|Archbishop|Christ the King|Power Memorial|Rice|The Patrick|Calvert Hall|Mount Saint Joseph|Cretin|Minnehaha|Flint Hill|Seattle Prep|O'Dea|Phillips Exeter|Tilton|New Hampton|Worcester Academy|Cushing|Buckingham|Lake Highland|Ravenscroft|Charlotte Christian|Charlotte Latin|Wesleyan|Word of God|Memphis University|Detroit Country Day|Christian Brothers|Chaminade|Creighton|Juan Diego|Vermont Academy|Gould|South Kent|Hargrave|Fork Union|St\. Christopher/;
+  function hsOptions(st) {
+    const H = NBA.HS; if (!H) return [];
+    const ab = D.STATE_ABBR[st.player.home], local = st.origin && st.origin.usRoute ? [] : ((H.states[ab] || []).slice(0, 8));
+    const fin = (x, kind) => { const priv = kind !== 'national' && PRIVATE_RE.test(x.n), a = kind === 'national' ? canAfford(st, 'prep') : priv ? canAfford(st, 'privatehs') : { ok: true };
+      return Object.assign({}, x, { kind, priv, state: kind === 'national' ? x.city.split(', ').pop() : ab, locked: a.ok ? null : a.why, paidBy: a.scholarship ? 'scholarship' : null }); };
+    return local.map((x) => fin(x, x.type === 'power' ? 'power' : 'local')).concat((H.national || []).map((x) => fin(x, 'national')));
   }
   function scoutReport(st) {
     const p = st.player;
@@ -155,7 +164,7 @@
     let b = (c.prestige - 3) * 1.2 + (st.genBonus || 0) * 0.2 * Math.min(1, Math.max(0, (st.stars - 1) / 3));
     b += ({ takeover: 2.4, fit: 0.8, quiet: -2.2 })[st.collegeRole] || 0;   // running the offense puts the numbers up; a development year does not
     const hs = ((NBA.Decisions.state(st).journal || []).find((e) => e.kind === 'hs') || { text: '' }).text;
-    b += /prep powerhouse/.test(hs) ? 1.0 : /stayed home/.test(hs) ? -0.8 : /blew up/.test(hs) ? 1.8 : /circuit/.test(hs) ? -0.6 : 0;
+    b += /prep powerhouse/.test(hs) ? 1.0 : /state powerhouse/.test(hs) ? 0.5 : /stayed home/.test(hs) ? -0.8 : /blew up/.test(hs) ? 1.8 : /circuit/.test(hs) ? -0.6 : 0;
     if (last.honors.includes('National Player of the Year')) b += 3;
     else if (last.honors.includes('Consensus All-American')) b += 1.5;
     if (st.collegeYears.some((y) => y.tourney.includes('Won the National'))) b += 0.8;
@@ -2224,6 +2233,6 @@
     return st;
   }
 
-  Object.assign(NBA, { capFor, marketCurve, Game: { FAMILY, familyOf, canAfford, needScholarship, INTL_PLANS, setClause, euroBuyout, intlReport, nbaInterest, draftWant, pushDraft, callupStint, assignGLeague, teamWant, pushForSpot, stintYears, stashPlayer, stashStay, joinFromStash, buyoutM, intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { capFor, marketCurve, Game: { hsOptions, FAMILY, familyOf, canAfford, needScholarship, INTL_PLANS, setClause, euroBuyout, intlReport, nbaInterest, draftWant, pushDraft, callupStint, assignGLeague, teamWant, pushForSpot, stintYears, stashPlayer, stashStay, joinFromStash, buyoutM, intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
