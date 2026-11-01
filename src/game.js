@@ -1,7 +1,7 @@
 (function (g) {
   'use strict';
   const NBA = g.NBA;
-  if (typeof require !== 'undefined') { try { require('./picks.js'); require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./feed.js'); require('./legacy.js'); require('./report.js'); require('./social.js'); require('./room.js'); require('./live.js'); require('./allstar.js'); require('./cap.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
+  if (typeof require !== 'undefined') { try { require('./picks.js'); require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./feed.js'); require('./legacy.js'); require('./intl.js'); require('./report.js'); require('./social.js'); require('./room.js'); require('./live.js'); require('./allstar.js'); require('./cap.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
   const D = NBA.data;
   const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
   const ATTRS = D.ATTRS;
@@ -31,7 +31,7 @@
   }
 
   // ---------------------------------------------------------------- creation
-  function newCareer(o) {
+  function newCareer(o) {   // o.origin: a country key of NBA.Intl (UK, Spain, Serbia...) for the road through Europe; empty for the American high school and college path
     if (o.seed != null) NBA.setSeed(o.seed);
     // Generational talents are almost always blue-chip, top-3 picks who dominate college.
     // A rare "Jokic path" (~8%) keeps them under-scouted with a slow start but the same hidden ceiling.
@@ -60,6 +60,7 @@
       career: { awards: {}, td: 0, td30Seasons: 0, tdSeasons: 0, titles: 0 },
       log: [], retired: false, hof: null, pendingEvents: [],
     };
+    if (o.origin && NBA.Intl && NBA.Intl.COUNTRIES[o.origin]) { st.origin = { country: o.origin, intl: true }; p.country = o.origin; }
     return st;
   }
 
@@ -126,6 +127,7 @@
   // what the scouts add or take away for where and how he played: the school, the role he took, how he spent high school, honors and titles. The combine (size and
   // tests) is added separately. 'Generational' is only a small nudge: scouts credit the talent through the ceiling they can see, they do not hand out the top pick.
   function stockBonus(st) {
+    if (st.origin && st.origin.intl) return intlBonus(st);
     const c = st.college, last = st.collegeYears[st.collegeYears.length - 1];
     let b = (c.prestige - 3) * 1.2 + (st.genBonus || 0) * 0.2 * Math.min(1, Math.max(0, (st.stars - 1) / 3));
     b += ({ takeover: 2.4, fit: 0.8, quiet: -2.2 })[st.collegeRole] || 0;   // running the offense puts the numbers up; a development year does not
@@ -136,6 +138,71 @@
     if (st.collegeYears.some((y) => y.tourney.includes('Won the National'))) b += 0.8;
     return b;
   }
+
+  // ---------------------------------------------------------------- the international road: UK / Europe, domestic leagues and the EuroLeague, then the draft
+  // (the club is stored where the college would be, so the draft, the press and the record books need no special cases)
+  function intlOptions(st) {
+    const I = NBA.Intl, k = st.origin.country, stars = st.stars;
+    let list = I.clubsFor(k, stars).filter((x) => I.TIERS[x.tier].rank <= (stars >= 5 ? 2 : stars >= 4 ? 1 : 1)).slice(0, 6);
+    if (stars < 5) list = list.filter((x) => x.tier !== 'euroleague');
+    // a top youth system abroad is always on the table for a good prospect
+    const abroad = I.ORDER.filter((c) => c !== k).map((c) => I.clubsFor(c, stars).filter((x) => x.tier === 'academy' && x.prestige >= 4)[0]).filter(Boolean).slice(0, 2);
+    return list.concat(abroad).map((x) => Object.assign({ home: x.country === k }, x));
+  }
+  function chooseClub(st, id) {
+    const c = NBA.Intl.clubById(id); if (!c) throw new Error('no such club');
+    const first = !st.college;
+    st.college = { id: c.id, name: c.n, state: c.city + ', ' + NBA.Intl.COUNTRIES[c.country].name, prestige: c.prestige, home: c.country === st.origin.country, intl: true, tier: c.tier, country: c.country, league: c.league };
+    st.clubYears = 0; st.stage = 'intl_ready';
+    if (!first) NBA.Decisions.log(st, { kind: 'college', title: 'New club', tone: 'neutral', text: 'Signed with ' + c.n + ' (' + NBA.Intl.COUNTRIES[c.country].name + ', ' + NBA.Intl.TIERS[c.tier].label.toLowerCase() + ').' });
+    return st.college;
+  }
+  function intlSeason(st) {
+    const I = NBA.Intl, p = st.player, c = st.college, T = I.TIERS[c.tier], rank = T.rank, yr = st.collegeYears.length + 1, o = ovr(p);
+    const oEff = o + 1.5, std = [56, 63, 71][rank], newcomer = !c.home && (st.clubYears || 0) === 0;
+    const minsFixed = clamp(Math.round(T.mins + 0.6 * (oEff - std) + ({ 1: 0, 2: 1, 3: 2, 4: 3, 5: 4 }[st.stars] || 0) - (newcomer ? 2 : 0)), 5, rank === 2 ? 30 : 33);
+    const e = expLine(p, { pace: T.pace, minsFixed, usgMult: T.usg * (1.02 + ({ 1: 0, 2: 0.03, 3: 0.07, 4: 0.12, 5: 0.17 }[st.stars] || 0)) * (newcomer ? 0.94 : 1), tsAdj: T.ts - 0.012 + 0.003 * (oEff - 68) / 5, rebMult: 0.97, astMult: 1.0, coTax: 0 });
+    const av = rollAvail(p, { noRest: true }), games2 = rank === 2 ? 34 : rank === 1 ? 30 : 28, gp = clamp(games2 - Math.round(av.miss * 0.3), 8, games2);
+    const m = { pts: e.pts * (1 + 0.04 * randn()), reb: e.reb, ast: e.ast, stl: e.stl * 1.05, blk: e.blk * 1.05, tov: e.tov, mins: e.mins };
+    const games = []; for (let i = 0; i < gp; i++) games.push(genGame(m));
+    const sm = summarize(games), sl = shootingLine(p, sm.pts, e.ts, e.usg);
+    const line = { gp, mins: sm.mins, pts: sm.pts, reb: sm.reb, ast: sm.ast, stl: sm.stl, blk: sm.blk, tov: sm.tov, fgp: sl.fgp, tpp: sl.tpp, ftp: sl.ftp, ts: sl.ts, td: sm.td, high: sm.high };
+    const pf = perfOf({ pts: sm.pts, reb: sm.reb, ast: sm.ast, stl: sm.stl, blk: sm.blk, tov: sm.tov, ts: sl.ts }), pfa = pf + (rank === 2 ? 9 : rank === 1 ? 4 : 0);
+    const wins = clamp(Math.round(games2 * (0.34 + 0.07 * (c.prestige - 1) * 0.9) + (oEff - 66) * 0.12 + randn() * 2.6), 4, games2 - 2);
+    let tourney, champ = false;
+    if (rank === 2) { const pl = wins >= games2 * 0.78 ? 5 : wins >= games2 * 0.68 ? 4 : wins >= games2 * 0.55 ? 3 : wins >= games2 * 0.4 ? 2 : 1; tourney = ['EuroLeague: missed the playoffs', 'EuroLeague: out in the play-in', 'EuroLeague: lost in the playoffs', 'EuroLeague: Final Four', 'EuroLeague: lost in the final', 'EuroLeague: champions'][clamp(pl - 1 + (rand() < 0.15 ? 1 : 0), 0, 5)]; champ = /champions/.test(tourney); }
+    else { const pl = wins >= games2 * 0.8 ? 4 : wins >= games2 * 0.65 ? 3 : wins >= games2 * 0.5 ? 2 : 1; tourney = rank === 1 ? ['Missed the playoffs', 'Lost in the playoff quarterfinals', 'Lost in the semifinals', 'Lost in the final', 'League champions'][clamp(pl - 1 + (rand() < 0.2 ? 1 : 0), 0, 4)] : ['Missed the junior finals', 'Lost in the junior quarterfinals', 'Lost in the junior semifinals', 'Junior league champions'][clamp(pl - 1, 0, 3)]; champ = /champions/.test(tourney); }
+    const honors = [];
+    if (rank === 2) { if (pfa >= 44) honors.push('EuroLeague MVP'); else if (pfa >= 38) honors.push('All-EuroLeague First Team'); else if (pfa >= 32) honors.push('All-EuroLeague Second Team'); if (p.age <= 22 && pfa >= 28) honors.push('EuroLeague Rising Star'); }
+    else if (rank === 1) { if (pfa >= 40) honors.push(c.league + ' MVP'); else if (pfa >= 30) honors.push('All-' + c.league + ' Team'); if (p.age <= 22 && pfa >= 26) honors.push('Best Young Player'); }
+    else { if (pfa >= 32) honors.push('Junior league MVP'); else if (pfa >= 24) honors.push('Junior All-Star'); }
+    if (champ) honors.push(rank === 2 ? 'EuroLeague Champion' : rank === 1 ? c.league + ' Champion' : 'Junior Champion');
+    const rec = { year: yr, label: 'Year ' + yr, age: p.age, school: c.name, record: wins + '-' + (games2 - wins), tourney, honors, line, ovr: Math.round(o), pf: pfa, league: c.league, tier: c.tier };
+    st.collegeYears.push(rec); return rec;
+  }
+  function intlBonus(st) {
+    const I = NBA.Intl, c = st.college, last = st.collegeYears[st.collegeYears.length - 1], T = I.TIERS[c.tier];
+    let b = T.stock + (c.prestige - 3) * 0.5 + (st.genBonus || 0) * 0.2 * Math.min(1, Math.max(0, (st.stars - 1) / 3));
+    if (last) {
+      const hs = last.honors || [];
+      if (hs.includes('EuroLeague MVP')) b += 3.2; else if (hs.includes('All-EuroLeague First Team')) b += 2.2; else if (hs.includes('All-EuroLeague Second Team')) b += 1.2; if (hs.includes('EuroLeague Rising Star')) b += 1.2;
+      if (hs.some((x) => /MVP$/.test(x) && x !== 'EuroLeague MVP')) b += 1.2; else if (hs.some((x) => /^All-/.test(x) && !/EuroLeague/.test(x))) b += 0.6; if (hs.some((x) => /Champion/.test(x))) b += 0.8;
+      if (T.rank === 2 && last.line.mins < 11) b -= 1.2;   // a EuroLeague bench player is not a prospect the scouts can read
+      if (last.age >= 22) b -= 0.5 * (last.age - 21);       // the older, the less projectable
+    }
+    if (st.collegeYears.some((y) => y.tier === 'euroleague')) b += 0.5;   // seen against grown men
+    return b;
+  }
+  function playIntl(st) {
+    const p = st.player, rec = intlSeason(st);
+    NBA.runYear(st.league, { draft: false });
+    rec.mock = NBA.mockRange(st.league, p, stockBonus(st)); rec.mustDeclare = rec.year >= 5; st.clubYears = (st.clubYears || 0) + 1;
+    st.stage = 'intl_decision'; return rec;
+  }
+  function stayIntl(st) { NBA.npcDraft(st.league); st.stage = 'training'; st.afterTraining = 'intl'; return trainingInfo(st); }
+  function moveClub(st, id) { chooseClub(st, id); return stayIntl(st); }
+  // a British (or any) prospect can still take the American road: prep school and college
+  function intlToUS(st) { st.origin.intl = false; st.origin.usRoute = true; st.college = null; st.collegeYears = []; st.stage = 'hs'; st.hsResult = null; NBA.Decisions.offer(st, 'hs'); }
 
   // run the league for the season the player just spent in college; returns season result and a mock-draft range
   function playCollege(st) {
@@ -288,6 +355,7 @@
     const rep = { age: p.age, ovr0: Math.round(ovr0), ovr1: Math.round(ovr(p)), trainGain: r1(ovrAfterTrain - ovr0), changes: ATTRS.map((a) => ({ key: a, label: D.ATTR_LABELS[a], from: Math.round(before[a]), to: Math.round(p.attrs[a]) })) };
     const next = st.afterTraining;
     if (next === 'college') st.stage = 'college_ready';
+    else if (next === 'intl') st.stage = 'intl_ready';
     else if (next === 'pro_first') st.stage = 'pro_ready';
     else { NBA.offseason(st.league, { draft: true }); st.stage = 'pro_ready'; }
     // a pro preseason opens camp: who to train with (the autopilot answers it itself)
@@ -1135,7 +1203,7 @@
   function pressFacts(st, ctx) {
     const R = NBA.Reporters, pr = prState(st), c = ctx.c, p = st.player, team = st.league.teams[st.teamId], it = st.matchLog[ctx.idx];
     const cast = R.REPORTERS.concat([R.beatFor(team)]).map((r) => ({ name: r.name, outlet: r.outlet, style: r.style, edge: r.edge }));
-    return { player: { name: p.name, pos: p.pos, age: p.age, years: p.yearsPro, team: team.name }, moment: ctx.why, kind: ctx.kind, opponent: ctx.opp, opponentStar: c.oppStar || null, rival: c.rival || null, record: c.rec || null,
+    return { player: { name: p.name, pos: p.pos, age: p.age, years: p.yearsPro, team: team.name, ...(st.origin && st.origin.intl ? { from: NBA.Intl.COUNTRIES[st.origin.country].name, cameUpThroughEurope: true } : {}) }, moment: ctx.why, kind: ctx.kind, opponent: ctx.opp, opponentStar: c.oppStar || null, rival: c.rival || null, record: c.rec || null,
       game: it && it.k === 'g' ? { n: it.n, home: !!it.h, ...(ctx.kind === 'post' ? (() => { const gr = gradeIn(st, it, ctx.idx); return { result: (it.w ? 'W ' : 'L ') + it.f + '-' + it.a, points: it.pt, rebounds: it.rb, assists: it.as, shooting: it.fgm + '/' + it.fga, grade: gr.grade, usuallyScores: gr.expected }; })() : {}) } : null,
       season: seasonSoFar(st, ctx.idx), career: careerFacts(st), opponentLastSeason: (() => { const o = st.league.teams.find((x) => x.nick === ctx.opp); return o ? lastRec(st, o) : null; })(), mediaImage: R.PERSONAS[R.personaOf(pr.tally)].label, feud: pr.feuds[c.opp] ? { with: pr.feuds[c.opp].star, said: pr.feuds[c.opp].quote } : null,
       recentQuotes: pr.quotes.slice(-3).map((q) => ({ tone: q.tone, said: q.text, vs: q.opp, result: q.w === 1 ? 'won' : q.w === 0 ? 'lost' : null })), alreadyCovered: ctx.pool.map((q) => q.text.slice(0, 80)), cast };
@@ -1918,6 +1986,17 @@
     const lines = [];
     st.autoPlay = true; st.autoDecide = !!opt.decisions;   // bulk careers skip the player's decisions unless asked: the calibrated baseline stays as it was
     // pick college: most prestigious we can
+    if (st.origin && st.origin.intl) {   // the road through Europe: the biggest club at home, stay while it pays off, then the draft
+      const oo = intlOptions(st).filter((x) => x.home), start = oo.sort((a, b) => NBA.Intl.TIERS[b.tier].rank - NBA.Intl.TIERS[a.tier].rank || b.prestige - a.prestige)[0] || intlOptions(st)[0];
+      chooseClub(st, start.id);
+      for (;;) {
+        const rec = playIntl(st), slot = rec.mock.mid, want = st.autoYears || (st.autoYears = Math.min(4, NBA.recruitYears(st.stars) + 1));
+        if (rec.mustDeclare || rec.year >= want || (slot <= 6 && rec.year >= Math.min(want, 2))) break;
+        const up = NBA.Intl.moveOptions(st, st.college)[0];
+        if (up && rec.pf >= 24 && NBA.Intl.TIERS[up.tier].rank > NBA.Intl.TIERS[st.college.tier].rank) moveClub(st, up.id); else stayIntl(st);
+        train(st, autoAlloc(st.player, trainingInfo(st).points));
+      }
+    } else {
     const opts = collegeOptions(st);
     chooseCollege(st, opts[0].id);
     for (;;) {
@@ -1928,6 +2007,7 @@
       if (rec.mustDeclare || rec.year >= want || (slot <= 5 && rec.year >= Math.min(want, 2))) break;
       stayInCollege(st);
       train(st, autoAlloc(st.player, trainingInfo(st).points));
+    }
     }
     declare(st); runCombine(st, true); enterDraft(st);
     startPro(st);
@@ -1950,6 +2030,6 @@
     return st;
   }
 
-  Object.assign(NBA, { capFor, marketCurve, Game: { gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { capFor, marketCurve, Game: { intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -95,7 +95,7 @@
   Q('young', 'rookieYear', 0, 'You were the number {draft} pick. Does that number still follow you?');
   Q('young', 'rookieYear', 0, 'How different is the NBA from {school}?');
   Q('young', 'rookieYear', 1, 'Some people said the {team} reached for you. What do you say to them?');
-  Q('young', 'rookieYear', 0, 'What is the biggest adjustment from college to the pros?');
+  Q('young', 'usRookie', 0, 'What is the biggest adjustment from college to the pros?');
   Q('young', 'rookieYear', 0, 'The Rookie of the Year race is wide open. Is it on your mind?');
   Q('young', 'rookieYear', 0, 'Who gave you the most advice when you got here?');
   Q('young', 'young', 0, 'You are only {age}. Do you feel like you belong at this level?');
@@ -277,7 +277,7 @@
   Q('origin', 'hsCircuit', 0, 'You made your name on the summer circuit in high school. Do you still think about those showcases?');
   Q('origin', 'rookieYear', 0, 'Do people back in {homeTown} still follow you? What do they say?');
   Q('origin', 'hasCollege', 0, 'Do you still keep in touch with your old teammates at {school}?');
-  Q('origin', 'rookieYear', 0, 'What is the biggest thing you wish you had known back in high school?');
+  Q('origin', 'usRookie', 0, 'What is the biggest thing you wish you had known back in high school?');
   // draft night and the combine: asked in a rookie's first pro season, from what actually happened to him
   Q('combine', 'combineSkipped', 0, 'You skipped the athletic testing at the combine. Was that a business decision?');
   Q('combine', 'combineTested', 0, 'What did you take away from the combine now that you are on the other side of it?');
@@ -305,6 +305,14 @@
   Q('team', 'pickPrice', 1, 'The {tradeTeam} gave up {tradePicks} to get you. How much pressure is that?');
   Q('team', 'pickPrice', 0, 'Fans are already counting the picks the {tradeTeam} traded for you. Do you feel like you have to justify the price?');
   Q('team', 'pickPrice', 0, 'The {tradeTeam} mortgaged part of their future for you. What do you tell the fans who are worried?');
+  Q('origin', 'intlRookie', 0, 'You left {country} to play in the NBA. How hard was it to leave home?');
+  Q('origin', 'intlRookie', 0, 'You came up through {homeLeague} basketball. How different is the NBA game, honestly?');
+  Q('origin', 'intlRookie', 0, 'Your family and friends back in {country} are watching at odd hours of the night. What do they say to you?');
+  Q('origin', 'intlRookie', 0, 'The NBA is faster and more athletic than the {homeLeague}. What has been the hardest adjustment?');
+  Q('origin', 'intlEL', 0, 'You played in the EuroLeague at {school} before coming over. How much of that carries into the NBA?');
+  Q('origin', 'intlEL', 0, 'People say EuroLeague players are more ready for the NBA than college players. Do you agree?');
+  Q('origin', 'intlHonor', 0, 'You were named {honor} before the draft. Does that mean anything here, or is it a fresh start?');
+  Q('origin', 'intlNoEL', 0, 'You did not play in the EuroLeague, so some scouts called you a bit of a mystery. Do you feel you have something to prove?');
 
   // ---------------------------------------------------------------- how the player can answer
   const TONES = {
@@ -366,6 +374,11 @@
     c.hasCollege = c.rookieYear && cy.length > 0; c.oneDone = c.rookieYear && cy.length === 1; c.fourYr = c.rookieYear && cy.length >= 3; c.collegeYrs = cy.length;
     c.collegeTitle = c.rookieYear && cy.some((y) => (y.tourney || '').includes('Won the National')); c.honor = cl && cl.honors && cl.honors[0] ? cl.honors[0] : ''; c.collegeHonor = c.rookieYear && !!c.honor;
     c.collegePts = cl && cl.line ? (+cl.line.pts || 0).toFixed(1) : ''; c.transferred = c.rookieYear && !!st.transferred;
+    // the road through Europe: no college, no high school: a country, a league and a club
+    c.intl = !!(st.origin && st.origin.intl); const IC = c.intl ? NBA.Intl.COUNTRIES[st.origin.country] : null;
+    c.country = IC ? IC.name : ''; c.homeLeague = IC ? IC.league : ''; c.intlRookie = c.rookieYear && c.intl; c.intlEL = c.intlRookie && cy.some((y) => y.tier === 'euroleague'); c.intlHonor = c.intlRookie && !!(cl && cl.honors && cl.honors[0]); c.intlNoEL = c.intlRookie && !c.intlEL;
+    c.usRookie = c.rookieYear && !c.intl;
+    if (c.intl) { c.hasCollege = false; c.oneDone = false; c.fourYr = false; c.collegeTitle = false; c.collegeHonor = false; c.transferred = false; c.homeTown = IC.name; }
     c.hsPrep = c.rookieYear && /prep powerhouse/.test(hs); c.hsHome = c.rookieYear && /stayed home/.test(hs); c.hsCircuit = c.rookieYear && /circuit/.test(hs);
     // the combine and draft night, from what actually happened to him
     const cm = p.cmb, dr = st.draft, pc = (cm && cm.pct) || {}, mk = st.combine && st.combine.mocks, mockRows = []; (mk && mk.outlets || []).forEach((o) => (o.rows || []).forEach((r) => { if (r.isUser) mockRows.push(r.slot); }));

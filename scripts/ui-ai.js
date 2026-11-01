@@ -8,8 +8,8 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   await page.addInitScript(() => {
     window.__prompts = [];
     const A = { humble: 'MOCKA humble line here ok', confident: 'MOCKA confident line here', joke: 'MOCKA joke line here ok', deflect: 'MOCKA deflect line here', trash: 'MOCKA trash line here ok', fight: 'MOCKA fight line here ok' };
-    const sample = Object.assign(async () => ({ text: '' }), { json: async (p) => {
-      window.__prompts.push(p.slice(0, 60)); await new Promise((r) => setTimeout(r, 400));
+    const sample = Object.assign(async () => ({ text: '' }), { json: async (p, o) => {
+      (window.__models = window.__models || []).push(o && o.model); window.__prompts.push(p.slice(0, 60)); await new Promise((r) => setTimeout(r, 400));
       if (/fresh press-conference questions/.test(p)) return { questions: [0, 1, 2, 3].map((k) => ({ reporter: '', newReporter: k === 1 ? { name: 'Jaylen Ortega', outlet: 'Courtside Podcast', style: 'buzz' } : null, text: 'MOCKQ ' + k + ': what is going through your mind right now?', heat: 1, answers: A })) };
       if (/Write the answers a player could give/.test(p)) { const ids = JSON.parse(p.match(/The questions \(DATA\): """(.*?)"""/s)[1]).map((x) => x.id); return { answers: ids.map((id) => Object.assign({ id }, A)) }; }
       if (/React to EXACTLY/.test(p)) return { reaction: 'MOCKREACT the room nods slowly at that.', headline: 'MOCKHEAD player says what he said', fans: ['MOCKFAN one one one', 'MOCKFAN two two two', 'MOCKFAN three three'] };
@@ -62,6 +62,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   const pod = await page.evaluate(() => document.body.textContent); const okP = /Fan podcast/.test(pod) && /MOCKPOD/.test(pod) && /MOCKPU unfiltered/.test(pod); console.log('AI podcast', okP ? 'OK' : 'MISMATCH'); if (!okP) errors.push('podcast ' + pod.slice(0, 300));
   await page.evaluate(() => { Array.from(document.querySelectorAll('.wkcard button'))[2].click(); }); await page.waitForTimeout(500);
   const pr2 = await page.evaluate(() => document.body.textContent); const okP2 = /MOCKPHEAD/.test(pr2) && /MOCKPFAN a/.test(pr2); console.log('AI podcast result', okP2 ? 'OK' : 'MISMATCH'); if (!okP2) errors.push('podcast result');
+  const models = await page.evaluate(() => window.__models || []); const okMod = models.length >= 4 && models.every((m) => m === 'claude-haiku-5-5'); console.log('AI model (Haiku 5.5)', okMod ? 'OK ' + models.length + ' calls' : 'MISMATCH ' + JSON.stringify(models)); if (!okMod) errors.push('models ' + JSON.stringify(models));
   console.log('prompts', JSON.stringify(await page.evaluate(() => window.__prompts)), (await page.evaluate(() => document.body.textContent)).slice(0,300));
   await browser.close(); if (errors.length) { console.log('errors:', errors); process.exit(1); } console.log('ui-ai OK');
 })();
