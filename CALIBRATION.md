@@ -1024,3 +1024,23 @@ New `src/world.js` (NBA.World); everything is for a person playing, and game det
 - **Fix**: "no social pop-ups", "no press" and live mode now survive a mid-season replay (a trade or buyout used to switch them back on).
 - Tests: `scripts/world-check.js` (quarters always sum to the final, stories clean, incentives pay, jerseys, captain draft); `scripts/ui-core.js` covers tabs, agent, jersey, full box, champion card; `ui-allstar` and `ui-market` fixed (they were blocked by news pop-ups since v101).
 - Baseline: default mode unchanged (76.57 / 12.14).
+
+## v106 — arcs, the live momentum, and how the game is played
+
+New `src/arc.js` (NBA.Arc), human careers only.
+- **Live game**: a momentum meter (the last two minutes of game clock) and, once a game, "they are on a run" (8+ to 2 or fewer): call a timeout (their scoring -2), play through it (coin flip), or stop it yourself (a bucket or two bad shots) — a real live decision that edits the game like the others.
+- **Defense as a story**: before a hyped game against a team with an 80+ star, take the assignment (your box: pts x0.9, stocks x1.5; his line in the box drops ~32%), anchor the help, or score; a "🔒 Lockdown" callout when their star is held to 65% of his average.
+- **Your co-star goes down**: once a season (55% of seasons, at a seeded game 15-60), your best teammate is out 6-20 games (he leaves the box); carry the scoring (pts x1.15), get everyone involved (ast x1.15), or play your game.
+- **The narrative**: a label that follows you and changes with the career (Big-game player, Winner, Can't win in the playoffs, Clutch, Shrinks late, Injury-prone, Empty stats, On the rise), with what it takes to shed it; journaled when it changes; shown in the History watch.
+- **Rookie year**: rookie duties (carry the bags / donuts / refuse) and the rookie wall at game 50 (rest, push through, or the film room).
+- **Retirement**: jersey retirement nights for teams you defined (6+ seasons, or 3+ with a title or two All-NBA), with your number and a speech.
+- **Progression from how you played**: after each season the attributes you actually used grow a little (three-point volume, assists, boards, steals, blocks, free throws, mid-range); 1.2+ total costs one upgrade point.
+- **Claude-written storylines**: one off-season situation a summer written from your real data (teammates, rival, record, narrative), with three options whose effects are clamped to ±0.6 on media / chemistry / locker room and checked for profanity; nothing shows when Claude is unavailable.
+- **Odds as words** (setting): "a long shot / a real chance / likely / very likely" instead of numbers on team building, free agency, the coach and series moments.
+- **Inbox / quiet mode** (setting): mentions, podcasts and league injury news wait in an inbox (open them within 8 games) instead of stopping the season.
+- **Save slots**: three slots, load, and a side-by-side career compare on the career page.
+- **Summer steps**: the offseason tabs are now numbered steps with "Next" buttons.
+- Not in this version: simulating the season game by game (the engine still plays the season ahead; decisions change it through replays). That rewrite has to re-fit the calibration and is its own project.
+- Known: `scripts/live-check.js` has one rare box mismatch (about 1 game in 2,000) that already existed in v105.
+- Tests: `scripts/arc-check.js`; `scripts/ui-core.js` (inbox, save slots); the UI tests skip the new pop-ups where they test something else.
+- Baseline: default mode unchanged (76.57 / 12.14).

@@ -675,8 +675,8 @@
     open(st) { const idx = st.matchIdx || 0, it = (st.matchLog || [])[idx]; if (!it || it.dnp) return null; const m = NBA.Core.momentOf(st, idx); return m ? Object.assign({ idx, opp: it.o, n: it.n }, m) : null; },
     view(st, ctx) {
       const O = NBA.Core.MOMENT_OPTS, keys = ['takeover', 'trust', 'defense'].concat(ctx.key === 'down02' || ctx.key === 'elim' ? ['callout'] : []), od = NBA.Game.momentOdds(st, ctx.idx);
-      const tag = (k) => { const n = od.opts[k], d = n - od.base; return 'Win chance ' + od.base + '% → ' + n + '%' + (d >= 8 ? ' 🔥' : d <= -5 ? ' ⚠️' : ''); };
-      return { title: ctx.title, text: ctx.text + ' Going in, the numbers give you about a ' + od.base + '% chance to win tonight.', base: od.base, options: keys.map((k) => ({ key: k, label: O[k].label, blurb: O[k].blurb, vibe: tag(k) + ' · ' + (k === 'callout' ? 'risky' : k === 'takeover' ? 'hero ball' : k === 'trust' ? 'team first' : 'two-way') })) };
+      const W = (n) => (n >= 70 ? 'very likely' : n >= 55 ? 'likely' : n >= 45 ? 'a coin flip' : n >= 30 ? 'an uphill fight' : 'a long shot'), tag = (k) => { const n = od.opts[k], d = n - od.base; return (st.oddsWords ? 'Tonight: ' + W(od.base) + ' → ' + W(n) : 'Win chance ' + od.base + '% → ' + n + '%') + (d >= 8 ? ' 🔥' : d <= -5 ? ' ⚠️' : ''); };
+      return { title: ctx.title, text: ctx.text + (st.oddsWords ? ' Going in, tonight looks like ' + W(od.base) + '.' : ' Going in, the numbers give you about a ' + od.base + '% chance to win tonight.'), base: od.base, options: keys.map((k) => ({ key: k, label: O[k].label, blurb: O[k].blurb, vibe: tag(k) + ' · ' + (k === 'callout' ? 'risky' : k === 'takeover' ? 'hero ball' : k === 'trust' ? 'team first' : 'two-way') })) };
     },
     choose(st, ctx, key) {
       const o = NBA.Core.MOMENT_OPTS[key]; if (!o || !st.matchLog[ctx.idx]) return { done: true, text: '' };
@@ -684,7 +684,7 @@
       NBA.Game.scaleBox(st, it, o); it.smd = 1;
       const eff = []; if (o.chem) eff.push({ k: 'meter', f: 'chem', d: o.chem }); if (o.media) eff.push({ k: 'meter', f: 'media', d: o.media });
       const won = !!it.w, line = it.pt + ' points, ' + it.rb + ' rebounds, ' + it.as + ' assists';
-      const text = (key === 'takeover' ? 'You told the coach to run everything through you tonight.' : key === 'trust' ? 'You told the group to keep moving the ball: the right play, every time.' : key === 'defense' ? 'You asked for their best player. Your night starts on the other end.' : 'You called the group out in the film room. Everybody heard it.') + ' Your win chance tonight: about ' + res.now + '% (it was ' + res.base + '%). Game ' + ctx.n + ' is next.';
+      const text = (key === 'takeover' ? 'You told the coach to run everything through you tonight.' : key === 'trust' ? 'You told the group to keep moving the ball: the right play, every time.' : key === 'defense' ? 'You asked for their best player. Your night starts on the other end.' : 'You called the group out in the film room. Everybody heard it.') + (st.oddsWords ? ' The odds moved ' + (res.now > res.base ? 'your way.' : res.now < res.base ? 'against you.' : 'nowhere.') : ' Your win chance tonight: about ' + res.now + '% (it was ' + res.base + '%).') + ' Game ' + ctx.n + ' is next.';
       if (key === 'callout' && !won) eff.push({ k: 'meter', f: 'chem', d: -0.3 });
       return { done: true, tone: 'neutral', text, effects: eff, journal: { tone: won ? 'good' : 'bad', text: ctx.title + ' vs the ' + ctx.opp + ': ' + text + ' You had ' + line + (won ? ' in a win.' : ' in a loss.') + (res.flipped ? ' The approach changed the result.' : '') } };
     },
@@ -761,6 +761,58 @@
       return { done: true, tone, text, effects: eff, journal: { tone, text: 'Reduced role under ' + ctx.coach + ': ' + text } };
     },
     auto() { return { key: 'accept' }; },
+  });
+  // ================================================================ defense as a story: take the assignment
+  register({
+    id: 'assignment', title: 'The assignment', trigger: 'assignment',
+    when(st) { return !st.autoPlay && !!NBA.Arc; },
+    open(st) { return NBA.Arc.assignmentOpen(st); },
+    view(st, ctx) { return { title: 'The assignment', text: 'Tonight is the ' + ctx.opp + ' and ' + ctx.star.name + ' (' + ctx.star.pos + ', ' + ctx.star.ovr + ' OVR). The coach asks if you want him.', options: [
+      { key: 'take', label: 'Give me ' + ctx.star.name.split(' ').slice(-1)[0], blurb: 'You guard him all night. Your offense takes a back seat.', vibe: 'Lockdown' },
+      { key: 'help', label: ctx.rim ? 'Anchor the paint' : 'Roam and help', blurb: 'Stay home, protect the rim and the passing lanes.', vibe: 'Team defense' },
+      { key: 'no', label: 'Save it for offense', blurb: 'Someone else takes him. You score.', vibe: 'Offense first' }] }; },
+    choose(st, ctx, key) {
+      const it = st.matchLog[ctx.idx]; it.asg = key === 'take' ? 1 : 0;
+      if (key === 'take') NBA.Game.scaleBox(st, it, { pts: 0.9, ast: 1, reb: 1, def: 1.5 }); else if (key === 'help') NBA.Game.scaleBox(st, it, { pts: 0.97, reb: 1.1, def: 1.25 }); else NBA.Game.scaleBox(st, it, { pts: 1.08, def: 0.85 });
+      const eff = key === 'take' ? [{ k: 'meter', f: 'media', d: 0.2 }, { k: 'meter', f: 'locker', d: 0.2 }] : [];
+      return { done: true, tone: 'neutral', text: key === 'take' ? 'You asked for ' + ctx.star.name + '. The coach smiled.' : key === 'help' ? 'You will anchor the team defense tonight.' : 'Someone else gets ' + ctx.star.name + '. You are here to score.', effects: eff };
+    },
+    auto() { return { key: 'help' }; },
+  });
+  // ================================================================ your co-star goes down
+  register({
+    id: 'mateinj', title: 'Your co-star is hurt', trigger: 'mateinj',
+    when(st) { return !st.autoPlay && !!NBA.Arc; },
+    open(st) { return NBA.Arc.mateInjuryOpen(st); },
+    view(st, ctx) { return { title: 'Your co-star is hurt', text: ctx.name + ' (' + ctx.ovr + ' OVR) is out about ' + ctx.games + ' games with ' + ctx.inj + '. The offense needs a new shape until he is back.', options: [
+      { key: 'stepup', label: 'Carry the scoring', blurb: 'More shots, more usage, more of everything on you.', vibe: 'Your team now' },
+      { key: 'share', label: 'Get everyone involved', blurb: 'Lift the others: more passing, a few less shots.', vibe: 'Leader' },
+      { key: 'steady', label: 'Play your game', blurb: 'Do not force it. The system will cover.', vibe: 'Steady' }] }; },
+    choose(st, ctx, key) {
+      const o = key === 'stepup' ? { pts: 1.15, ast: 1.03, reb: 1.03 } : key === 'share' ? { pts: 1.05, ast: 1.15 } : { pts: 1.06, ast: 1.04 };
+      const n = NBA.Arc.scaleRange(st, ctx.idx, ctx.games, o);
+      const eff = key === 'share' ? [{ k: 'meter', f: 'chem', d: 0.3 }] : key === 'stepup' ? [{ k: 'meter', f: 'media', d: 0.2 }] : [];
+      return { done: true, tone: 'neutral', text: (key === 'stepup' ? 'It is on you for the next ' + n + ' games.' : key === 'share' ? 'You will run the offense through everyone for the next ' + n + ' games.' : 'Same you, a few more touches for the next ' + n + ' games.') + ' ' + ctx.name + ' will be back after that.', effects: eff, journal: { tone: 'neutral', text: ctx.name + ' went down (' + ctx.inj + ', ~' + ctx.games + ' games). ' + (key === 'stepup' ? 'You carried the scoring.' : key === 'share' ? 'You got everyone involved.' : 'You stayed steady.') } };
+    },
+    auto() { return { key: 'steady' }; },
+  });
+  // ================================================================ the rookie wall
+  register({
+    id: 'rookiewall', title: 'The rookie wall', trigger: 'rookiewall',
+    when(st) { return !st.autoPlay && !!NBA.Arc; },
+    open(st) { return NBA.Arc.rookieWallOpen(st); },
+    view(st, ctx) { return { title: 'The rookie wall', text: 'Game 50. You have never played this many games in a season and your legs know it (last 8 games: a ' + ctx.avg.toFixed(1) + ' average rating). The vets say everyone hits the wall.', options: [
+      { key: 'rest', label: 'Ask for a few lighter nights', blurb: 'A dip now, fresher legs for the stretch run.', vibe: 'Smart' },
+      { key: 'push', label: 'Push through it', blurb: 'No days off. Either you break through or you break down.', vibe: 'Risky' },
+      { key: 'film', label: 'Live in the film room', blurb: 'Play smarter, not harder: better reads, fewer forced shots.', vibe: 'Cerebral' }] }; },
+    choose(st, ctx, key) {
+      const A = NBA.Arc, r = rng(st, 'wall|' + st.league.year)(); let text;
+      if (key === 'rest') { A.scaleRange(st, ctx.idx, 5, { pts: 0.88, reb: 0.9, ast: 0.9, def: 0.9 }); A.scaleRange(st, ctx.idx + 5, 15, { pts: 1.05, reb: 1.03 }); text = 'A few lighter nights, then you came back fresh for the stretch run.'; }
+      else if (key === 'push') { if (r < 0.5) { A.scaleRange(st, ctx.idx, 20, { pts: 1.04 }); text = 'You broke through the wall. The vets nodded.'; } else { A.scaleRange(st, ctx.idx, 20, { pts: 0.9, def: 0.9 }); text = 'You pushed and the legs pushed back. A long final stretch.'; } }
+      else { A.scaleRange(st, ctx.idx, 20, { pts: 0.97, ast: 1.1 }); apply(st, [{ k: 'attr', a: 'iq', d: 0.6 }]); text = 'You lived in the film room: better reads, and your basketball IQ went up.'; }
+      return { done: true, tone: 'neutral', text, journal: { tone: 'neutral', text: 'The rookie wall: ' + text } };
+    },
+    auto() { return { key: 'rest' }; },
   });
   const clamp0 = (x) => Math.max(0.15, Math.min(0.85, x));
   const Dc0 = (st) => { const f = state(st).flags; return f.pr || (f.pr = { quotes: [], tally: [], feuds: {}, heads: [], rep: {} }); };

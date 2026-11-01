@@ -17,9 +17,9 @@
   function lineFor(r, base, won, star) { const hot = r() < (star ? 0.05 : 0.025) ? 1.45 : 1, f = (0.72 + 0.56 * r()) * hot * (won ? 1.04 : 0.96); return { pts: Math.max(0, Math.round(base.pts * f)), reb: Math.max(0, Math.round(base.reb * (0.6 + 0.8 * r()))), ast: Math.max(0, Math.round(base.ast * (0.55 + 0.9 * r()))) }; }
   function boxOf(st, it) {
     if (!it || it.k !== 'g' || it.dnp == null && it.pt == null) return null; const L = st.league, t = L.teams[st.teamId], ot = L.teams.find((x) => x.nick === it.o); if (!t) return null;
-    const r = gameRng(st, it, 'box'), mates = NBA.rosterOf(L, t).filter((q) => q.id !== 'user' && q.id !== st.player.id).slice(0, 4), opp = ot ? NBA.rosterOf(L, ot).slice(0, 2) : [];
+    const out = NBA.Arc ? NBA.Arc.mateOutAt(st, it) : null, r = gameRng(st, it, 'box'), mates = NBA.rosterOf(L, t).filter((q) => q.id !== 'user' && q.id !== st.player.id && q.id !== out).slice(0, 4), opp = ot ? NBA.rosterOf(L, ot).slice(0, 2) : [];
     const ours = mates.map((q, i) => Object.assign({ id: q.id, name: q.name, pos: q.pos }, lineFor(r, seasonLine(q, L.year), !!it.w, i === 0)));
-    const theirs = opp.map((q, i) => Object.assign({ id: q.id, name: q.name, pos: q.pos }, lineFor(r, seasonLine(q, L.year), !it.w, i === 0)));
+    const theirs = opp.map((q, i) => { const l = Object.assign({ id: q.id, name: q.name, pos: q.pos }, lineFor(r, seasonLine(q, L.year), !it.w, i === 0)); if (i === 0 && it.asg) l.pts = Math.round(l.pts * 0.68); return l; });   // you took the assignment: their star had a rough night
     return { ours, theirs, quarters: quarters(st, it), story: null };
   }
   function quarters(st, it) {
@@ -160,6 +160,6 @@
     DC().log(st, { kind: 'brand', title: 'Jersey', tone: 'neutral', text }); return { ok: true, text };
   }
 
-  NBA.World = { boxOf, quarters, gameStory, leagueStories, agentAdvice, leak, awardsNight, awardSpeech, RACE, EVOLVE, canEvolve, evolve, INCENT, addIncentive, payIncentives, champMoment, parade, jerseyNeed, jerseyTaken, pickJersey, RETIRED };
+  NBA.World = { avgOf: (st, id) => { const q = st.league.players[id]; return q ? seasonLine(q, st.league.year).pts : null; }, boxOf, quarters, gameStory, leagueStories, agentAdvice, leak, awardsNight, awardSpeech, RACE, EVOLVE, canEvolve, evolve, INCENT, addIncentive, payIncentives, champMoment, parade, jerseyNeed, jerseyTaken, pickJersey, RETIRED };
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

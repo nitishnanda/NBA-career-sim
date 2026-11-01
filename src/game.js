@@ -1,7 +1,7 @@
 (function (g) {
   'use strict';
   const NBA = g.NBA;
-  if (typeof require !== 'undefined') { try { require('./picks.js'); require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./feed.js'); require('./legacy.js'); require('./intl.js'); require('./hsdata.js'); require('./eurodata.js'); require('./euro.js'); require('./report.js'); require('./core.js'); require('./story.js'); require('./world.js'); require('./social.js'); require('./room.js'); require('./live.js'); require('./allstar.js'); require('./cap.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
+  if (typeof require !== 'undefined') { try { require('./picks.js'); require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./feed.js'); require('./legacy.js'); require('./intl.js'); require('./hsdata.js'); require('./eurodata.js'); require('./euro.js'); require('./report.js'); require('./core.js'); require('./story.js'); require('./world.js'); require('./arc.js'); require('./social.js'); require('./room.js'); require('./live.js'); require('./allstar.js'); require('./cap.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
   const D = NBA.data;
   const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
   const ATTRS = D.ATTRS;
@@ -1082,6 +1082,7 @@
     if (rec.playoff) rec.playoff.rating = rec.poRating;
     rec.bests = seasonBests(st.matchLog, rec.label, rec.age);
     { const lm = !st.autoPlay && NBA.Core && NBA.Core.LOAD[st.loadMgmt]; if (lm && lm.save && p.age >= 30) { p.attrs.ath = clamp(p.attrs.ath + lm.save * 0.5, 8, 99); if (p.target) p.target.ath = clamp(p.target.ath + lm.save * 0.5, 8, 99); } }
+    if (!st.autoPlay && NBA.Arc) NBA.Arc.earned(st, rec);   // a human career also improves from how it actually played (three-point volume, passing, boards, stocks)
     if (NBA.Euro && !st.autoPlay) NBA.Euro.yearEnd(st);   // the EuroLeague and the G League play their season too (skipped on bulk autopilot runs)
     if (NBA.onSeasonLog) NBA.onSeasonLog(st, rec);
     rec.perSeries = perSeries.map((x) => { const y = Object.assign({}, x); delete y.list; delete y.w; delete y.l; delete y.won; return y; });
@@ -1606,6 +1607,10 @@
       if (key === 'run') { if (roll < 0.42 + 0.2 * sk) { ptsD(4); dT += 3; text = 'You took over: two big buckets down the stretch.'; tone = 'good'; } else { ptsM(1); add('to', 1); dT -= 2; text = 'You forced it and the defense was waiting.'; tone = 'bad'; } }
       else if (key === 'swing') { add('as', 2); dT += 1; text = 'The ball moved and the open man hit his shots.'; tone = 'good'; }
       else { dO -= 3; add('st', 1); add('bk', roll < 0.4 ? 1 : 0); ptsM(2); text = 'You locked in. They could not buy a basket.'; tone = 'good'; }
+    } else if (id === 'run') {   // the other team is on a run
+      if (key === 'timeout') { dO -= 2; text = 'You got the coach to burn a timeout. The run died right there.'; tone = 'good'; }
+      else if (key === 'ride') { if (roll < 0.45) { dT += 2; text = 'You let them play through it and your guys answered on their own.'; tone = 'good'; } else { dO += 3; text = 'Nobody stopped it. The run kept going.'; tone = 'bad'; } }
+      else { if (roll < 0.5 + 0.2 * sk) { ptsD(3); dT += 1; text = 'You stopped it yourself: a tough bucket and a stare at their bench.'; tone = 'good'; } else { add('fga', 2); add('to', 1); dO += 2; text = 'You tried to stop it alone and forced two bad ones.'; tone = 'bad'; } }
     } else throw new Error('bad decision');
     // apply: never below what already happened by this moment
     const s = state.box || {}, sc = state.sc || [0, 0];
