@@ -1044,3 +1044,10 @@ New `src/arc.js` (NBA.Arc), human careers only.
 - Known: `scripts/live-check.js` has one rare box mismatch (about 1 game in 2,000) that already existed in v105.
 - Tests: `scripts/arc-check.js`; `scripts/ui-core.js` (inbox, save slots); the UI tests skip the new pop-ups where they test something else.
 - Baseline: default mode unchanged (76.57 / 12.14).
+
+## v107 — fix: impossible box scores in minutes-limit games (live replay mismatch)
+
+- Root cause: `limitGame` (the first games back from an injury) and `scaleBox` (series moments, assignments, role changes) clamped makes to attempts overall but not two-point makes to two-point tries, so a game could log e.g. 3 makes on 2 two-point tries plus a missed three. The live replay builds shots from the attempts and could not reproduce it, so the watched box came out a basket short (about 1 game in 2,000).
+- Fix: both now cap `fgm <= tpm + (fga - tpa)`; the live engine also only reuses the recorded shot chart when its makes match the box too (otherwise it draws the shots from the counts).
+- Checks: `scripts/live-check.js` OK (2,271 games, 204 in-game decisions); a 38,164-game sweep has no impossible lines and no chart/box disagreement.
+- Baseline: 76.57 / 12.13 (was 12.14: the phantom baskets in those games are gone).

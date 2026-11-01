@@ -59,7 +59,7 @@
     const mates = ctx.mates && ctx.mates.length ? ctx.mates : ['a teammate'], opps = ctx.opps && ctx.opps.length ? ctx.opps : ['an opposing player'];
     let mine = 0; const add = (e) => { ev.push(Object.assign({ seq: o.seq0 + ev.length }, e)); };
     // shots: the recorded shot chart when it matches the counts, else drawn from the counts (with court spots from the caller when it can)
-    let shots = o.shots && o.shots.length === rem.fga && o.shots.filter((v) => (v >> 19) >= 3).length === rem.tpa ? o.shots.slice() : (ctx.mkShots ? ctx.mkShots(rem) : null);
+    let shots = o.shots && o.shots.length === rem.fga && o.shots.filter((v) => (v >> 19) >= 3).length === rem.tpa && o.shots.filter((v) => (v >> 18) & 1).length === rem.fgm && o.shots.filter((v) => (v >> 19) >= 3 && ((v >> 18) & 1)).length === rem.tpm ? o.shots.slice() : (ctx.mkShots ? ctx.mkShots(rem) : null);
     if (!shots || shots.length !== rem.fga) {
       const twoA = Math.max(0, rem.fga - rem.tpa), twoM = Math.max(0, rem.fgm - rem.tpm); shots = [];
       for (let i = 0; i < twoA; i++) shots.push({ z: Math.floor(rnd() * 3), made: i < twoM });

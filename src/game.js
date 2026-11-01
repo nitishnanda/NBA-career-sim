@@ -1194,7 +1194,7 @@
   }
   function scaleBox(st, it, o) {
     const r = mulberry(shotSeed(st, 7700 + (it.n || 0) * 3 + (it.po ? 500 : 0))), j = () => 0.94 + 0.12 * r(), R = (x, f) => Math.max(0, Math.round((x || 0) * f * j()));
-    const fp = o.pts || 1; it.fga = Math.max(1, R(it.fga, fp)); it.fgm = Math.min(it.fga, R(it.fgm, fp * (fp > 1.1 ? 0.96 : 1))); it.tpa = Math.min(it.fga, R(it.tpa, fp)); it.tpm = Math.min(it.tpa, it.fgm, R(it.tpm, fp)); it.fta = R(it.fta, fp); it.ftm = Math.min(it.fta, R(it.ftm, fp));
+    const fp = o.pts || 1; it.fga = Math.max(1, R(it.fga, fp)); it.fgm = Math.min(it.fga, R(it.fgm, fp * (fp > 1.1 ? 0.96 : 1))); it.tpa = Math.min(it.fga, R(it.tpa, fp)); it.tpm = Math.min(it.tpa, it.fgm, R(it.tpm, fp)); it.fta = R(it.fta, fp); it.ftm = Math.min(it.fta, R(it.ftm, fp)); it.fgm = Math.min(it.fgm, it.tpm + (it.fga - it.tpa));
     it.as = R(it.as, o.ast || 1); it.rb = R(it.rb, o.reb || 1); it.or = Math.min(it.rb, it.or || 0); it.st = R(it.st, o.def || 1); it.bk = R(it.bk, o.def || 1); it.pt = it.fgm * 2 + it.tpm + it.ftm;
     const cats = [it.pt, it.rb, it.as, it.st, it.bk].filter((x) => x >= 10).length; it.tg = (it.tg || []).filter((x) => !/double|points/.test(x)).concat(cats >= 3 ? ['Triple-double'] : cats === 2 ? ['Double-double'] : []).concat(it.pt >= 40 ? ['40+ points'] : it.pt >= 30 ? ['30+ points'] : []);
     it.r = rateItem(it); it.sh = shotsFor(it, st.player, shotSeed(st, 7900 + (it.n || 0))); if (st.proSeasons && st.proSeasons.length && st.matchLog) recomputeFromLog(st); return it;
@@ -1203,7 +1203,7 @@
   function limitGame(st, it, f) {
     const r = mulberry(shotSeed(st, 7300 + it.n)), j = (lo, hi) => lo + (hi - lo) * r(), sc = (x, lo, hi) => Math.round((x || 0) * f * j(lo, hi));
     it.m = Math.max(8, Math.round(it.m * f)); it.fga = Math.max(2, sc(it.fga, 0.9, 1.1)); it.fgm = Math.min(it.fga, sc(it.fgm, 0.85, 1.15)); it.tpa = Math.min(it.fga, sc(it.tpa, 0.9, 1.1)); it.tpm = Math.min(it.tpa, it.fgm, sc(it.tpm, 0.8, 1.2));
-    it.fta = sc(it.fta, 0.8, 1.2); it.ftm = Math.min(it.fta, sc(it.ftm, 0.9, 1.1)); it.rb = sc(it.rb, 0.8, 1.2); it.or = Math.min(it.rb, sc(it.or, 0.7, 1.3)); it.as = sc(it.as, 0.8, 1.2); it.st = sc(it.st, 0.5, 1.5); it.bk = sc(it.bk, 0.5, 1.5); it.to = sc(it.to, 0.8, 1.2); it.pf = Math.min(6, it.pf || 0);
+    it.fta = sc(it.fta, 0.8, 1.2); it.ftm = Math.min(it.fta, sc(it.ftm, 0.9, 1.1)); it.fgm = Math.min(it.fgm, it.tpm + (it.fga - it.tpa)); it.rb = sc(it.rb, 0.8, 1.2); it.or = Math.min(it.rb, sc(it.or, 0.7, 1.3)); it.as = sc(it.as, 0.8, 1.2); it.st = sc(it.st, 0.5, 1.5); it.bk = sc(it.bk, 0.5, 1.5); it.to = sc(it.to, 0.8, 1.2); it.pf = Math.min(6, it.pf || 0);
     it.pt = it.fgm * 2 + it.tpm + it.ftm; it.pm = Math.round((it.f - it.a) * (it.m / 48) * 1.1 + (r() - 0.5) * 4);
     const cats = [it.pt, it.rb, it.as, it.st, it.bk].filter((x) => x >= 10).length; it.tg = ['Minutes limit'].concat(cats >= 3 ? ['Triple-double'] : cats === 2 ? ['Double-double'] : []);
     it.r = rateItem(it); it.sh = shotsFor(it, st.player, shotSeed(st, 7500 + it.n)); it.mm = 1; it.cl = 0; delete it.pp;
