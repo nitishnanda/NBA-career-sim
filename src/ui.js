@@ -1215,7 +1215,7 @@
   function reportData() { const key = S.proSeasons.length + '|' + (S.hof ? S.hof.score : 0) + '|' + (S.after && S.after.jersey ? 1 : 0); if (!repCache || repCache.key !== key) repCache = { key, rep: NBA.Report.build(S) }; return repCache.rep; }
   async function aiReportUpgrade() {
     if (repBusy || (S.reportAI && S.reportAI.done) || S.reportAITry) return; const sm = await getSample(); if (!sm) return;
-    repBusy = true; S.reportAITry = 1; try { const rep = reportData(), got = NBA.Report.checkReport(await aiJson(NBA.Report.reportPrompt(NBA.Report.factsOf(S, rep), NBA.Press.VOICE)), rep); if (got) { S.reportAI = Object.assign({ done: 1 }, got); save(); } } catch (e) { /* the built-in verdict stays */ }
+    repBusy = true; S.reportAITry = 1; try { const rep = reportData(), got = NBA.Report.checkReport(await aiJson(NBA.Report.reportPrompt(NBA.Report.factsOf(S, rep), NBA.Press.VOICE), 30000, true), rep); if (got) { S.reportAI = Object.assign({ done: 1 }, got); save(); } } catch (e) { /* the built-in verdict stays */ }
     repBusy = false; if (S && S.stage === 'retired' && !document.querySelector('.dlg-back')) render();
   }
   function careerReportCard() {
@@ -1242,7 +1242,7 @@
   function speechBlock(d) {
     if (!d.speech) return null; const style = d.speech;
     if (!d.speechText) { d.speechText = NBA.Report.speechFallback(S, style, reportData()); save(); }
-    if (!d.speechAI && !spBusy && !d.speechTry) { d.speechTry = 1; spBusy = true; getSample().then(async (sm) => { if (sm) { try { const t = NBA.Report.checkSpeech(await aiJson(NBA.Report.speechPrompt(NBA.Report.factsOf(S, reportData()), style))); if (t) { d.speechText = t; d.speechAI = 1; save(); } } catch (e) { /* the built-in speech stays */ } } spBusy = false; if (S && S.stage === 'retired' && !document.querySelector('.dlg-back')) render(); }); }
+    if (!d.speechAI && !spBusy && !d.speechTry) { d.speechTry = 1; spBusy = true; getSample().then(async (sm) => { if (sm) { try { const t = NBA.Report.checkSpeech(await aiJson(NBA.Report.speechPrompt(NBA.Report.factsOf(S, reportData()), style), 30000, true)); if (t) { d.speechText = t; d.speechAI = 1; save(); } } catch (e) { /* the built-in speech stays */ } } spBusy = false; if (S && S.stage === 'retired' && !document.querySelector('.dlg-back')) render(); }); }
     return h('div', { class: 'card' }, h('div', { class: 'cap2' }, '🏛️ Your Hall of Fame speech' + (d.speechAI ? ' ✨' : '')), d.speechText.split(/\n\n+/).map((t) => h('p', { style: 'margin:8px 0;font-style:italic' }, t)));
   }
   // playoff stats by series, year by year
@@ -1317,9 +1317,10 @@
   const aiLive = () => sampleOk === true && Date.now() >= aiOff;   // Claude is here and not rate-limited: show nothing hand-written first, then swap it
   const loadingCard = (title, msg, sub) => h('div', null, h('h1', null, title), sub ? h('p', { class: 'muted' }, sub) : null, h('div', { class: 'card suspense' }, h('div', { class: 'cap2' }, 'One moment'), h('p', { style: 'margin:6px 0' }, msg)));
   const busyOverlay = (msg) => { const o = h('div', { class: 'busyov' }, h('div', { class: 'card suspense' }, msg)); (document.querySelector('.dlg') || document.body).append(o); return o; };
-  async function aiJson(prompt, ms) {
+  // the press room, the timeline, the mentions and the podcast run on Haiku 5.5 (realistic, not elaborate); the career verdict and the Hall of Fame speech (hq) use the default model
+  async function aiJson(prompt, ms, hq) {
     const sm = await getSample(); if (!sm || Date.now() < aiOff) return null;
-    try { return await Promise.race([sm.json(prompt, { modelTier: 'quick', cache: false }), new Promise((_, rej) => setTimeout(() => rej({ code: 'timeout' }), ms || 20000))]); }
+    try { return await Promise.race([sm.json(prompt, hq ? { modelTier: 'default', cache: false } : { model: 'claude-haiku-5-5', modelTier: 'quick', cache: false }), new Promise((_, rej) => setTimeout(() => rej({ code: 'timeout' }), ms || 20000))]); }
     catch (e) { if (e && (e.code === 'rate_limited' || e.code === 'not_granted' || e.code === 'sampling_disabled')) aiOff = Date.now() + 60000; return null; }
   }
   async function aiFeedUpgrade() {
@@ -1397,7 +1398,7 @@
       const c = pd.ctx.c, local = NBA.Press.readTyped(text, c, q); let res = null;
       const sm = await getSample();
       if (sm) {
-        try { res = NBA.Press.checkClaude(await sm.json(NBA.Press.claudePrompt(text, c, q, pd.ctx.why), { modelTier: 'quick', cache: false }), local); }
+        try { res = NBA.Press.checkClaude(await sm.json(NBA.Press.claudePrompt(text, c, q, pd.ctx.why), { model: 'claude-haiku-5-5', modelTier: 'quick', cache: false }), local); }
         catch (e) { note.textContent = SAMPLE_MSG[e && e.code] || 'Claude could not read that one, so the built-in reader did.'; }
       }
       if (!res) res = local;
@@ -1437,9 +1438,10 @@
         const jobs = [aiJson(NBA.Press.claudeQuestionsPrompt(facts, want), 14000)];
         const sq = story.map((q, k) => ({ id: 'q' + k, text: q.text, heat: q.heat || 0 }));
         if (sq.length) jobs.push(aiJson(NBA.Press.claudeAnswersPrompt(facts, sq), 14000));
-        const [qr, ar] = await Promise.all(jobs);
-        const mk = (x, calmN, spicyOk) => { const spicy = spicyOk ? ['trash', 'fight'].filter((k) => x[k]) : [], calm = ['humble', 'confident', 'joke', 'deflect'].sort(() => Math.random() - 0.5).slice(0, spicy.length ? 2 : calmN); return calm.concat(spicy).map((k) => ({ key: k, label: T[k].label, line: '“' + x[k] + '”', spicy: k === 'trash' || k === 'fight' })); };
-        const got = NBA.Press.checkClaudeQuestions(qr, cast);
+        let [qr, ar] = await Promise.all(jobs);
+        const mk = (x, calmN, spicyOk) => { const spicy = spicyOk ? ['trash', 'fight'].filter((k) => x[k]) : [], calm = ['humble', 'confident', 'joke', 'deflect'].filter((k) => x[k]).sort(() => Math.random() - 0.5).slice(0, spicy.length ? 2 : calmN); return calm.concat(spicy).map((k) => ({ key: k, label: T[k].label, line: '“' + x[k] + '”', spicy: k === 'trash' || k === 'fight' })); };
+        let got = NBA.Press.checkClaudeQuestions(qr, cast);
+        if (!got.length) { got = NBA.Press.checkClaudeQuestions(await aiJson(NBA.Press.claudeQuestionsPrompt(facts, want), 14000), cast); }   // once more if the first reply was unusable
         const fresh = got.slice(0, want).map((q, k) => { const cand = { i: 4000 + k, topic: 'ai', heat: q.heat, text: q.text, src: 'ai', ai: true, opts: mk(q.answers, 3, true) }; cand.reporter = q.reporter ? { id: q.reporter.name, name: q.reporter.name, outlet: q.reporter.outlet, style: q.reporter.style, fresh: !!q.reporter.fresh } : R.reporterFor(team, cand, pr.rep, Math.random); return cand; });
         const ans = ar ? NBA.Press.checkClaudeAnswers(ar, sq) : {};
         if (ctx.cur == null && !ctx.chosen.length) {

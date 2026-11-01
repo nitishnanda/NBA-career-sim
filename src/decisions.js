@@ -513,7 +513,7 @@
     view(st, ctx) { return { name: ctx.name, major: ctx.major, games: ctx.games, options: ctx.options }; },
     choose(st, ctx, key) {
       const r = NBA.Game.applyInjuryChoice(st, key);
-      return { done: true, tone: r.sb ? 'bad' : key === 'rush' ? 'neutral' : 'good', text: r.text, journal: { tone: r.sb ? 'bad' : 'neutral', text: 'Suffered a ' + ctx.name + '. ' + r.text } };
+      return { done: true, tone: r.sb ? 'bad' : key === 'rush' ? 'neutral' : 'good', text: r.text, journal: { tone: r.sb ? 'bad' : 'neutral', text: 'Hurt: ' + ctx.name + (r.out ? ' (out ' + r.out + ' game' + (r.out > 1 ? 's' : '') + (r.back ? ', back for game ' + r.back : ', rest of the regular season') + '). ' : '. ') + r.text.replace(/ You are hurt right now.*$/, '') } };
     },
     auto(st, ctx) { return { key: ctx.major ? 'rehab' : 'standard' }; },
   });

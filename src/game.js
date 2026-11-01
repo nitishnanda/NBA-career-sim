@@ -985,7 +985,10 @@
     const early = plan.played.length, text = 'You chose to ' + conf.label.toLowerCase() + '. ' + (conf.ext >= 1 ? 'Expect ' + Math.round(conf.ext) + ' extra games on the shelf.' : conf.ext < 0 ? (early ? 'You are back ' + early + ' games early, at reduced minutes.' : 'There was no room to come back any sooner.') : 'The timeline stands.') + (sb ? ' Then it flared up: a setback costs you more games.' : '');
     NBA.Decisions.state(st).flags.injChoice = { y: st.league.year, key, dmg: conf.dmg, setback: sb, major: info.major, plan, label: conf.label };
     feedAdd(st, 'injury', {}, { key: 'inj' + st.league.year, at: idx });
-    return { text, sb };
+    // where that leaves you: still hurt, and for how long (the plan has been applied to the games)
+    let out = 0, back = null; for (let i = idx; items[i]; i++) { const x = items[i]; if (x.k === 'g' && !x.po) { if (x.dnp && x.dnp !== 'Rest') out++; else { back = x.n; break; } } else if (x.k === 'g') break; }
+    const status = out ? 'You are hurt right now: out ' + out + ' game' + (out > 1 ? 's' : '') + (back ? ', back for game ' + back + '.' : ', and that is the rest of the regular season.') : 'You are healthy enough to play.';
+    return { text: text + ' ' + status, sb, out, back, status };
   }
   // after a replay the regenerated future games lose the edits: put them back (games already seen are untouched)
   function reapplyInjury(st, fromIdx) { const ch = NBA.Decisions.state(st).flags.injChoice; if (ch && ch.y === st.league.year && ch.plan) applyInjuryPlan(st, ch.plan, fromIdx); }
