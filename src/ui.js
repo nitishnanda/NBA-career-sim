@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v99';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v100';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -133,11 +133,12 @@
       h('p', { class: 'muted' }, 'Pick a name, position, archetype and where you grew up (the US, the UK or a European country). Scouts will rate you, you choose a college or a club, then it is draft night. Stats are tuned to the real NBA: nobody averages 35 for a decade.'),
       saved && saved.stage !== 'create' ? h('div', { class: 'callout row' }, h('span', null, 'Saved career found: ', h('b', null, saved.player.name), ' (' + saved.stage.replace(/_/g, ' ') + ')'), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => { S = saved; if (S.player && S.player.ht == null) NBA.rollSize(S.player, { sizeFx: false }); if (S.stage === 'season_play') loadSnap(); render(); } }, 'Continue')) : null,
       h('div', { class: 'card' }, h('h2', null, '1. Who are you?'), h('div', { class: 'grid g2' }, h('div', null, h('label', { class: 'small muted' }, 'Name'), nameIn), h('div', null, h('label', { class: 'small muted' }, 'Where are you from?'), h('select', { onchange: (e) => { draft.origin = e.target.value; render(); } }, h('option', { value: '', selected: !draft.origin }, '🇺🇸 United States (high school → college)'), NBA.Intl.ORDER.map((k) => h('option', { value: k, selected: draft.origin === k }, NBA.Intl.COUNTRIES[k].flag + ' ' + NBA.Intl.COUNTRIES[k].name + ' (club basketball → EuroLeague)'))), draft.origin ? h('p', { class: 'small muted', style: 'margin:6px 0 0' }, NBA.Intl.COUNTRIES[draft.origin].blurb) : h('select', { style: 'margin-top:6px', onchange: (e) => (draft.home = e.target.value) }, stateOptions))),
+        h('h3', null, 'Family background'), h('select', { onchange: (e) => { draft.family = e.target.value; render(); } }, [['random', '🎲 Random (most families are not rich)'], ['wealthy', 'Wealthy'], ['comfortable', 'Comfortable'], ['working', 'Working class'], ['poor', 'Poor']].map(([k, l]) => h('option', { value: k, selected: (draft.family || 'random') === k }, l))), h('p', { class: 'small muted', style: 'margin:6px 0 0' }, draft.family && draft.family !== 'random' ? G.FAMILY[draft.family].blurb + (draft.family === 'poor' || draft.family === 'working' ? ' The very best (4-5 star) prospects get need-based full scholarships.' : '') : 'Money decides who can pay for prep school, a walk-on spot, an academy abroad or the move to the US. The very best prospects from poor and working-class families get need-based scholarships.'),
         h('h3', null, 'Position'), h('div', { class: 'row' }, Object.keys(D.POSITIONS).map((p) => h('button', { class: draft.pos === p ? 'primary' : '', onclick: () => { draft.pos = p; draft.ht = null; draft.wd = 0; draft.wsd = 0; draft.roll = null; render(); } }, p))),
         sizeCard()),
       h('div', { class: 'card' }, h('h2', null, '2. Archetype'), h('div', { class: 'grid g3' }, archCards),
         h('h3', null, 'Secondary tag (optional, small bonus)'), h('select', { onchange: (e) => (draft.sec = e.target.value) }, h('option', { value: '' }, 'None'), Object.keys(D.ARCHETYPES).filter((k) => k !== draft.arch).map((k) => h('option', { value: k, selected: draft.sec === k }, D.ARCHETYPES[k].name)))),
-      h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { S = G.newCareer({ name: (draft.name || '').trim() || 'Rookie', pos: draft.pos, arch: draft.arch, sec: draft.sec, home: draft.home, origin: draft.origin || undefined, ht: mySize().ht, wt: mySize().wt, ws: mySize().ws }); S.stage = 'scouting'; S.revealed = false; go(); } }, 'Get scouted →')),
+      h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { S = G.newCareer({ name: (draft.name || '').trim() || 'Rookie', pos: draft.pos, arch: draft.arch, sec: draft.sec, home: draft.home, origin: draft.origin || undefined, family: (draft.family && draft.family !== 'random') ? draft.family : (() => { const r = Math.random(); return r < 0.22 ? 'poor' : r < 0.58 ? 'working' : r < 0.88 ? 'comfortable' : 'wealthy'; })(), ht: mySize().ht, wt: mySize().wt, ws: mySize().ws }); S.stage = 'scouting'; S.revealed = false; go(); } }, 'Get scouted →')),
       h('p', { class: 'muted small', style: 'text-align:center;margin-top:18px' }, BUILD));
   }
 
@@ -151,6 +152,7 @@
     const details = () => {
       info.style.display = ''; info.className = 'reveal';
       info.replaceChildren(h('h2', { style: 'color:var(--gold)' }, rep.label), h('div', { class: 'row' }, h('span', { class: 'pill' }, 'Current OVR ' + rep.ovr), h('span', { class: 'pill' }, 'Potential grade ' + rep.potential)),
+        h('p', { class: 'small' }, '🏠 Family: ' + G.familyOf(S).label + (G.needScholarship(S) ? ' · 🎓 need-based full scholarship (the best of the best)' : '')),
         h('p', { class: 'muted small' }, 'Scouts are not always right. Potential is an estimate; your real ceiling is hidden, and draft slot only loosely predicts it (Jokic went #41).'),
         h('h3', null, 'Current ratings'), attrBars(S.player), h('div', { class: 'row', style: 'margin-top:12px' }, S.origin && S.origin.intl ? h('button', { class: 'primary', onclick: () => { S.stage = 'intl_pick'; go(); } }, 'Next: choose your club →') : h('button', { class: 'primary', onclick: () => { S.stage = 'hs'; S.hsResult = null; DEC().offer(S, 'hs'); go(); } }, 'Next: high school →')));
     };
@@ -168,18 +170,20 @@
     S.collegeOpts = S.collegeOpts || G.intlOptions(S);
     return h('div', null, h('h1', null, first ? C.flag + ' Choose your first club' : 'Choose your club'),
       h('p', { class: 'muted' }, 'Your ' + S.stars + '★ rating decides who calls. A youth side means big minutes and big numbers against weaker competition; the top of the domestic league and the EuroLeague mean fewer minutes against grown men, and the scouts notice. A club abroad is a step up in coaching and a big adjustment.'),
-      h('div', { class: 'grid g2' }, S.collegeOpts.map((c) => h('div', { class: 'opt', onclick: () => { G.chooseClub(S, c.id); S.collegeOpts = null; go(); } },
+      h('p', { class: 'small' }, '🏠 Family: ' + G.familyOf(S).label + (G.needScholarship(S) ? ' · 🎓 need-based scholarship' : '')),
+      h('div', { class: 'grid g2' }, S.collegeOpts.map((c) => h('div', { class: 'opt' + (c.locked ? ' locked' : ''), onclick: () => { if (c.locked) return; G.chooseClub(S, c.id); S.collegeOpts = null; go(); } },
         h('b', null, c.flag + ' ' + c.n + (c.home ? ' 🏠' : '')), h('div', { class: 'small muted' }, c.city + ' · ' + c.league + ' · ' + '★'.repeat(c.prestige)), h('div', { class: 'small' }, tierTag(c.tier) + (c.home ? '' : ' · abroad: a new language and a new life')),
+        c.locked ? h('div', { class: 'small' }, '🔒 ' + c.locked) : c.paidBy ? h('div', { class: 'small' }, '🎓 Paid for by your scholarship') : null,
         h('div', { class: 'small muted' }, c.tier === 'academy' ? 'Dominate your age group and learn the pro game.' : c.tier === 'domestic' ? 'Real minutes against grown men, with a chance to be seen.' : 'The best club basketball outside the NBA. You will be asked to earn every minute.')))),
-      first ? h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🇺🇸 Or take the American road'), h('p', { class: 'small muted' }, 'Move to the US for prep school and college instead. A very different path: NCAA exposure, a college degree on the table, and no EuroLeague.'), h('button', { onclick: () => { S.collegeOpts = null; G.intlToUS(S); go(); } }, 'Go to the US instead')) : h('div', { class: 'row' }, h('button', { onclick: () => { S.stage = 'intl_decision'; go(); } }, '← Back')));
+      first ? h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🇺🇸 Or take the American road'), h('p', { class: 'small muted' }, 'Move to the US for prep school and college instead. A very different path: NCAA exposure, a college degree on the table, and no EuroLeague.'), (() => { const a = G.canAfford(S, 'usroute'); return a.ok ? h('button', { onclick: () => { S.collegeOpts = null; G.intlToUS(S); go(); } }, 'Go to the US instead' + (a.scholarship ? ' (scholarship)' : '')) : h('div', { class: 'small' }, '🔒 ' + a.why); })()) : h('div', { class: 'row' }, h('button', { onclick: () => { S.stage = 'intl_decision'; go(); } }, '← Back')));
   }
   function screenIntlReady() {
     const stint = G.stintYears(S), yr = stint.length + 1, c = S.college, T = NBA.Intl.TIERS[c.tier], gl = S.stash && S.stash.kind === 'gl', d = S.euroDeal;
     const plans = h('div', { class: 'card' }, h('h2', null, 'Your plan for the season'), h('p', { class: 'small muted' }, 'One choice that shapes the year: the role you play, how it shows up in your numbers, and what the scouts and the media see.'),
-      h('div', { class: 'wkgrid' }, Object.keys(G.INTL_PLANS).map((k) => { const pl = G.INTL_PLANS[k]; return h('div', { class: 'wkcard' + (S.intlPlan === k ? ' sel' : '') }, h('b', null, pl.label), h('div', { class: 'small', style: 'margin:6px 0' }, pl.blurb), h('div', { style: 'margin-top:8px' }, h('button', { class: S.intlPlan === k ? 'primary' : '', onclick: () => { S.intlPlan = k; save(); render(); } }, S.intlPlan === k ? 'Chosen' : 'Choose'))); })));
+      h('div', { class: 'wkgrid' }, Object.keys(G.INTL_PLANS).map((k) => { const pl = G.INTL_PLANS[k], lk = k === 'showcase' && !G.canAfford(S, 'showcase').ok ? G.canAfford(S, 'showcase').why : null; return h('div', { class: 'wkcard' + (S.intlPlan === k ? ' sel' : '') + (lk ? ' locked' : '') }, h('b', null, pl.label), h('div', { class: 'small', style: 'margin:6px 0' }, pl.blurb), lk ? h('div', { class: 'small' }, '🔒 ' + lk) : null, h('div', { style: 'margin-top:8px' }, h('button', { class: S.intlPlan === k ? 'primary' : '', disabled: !!lk, onclick: () => { S.intlPlan = k; save(); render(); } }, S.intlPlan === k ? 'Chosen' : 'Choose'))); })));
     const deal = !gl && d ? h('div', { class: 'card' }, h('h2', null, 'Your contract'), h('p', null, h('b', null, '$' + d.salary.toFixed(2) + 'M a year'), ' · ' + d.left + ' year' + (d.left > 1 ? 's' : '') + ' left with ' + d.club), h('p', { class: 'small muted' }, d.clause ? 'You have an NBA out clause: you can leave for the NBA without a buyout, at a lower salary.' : 'No out clause: a bigger salary, but leaving early for the NBA costs a buyout of about $' + G.euroBuyout(S).toFixed(2) + 'M.'), !S.stash ? h('button', { onclick: () => { G.setClause(S, !d.clause); save(); render(); } }, d.clause ? 'Remove the out clause (more pay)' : 'Add an NBA out clause (less pay)') : null) : null;
     return h('div', null, h('h1', null, c.name + ' · year ' + yr), h('p', { class: 'muted' }, c.state + ' · ' + T.label + ' (' + c.league + ')'),
-      h('div', { class: 'card' }, h('p', null, 'Age ' + S.player.age + ' · OVR ' + Math.round(NBA.ovr(S.player))), attrBars(S.player), h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', disabled: !S.intlPlan, onclick: () => { G.playIntl(S); go(); } }, S.intlPlan ? 'Play the season →' : 'Choose a plan first'))), plans, deal,
+      h('div', { class: 'card' }, h('p', null, 'Age ' + S.player.age + ' · OVR ' + Math.round(NBA.ovr(S.player))), attrBars(S.player), h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', disabled: !S.intlPlan, onclick: () => { G.playIntl(S); go(); } }, S.intlPlan ? 'Play the season →' : 'Choose a plan first'))), plans, euroCampCard(), deal,
       stint.length ? h('div', { class: 'card' }, h('h2', null, gl ? 'G League so far' : 'Career in Europe so far'), collegeTable(stint)) : null);
   }
   // the end-of-season read: progression, what the media says, who is looking, the national team
@@ -232,8 +236,9 @@
     S.collegeOpts = S.collegeOpts || G.collegeOptions(S);
     return h('div', null, h('h1', null, 'Pick your college'),
       h('p', { class: 'muted' }, 'Your ' + S.stars + '★ rating decides who recruits you. Bigger programs give more draft hype but fewer shots; smaller schools mean more usage and stats, less exposure. Home-state schools get a small role bump.'),
-      h('div', { class: 'grid g2' }, S.collegeOpts.map((c) => h('div', { class: 'opt', onclick: () => { G.chooseCollege(S, c.id); S.collegeOpts = null; go(); } },
-        h('b', null, c.name + (c.home ? ' 🏠' : '')), h('div', { class: 'small muted' }, c.state + ' · program ' + '★'.repeat(c.prestige) + ' · ' + ['', 'Mid-major', 'Rising program', 'Power conference', 'Elite program', 'Blue blood'][c.prestige])))));
+      h('p', { class: 'small' }, '🏠 Family: ' + G.familyOf(S).label + (G.needScholarship(S) ? ' · 🎓 need-based full scholarship' : '') + ' · every school that recruits you offers an athletic scholarship; a walk-on spot at a bigger program means your family pays.'),
+      h('div', { class: 'grid g2' }, S.collegeOpts.map((c) => h('div', { class: 'opt' + (c.locked ? ' locked' : ''), onclick: () => { if (c.locked) return; try { G.chooseCollege(S, c.id, !!c.walkOn); S.collegeOpts = null; go(); } catch (e) { S.flash = e.message; render(); } } },
+        h('b', null, c.name + (c.home ? ' 🏠' : '')), h('div', { class: 'small muted' }, c.state + ' · program ' + '★'.repeat(c.prestige) + ' · ' + ['', 'Mid-major', 'Rising program', 'Power conference', 'Elite program', 'Blue blood'][c.prestige]), h('div', { class: 'small' }, c.walkOn ? (c.locked ? '🔒 ' + c.locked : '💵 Walk-on: your family pays tuition, and you start with a smaller role') : '🎓 Athletic scholarship')))));
   }
 
   function collegeTable(rows) {
@@ -925,7 +930,7 @@
     return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🎟'), h('h2', null, 'Draft picks'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, mine.filter((p) => p.r === 1).length + ' firsts · ' + mine.filter((p) => p.r === 2).length + ' seconds')),
       mine.map((p) => line(p, p.orig === t.id ? ' · own' : ' · from the ' + L.teams[p.orig].nick)), away.length ? h('div', { class: 'small caps muted', style: 'margin-top:10px' }, 'Traded away') : null, away.map((p) => line(p, ' · to the ' + L.teams[p.owner].nick)));
   }
-  function screenTeam() { const el = screenTeam0(); if (S.contract && S.teamId != null && el.append) { el.append(roomPanel()); el.append(capPanel(S.league.teams[S.teamId])); const pp = picksPanel(S.league.teams[S.teamId]); if (pp) el.append(pp); } return el; }
+  function screenTeam() { if ((S.teamId == null || S.teamId < 0) && NBA.Euro) { const cl = NBA.Euro.clubOf(S); if (cl) return euroTeamPage(cl.key, cl.team.id); } const el = screenTeam0(); if (S.contract && S.teamId != null && el.append) { el.append(roomPanel()); el.append(capPanel(S.league.teams[S.teamId])); const pp = picksPanel(S.league.teams[S.teamId]); if (pp) el.append(pp); } return el; }
   function leaguePayrolls() {
     const C = NBA.Cap, rows = S.league.teams.map((t) => Object.assign({ t }, C.finance(S, t))).sort((a, b) => b.payroll - a.payroll);
     return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🏦'), h('h2', null, 'Payrolls around the league')),
@@ -936,7 +941,62 @@
     return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🧑‍🏫'), h('h2', null, 'Coaching carousel')),
       log.map((x) => h('div', { class: 'small', style: 'margin:5px 0' }, x.y + ': the ' + x.team + ' (' + x.wins + ' wins) fired ' + x.from + ' and hired ' + x.to + ' (' + (NBA.Room.STYLES[x.style] || { label: 'a coach' }).label + ').')));
   }
-  function screenLeague() { const el = screenLeague0(); if (S.contract && el.append) { el.append(leaguePayrolls()); const cc = carousel(); if (cc) el.append(cc); } return el; }
+  // ------------------------------------------------------------ the EuroLeague and the G League (real clubs and players; seasons settled, not simmed game by game)
+  let lgTab = null, euroTeamSel = null;
+  const euroAuto = () => { const cl = NBA.Euro && NBA.Euro.clubOf(S); if (cl) return cl.key; if (S.college && S.college.tier === 'gleague') return 'gl'; if (S.stage && /^intl_/.test(S.stage)) return 'el'; return 'nba'; };
+  function crest(t, size) {
+    const c = t.colors || ['#444', '#ddd'], a = t.abbr || '?'; let k = 0; for (let i = 0; i < t.name.length; i++) k = (k * 7 + t.name.charCodeAt(i)) % 4;
+    const shape = ['<circle cx="50" cy="50" r="46" fill="' + c[0] + '" stroke="' + c[1] + '" stroke-width="7"/>', '<path d="M50 4 L90 16 V50 C90 72 72 88 50 97 C28 88 10 72 10 50 V16 Z" fill="' + c[0] + '" stroke="' + c[1] + '" stroke-width="7" stroke-linejoin="round"/>', '<path d="M50 3 L91 26 V74 L50 97 L9 74 V26 Z" fill="' + c[0] + '" stroke="' + c[1] + '" stroke-width="7" stroke-linejoin="round"/>', '<rect x="8" y="8" width="84" height="84" rx="26" fill="' + c[0] + '" stroke="' + c[1] + '" stroke-width="7"/>'][k];
+    const tc = lum(c[0]) > 150 ? '#111' : '#fff';
+    return h('span', { class: 'logo', style: 'width:' + size + 'px;height:' + size + 'px', title: t.name, html: '<svg viewBox="0 0 100 100" width="' + size + '" height="' + size + '" aria-hidden="true">' + shape + '<text x="50" y="60" text-anchor="middle" font-family="system-ui,Arial,sans-serif" font-weight="800" font-size="' + (a.length > 3 ? 24 : 30) + '" fill="' + tc + '">' + a + '</text></svg>' });
+  }
+  const lgTabs = (cur) => h('div', { class: 'seg2', style: 'margin:0 0 12px' }, [['nba', 'NBA'], ['el', 'EuroLeague'], ['gl', 'G League']].map(([k, l]) => h('button', { class: cur === k ? 'on' : '', onclick: () => { lgTab = k; euroTeamSel = null; leagueTeam = null; render(); } }, l)));
+  function euroLeaguePage(key) {
+    const lg = NBA.Euro.league(S, key), C = NBA.Euro.LEAGUE[key], s = lg.season, T = (id) => lg.teams.find((t) => t.id === id), wrap = h('div', null, lgTabs(key));
+    if (euroTeamSel) { wrap.append(euroTeamPage(key, euroTeamSel)); return wrap; }
+    const tn = (id, sz) => { const t = T(id); return t ? h('a', { class: 'tl', href: '#', onclick: (e) => { e.preventDefault(); euroTeamSel = id; render(); } }, crest(t, sz || 20), ' ' + t.name) : '?'; };
+    const seasonLbl = s ? NBA.seasonLabel(s.year) + ' · final' : NBA.seasonLabel(lg.year) + ' · pre-season';
+    wrap.append(h('h1', null, C.name), h('p', { class: 'muted' }, seasonLbl + ' · ' + lg.teams.length + ' clubs · real ' + NBA.seasonLabel(NBA.EuroData.season) + ' rosters (updated each year as players age, move and retire). Seasons are settled from team strength, not simulated game by game.'));
+    if (!s) {
+      wrap.append(h('div', { class: 'card' }, h('h2', null, 'Clubs'), h('div', { class: 'grid g3' }, lg.teams.map((t) => h('div', { class: 'opt', onclick: () => { euroTeamSel = t.id; render(); } }, h('div', { class: 'row' }, crest(t, 34), h('div', null, h('b', null, t.name), h('div', { class: 'small muted' }, (key === 'el' ? t.city : t.conf + ' · ' + (t.parent ? t.parent + ' affiliate' : 'independent')))))))), h('p', { class: 'small muted' }, 'The season has not been played yet. Tables, stats and awards appear when it ends.')));
+      return wrap;
+    }
+    wrap.append(h('div', { class: 'card suspense' }, h('div', { class: 'row' }, s.champ ? crest(T(s.champ), 44) : null, h('div', null, h('div', { class: 'cap2' }, 'Champions'), h('h2', { style: 'margin:2px 0' }, s.champ ? T(s.champ).name : '–'), h('div', { class: 'small muted' }, s.runner ? 'Beat ' + T(s.runner).name + ' in the final' : ''))), s.rounds.map((r) => h('p', { class: 'small', style: 'margin:4px 0' }, h('b', null, r.name + ': '), r.text))));
+    const table = (rows, title) => h('div', { class: 'card' }, h('h2', null, title), h('div', { class: 'scroll' }, h('table', { class: 'st' }, h('thead', null, h('tr', null, ['#', 'Club', 'W', 'L', 'Win%', 'Season'].map((x, i) => h('th', { class: i === 1 || i === 5 ? 'l' : '' }, x)))),
+      h('tbody', null, rows.map((r, i) => { const mineRow = NBA.Euro.clubOf(S) && NBA.Euro.clubOf(S).team.id === r.id && NBA.Euro.clubOf(S).key === key; return h('tr', { class: mineRow ? 'me' : '' }, h('td', null, String(i + 1)), h('td', { class: 'l' }, tn(r.id)), h('td', null, String(r.w)), h('td', null, String(r.l)), h('td', null, (r.w / (r.w + r.l)).toFixed(3).replace(/^0/, '')), h('td', { class: 'l small' }, r.res)); })))));
+    if (key === 'gl') ['East', 'West'].forEach((cf) => wrap.append(table(s.table.filter((r) => T(r.id).conf === cf), cf + 'ern Conference')));
+    else wrap.append(table(s.table, 'Regular season standings'));
+    const aw = s.awards, awRow = (lbl, a) => (a ? h('div', { class: 'kv' }, h('span', null, lbl), h('b', null, a.n + (a.user ? ' (you)' : '') + ' · ' + (T(a.team) ? T(a.team).name : ''))) : null);
+    wrap.append(h('div', { class: 'card' }, h('h2', null, 'Awards'), awRow('MVP', aw.mvp), awRow(key === 'el' ? 'Rising Star' : 'Rookie of the Year', aw.young), awRow(key === 'el' ? 'Final Four MVP' : 'Finals MVP', aw.finalsMvp), h('div', { class: 'small', style: 'margin-top:6px' }, h('b', null, key === 'el' ? 'All-EuroLeague First Team: ' : 'All-NBA G League First Team: '), aw.allTeam.filter(Boolean).map((a) => a.n + (a.user ? ' (you)' : '')).join(' · '))));
+    const lead = (k, lbl) => h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, lbl), s.leaders[k].map((x, i) => h('div', { class: 'small', style: 'margin:3px 0' + (x.user ? ';font-weight:700' : '') }, (i + 1) + '. ' + x.n + (x.user ? ' (you)' : '') + ' · ' + (T(x.team) ? T(x.team).abbr : '') + ' · ' + x.v)));
+    wrap.append(h('div', { class: 'grid g2' }, lead('pts', 'Points'), lead('reb', 'Rebounds'), lead('ast', 'Assists'), lead('pir', key === 'el' ? 'PIR (index rating)' : 'Efficiency')));
+    wrap.append(h('div', { class: 'card' }, h('h2', null, 'Clubs'), h('div', { class: 'grid g3' }, lg.teams.map((t) => h('div', { class: 'opt', onclick: () => { euroTeamSel = t.id; render(); } }, h('div', { class: 'row' }, crest(t, 30), h('div', null, h('b', null, t.name), h('div', { class: 'small muted' }, key === 'el' ? t.city : (t.parent ? t.parent + ' affiliate' : 'independent')))))))));
+    if (lg.news && lg.news.length) wrap.append(h('div', { class: 'card' }, h('h2', null, 'Off-season moves'), lg.news.map((x) => h('div', { class: 'small', style: 'margin:3px 0' }, '• ' + x))));
+    if (lg.history.length > 1) wrap.append(h('div', { class: 'card' }, h('h2', null, 'Champions and MVPs'), lg.history.slice(0, 10).map((x) => h('div', { class: 'small', style: 'margin:3px 0' }, NBA.seasonLabel(x.year) + ': ' + x.champ + ' · MVP ' + x.mvp))));
+    return wrap;
+  }
+  function euroTeamPage(key, id) {
+    const lg = NBA.Euro.league(S, key), t = lg.teams.find((x) => x.id === id), s = lg.season, row = s && s.table.find((r) => r.id === id), lines = s ? s.lines : {};
+    const ros = t.roster.map((pid) => lg.players[pid]).filter(Boolean).sort((a, b) => b.ovr - a.ovr);
+    const userLn = lines.user && lines.user[0] === id ? lines.user : null;
+    const fmt = (v) => (v == null ? '–' : f1(v));
+    const rowsEls = (userLn ? [h('tr', { class: 'me' }, h('td', { class: 'l' }, h('b', null, S.player.name + ' (you)')), h('td', null, S.player.pos), h('td', null, String(S.player.age)), h('td', null, String(Math.round(NBA.ovr(S.player)))), h('td', null, String(userLn[1])), h('td', null, fmt(userLn[2])), h('td', null, fmt(userLn[3])), h('td', null, fmt(userLn[4])), h('td', null, fmt(userLn[5])), h('td', null, fmt(userLn[8])))] : [])
+      .concat(ros.map((p) => { const ln = lines[p.id]; return h('tr', null, h('td', { class: 'l' }, p.n + (p.note === 'TW' ? ' · two-way' : p.note === 'NBA' ? ' · on assignment' : '')), h('td', null, p.pos), h('td', null, String(p.age)), h('td', null, String(p.ovr)), h('td', null, ln ? String(ln[1]) : '–'), h('td', null, ln ? fmt(ln[2]) : '–'), h('td', null, ln ? fmt(ln[3]) : '–'), h('td', null, ln ? fmt(ln[4]) : '–'), h('td', null, ln ? fmt(ln[5]) : '–'), h('td', null, ln ? fmt(ln[8]) : '–')); }));
+    return h('div', null, h('button', { class: 'ghost tiny', onclick: () => { euroTeamSel = null; render(); } }, '← ' + NBA.Euro.LEAGUE[key].name),
+      h('div', { class: 'card' }, h('div', { class: 'row' }, crest(t, 56), h('div', null, h('h1', { style: 'margin:0' }, t.name), h('div', { class: 'muted' }, (key === 'el' ? t.city : t.city + ' · ' + t.conf + 'ern Conference · ' + (t.parent ? t.parent + ' affiliate' : 'independent')) + (t.coach ? ' · coach ' + t.coach : '')),
+        row ? h('div', { class: 'small' }, NBA.seasonLabel(s.year) + ': ' + row.w + '-' + row.l + ' · ' + row.res) : h('div', { class: 'small muted' }, 'Pre-season')))),
+      h('div', { class: 'card' }, h('h2', null, 'Roster' + (s ? ' and ' + NBA.seasonLabel(s.year) + ' stats' : '')), h('div', { class: 'scroll' }, h('table', { class: 'st' }, h('thead', null, h('tr', null, ['Player', 'Pos', 'Age', 'OVR', 'GP', 'MIN', 'PTS', 'REB', 'AST', key === 'el' ? 'PIR' : 'EFF'].map((x, i) => h('th', { class: i === 0 ? 'l' : '' }, x)))), h('tbody', null, rowsEls))),
+        h('p', { class: 'small muted' }, 'Ratings are on the NBA scale. Stats are from the last completed season; players who joined since show –.')));
+  }
+  // pre-season camp in Europe / the G League: the same idea as the NBA camps, with the real players around you
+  function euroCampCard() {
+    if (!NBA.Euro || S.euroCamp === S.league.year) return S.euroCamp === S.league.year ? h('p', { class: 'small muted' }, '✅ Training camp done for this season.') : null;
+    const opts = NBA.Euro.campOptions(S); if (!opts.length) return null;
+    return h('div', { class: 'card' }, h('h2', null, 'Pre-season training camp'), h('p', { class: 'small muted' }, 'Pick who you spend camp working with. A star from another club teaches the most; a club veteran knows the system.'),
+      h('div', { class: 'wkgrid' }, opts.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.n), h('div', { class: 'small muted' }, o.pos + ' · ' + o.age + ' · ' + o.ovr + ' OVR · ' + o.team), h('div', { class: 'small', style: 'margin:6px 0' }, ({ vet: 'Club veteran', leader: 'Your best teammate', star: 'A star in the league' })[o.tier] + ': works on your ' + ((D.ATTR_LABELS || {})[o.skill] || o.skill).toLowerCase() + '.'), h('button', { onclick: () => { try { NBA.Euro.doCamp(S, o.id); save(); render(); } catch (e) { console.error(e); } } }, 'Train with him')))));
+  }
+
+  function screenLeague() { const tab = lgTab || euroAuto(); if (tab !== 'nba' && NBA.Euro && NBA.Euro.init(S)) return euroLeaguePage(tab); const el = screenLeague0(); if (NBA.Euro && el.prepend) el.prepend(lgTabs('nba')); if (S.contract && el.append) { el.append(leaguePayrolls()); const cc = carousel(); if (cc) el.append(cc); } return el; }
   function screenTeam0() {
     const L = S.league, t = L.teams[S.teamId], items = S.matchLog || [], idx = S.matchIdx || 0, p = S.player;
     if (!(S.proSeasons.length || S.draft)) return h('div', { class: 'dash' }, h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '👥'), h('h2', null, 'Team')), h('p', { class: 'muted' }, 'You get a team after the draft. Come back then to see your teammates.')));
@@ -980,7 +1040,7 @@
     const noise = (k) => seeded(k * 131 + N * 7 + 3);
     const live = !!inSeason && idx < items.length;   // mid-season: only as-of-now information, nothing derived from how the season ends for you
     const tot = live ? seasonTotals(items.slice(0, idx)) : null, userAvg = tot ? { pts: tot.av.pt, reb: tot.av.rb, ast: tot.av.as, stl: tot.av.st, blk: tot.av.bk } : null;
-    const userNick = L.teams[S.teamId].nick, bridge = (v, k) => v * (1 + (noise(k)() - 0.5) * 0.14 * (1 - prog));
+    const userNick = L.teams[S.teamId] ? L.teams[S.teamId].nick : '', bridge = (v, k) => v * (1 + (noise(k)() - 0.5) * 0.14 * (1 - prog));
     const keys = [['pts', 'Points', 'PPG'], ['reb', 'Rebounds', 'RPG'], ['ast', 'Assists', 'APG'], ['stl', 'Steals', 'SPG'], ['blk', 'Blocks', 'BPG']];
     const leaders = live ? null : (snap && snap.leaders) || L.lastLeaders;
     let leadCards;
@@ -1765,7 +1825,7 @@
     if (!pend) return h('div', null, h('h1', null, 'Senior year'), h('div', { class: 'card' }, h('p', null, S.hsResult.text), h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'primary', onclick: () => { S.stage = 'college_pick'; S.hsResult = null; go(); } }, 'Choose my college →'))));
     const v = Dc.view(S);
     return h('div', null, h('h1', null, 'Where do you finish high school?'), h('p', { class: 'muted' }, 'This is your recruiting year. It decides how good your game is when you arrive and how many people have seen it. Every path has a price.'),
-      h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: 'primary', onclick: () => { try { S.hsResult = Dc.choose(S, o.key); save(); go(); } catch (e) { console.error(e); } } }, 'Choose'))))));
+      h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' + (o.locked ? ' locked' : '') }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.locked ? '🔒 ' + o.locked : o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: 'primary', disabled: !!o.locked, onclick: () => { try { S.hsResult = Dc.choose(S, o.key); save(); go(); } catch (e) { console.error(e); } } }, 'Choose'))))));
   }
 
   // ------------------------------------------------------------ preseason camp (decision engine)

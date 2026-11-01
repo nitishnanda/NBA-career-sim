@@ -331,13 +331,14 @@
     open(st) { return { top: soloTop(st, 1)[0], breakP: st.stars <= 3 ? 0.34 : st.stars === 4 ? 0.2 : 0 }; },
     view(st, ctx) {
       return { options: [
-        { key: 'prep', label: 'A national prep powerhouse', blurb: 'Elite coaching and every scout in the building. You play with other stars, so the numbers are modest.', vibe: 'Steady and well-seen' },
+        (() => { const a = NBA.Game.canAfford(st, 'prep'); return { key: 'prep', label: 'A national prep powerhouse', blurb: 'Elite coaching and every scout in the building. You play with other stars, so the numbers are modest.' + (a.scholarship ? ' Your need-based scholarship pays for it.' : ''), vibe: 'Steady and well-seen', locked: a.ok ? null : a.why }; })(),
         { key: 'home', label: 'Stay home and be the guy', blurb: 'You are the whole offense, you work harder than anyone, and fewer scouts ever see you.', vibe: 'Big numbers, small stage' },
         { key: 'circuit', label: 'Chase the summer circuit', blurb: 'Showcases against the best in the country. You could blow up, or you could wear yourself down.', vibe: ctx.breakP ? 'High risk, high reward' : 'A grind: little to gain at the top' },
       ] };
     },
     choose(st, ctx, key) {
       const p = st.player, rnd = rng(st, 'hs')();
+      if (key === 'prep' && !NBA.Game.canAfford(st, 'prep').ok) throw new Error('prep school is out of reach');
       if (key === 'prep') return { done: true, tone: 'good', text: 'You went to a prep powerhouse: the coaching sharpened your game and the scouts know your name.', effects: [{ k: 'attr', a: 'iq', d: 1.2 }, { k: 'player', f: 'vis', d: 0.1 }], journal: { tone: 'good', text: 'Spent senior year at a national prep powerhouse: better coaching, more eyes on you.' } };
       if (key === 'home') return { done: true, tone: 'neutral', text: 'You stayed home and carried the team. It made you tougher, even if fewer people watched.', effects: [{ k: 'attr', a: ctx.top, d: 1.4 }, { k: 'player', f: 'work', d: 0.05 }, { k: 'player', f: 'vis', d: -0.05 }], journal: { tone: 'neutral', text: 'Stayed home for senior year and carried the team. Tougher, but fewer scouts saw it.' } };
       const up = rnd < ctx.breakP, eff = [{ k: 'attr', a: 'handling', d: 1 }, { k: 'raw', a: 'dur', d: -2 }];

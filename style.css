@@ -332,3 +332,4 @@ body.dlg-open { overflow: hidden; }
 details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
 
 .busyov { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.5); z-index: 9999; } .busyov .card { max-width: 340px; text-align: center; }
+.locked { opacity: .6; } .opt.locked { cursor: not-allowed; }

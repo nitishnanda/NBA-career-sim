@@ -30,7 +30,7 @@ let PG_DBG = null;
   const sz1 = await page.evaluate(() => ({ v: Array.from(document.querySelectorAll('.szv')).map((e) => e.textContent).join(' / '), note: document.querySelector('.szcard').innerText.replace(/\s+/g, ' ').slice(0, 330) }));
   console.log('SIZE create', JSON.stringify({ mode: sz0.mode, sliders: sz0.sliders, tallest: sz1.v, note: sz1.note }));
   await shot('01-create');
-  await page.click('text=Get scouted');
+  await page.selectOption('select:has(option[value="comfortable"])', 'comfortable'); await page.click('text=Get scouted');
   await page.waitForSelector('text=Next: high school', { timeout: 15000 });
   const szS = await page.evaluate(() => ({ ht: window.__NBA_UI.state.player.ht, wt: window.__NBA_UI.state.player.wt, ws: window.__NBA_UI.state.player.ws, line: (document.body.innerText.match(/C · [^\n]*lb[^\n]*/) || [''])[0] }));
   const okSz = sz0.sliders === 3 && szS.ht === 86 && szS.wt === Math.round(249 + 2.5 * (86 - 82.8)) + 10 && szS.ws === 86 + 4 + 3 && /7'2"/.test(szS.line) && /7'9" wingspan/.test(szS.line);
@@ -85,6 +85,7 @@ let PG_DBG = null;
   const okH = hold.big && !hold.wrapShown && (pickN ? hold.rows === pickN : true); console.log('DRAFT held pick', okH ? 'OK' : 'MISMATCH', JSON.stringify(hold));
   if (!okH) errors.push('DRAFT held pick ' + JSON.stringify(hold));
   // after the pick: if his rights are traded there is a second held scene (breaking news), then the wrap-up
+  await page.evaluate(() => { const st = window.__NBA_UI.state; if (st && st.draft) { st.draft.glOffer = false; st.draft.stashOffer = false; } });
   await page.click('button:has-text("Continue →")'); let sawTrade = false;
   for (let k = 0; k < 10; k++) { if (await page.evaluate(() => /your landing spot/i.test(document.body.innerText))) break; if (await page.evaluate(() => /draft-night trade/i.test(document.querySelector('.onclock').innerText))) { sawTrade = true; await shot('05b-user-trade'); await page.click('button:has-text("Continue →")'); } else await page.waitForTimeout(1000); }
   await page.waitForSelector('text=Your landing spot'); await page.click('button:has-text("Reveal everything")');

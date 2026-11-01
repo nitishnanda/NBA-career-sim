@@ -12,7 +12,7 @@ Object.keys(I.COUNTRIES).forEach((k, ci) => [1, 3, 5].forEach((stars, si) => {
   if (st.college.intl !== true && !st.college.tier) fail('club not stored');
 }));
 // the US route from the UK
-{ N.setSeed(8999); const st = G.newCareer({ name: 'U', pos: 'SG', arch: 'scorer', stars: 4, origin: 'uk' }); G.intlToUS(st); if (st.origin.intl !== false || st.stage !== 'hs') fail('US route'); st.autoPlay = true; G.auto(st, {}); if (!st.collegeYears.length || st.collegeYears[0].tier) fail('US route did not play college'); }
+{ N.setSeed(8999); const st = G.newCareer({ name: 'U', pos: 'SG', arch: 'scorer', stars: 4, origin: 'uk', family: 'wealthy' }); G.intlToUS(st); if (st.origin.intl !== false || st.stage !== 'hs') fail('US route'); st.autoPlay = true; G.auto(st, {}); if (!st.collegeYears.length || st.collegeYears[0].tier) fail('US route did not play college'); }
 // draft and stash: force the offer, stash, play another year, get news, join; the rookie deal comes from the original pick
 { let stashed = 0, joined = 0;
   for (let i = 0; i < 24 && joined < 3; i++) {
