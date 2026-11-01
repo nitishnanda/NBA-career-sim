@@ -1083,6 +1083,7 @@
     st.leagueSnap = { year: L.year, label: res.label, standings: res.standings, leaders: res.leaders, leadersO: res.leadersOthers, race: A.race, raceO: A.raceOthers, playin: po.playin };
     st.matchLog = buildMatchLog(st, rec, l, gl, perSeries, t, rec.injury, pline); st.matchIdx = 0;
     manageReturn(st, rec, l); if (avail.po > 0 && avail.po < 99) playoffMiss(st, rec, perSeries, avail.po);
+    if (!st.autoPlay) { st.layWins = {}; L.teams.forEach((x) => { st.layWins[x.id] = x.wins; }); }
     shootingFromLog(rec, st.matchLog);
     if (rec.playoff) rec.playoff.rating = rec.poRating;
     rec.bests = seasonBests(st.matchLog, rec.label, rec.age);
@@ -1705,10 +1706,24 @@
     if (mod > 0 && !g && r() < Math.min(1, mod / Math.max(0.05, 1 - p))) swing = true; else if (mod < 0 && g && r() < Math.min(1, -mod / Math.max(0.05, p))) swing = true;
     it.rs = 1;
     if (swing) { g = !g; if (!it.po) flipGame(st, it, g); else playoffSwing(st, idx, g); }
+    const cur0 = st.matchLog[idx]; cur0.rs = 1;
+    if (!cur0.po && !st.matchLog.some((x) => x.k === 'g' && !x.po && !x.rs)) reseed(st, idx);   // the regular season is over: the standings are what was really played
     const cur = st.matchLog[idx]; cur.rs = 1;
     if (cur.po) seriesSer(st, cur.si);
     recomputeFromLog(st); gameFeed(st, st.matchLog, st.league.teams[st.teamId], idx);
     return { w: !!cur.w, flipped: !!cur.w !== was, swing };
+  }
+  // the regular season as it was really played: if live results moved any team's record, the league re-seeds from the real records
+  // (seeding, the play-in, the bracket, the awards' team-wins inputs), keeping every game already played
+  function reseed(st, idx) {
+    const L = st.league, lay = st.layWins || {}; if (!SNAP || (st.reseed && st.reseed.y === L.year)) return false;
+    if (!L.teams.some((t) => lay[t.id] != null && lay[t.id] !== t.wins)) return false;
+    const map = {}; L.teams.forEach((t) => { map[t.id] = t.wins; }); st.reseed = { y: L.year, map };
+    const keep = JSON.parse(JSON.stringify(st.matchLog[idx])), myW = L.teams[st.teamId].wins;
+    replay(st, st.seasonMoves || [], { force: true });
+    st.matchLog[idx] = keep; recomputeFromLog(st);
+    const rec = st.proSeasons[st.proSeasons.length - 1]; rec.wins = st.matchLog.filter((x) => x.k === 'g' && !x.po && x.w).length; rec.losses = st.matchLog.filter((x) => x.k === 'g' && !x.po).length - rec.wins;
+    return true;
   }
   // a decision swung a playoff game: the rest of the series is played out at the matchup's odds and the season replays with that series result
   function playoffSwing(st, idx, wins) {
@@ -1869,11 +1884,12 @@
   // Replay the season from its tip-off snapshot with the player's changes applied (a new game plan, a mid-season move): the league's results come from the same seeds,
   // the games already shown stay exactly as they were, and everything after comes from the new situation.
   function replay(st, moves, opt) {
-    const keep = { idx: st.matchIdx || 0, shotTab: st.shotTab, shotScope: st.shotScope, log: st.matchLog, view: st.view, dec: st.dec, dlDone: st.dlDone, dlChecked: st.dlChecked, style: st.style, styleSeq: st.styleSeq, poPlans: st.poPlans, poPress: st.poPress, poForce: st.poForce, clutchDelta: st.clutchDelta || 0, clutchStats: st.career && st.career.clutch, autoDec: st.autoDec, noSocial: st.noSocial, noPress: st.noPress, liveMode: st.liveMode };
+    const keep = { idx: st.matchIdx || 0, shotTab: st.shotTab, shotScope: st.shotScope, log: st.matchLog, view: st.view, dec: st.dec, dlDone: st.dlDone, dlChecked: st.dlChecked, style: st.style, styleSeq: st.styleSeq, poPlans: st.poPlans, poPress: st.poPress, poForce: st.poForce, clutchDelta: st.clutchDelta || 0, clutchStats: st.career && st.career.clutch, autoDec: st.autoDec, reseed: st.reseed, noSocial: st.noSocial, noPress: st.noPress, liveMode: st.liveMode };
     const snapObj = JSON.parse(SNAP), startTeam = snapObj.teamId;
     Object.keys(st).forEach((k) => delete st[k]); Object.assign(st, snapObj);
     NBA.Decisions.carry(st, keep.dec);
     st.style = opt.style || keep.style; st.styleSeq = opt.seq || keep.styleSeq; st.dlDone = keep.dlDone; st.dlChecked = keep.dlChecked; st.seasonMoves = moves; st.poPlans = keep.poPlans || {}; st.poPress = keep.poPress || {}; st.poForce = keep.poForce || null; st.clutchDelta = keep.clutchDelta; if (keep.clutchStats) st.career.clutch = keep.clutchStats; if (keep.autoDec) st.autoDec = true; ['noSocial', 'noPress', 'liveMode'].forEach((k) => { if (keep[k] != null) st[k] = keep[k]; });   // the player's own switches survive a replay
+    if (keep.reseed && keep.reseed.y === st.league.year) { st.reseed = keep.reseed; st.league.forceWins = Object.assign({}, keep.reseed.map); }
     moves.forEach((m) => applyMoveState(st, m));
     playSeason(st, { rerun: true });
     const force = moves.length > 0 || !!st.poForce || !!opt.force;
@@ -2339,6 +2355,6 @@
     return st;
   }
 
-  Object.assign(NBA, { capFor, marketCurve, Game: { scaleBox, momentOdds, momentPlay, resolveGame, resolveThrough, hsOptions, FAMILY, familyOf, canAfford, needScholarship, INTL_PLANS, setClause, euroBuyout, intlReport, nbaInterest, draftWant, pushDraft, callupStint, assignGLeague, teamWant, pushForSpot, stintYears, stashPlayer, stashStay, joinFromStash, buyoutM, intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { capFor, marketCurve, Game: { scaleBox, momentOdds, momentPlay, resolveGame, resolveThrough, reseed, hsOptions, FAMILY, familyOf, canAfford, needScholarship, INTL_PLANS, setClause, euroBuyout, intlReport, nbaInterest, draftWant, pushDraft, callupStint, assignGLeague, teamWant, pushForSpot, stintYears, stashPlayer, stashStay, joinFromStash, buyoutM, intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

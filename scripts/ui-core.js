@@ -11,14 +11,14 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   await page.evaluate(() => {
     const N = window.NBA, G = N.Game; N.setSeed(4410); const st = G.newCareer({ name: 'Core Test', pos: 'SF', arch: 'generational', stars: 5 });
     try { G.auto(st, { onDecision: (s) => { if (s.proSeasons.length >= 6) throw 'stop'; } }); } catch (e) { if (e !== 'stop') throw e; }
-    st.autoPlay = false; st.autoDecide = false; st.matchIdx = st.matchLog.length; st.stage = 'decision'; st.decision = null; st.noSocial = true;
+    st.autoPlay = false; st.autoDecide = false; st.matchIdx = st.matchLog.length; st.stage = 'decision'; st.decision = null; st.noSocial = true; st.dec.pending = null;
     window.__NBA_UI.state = st; window.__NBA_UI.go();
   });
   await page.waitForTimeout(800);
   let t = await page.evaluate(() => document.body.innerText);
   ok('OFFSEASON build your team card', /Build your team/i.test(t) && /Front office/i.test(t), t.slice(0, 200));
   { const exp = await page.evaluate(() => !!(window.__NBA_UI.state.decision || {}).expiring); ok('OFFSEASON coach card (hidden in free agency)', exp ? /Free-agent meetings/i.test(t) : /The coach/i.test(t) && /fire him/i.test(t), { exp }); }
-  const lot = await page.evaluate(() => { const st = window.__NBA_UI.state, L = st.league, t = L.teams[st.teamId]; L.teams.forEach((x) => { if (x.id !== t.id) x.wins = Math.max(x.wins, 30); }); t.wins = 18; window.__NBA_UI.go(); return true; });
+  const lot = await page.evaluate(() => { const st = window.__NBA_UI.state, L = st.league, t = L.teams[st.teamId]; L.teams.forEach((x) => { if (x.id !== t.id) x.wins = Math.max(x.wins, 30); }); t.wins = 18; st.dec.flags.coachYear = L.year; st.dec.pending = null; window.__NBA_UI.go(); return true; });
   await page.waitForTimeout(300); t = await page.evaluate(() => document.body.innerText); ok('OFFSEASON lottery card', /Lottery night/i.test(t) && /for the #1 pick/.test(t));
   await page.click('button:text-matches("Watch the lottery")'); await page.waitForTimeout(300); t = await page.evaluate(() => document.body.innerText); ok('OFFSEASON lottery drawn + prospects', /Push for him/i.test(t));
   await page.click('button:text-is("Push for him") >> nth=-1'); await page.waitForTimeout(300); t = await page.evaluate(() => document.body.innerText); ok('OFFSEASON lobby resolves', /(front office listened|draft their own board|will be gone before your pick)/.test(t));

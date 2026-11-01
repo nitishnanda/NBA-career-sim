@@ -60,7 +60,7 @@
   ];
 
   // approximate 2025-26 records, used only so year-one win totals have some continuity
-  const WINS = {"Spurs": 62, "Pistons": 60, "Thunder": 60, "Knicks": 53, "Cavaliers": 52, "Magic": 45, "Clippers": 42, "Warriors": 37, "Bucks": 32, "Pelicans": 26, "Grizzlies": 25, "Pacers": 19, "Wizards": 17};
+  const WINS = {"Pistons": 60, "Celtics": 56, "Knicks": 53, "Cavaliers": 52, "Raptors": 46, "Hawks": 46, "76ers": 45, "Magic": 45, "Hornets": 44, "Heat": 43, "Bucks": 32, "Bulls": 31, "Nets": 20, "Pacers": 19, "Wizards": 17, "Thunder": 64, "Spurs": 62, "Nuggets": 54, "Lakers": 53, "Rockets": 52, "Timberwolves": 49, "Suns": 45, "Trail Blazers": 42, "Clippers": 42, "Warriors": 37, "Pelicans": 26, "Mavericks": 26, "Grizzlies": 25, "Kings": 22, "Jazz": 22};
 
   g.NBA.real = { TEAMS, ROOKIES, WINS, asOf: '2026-10-20' };
   if (typeof module !== 'undefined') module.exports = g.NBA;

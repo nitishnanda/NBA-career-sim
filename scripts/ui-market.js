@@ -124,7 +124,7 @@ let PG = null;
       } else await page.click('.wkcard:has-text("Stay balanced") button, button:has-text("Stay balanced")');
       continue;
     }
-    if (await page.$('.dlg-back')) { const cb = await page.$('.dlg button:text-matches("Back to the season|Play the game|Continue", "i")'); if (cb) await cb.click(); await page.waitForTimeout(80); continue; }
+    if (await page.$('.dlg-back')) { const cb = await page.$('.dlg button:text-matches("Back to the season|Play the game|Continue", "i")') || await page.$('.dlg button:text-matches("Go with this", "i")'); if (cb) await cb.click(); await page.waitForTimeout(80); continue; }   // results, or a decision card (series moment): take the first option
     const nx = await page.$('button:has-text("Sim next playoff game")'); if (nx) { await nx.click(); continue; }
     if (await page.$('button:has-text("Season recap")')) break;
     await simOn();

@@ -123,13 +123,14 @@
       ATTRS.forEach((a) => (p.attrs[a] = clamp(p.attrs[a] + d, 8, 99)));
     }
     p.yearsPro = Math.max(0, age - 19); p.teamId = teamId; p.real = true;
+    const rl = row[6]; if (rl && rl.length >= 8) p.rl = { y: rl[0], age0: age, pts: rl[3], reb: rl[4], ast: rl[5], stl: rl[6], blk: rl[7] };   // the real 2025-26 line (or the last healthy one): the next seasons grow out of it
     return p;
   }
   function buildReal(L) {
     const R = NBA.real;
     L.teams.forEach((t) => {
       (R.TEAMS[t.nick] || []).forEach((row) => { const p = makeReal(L, row, t.id); L.players[p.id] = p; t.core.push(p.id); });
-      if (R.WINS[t.nick] != null) t.prevWins = R.WINS[t.nick];
+      if (R.WINS[t.nick] != null) { t.prevWins = R.WINS[t.nick]; t.realW = R.WINS[t.nick]; L.realY = 2025; }
       fillCore(L, t);
     });
     R.ROOKIES.forEach((r) => {
@@ -174,6 +175,23 @@
   const perfOf = (l) => l.pts * (1 + 2.2 * (l.ts - 0.57)) + 1.15 * l.reb + 1.5 * l.ast + 2 * (l.stl + l.blk) - 1.1 * l.tov;
   function defScore(p, l) {
     return 4 * l.blk + 3.5 * l.stl + 0.12 * Math.max(p.attrs.rimP, p.attrs.perD);
+  }
+  // Real players' first seasons grow out of their real line: the real 2025-26 production, aged with real year-over-year curves (young players rise, 30+ decline,
+  // assists age best, the very top regresses), blended with the sim's own line (roster, role, injuries). The anchor fades: 78% in the next season, 68%, 50%, 35%...
+  // Deterministic per player and season (a hash, not the league's random stream).
+  const hashS = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+  const AGE_P = (a) => (a <= 21 ? 1.1 : a <= 22 ? 1.07 : a <= 23 ? 1.05 : a <= 24 ? 1.03 : a <= 26 ? 1.015 : a <= 28 ? 1 : a <= 29 ? 0.985 : a <= 30 ? 0.97 : a <= 31 ? 0.955 : a <= 32 ? 0.94 : a <= 33 ? 0.92 : a <= 34 ? 0.9 : a <= 35 ? 0.88 : a <= 36 ? 0.86 : a <= 37 ? 0.83 : 0.8);
+  const ANCHOR_W = [0, 0.78, 0.68, 0.5, 0.35, 0.22, 0.12];
+  function realAnchor(L, p, l) {
+    const r = p.rl; if (!r) return; const n = L.year - (r.y - 1); if (n < 1 || n >= ANCHOR_W.length) return;
+    let fp = 1, fr = 1, fa = 1; for (let k = 1; k <= n; k++) { const age = r.age0 - 1 + k, f = AGE_P(age); fp *= f; fr *= 1 + (f - 1) * 0.7; fa *= 1 + (f - 1) * 0.6; }   // boards and assists age more gently than scoring
+    let tp = r.pts * fp; if (tp > 30) tp = 30 + (tp - 30) * Math.pow(0.9, n);
+    // noise per player, season and league (the salt comes from this season's already-random league state)
+    let a = hashS(p.name + '|' + L.year + '|' + (L.anchorSalt || 0)) || 1; const u = () => { a ^= a << 13; a >>>= 0; a ^= a >>> 17; a ^= a << 5; a >>>= 0; return a / 4294967296; }, nz = () => 1 + 0.155 * (u() + u() + u() - 1.5);   // real lines move ~9% a year either way (a bell curve, not a flat band)
+    const T = { pts: tp * nz(), reb: r.reb * fr * nz(), ast: r.ast * fa * nz(), stl: r.stl * fr, blk: r.blk * fr }, w = ANCHOR_W[n];
+    const ws = Math.min(0.92, w + 0.12);   // the shape of a line (boards, dimes, stocks) is who a player is: anchored a little harder than scoring
+    ['pts', 'reb', 'ast', 'stl', 'blk'].forEach((k) => { const ww = k === 'pts' ? w : ws; if (T[k] != null && isFinite(T[k])) l[k] = ww * T[k] + (1 - ww) * l[k]; });
+    l.perf = perfOf(l);
   }
   function lineFromExp(p, e, gp, form) {
     const sh = 1 + T.formSd * randn();
@@ -290,10 +308,12 @@
       t.wins = 41 + T.winsPerPt * (t.S - meanS) + t.depth + randn() * 4.6;
     });
     // roster continuity: a team does not flip from the lottery to the top seed in one summer
-    L.teams.forEach((t) => { t.wins = 0.9 * t.wins + 0.1 * (t.prevWins == null ? 41 : t.prevWins); });
+    const nR = L.realY != null ? L.year - L.realY : 99;
+    L.teams.forEach((t) => { if (t.realW != null && nR === 1) t.wins = 0.58 * t.wins + 0.42 * (41 + 0.66 * (t.realW - 41)); else if (t.realW != null && nR === 2) t.wins = 0.7 * t.wins + 0.3 * (41 + 0.5 * (t.realW - 41)) + 0.1 * ((t.prevWins == null ? 41 : t.prevWins) - 41); else t.wins = 0.9 * t.wins + 0.1 * (t.prevWins == null ? 41 : t.prevWins); });
     const mw = sum(L.teams.map((t) => t.wins)) / L.teams.length;
     // real tails: more truly bad teams, fewer 60+ juggernauts
     L.teams.forEach((t) => { let w = t.wins - (mw - 41); if (w < 33) w -= (33 - w) * 0.22; if (w > 54) w -= (w - 54) * ((user && t.id === user.teamId && ovr(user.p) >= 88) ? T.userWinShrink : 0.2); t.wins = clamp(Math.round(w), 12, 73); t.losses = 82 - t.wins; });
+    if (L.forceWins) { L.teams.forEach((t) => { const fw = L.forceWins[t.id]; if (fw != null) { t.wins = fw; t.losses = 82 - fw; } }); delete L.forceWins; }   // the season as it was really played (a human career's live results): seeding, playoffs and awards follow it
     L.teams.forEach((t) => { t.power = (t.wins - 41) / 2.7 + randn() * 0.8; t.prevWins = t.wins; });
     deadlineTrades(L);
     if (user && user.avail && user.avail.po) { const ut0 = L.teams[user.teamId]; ut0.power -= clamp((ovr(user.p) - 60) * 0.12, 0.8, 4.5) * (user.avail.po >= 99 ? 1 : clamp(user.avail.po / 16, 0.2, 0.85)); }   // the star is hurt for the playoffs: the team goes in without him
@@ -307,12 +327,13 @@
       user.line = user.getLine(user.ctx);
     }
     // everyone else
+    L.anchorSalt = Math.round(L.teams.reduce((a, t) => a + (t.pace || 0) * 1000 + (t.wins || 0), 0));
     const lines = {};
     allPlayers.forEach((p) => {
       const t = L.teams[p.teamId];
       const roster = teamRoster(L, t, user);
       const e = expLine(p, { coTax: coTaxFor(p, roster), fr: franchiseFor(p, roster), tsAdj: gravityFor(p, roster), wins: t.wins, pace: t.pace, rookie: p.rookie, minsFloor: p.rookie ? NBA.rookieFloor(p.draftSlot) : 0 });
-      const l = lineFromExp(p, e, avail[p.id].gp);
+      const l = lineFromExp(p, e, avail[p.id].gp); if (p.rl) realAnchor(L, p, l);
       l.id = p.id; l.teamId = p.teamId; l.wins = t.wins;
       lines[p.id] = l;
       entries.push({ p, l, t, id: p.id });
