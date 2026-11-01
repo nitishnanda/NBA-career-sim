@@ -196,7 +196,7 @@
   function playIntl(st) {
     const p = st.player, rec = intlSeason(st);
     NBA.runYear(st.league, { draft: false });
-    rec.mock = NBA.mockRange(st.league, p, stockBonus(st)); rec.mustDeclare = rec.year >= 5; st.clubYears = (st.clubYears || 0) + 1;
+    rec.mock = NBA.mockRange(st.league, p, stockBonus(st)); rec.mustDeclare = rec.year >= 5 && !st.stash; st.clubYears = (st.clubYears || 0) + 1;
     st.stage = 'intl_decision'; return rec;
   }
   function stayIntl(st) { NBA.npcDraft(st.league); st.stage = 'training'; st.afterTraining = 'intl'; return trainingInfo(st); }
@@ -292,16 +292,45 @@
     st.draft = { slot, team: team.name, teamId: team.id, draftedBy: res.draftedBy ? res.draftedBy.name : team.name, draftedById: res.draftedBy ? res.draftedBy.id : team.id, userTrade: res.userTrade, trades: res.trades, workouts: st.workouts ? { done: st.workouts.done, invites: st.workouts.invites.map((x) => ({ id: x.id, nick: x.nick })) } : null, year: st.league.year, board: res.board, college: st.college.name, mockRank: res.mockRank, mocks: mk ? { ranks: mk.ranks, outlets: mk.outlets.map((o) => o.name) } : null, combineBonus: p.cmb ? p.cmb.bonus : 0, tested: st.combine.test, classSize: res.classSize, teamRec: team.wins + '-' + team.losses };
     st.teamId = team.id; p.teamId = team.id;
     feedAdd(st, 'draft', { slot: slot || 'UD', team: team.nick }, { key: 'draft', at: null });
-    const cap = capNow(st.league);
-    let sal, yrs;
-    // rookie scale as a share of the cap: the #1 pick earns ~9% of it, then -4.2% per slot
-    const capY = capFor(st.league.year);
+    st.contract = rookieDeal(st, slot);
+    // an international prospect who is not ready can be drafted and stashed: the club keeps his rights and he stays in Europe (about one in two late picks, rarely a lottery pick)
+    if (st.origin && st.origin.intl && slot) {
+      const rr = mulberry((st.draftSeed || 1) ^ 0x57a5), pS = slot <= 8 ? 0.04 : slot <= 14 ? 0.2 : slot <= 22 ? 0.45 : slot <= 30 ? 0.62 : 0.8, ready = clamp((ovr(p) - 60) * 0.012, 0, 0.25);
+      st.draft.stashOffer = rr() < clamp(pS + (p.age <= 19 ? 0.1 : 0) - ready, 0, 0.92);
+    }
+    st.stage = 'draft_night';
+    return st.draft;
+  }
+  // rookie scale as a share of the cap: the #1 pick earns ~9% of it, then -4.2% per slot
+  function rookieDeal(st, slot) {
+    const capY = capFor(st.league.year); let sal, yrs;
     if (slot && slot <= 30) { sal = capY * 0.0892 * Math.pow(0.958, slot - 1); yrs = 4; }
     else if (slot) { sal = capY * Math.max(0.0097, 0.0149 - (slot - 31) * 0.00023); yrs = 3; }
     else { sal = capY * 0.0084; yrs = 2; }
-    st.contract = { salary: r1(sal), years: yrs, left: yrs, type: 'rookie', teamOpt: !!(slot && slot <= 30) };   // first-rounders: the club holds options on years 3 and 4
-    st.stage = 'draft_night';
-    return st.draft;
+    return { salary: r1(sal), years: yrs, left: yrs, type: 'rookie', teamOpt: !!(slot && slot <= 30) };   // first-rounders: the club holds options on years 3 and 4
+  }
+  // ---- draft and stash: the club holds the rights, you play on in Europe, and you choose when to come over (at most three more years)
+  function stashPlayer(st) {
+    const d = st.draft, L = st.league; if (!d || !d.slot) throw new Error('nothing to stash');
+    st.stash = { teamId: d.teamId, team: d.team, nick: L.teams[d.teamId].nick, slot: d.slot, y: L.year, years: 0, news: [] }; d.stashed = true;
+    st.teamId = -1; st.player.teamId = -1; st.contract = null;
+    NBA.Decisions.log(st, { kind: 'draft', title: 'Stashed', tone: 'neutral', text: 'The ' + st.stash.nick + ' drafted you at #' + d.slot + ' and stashed you: they keep your rights while you play on with ' + st.college.name + '.' });
+    feedAdd(st, 'draft', { slot: d.slot, team: st.stash.nick }, { key: 'stash' + L.year, at: null });
+    st.stage = 'training'; st.afterTraining = 'intl'; return trainingInfo(st);
+  }
+  const buyoutM = (st) => ({ academy: 0, domestic: 0.4, euroleague: 1.4 })[st.college.tier] || 0;
+  function stashStay(st) {
+    const sh = st.stash, L = st.league; sh.years++;
+    if (NBA.Decisions.rng(st, 'stash|' + L.year)() < 0.22) { const others = L.teams.filter((t) => t.id !== sh.teamId), nt = others[Math.floor(NBA.Decisions.rng(st, 'stash2|' + L.year)() * others.length)]; sh.news.push('Your rights were traded from the ' + sh.nick + ' to the ' + nt.nick + '.'); sh.teamId = nt.id; sh.team = nt.name; sh.nick = nt.nick; st.draft.team = nt.name; st.draft.teamId = nt.id; }
+    return stayIntl(st);
+  }
+  function joinFromStash(st) {
+    const sh = st.stash, L = st.league, p = st.player, bo = buyoutM(st);
+    st.contract = rookieDeal(st, sh.slot); if (bo) st.earnings = Math.max(0, st.earnings - bo);
+    st.teamId = sh.teamId; p.teamId = sh.teamId; st.draft.team = sh.team; st.draft.teamId = sh.teamId; st.draft.cameOver = L.year; sh.joined = L.year;
+    NBA.Decisions.log(st, { kind: 'draft', title: 'Came over', tone: 'good', text: 'After ' + (sh.years + 1) + ' more year' + (sh.years ? 's' : '') + ' with ' + st.college.name + ', you joined the ' + sh.nick + (bo ? ' (buyout: $' + bo.toFixed(1) + 'M)' : '') + ' on a rookie deal.' });
+    feedAdd(st, 'sign', { name: p.name, team: sh.nick }, { key: 'stashjoin' + L.year, at: null });
+    return startPro(st);
   }
   function startPro(st) {
     st.stage = 'training'; st.afterTraining = 'pro_first';
@@ -2030,6 +2059,6 @@
     return st;
   }
 
-  Object.assign(NBA, { capFor, marketCurve, Game: { intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { capFor, marketCurve, Game: { stashPlayer, stashStay, joinFromStash, buyoutM, intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);
