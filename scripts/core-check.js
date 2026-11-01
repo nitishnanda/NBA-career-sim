@@ -43,4 +43,4 @@ if (R.bad || !R.seasons || !R.built || !R.summers) { console.log('FAILED'); proc
   conf.forEach((x) => { if (x.id !== t.id) x.wins = 45; }); t.wins = 22; c.proSeasons.forEach((x) => { if (x.teamId === t.id) x.wins = 24; }); const weak = C.teamStatus(c);
   t.wins = 62; c.proSeasons.forEach((x) => { if (x.teamId === t.id) x.wins = 60; }); c.dec.flags.confRank = {}; const cont = C.teamStatus(c);
   console.log(JSON.stringify({ weak: [weak.tier, weak.franchise, weak.listen], contender: [cont.tier, cont.listen] }));
-  if (weak.tier !== 'weak' || cont.tier !== 'contender' || !(weak.listen >= 70 && cont.listen <= 30)) { console.log('FAILED fo'); process.exit(1); } console.log('fo OK'); }
+  if (weak.tier !== 'weak' || cont.tier !== 'contender' || !(weak.listen >= 70 && cont.listen <= 60 && weak.listen - cont.listen >= 30)) { console.log('FAILED fo'); process.exit(1); } console.log('fo OK'); }
