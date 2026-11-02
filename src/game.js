@@ -52,7 +52,7 @@
     const genBonus = genLevel && !lateBloomer ? (genLevel === 2 ? 8 : 4) : 0; // true generational talents are seen as such by scouts
     const p = NBA.makePlayer({ id: 'user', name: o.name || 'Rookie', pos: o.pos, arch: o.arch, sec: o.sec && o.sec !== o.arch ? o.sec : null, home: o.home, ht: o.ht, wt: o.wt, ws: o.ws, ceiling, age: 18, stars, gap });
     p.vis = clamp(0.15 + 0.19 * (stars - 1), 0.15, 0.92);
-    const L = NBA.newLeague(2026, { real: true }); // the real league as of 20 Oct 2026
+    const L = NBA.newLeague(2026, { real: true }); // the real league as of 2 Nov 2026 (every team's ten-man rotation)
     const st = {
       v: 1, stage: 'scouting', player: p, league: L, stars,
       genBonus, college: null, collegeYears: [], proSeasons: [], playoffLines: [],

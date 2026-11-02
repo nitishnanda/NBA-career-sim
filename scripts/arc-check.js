@@ -21,7 +21,7 @@ N.onSeasonLog = (st, rec) => { if (IN) return; IN = true; try { R.seasons++; con
   { const rr = JSON.parse(JSON.stringify(rec)); rr.tpa = 8; rr.ast = 7; A.earned(c, rr); rec.earned = rr.earned; }
   if (rec.earned) { R.earned++; R.earnedTot += rec.earned.total; Object.values(rec.earned.attrs).forEach((v) => { if (!(v > 0 && v <= 1)) fail('earned ' + v); }); }
   // the live run decision changes the logged game legally
-  const ig = c.matchLog.findIndex((x) => x.k === 'g' && !x.dnp && !x.po); const it = c.matchLog[ig], f0 = it.f, a0 = it.a; G.liveDecision(c, ig, 'run', 'timeout', { box: {}, sc: [40, 50] }); R.run++; if (!(it.f >= 0 && it.a >= 0)) fail('run broke score');
+  const ig = c.matchLog.findIndex((x) => x.k === 'g' && !x.dnp && !x.po); if (ig >= 0) { const it = c.matchLog[ig]; G.liveDecision(c, ig, 'run', 'timeout', { box: {}, sc: [40, 50] }); R.run++; if (!(it.f >= 0 && it.a >= 0)) fail('run broke score'); }   // a season lost to injury has no game to change
 } catch (e) { fail(e.stack.split('\n').slice(0, 3).join(' | ')); } finally { IN = false; } };
 for (let i = 0; i < 4; i++) { N.setSeed(8100 + i); const st = G.newCareer({ name: 'a' + i, pos: ['SF', 'C', 'PG', 'SG'][i % 4], arch: ['twoway', 'defender', 'generational', 'scorer'][i % 4], stars: [4, 3, 5, 4][i % 4] }); st.autoPlay = false; G.auto(st, {}); }
 // the AI storyline checker: a good event passes (effects clamped), a bad one fails

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
 Refresh which team each real player is on (data/real-roster-base.json) from Wikipedia's current roster templates.
+Since v114 the full league (every rotation player) is built from a fresh DARKO leaderboard export + scripts/fetch-wiki-rosters.py;
+this script still checks the hand-curated table (archetypes for the stars, the 2026 draft class).
 
   python3 scripts/refresh-rosters.py            report only (moves, missing players, age mismatches, transactions since the snapshot)
   python3 scripts/refresh-rosters.py --apply    write the team moves into data/real-roster-base.json, then rebuild the page data:

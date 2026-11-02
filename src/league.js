@@ -122,7 +122,7 @@
       const d = (goal - ovr(p)) / T.ovrStretch;
       ATTRS.forEach((a) => (p.attrs[a] = clamp(p.attrs[a] + d, 8, 99)));
     }
-    p.yearsPro = Math.max(0, age - 19); p.teamId = teamId; p.real = true;
+    p.yearsPro = row[7] != null ? row[7] : Math.max(0, age - 19); p.teamId = teamId; p.real = true;   // real seasons in the league when the table knows them
     const rl = row[6]; if (rl && rl.length >= 8) p.rl = { y: rl[0], age0: age, pts: rl[3], reb: rl[4], ast: rl[5], stl: rl[6], blk: rl[7] };   // the real 2025-26 line (or the last healthy one): the next seasons grow out of it
     return p;
   }
@@ -131,6 +131,7 @@
     L.teams.forEach((t) => {
       (R.TEAMS[t.nick] || []).forEach((row) => { const p = makeReal(L, row, t.id); L.players[p.id] = p; t.core.push(p.id); });
       if (R.WINS[t.nick] != null) { t.prevWins = R.WINS[t.nick]; t.realW = R.WINS[t.nick]; L.realY = 2025; }
+      if (R.PROJ && R.PROJ[t.nick] != null) t.projW = R.PROJ[t.nick];   // DARKO's projected 2026-27 wins
       fillCore(L, t);
     });
     R.ROOKIES.forEach((r) => {
@@ -312,7 +313,7 @@
     });
     // roster continuity: a team does not flip from the lottery to the top seed in one summer
     const nR = L.realY != null ? L.year - L.realY : 99;
-    L.teams.forEach((t) => { if (t.realW != null && nR === 1) t.wins = 0.58 * t.wins + 0.42 * (41 + 0.66 * (t.realW - 41)); else if (t.realW != null && nR === 2) t.wins = 0.7 * t.wins + 0.3 * (41 + 0.5 * (t.realW - 41)) + 0.1 * ((t.prevWins == null ? 41 : t.prevWins) - 41); else t.wins = 0.9 * t.wins + 0.1 * (t.prevWins == null ? 41 : t.prevWins); });
+    L.teams.forEach((t) => { if (t.projW != null && nR === 1) t.wins = 0.5 * t.wins + 0.5 * t.projW; else if (t.projW != null && nR === 2) t.wins = 0.72 * t.wins + 0.28 * (41 + 0.6 * (t.projW - 41)) + 0.1 * ((t.prevWins == null ? 41 : t.prevWins) - 41); else if (t.realW != null && nR === 1) t.wins = 0.58 * t.wins + 0.42 * (41 + 0.66 * (t.realW - 41)); else if (t.realW != null && nR === 2) t.wins = 0.7 * t.wins + 0.3 * (41 + 0.5 * (t.realW - 41)) + 0.1 * ((t.prevWins == null ? 41 : t.prevWins) - 41); else t.wins = 0.9 * t.wins + 0.1 * (t.prevWins == null ? 41 : t.prevWins); });
     const mw = sum(L.teams.map((t) => t.wins)) / L.teams.length;
     // real tails: more truly bad teams, fewer 60+ juggernauts
     L.teams.forEach((t) => { let w = t.wins - (mw - 41); if (w < 33) w -= (33 - w) * 0.22; if (w > 54) w -= (w - 54) * ((user && t.id === user.teamId && ovr(user.p) >= 88) ? T.userWinShrink : 0.2); t.wins = clamp(Math.round(w), 12, 73); t.losses = 82 - t.wins; });

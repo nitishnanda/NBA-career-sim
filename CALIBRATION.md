@@ -1102,3 +1102,25 @@ Baseline: 76.57 / 12.26 on the standard 60 (the league's history now plays diffe
 ## v113 (tooling only, nothing in the game changed): real-roster refresh script
 
 `python3 scripts/refresh-rosters.py` reads Wikipedia's current roster template for all 30 clubs (523 players with birthdays, positions, two-way / G League notes) and diffs it against `data/real-roster-base.json` (121 players + 19 rookies): team moves, players on no roster any more, and ages that disagree with the birthday. `--apply` writes the team moves, then `build-real.py` and `build.py` regenerate the page data. Checked on 2 Nov 2026: 0 team changes, 0 missing, 0 age mismatches (the 31 transactions-page lines dated after the 20 Oct snapshot are two-way contracts, waivers and veterans going abroad, none in the table), so the data was left as it is. Saved careers keep their own league: a refresh only changes new careers. Run it after the trade deadline and after the season. The roster templates also give 523 players, which is what making every rotation player real (not just each team's top 4) would build on; that changes team depth and win totals, so it is planned together with the ratings rework.
+
+## v114 — every rotation player is real; ratings rebuilt from real impact data
+
+**Who is in the league.** Every team's ten best players are now real (300 players, plus the 19-man 2026 draft class), up from each team's top 4 (121) with made-up benches. The roster list is DARKO's leaderboard (2 Nov 2026, 504 players with a team); birthdays, heights and weights come from the Wikipedia roster templates (`scripts/fetch-wiki-rosters.py` -> `data/sources/wiki-rosters.json`); positions from LEBRON / Basketball-Reference; seasons in the league from Basketball-Reference. Deeper roster spots (11-17, two-way deals) are left out because the sim plays ten-man rotations. Archetypes: the hand-checked ones for the old 121, the stat profile plus LEBRON's offensive/defensive roles for the rest.
+
+**Ratings.** The 35% hand-set prior is gone. Rating = 55% impact + 45% production, each ranked against last season's 40-game players (335) and mapped to the sim player of the same share of its own pool (254, the smooth part of `perf-ovr.json`; the old mapping read the file's thin tail and would have rated deep-bench players near 20).
+- impact = 0.65 DARKO DPM + 0.35 LEBRON (2025-26 60% / 2024-25 30% / 2023-24 10%, short-minute seasons weighted down), minus 0.07 per minute under 26 mpg
+- production = the sim's box-score production score, 2025-26 65% / 2024-25 35%, aged one season with the real age curve
+- no 40-game season (rookies, long injuries) = impact only
+
+Biggest moves vs v113: Kawhi Leonard 85 -> 95, Anthony Davis 80 -> 88, Isaiah Hartenstein 77 -> 83, Jarrett Allen 80 -> 86, Jalen Duren 80 -> 86, Ty Jerome 76 -> 82, Jaylen Brown 89 -> 85, Devin Booker 88 -> 84, Jalen Brunson 90 -> 87.
+
+**Team wins.** The first season now leans on DARKO's projected 2026-27 wins (50/50 with the sim) instead of last season's record; the second season keeps 28% of a regressed projection. 12 leagues each:
+
+| | v113 | v114 |
+|---|---|---|
+| 26/27 wins vs DARKO projection: correlation | 0.69 | 0.83 |
+| 26/27 rms gap to projection | 7.1 | 5.4 |
+| 27/28 wins vs DARKO projection: correlation | 0.53 | 0.69 |
+| year-to-year correlation 26/27 -> 27/28 (real ~0.65-0.75) | 0.68 | 0.73 |
+
+**Checks.** Real players' 2026-27 points correlate 0.97 with their real 2025-26 points (1,494 player-seasons, 6 leagues); roster #1-#10 average points match real within 0.5. Star lines stay real (Jokic 27.8/12.5/9.9, SGA 29.5/3.9/6.9, Wembanyama 26.3 -> 28.8 -> 29.4). League tails (3 seeds) unchanged within noise. Autopilot baseline 76.43 / 12.31 (was 76.57 / 12.26, within the 120-career noise). Known gap, not changed here: season minutes for a team's 8th-10th men read high (~29-31 mpg vs real 17-23); points are anchored so lines stay real, but the minutes column does not.
