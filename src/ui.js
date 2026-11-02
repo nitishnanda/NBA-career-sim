@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 2 Nov · BallerSim dashboard v118';
+  const BUILD = 'build 2 Nov · BallerSim dashboard v119';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -974,11 +974,12 @@
       q ? h('table', { class: 'qtab small', style: 'margin:6px 0;border-collapse:collapse' }, h('tr', null, h('th', null, ''), q.us.map((_, i) => h('th', { style: 'padding:0 8px' }, i < 4 ? 'Q' + (i + 1) : 'OT')), h('th', { style: 'padding:0 8px' }, 'F')),
         h('tr', null, h('td', null, ab(t.nick)), q.us.map((x) => h('td', { style: 'padding:0 8px;text-align:center' }, x)), h('td', { style: 'padding:0 8px' }, h('b', null, g.f))), h('tr', null, h('td', null, ab(g.o)), q.them.map((x) => h('td', { style: 'padding:0 8px;text-align:center' }, x)), h('td', { style: 'padding:0 8px' }, h('b', null, g.a)))) : null,
       h('p', { class: 'small', style: 'margin:4px 0' }, '📖 ' + W.gameStory(S, g)),
-      h('div', { class: 'small caps muted', style: 'margin-top:6px' }, 'Your teammates'), b.ours.map(row), h('div', { class: 'small caps muted', style: 'margin-top:6px' }, 'The ' + g.o), b.theirs.map(row));
+      h('div', { class: 'small caps muted', style: 'margin-top:6px' }, 'Your teammates' + (b.out ? ' (' + b.out + ' out)' : '')), b.ours.map(row), h('div', { class: 'small caps muted', style: 'margin-top:6px' }, 'The ' + g.o), b.theirs.map(row));
   }
   function hotMate(g) {
     const W = NBA.World; if (!W || S.autoPlay || !g || g.dnp) return null; const b = W.boxOf(S, g); if (!b) return null; const hot = b.ours.find((x) => x.pts >= 33), opp = b.theirs.find((x) => x.pts >= 38);
     const lk = NBA.Arc && NBA.Arc.lockdownOf(S, g); if (lk) return h('div', { class: 'callout' }, '🔒 Lockdown: you held ' + lk.name + ' to ' + lk.pts + ' points (he averages ' + lk.avg + ').');
+    if (b.step && b.step.pts >= 15) return h('div', { class: 'callout' }, '🆙 With ' + b.out + ' out, ' + b.step.name + ' stepped into the rotation and scored ' + b.step.pts + (g.w ? ' in the win.' : '.'));
     return hot ? h('div', { class: 'callout' }, '🔥 ' + hot.name + ' went off for ' + hot.pts + ' ' + (g.w ? 'in the win.' : 'in the loss.')) : opp ? h('div', { class: 'callout' }, '😤 ' + opp.name + ' dropped ' + opp.pts + ' on you.') : null;
   }
   // chasing history: where the career totals (as of the games played so far) sit on the all-time lists

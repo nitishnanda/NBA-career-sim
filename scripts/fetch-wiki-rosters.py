@@ -17,3 +17,9 @@ for nick, full in rr.TEAMS.items():
         ps.append({'name': f['first'] + ' ' + f['last'], 'pos': f.get('pos', ''), 'dob': f.get('DOB'), 'ht': ht, 'wt': int(f['lbs']) if f.get('lbs', '').isdigit() else None, 'note': f.get('note', '')})
     out[nick] = ps; print(nick, len(ps)); time.sleep(1.0)
 json.dump({'asOf': time.strftime('%Y-%m-%d'), 'teams': out}, open(os.path.join(os.path.dirname(__file__), '..', 'data/sources/wiki-rosters.json'), 'w'), ensure_ascii=False, indent=0)
+
+# the 2026 draft order (Wikipedia "2026 NBA draft", Draft selections table): picks 1-60 in order, for rating rookies by slot
+d = rr.raw('2026 NBA draft'); sec = d[d.index('==Draft selections=='):]; sec = sec[:sec.index('\n==', 5)]
+picks = [a.strip() + ' ' + b.strip() for a, b in re.findall(r"\{\{sortname\|([^|}]+)\|([^|}]+)(?:\|[^}]*)?\}\}", sec)]
+json.dump(picks, open(os.path.join(os.path.dirname(__file__), '..', 'data/sources/draft-2026.json'), 'w'), ensure_ascii=False, indent=0)
+print('2026 draft picks', len(picks))

@@ -18,9 +18,12 @@
   function boxOf(st, it) {
     if (!it || it.k !== 'g' || it.dnp == null && it.pt == null) return null; const L = st.league, t = L.teams[st.teamId], ot = L.teams.find((x) => x.nick === it.o); if (!t) return null;
     const out = NBA.Arc ? NBA.Arc.mateOutAt(st, it) : null, r = gameRng(st, it, 'box'), mates = NBA.rosterOf(L, t).filter((q) => q.id !== 'user' && q.id !== st.player.id && q.id !== out).slice(0, 4), opp = ot ? NBA.rosterOf(L, ot).slice(0, 2) : [];
-    const ours = mates.map((q, i) => Object.assign({ id: q.id, name: q.name, pos: q.pos }, lineFor(r, seasonLine(q, L.year), !!it.w, i === 0)));
+    // a teammate is out: his shots go to the others, most to whoever takes his spot (real: a 20-ppg starter's absence adds ~3-5 to the next man up)
+    const oq = out != null ? L.players[out] : null, ol = oq ? seasonLine(oq, L.year) : null, full = NBA.rosterOf(L, t).filter((q) => q.id !== 'user' && q.id !== st.player.id).slice(0, 4).map((q) => q.id);
+    const ours = mates.map((q, i) => { const b = Object.assign({}, seasonLine(q, L.year)), up = ol && !full.includes(q.id); if (ol) b.pts += ol.pts * (up ? 0.3 : 0.1); if (up) { b.reb += ol.reb * 0.3; b.ast += ol.ast * 0.3; } return Object.assign({ id: q.id, name: q.name, pos: q.pos, up: !!up }, lineFor(r, b, !!it.w, i === 0)); });
+    const step = oq ? ours.find((x) => x.up) : null;
     const theirs = opp.map((q, i) => { const l = Object.assign({ id: q.id, name: q.name, pos: q.pos }, lineFor(r, seasonLine(q, L.year), !it.w, i === 0)); if (i === 0 && it.asg) l.pts = Math.round(l.pts * 0.68); return l; });   // you took the assignment: their star had a rough night
-    return { ours, theirs, quarters: quarters(st, it), story: null };
+    return { ours, theirs, quarters: quarters(st, it), story: null, out: oq ? oq.name : null, step: step ? { id: step.id, name: step.name, pts: step.pts } : null };
   }
   function quarters(st, it) {
     if (it.f == null || it.a == null) return null; const r = gameRng(st, it, 'q'), split = (tot, n) => { const w = Array.from({ length: n }, () => 0.8 + 0.4 * r()), s = w.reduce((a, b) => a + b, 0), out = w.map((x) => Math.round(tot * x / s)); out[n - 1] += tot - out.reduce((a, b) => a + b, 0); return out; };

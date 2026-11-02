@@ -1162,3 +1162,16 @@ League minutes leaders 34-35 mpg (one season, 228 qualifiers, no value shared by
 ## v118 — the 10th man
 
 The 10th man's soft cap drops from 10 to 7 (and the 11th-13th from 9/8/7 to 8/7/6, for rosters that carry an extra rookie). By roster spot the 10th man now plays 17.0 mpg (real 16.8; was 18.3); the 9th 21.9 (real 21.8); spots 1-8 unchanged. Points and the user untouched.
+
+## v119 — depth, a league that holds its level, smarter real data
+
+1. **Next man up.** Team strength (the four best players) now picks its four from the whole healthy roster, so an injured starter's place goes to the best bench player instead of an empty slot: deep teams survive injuries. 26/27 wins vs DARKO's projection: correlation 0.83 -> 0.88, rms gap 5.4 -> 4.4 wins (12 leagues). A flat bonus for bench quality on top (`depthW`) was tried and left off: it did not improve the match and cut the user's usage ~4% (180-career check).
+2. **The league holds its level.** The real players aged out and were replaced by the sim's own weak pipeline: by year 10 the 9th/10th men sat near 60 and team scoring fell 111 -> 97. Each offseason a team now waives rotation players who stalled below replacement level (69; at most one young project kept) and signs a veteran at that level (`replaceBench`, ~1.3 signings a team a year). Team scoring: 118 / 110 / 112 in years 1 / 5 / 10 (real ~115).
+3. **Injuries free minutes.** Besides next man up, the box score of a game a teammate misses gives his shots to the others, most to whoever steps into his spot, and the game card says so ("With X out, Y stepped up…").
+4. **Old stars.** For players 34+, the rating leans on the long production record (65%) over the early-season impact number. Kawhi Leonard stays ~94 because both say elite (27.9 ppg last season); his sim line declines 25.1 -> 22.5 over two years.
+5. **Archetypes.** Low-volume role players are no longer labelled 'scorer' by default: shooters / defenders / two-way by 3-point rate, boards, blocks and LEBRON's roles. Mix of the 360 table players: 131 shooters, 99 scorers, 64 defenders, 48 two-way, 15 dominators, 2 generational.
+6. **Every 2026 rookie.** 46 more 2026 draftees (picks 16-60 and undrafted) are rated by slot (74 - 4.1 ln(pick), fitted to the hand-rated top picks) with 30% of DARKO's read, ceilings by age; the order comes from Wikipedia's 2026 draft page. Second-rounders get no guaranteed minutes.
+7. **Trades after the export.** `fetch-wiki-rosters.py` (also saves the draft order) can be rerun any time; Wikipedia's current roster now decides each player's team when it disagrees with the DARKO export, so a trade shows up without a new DARKO file (DARKO is only needed for ratings).
+8. **12-man rosters.** Each team carries its 12 best (360 real players); the 11th man down (rookies included) has his line built from at most 9 minutes, so garbage time stays garbage time.
+
+Autopilot baseline 76.75 / 12.48 (60 careers; 180-career check 10.72 vs the old build's 10.88, within noise).

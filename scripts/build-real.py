@@ -30,7 +30,8 @@ spec = importlib.util.spec_from_file_location('rr', P('scripts/refresh-rosters.p
 norm, TEAMS = rr.norm, rr.TEAMS
 FULL2NICK = {v: k for k, v in TEAMS.items()}
 START = date(2026, 10, 20)
-PER_TEAM = 10
+PER_TEAM = 12                                    # ten-man rotation + two end-of-bench players (injury cover)
+import math
 
 base = json.load(open(P('data/real-roster-base.json')))
 po = json.load(open(P('data/perf-ovr.json')))
@@ -108,6 +109,8 @@ def wiki_of(key, nick):
 # the same person spelled differently by DARKO, Basketball-Reference and Wikipedia
 BB_ALIAS = {'nah shon hyland': 'bones hyland', 'egor demin': norm('Egor Dёmin'), 'david jones': 'david jones garcia'}
 WK_ALIAS = {'jakob poeltl': 'jakob poltl', 'yang hansen': 'hansen yang', 'david jones': 'david jones garcia'}
+DRAFT = [norm(x) for x in json.load(open(P('data/sources/draft-2026.json')))]   # Wikipedia "2026 NBA draft" order (fetch-wiki-rosters.py)
+DR25 = set(pd.read_csv(D + 'Draft Pick History.csv').query('season == 2025').player.map(norm))
 rook_keys = {norm(r[0]) for r in base['rookies']}
 cur = {norm(r['name']): r for r in base['rows']}
 
@@ -131,10 +134,14 @@ def suggest(r, off, de):
     if (tpar >= 0.5 and ts >= 0.57 and pts < 27) or (pts < 12 and off in ('Movement Shooter', 'Stationary Shooter', 'Off Screen Shooter', 'Stretch Big') and tpar >= 0.45): return 'shooter'
     if stocks >= 2.0 and pts >= 15: return 'twoway'
     if pts < 10 and stocks >= 1.6: return 'twoway'
+    if pts < 10:   # a low-volume role player is not a 'scorer': label him by what he does on the floor
+        if tpar >= 0.4 or off in ('Movement Shooter', 'Stationary Shooter', 'Off Screen Shooter', 'Stretch Big'): return 'shooter'
+        if reb >= 5 or r.blk_per_game >= 0.8 or de in ('Anchor Big', 'Mobile Big', 'Wing Stopper'): return 'defender'
+        return 'twoway'
     return 'scorer'
 
 
-players, miss_bb, miss_wiki = [], [], []
+players, miss_bb, miss_wiki, moved = [], [], [], []
 for _, r in dk.iterrows():
     nick = FULL2NICK.get(r.Team)
     if not nick: continue
@@ -146,6 +153,9 @@ for _, r in dk.iterrows():
         last = k.split()[-1]; c = bb[bb.key.str.endswith(' ' + last) & (bb.season >= 2025)]
         c = c[c.key.str[0] == k[0]]
         if c.key.nunique() == 1: rows = bb[bb.key == c.key.iloc[0]].sort_values('season', ascending=False)
+    hit = wk.get(WK_ALIAS.get(k, k))
+    if hit and nick not in [h[0] for h in hit]:                    # Wikipedia's roster is the fresher source for who plays where (trades after the DARKO export)
+        moved.append((r.Player, nick, hit[0][0])); nick, w = hit[0][0], hit[0][1]
     if w is None:
         last = k.split()[-1]; c = [(t, p) for kk, v in wk.items() if kk.endswith(' ' + last) for t, p in v if t == nick]
         if len(c) == 1: w = c[0][1]
@@ -179,13 +189,16 @@ for _, r in dk.iterrows():
     line = None if use is None else [int(use.season), int(use.g), float(use.mp_per_game), float(use.pts_per_game), float(use.trb_per_game), float(use.ast_per_game),
                                      float(use.stl_per_game), float(use.blk_per_game), float(use.tov_per_game),
                                      round(float(use.ts_percent), 3) if use.ts_percent == use.ts_percent else 0.55, round(float(use.usg_percent), 1) if use.usg_percent == use.usg_percent else 15.0]
+    # a 2026 rookie the hand-made table does not cover (late first round, second round, undrafted): rated by draft slot, see below
+    rook = k in DRAFT or (use is None and not len(rows) and age <= 23 and k not in DR25)
     if k in cur: arch, sec = cur[k]['arch'], cur[k]['sec']
     elif use is not None and int(use.g) >= 20: arch, sec = suggest(use, off, de), ''
     else: arch, sec = ('defender' if de in ('Anchor Big', 'Wing Stopper') else 'shooter' if isinstance(off, str) and 'Shooter' in off else 'scorer'), ''
     name = cur[k]['name'] if k in cur else r.Player
     ht = w.get('ht') if w else None; wt = w.get('wt') if w else None
     players.append(dict(team=nick, name=name, pos=pos, age=age, prod=prod, imp=imp_adj, dpm=r.DPM, leb=leb, mpg=mpg, arch=arch, sec=sec or '',
-                        line=line, ht=ht, wt=wt, yp=int(seasons_pro.get(bkey, 0)), was=cur[k]['ovr'] if k in cur else None, off=off, de=de))
+                        line=line, ht=ht, wt=wt, yp=int(seasons_pro.get(bkey, 0)), was=cur[k]['ovr'] if k in cur else None, off=off, de=de,
+                        rook=rook, slot=(DRAFT.index(k) + 1 if k in DRAFT else 61)))
 
 # impact rank against the same pool as production: last season's 40-game players
 ref = []
@@ -196,7 +209,14 @@ ref.sort(reverse=True); NREF = len(ref)
 for p in players:
     rank = 1 + sum(1 for v in ref if v > p['imp'])
     p['impo'] = ovr_at(rank / NREF * N_SIM)
-    p['ovr'] = round(max(50, min(98, p['impo'] if p['prod'] is None else 0.55 * p['impo'] + 0.45 * p['prod'])))
+    wi = 0.55 if p['age'] < 34 else 0.35     # 34+: an early-season impact number leans on few games; a long track record of production steadies it
+    p['ovr'] = round(max(50, min(98, p['impo'] if p['prod'] is None else wi * p['impo'] + (1 - wi) * p['prod'])))
+    if p['rook']:   # draft slot prior fitted to the hand-rated top picks (pick 1 ~74, 10 ~66, 30 ~60, 60 ~57) with 30% of what DARKO already sees
+        prior = 74 - 4.1 * math.log(p['slot'])
+        p['ovr'] = round(0.7 * prior + 0.3 * p['impo'])
+        p['ceil'] = min(95, p['ovr'] + (16 if p['age'] <= 19 else 14 if p['age'] == 20 else 12 if p['age'] == 21 else 9 if p['age'] == 22 else 6))
+new_rook = [p for p in players if p['rook']]
+players = [p for p in players if not p['rook']]
 
 by_team = {}
 for p in players: by_team.setdefault(p['team'], []).append(p)
@@ -208,6 +228,8 @@ for t in TEAMS:
 # ---------------------------------------------------------------- report
 print('impact pool %d (40-game players of 2025-26), sim pool %d, darko players %d, kept %d' % (NREF, N_SIM, len(players), len(keep)))
 print('no Basketball-Reference line: %d %s' % (len(miss_bb), miss_bb[:20]))
+print('team from Wikipedia (moved since the DARKO export): %d %s' % (len(moved), moved[:12]))
+print('extra 2026 rookies rated by slot: %d %s' % (len(new_rook), [(p['name'], p['slot'], p['ovr'], p['ceil']) for p in sorted(new_rook, key=lambda p: p['slot'])][:12]))
 print('no Wikipedia match (age/size fallback): %d %s' % (len(miss_wiki), miss_wiki[:20]))
 print('\n%-26s %-5s %3s %-10s %5s %5s %5s %5s %4s   line' % ('player', 'team', 'age', 'arch', 'DPM', 'LEB', 'imp', 'prod', 'ovr'))
 for p in sorted(keep, key=lambda p: -p['ovr'])[:60]:
@@ -224,13 +246,14 @@ for f in ('east', 'west'):
 js = lambda v: json.dumps(v, ensure_ascii=False)
 out = ["(function (g) {", "  'use strict';",
        "  // Real league for the 2026-27 season (rosters as of 2 Nov 2026). GENERATED by scripts/build-real.py: do not edit by hand.",
-       "  // Every team's ten best players. Ratings: 55% real impact (DARKO DPM + LEBRON) and 45% real box-score production, ranked and put on the sim's scale.",
+       "  // Every team's twelve best players (the ten-man rotation and two end-of-bench players); the 2026 rookies are in ROOKIES. Ratings: 55% real impact (DARKO DPM + LEBRON) and 45% real box-score production, ranked and put on the sim's scale.",
        "  // Row: [name, pos, age, overall, archetype, secondary, lastSeasonLine, seasonsPro]  lastSeasonLine = [season, g, mpg, pts, reb, ast, stl, blk, tov, ts, usg%]",
        "  const TEAMS = {"]
 for t in TEAMS:
     out.append("    %s: [%s]," % (js(t), ', '.join(js([p['name'], p['pos'], p['age'], p['ovr'], p['arch'], p['sec'], p['line'], p['yp']]) for p in by_team[t])))
 out += ["  };", "", "  // 2026 draft class: [name, team, pos, age, overall, ceiling, archetype, secondary, pick]", "  const ROOKIES = ["]
 out += ["    %s," % js(r) for r in base['rookies']]
+out += ["    %s," % js([p['name'], p['team'], p['pos'], p['age'], p['ovr'], p['ceil'], p['arch'], p['sec'], p['slot']]) for p in sorted(new_rook, key=lambda p: p['slot'])]
 out += ["  ];", "", "  // real 2025-26 records (roster continuity) and DARKO's projected 2026-27 wins (2 Nov 2026)",
         "  const WINS = %s;" % js(base['wins']), "  const PROJ = %s;" % js(proj), "",
         "  g.NBA.real = { TEAMS, ROOKIES, WINS, PROJ, asOf: '2026-11-02' };",
@@ -244,6 +267,8 @@ sizes = {}
 for p in keep:
     if p['ht'] and p['wt']: sizes[p['name']] = [p['ht'], p['wt']]
     elif norm(p['name']) in cm.index: sizes[p['name']] = [int(cm.loc[norm(p['name'])].ht_in_in), int(cm.loc[norm(p['name'])].wt)]
+for p in new_rook:
+    if p['ht'] and p['wt']: sizes[p['name']] = [p['ht'], p['wt']]
 for r in base['rookies']:
     w = wiki_of(norm(r[0]), r[1])
     if w and w.get('ht') and w.get('wt'): sizes[r[0]] = [w['ht'], w['wt']]

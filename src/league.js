@@ -68,7 +68,7 @@
   }
   // Each team has a core (its four best players, who drive winning) and a bench (6-8 more who play real minutes).
   function makeBench(L, t) {
-    const p = makeNPC(L, rint(21, 32), { ceiling: 54 + 13 * Math.pow(rand(), 1.3), bonus: 0 });
+    const p = makeNPC(L, rint(21, 32), { ceiling: (T.benchCeil0 || 54) + (T.benchCeilR || 13) * Math.pow(rand(), 1.3), bonus: 0 });
     p.teamId = t.id; L.players[p.id] = p; t.bench.push(p.id);
   }
   function fillRoster(L, t) {
@@ -80,13 +80,25 @@
       const p = makeNPC(L, rint(23, 30), { ceiling: 67 + rand() * 9, bonus: 0 });
       p.teamId = t.id; L.players[p.id] = p; t.core.push(p.id);
     }
-    while (t.bench.length < 4) makeBench(L, t);
-    while (t.bench.length > 6) {
+    while (t.bench.length < (T.benchMin || 4)) makeBench(L, t);
+    while (t.bench.length > (T.benchMax || 6)) {
       const worst = t.bench.map((id) => L.players[id]).sort((a, b) => ovr(a) - ovr(b))[0];
       t.bench.splice(t.bench.indexOf(worst.id), 1); delete L.players[worst.id];
     }
   }
   const fillCore = fillRoster;
+  // replacement level: a real front office does not carry a 26-year-old who has stalled well below the league's minimum-contract veterans; it waives
+  // him and signs one of those veterans (real: the 9th/10th men are ~70-rated in our scale, the sim's own pipeline left them near 58 by year 5)
+  function replaceBench(L, t) {
+    const low = (t.bench || []).map((id) => L.players[id]).filter((q) => q && !q.rookie).sort((a, b) => ovr(b) - ovr(a)).slice(0, 6).filter((q) => ovr(q) < T.replLevel);   // the rotation only: the 11th and 12th men are end-of-bench by design
+    const keep = low.filter((q) => q.age < 25 && q.yearsPro < 4).sort((a, b) => b.ceiling - a.ceiling).slice(0, T.replYoung != null ? T.replYoung : 2);   // two development projects at most
+    low.filter((q) => !keep.includes(q)).forEach((q) => {
+      t.bench = t.bench.filter((id) => id !== q.id); delete L.players[q.id];
+      const goal = T.replLevel + (T.replRange || 5) * rand(), p = makeNPC(L, rint(25, 31), { ceiling: goal + 1, bonus: 0 });
+      for (let i = 0; i < 4; i++) { const d = (goal - ovr(p)) / T.ovrStretch; ATTRS.forEach((a) => (p.attrs[a] = clamp(p.attrs[a] + d, 8, 99))); }   // a veteran is what he is: put him at his level (as makeReal does)
+      p.teamId = t.id; p.since = L.year; L.players[p.id] = p; t.bench.push(p.id);
+    });
+  }
 
   function newLeague(startYear, opts) {
     const L = {
@@ -291,8 +303,8 @@
     if (user) avail.user = user.avail;
     // team strength
     L.teams.forEach((t) => {
-      const roster = teamRoster(L, t, user);
-      const vals = roster.map((p) => {
+      const roster = teamRoster(L, t, user), bench = T.nextUp || T.depthW ? (t.bench || []).map((id) => L.players[id]).filter((q) => q && !q.rookie) : [];
+      const val = (p) => {
         const gp = p === (user && user.p) ? user.avail.gp : avail[p.id].gp;
         // team impact the rating misses: near their peaks, real box-score dominators' teams won 47 (scorers' 43, gens' 54) while the ratings under-credit
         // all-round production (scripts/ovr-equalize.js), so archetypes carry a fitted impact term (realism test: 'team wins near peak')
@@ -300,8 +312,12 @@
         // young players have a smaller impact on winning than their rating suggests
         const expF = 0.85 + 0.05 * Math.min(3, p.yearsPro || 0);
         return (x <= 20 ? x : 20 + (x - 20) * T.starWinK) * (gp / 82) * expF;
-      }).sort((x, y) => y - x).slice(0, 4);
-      t.S = sum(vals);
+      };
+      if (T.nextUp || T.depthW) { roster.push(...bench); bench.length = 0; roster.sort((a, b) => val(b) - val(a)); bench.push(...roster.splice(4)); }   // an injured starter's place in the top four goes to the next man up: a deep team survives injuries (the DARKO match rises 0.83 -> 0.86).
+      // A flat bonus for depth on top (depthW) made the sim's own projections no better and cut the user's usage ~4% (his ball goes to deeper rosters), so it stays off
+      const vals = roster.map(val).sort((x, y) => y - x).slice(0, 4), dv = bench.map(val).sort((x, y) => y - x).slice(0, 4);
+      // the core four drive winning; the bench's best four are depth (back-to-backs, foul trouble, matchups) and count for a fraction
+      t.S = sum(vals) + (T.depthW || 0) * sum(dv.map((v) => Math.max(0, v)));
       t.pace = 99 + randn() * 1.4;
     });
     const meanS = sum(L.teams.map((t) => t.S)) / L.teams.length;
@@ -333,10 +349,12 @@
     // everyone else
     L.anchorSalt = Math.round(L.teams.reduce((a, t) => a + (t.pace || 0) * 1000 + (t.wins || 0), 0));
     const lines = {};
+    // the end of the bench (11th man down, rookies included) plays garbage time: cap the minutes the line is built from, so the production shrinks with them
+    const deep = {}; if (T.deepMins) L.teams.forEach((t) => { allPlayers.filter((q) => q.teamId === t.id).sort((a, b) => ovr(b) - ovr(a)).forEach((q, i) => { if (i >= 10) deep[q.id] = T.deepMins; }); });
     allPlayers.forEach((p) => {
       const t = L.teams[p.teamId];
       const roster = teamRoster(L, t, user);
-      const e = expLine(p, { coTax: coTaxFor(p, roster), fr: franchiseFor(p, roster), tsAdj: gravityFor(p, roster), wins: t.wins, pace: t.pace, rookie: p.rookie, minsFloor: p.rookie ? NBA.rookieFloor(p.draftSlot) : 0 });
+      const e = expLine(p, { coTax: coTaxFor(p, roster), fr: franchiseFor(p, roster), tsAdj: gravityFor(p, roster), wins: t.wins, pace: t.pace, rookie: p.rookie, minsFloor: p.rookie && !(p.draftSlot > 30) && !deep[p.id] ? NBA.rookieFloor(p.draftSlot) : 0, minsMax: deep[p.id] || 0 });
       const l = lineFromExp(p, e, avail[p.id].gp); if (p.rl) realAnchor(L, p, l);
       l.id = p.id; l.teamId = p.teamId; l.wins = t.wins;
       lines[p.id] = l;
@@ -747,7 +765,7 @@
       p.rookie = false;
       const t = L.teams[p.teamId];
       t.bench = t.bench || [];
-      if (!t.core.includes(p.id) && !t.bench.includes(p.id)) t.bench.push(p.id);
+      if (!t.core.includes(p.id) && !t.bench.includes(p.id)) t.bench.push(p.id); NBA._replOvr = (NBA._replOvr || []).concat([ovr(p)]);
     });
   }
 
@@ -861,6 +879,7 @@
     settleRookies(L);
     freeAgency(L);
     marketTrades(L, 5, 'offseason');
+    if (T.replLevel) L.teams.forEach((t) => replaceBench(L, t));
     L.teams.forEach((t) => fillCore(L, t));
     if (opts.draft !== false) npcDraft(L);
     L.year++; if (NBA.Picks) NBA.Picks.ensure(L);
