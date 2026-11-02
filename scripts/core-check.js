@@ -37,8 +37,11 @@ for (let i = 0; i < 6; i++) { N.setSeed(9100 + i); const st = G.newCareer({ name
 console.log(JSON.stringify(R));
 if (R.bad || !R.seasons || !R.built || !R.summers) { console.log('FAILED'); process.exit(1); } console.log('core OK');
 // team status drives the front office: a franchise player on a weak team is heard, a contender is not
-{ N.setSeed(77); const st = G.newCareer({ name: 'fo', pos: 'SF', arch: 'generational', stars: 5 }); let done = false;
-  try { G.auto(st, { onDecision: (s) => { if (s.proSeasons.length >= 4) throw 'stop'; } }); } catch (e) { if (e !== 'stop') throw e; }
+{ let st = null;   // a career where the player is his team's franchise player after four seasons (which career that is depends on the league's rosters)
+  for (let sd = 77; sd < 97 && !st; sd++) { N.setSeed(sd); const s0 = G.newCareer({ name: 'fo', pos: 'SF', arch: 'generational', stars: 5 });
+    try { G.auto(s0, { onDecision: (s) => { if (s.proSeasons.length >= 4) throw 'stop'; } }); } catch (e) { if (e !== 'stop') throw e; }
+    if (s0.teamId != null && C.teamStatus(s0).franchise) st = s0; }
+  if (!st) { console.log('FAILED fo: no franchise career in 20 seeds'); process.exit(1); }
   const c = JSON.parse(JSON.stringify(st)); c.autoPlay = false; const t = c.league.teams[c.teamId], conf = c.league.teams.filter((x) => x.conf === t.conf);
   conf.forEach((x) => { if (x.id !== t.id) x.wins = 45; }); t.wins = 22; c.proSeasons.forEach((x) => { if (x.teamId === t.id) x.wins = 24; }); const weak = C.teamStatus(c);
   t.wins = 62; c.proSeasons.forEach((x) => { if (x.teamId === t.id) x.wins = 60; }); c.dec.flags.confRank = {}; const cont = C.teamStatus(c);

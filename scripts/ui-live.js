@@ -71,6 +71,6 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   // ---- 4. hurt: the season screen says so
   await page.evaluate(() => { const S = window.__NBA_UI.state, L = S.matchLog; let i = L.findIndex((x, k) => k > S.matchIdx + 1 && x.k === 'g' && !x.po && !x.dnp && !x.cl); S.liveMode = false; S.matchIdx = i; for (let k = i; k < i + 4; k++) { if (L[k].k === 'g') { L[k].dnp = 'Missed 4 games with injuries.'; L[k].ib = 1; } } S.dec.pending = null; L[i].pc = 0; window.__NBA_UI.render(); });
   await page.waitForSelector('text=You are hurt');
-  { const t = await page.evaluate(() => document.querySelector('.callout.inj').textContent); ck('INJURY banner on the season screen', /hurt: a lingering injury/.test(t) && /Out \d+ more game/.test(t) && /Back for game/.test(t), { t }); }
+  { const t = await page.evaluate(() => document.querySelector('.callout.inj').textContent); ck('INJURY banner on the season screen', /You are hurt: /.test(t) && /Out \d+ more game/.test(t) && /(Back for game|rest of the regular season)/.test(t), { t }); }   // the career may already carry a real injury: then the banner names it
   console.log('errors:', errors.length ? errors : 'none'); await browser.close(); process.exit(errors.length ? 1 : 0);
 })();
