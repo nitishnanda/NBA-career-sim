@@ -9,6 +9,8 @@
     "elite": "node scripts/elite.js",
     "league": "node scripts/league-check.js",
     "scoring": "node scripts/scoring-check.js",
-    "stars": "node scripts/bystars.js"
+    "stars": "node scripts/bystars.js",
+    "test": "bash scripts/test-all.sh",
+    "test:saves": "bash scripts/test-all.sh --saves"
   }
 }

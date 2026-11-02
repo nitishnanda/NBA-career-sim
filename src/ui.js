@@ -28,7 +28,28 @@
   const ord = (n) => { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
   const money = (m) => '$' + (m >= 100 ? Math.round(m) : m.toFixed(1)) + 'M';
   const stars = (n, off) => h('div', { class: 'stars' }, '★'.repeat(n), off ? h('span', { class: 'off' }, '★'.repeat(5 - n)) : '');
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* storage may be unavailable */ } }
+  // a save that fails (the browser's storage is full) must not fail silently: a banner says so, and clears itself when a save works again
+  let saveErr = null;
+  function paintSaveWarn() {
+    let el = document.getElementById('savewarn');
+    if (!saveErr) { if (el) el.remove(); return; }
+    if (!el) { el = document.createElement('div'); el.id = 'savewarn'; el.className = 'callout inj'; el.style.cssText = 'margin:8px 12px;position:relative;z-index:5'; (document.getElementById('app') || document.body).before(el); }
+    el.textContent = '';
+    el.append(h('b', null, '⚠ Your progress is not being saved: '), 'the browser says its storage is full. Free some space (Career page → Save slots, delete a slot) or clear the replay cache. ',
+      h('button', { class: 'tiny', onclick: () => { try { localStorage.removeItem(SNAPKEY); } catch (e) { /* ignore */ } G.setSnap(null); save(); } }, 'Clear the replay cache and retry'));
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); if (saveErr) { saveErr = null; paintSaveWarn(); } } catch (e) { saveErr = e; paintSaveWarn(); } }
+  const storageUsed = () => { try { let n = 0; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); n += (k || '').length + (localStorage.getItem(k) || '').length; } return n; } catch (e) { return 0; } };
+  // saves carry a version; loading one fills in anything a newer build expects (old saves from v85 on were checked: scripts/save-compat.js)
+  const SAVE_V = 112;
+  function migrateSave(st) {
+    if (!st || typeof st !== 'object') return st;
+    st.dec = st.dec || {}; st.dec.flags = st.dec.flags || {}; st.dec.journal = st.dec.journal || []; st.dec.rel = st.dec.rel || {};
+    if (st.league) { st.league.moves = st.league.moves || []; }
+    st.proSeasons = st.proSeasons || []; st.playoffLines = st.playoffLines || []; st.collegeYears = st.collegeYears || [];
+    if (st.career) { st.career.awards = st.career.awards || {}; }
+    st.sv = SAVE_V; return st;
+  }
   function load() { try { const r = localStorage.getItem(KEY); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
   const SNAPKEY = 'nba-career-sim-snap-v1';
   function saveSnap() { try { localStorage.setItem(SNAPKEY, G.getSnap() || ''); } catch (e) { /* too big or blocked: mid-season plan changes just stay off */ } }
@@ -131,7 +152,7 @@
     return h('div', null,
       h('h1', null, 'Build your NBA legend'),
       h('p', { class: 'muted' }, 'Pick a name, position, archetype and where you grew up (the US, the UK or a European country). Scouts will rate you, you choose a college or a club, then it is draft night. Stats are tuned to the real NBA: nobody averages 35 for a decade.'),
-      saved && saved.stage !== 'create' ? h('div', { class: 'callout row' }, h('span', null, 'Saved career found: ', h('b', null, saved.player.name), ' (' + saved.stage.replace(/_/g, ' ') + ')'), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => { S = saved; if (S.player && S.player.ht == null) NBA.rollSize(S.player, { sizeFx: false }); if (S.stage === 'season_play') loadSnap(); render(); } }, 'Continue')) : null,
+      saved && saved.stage !== 'create' ? h('div', { class: 'callout row' }, h('span', null, 'Saved career found: ', h('b', null, saved.player.name), ' (' + saved.stage.replace(/_/g, ' ') + ')'), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => { S = migrateSave(saved); if (S.player && S.player.ht == null) NBA.rollSize(S.player, { sizeFx: false }); if (S.stage === 'season_play') loadSnap(); render(); } }, 'Continue')) : null,
       h('div', { class: 'card' }, h('h2', null, '1. Who are you?'), h('div', { class: 'grid g2' }, h('div', null, h('label', { class: 'small muted' }, 'Name'), nameIn), h('div', null, h('label', { class: 'small muted' }, 'Where are you from?'), h('select', { onchange: (e) => { draft.origin = e.target.value; render(); } }, h('option', { value: '', selected: !draft.origin }, '🇺🇸 United States (high school → college)'), NBA.Intl.ORDER.map((k) => h('option', { value: k, selected: draft.origin === k }, NBA.Intl.COUNTRIES[k].flag + ' ' + NBA.Intl.COUNTRIES[k].name + ' (club basketball → EuroLeague)'))), draft.origin ? h('p', { class: 'small muted', style: 'margin:6px 0 0' }, NBA.Intl.COUNTRIES[draft.origin].blurb) : h('select', { style: 'margin-top:6px', onchange: (e) => (draft.home = e.target.value) }, stateOptions))),
         h('h3', null, 'Family background'), h('select', { onchange: (e) => { draft.family = e.target.value; render(); } }, [['random', '🎲 Random (most families are not rich)'], ['wealthy', 'Wealthy'], ['comfortable', 'Comfortable'], ['working', 'Working class'], ['poor', 'Poor']].map(([k, l]) => h('option', { value: k, selected: (draft.family || 'random') === k }, l))), h('p', { class: 'small muted', style: 'margin:6px 0 0' }, draft.family && draft.family !== 'random' ? G.FAMILY[draft.family].blurb + (draft.family === 'poor' || draft.family === 'working' ? ' The very best (4-5 star) prospects get need-based full scholarships.' : '') : 'Money decides who can pay for prep school, a walk-on spot, an academy abroad or the move to the US. The very best prospects from poor and working-class families get need-based scholarships.'),
         h('h3', null, 'Position'), h('div', { class: 'row' }, Object.keys(D.POSITIONS).map((p) => h('button', { class: draft.pos === p ? 'primary' : '', onclick: () => { draft.pos = p; draft.ht = null; draft.wd = 0; draft.wsd = 0; draft.roll = null; render(); } }, p))),
@@ -668,6 +689,10 @@
     return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '📥'), h('h2', null, 'Inbox'), h('span', { class: 'spacer' }), h('label', { class: 'small muted' }, h('input', { type: 'checkbox', checked: S.inboxMode !== false, onchange: (e) => { S.inboxMode = e.target.checked; save(); render(); } }), ' Quiet mode (small news waits here)')),
       box.length ? box.slice().reverse().map((x) => { const c = x.pd.ctx || {}, who = c.who ? c.who.name : c.star ? c.star.name : c.show || ''; return h('div', { class: 'row small', style: 'margin:4px 0' }, h('span', null, lbl[x.pd.id] + (who ? ': ' + who : '')), h('span', { class: 'spacer' }), h('span', { class: 'muted' }, (S.matchIdx - x.at) + ' games ago '), h('button', { class: 'tiny', onclick: () => { if (S.dec.pending) return; S.inbox = S.inbox.filter((y) => y !== x); S.dec.pending = x.pd; save(); render(); } }, 'Open')); }) : h('p', { class: 'small muted' }, S.inboxMode !== false ? 'Nothing waiting. Small news lands here (it expires after 8 games).' : 'Quiet mode is off: news pops up as it happens.'));
   }
+  // every game-level hold the season can stop for, in one place (tests silence them all with __NBA_UI.silence; add a new pop-up's flag here)
+  const HOLD_TIMED = [['benched', 25], ['rumor', 38], ['alpha', 41], ['buyout', 58]], HOLD_GAME = ['mateinj', 'rookiewall', 'assignment'], HOLD_MATE = [20, 62];
+  const HOLD_FLAGS = ['pd', 'ppd', 'sd', 'md', 'pcast', 'sij', 'cd', 'smd', 'ad', 'recap', 'bk'].concat(HOLD_TIMED.map((x) => 'h_' + x[0]), HOLD_GAME.map((x) => 'h_' + x), HOLD_MATE.map((n) => 'h_me' + n));
+  function silence(st, upTo, keep) { (st.matchLog || []).forEach((x, i) => { if (upTo == null || i < upTo) HOLD_FLAGS.forEach((f) => { if (!keep || keep.indexOf(f) < 0) x[f] = 1; }); }); st.noSocial = true; return st; }   // flags only: a decision that is already pending stays pending
   const holdAt = () => {
     if (!S.matchLog) return false;
     const Dc = NBA.Decisions, pend = (id) => S.dec && S.dec.pending && S.dec.pending.id === id;
@@ -752,17 +777,17 @@
         if (!pend('seriesmoment') && !Dc.offer(S, 'seriesmoment')) it.smd = 1;
         if (pend('seriesmoment')) { if (S.autoDec) { Dc.autoResolve(S); it.smd = 1; save(); return holdAt(); } return true; }
       }
-      for (const n of [20, 62]) {   // a moment with a teammate (his personality, his contract)
+      for (const n of HOLD_MATE) {   // a moment with a teammate (his personality, his contract)
         const fk = 'h_me' + n; if (S.autoPlay || it.po || it.n !== n || it[fk] || it.dnp) continue;
         if (!pend('mateevent') && !Dc.offer(S, 'mateevent')) { it[fk] = 1; continue; }
         if (pend('mateevent')) { if (S.autoDec) { Dc.autoResolve(S); it[fk] = 1; save(); return holdAt(); } return true; }
       }
-      for (const id of ['mateinj', 'rookiewall', 'assignment']) {   // a co-star's injury, the rookie wall, the defensive assignment before a big game
+      for (const id of HOLD_GAME) {   // a co-star's injury, the rookie wall, the defensive assignment before a big game
         const fk = 'h_' + id; if (S.autoPlay || it.po || it[fk] || it.dnp) continue;
         if (!pend(id) && !Dc.offer(S, id)) { it[fk] = 1; continue; }
         if (pend(id)) { if (S.autoDec) { Dc.autoResolve(S); it[fk] = 1; save(); return holdAt(); } return true; }
       }
-      for (const [id, n] of [['benched', 25], ['rumor', 38], ['alpha', 41], ['buyout', 58]]) {   // the co-star question, a coach cutting your minutes, trade rumors, the buyout market
+      for (const [id, n] of HOLD_TIMED) {   // the co-star question, a coach cutting your minutes, trade rumors, the buyout market
         const fk = 'h_' + id; if (S.autoPlay || it.po || it.n !== n || it[fk]) continue;
         if (!pend(id) && !Dc.offer(S, id)) { it[fk] = 1; continue; }
         if (pend(id)) { if (S.autoDec) { Dc.autoResolve(S); it[fk] = 1; save(); return holdAt(); } return true; }
@@ -1113,7 +1138,7 @@
   function leaguePayrolls() {
     const C = NBA.Cap, rows = S.league.teams.map((t) => Object.assign({ t }, C.finance(S, t))).sort((a, b) => b.payroll - a.payroll);
     return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🏦'), h('h2', null, 'Payrolls around the league')),
-      h('table', { class: 'lvq capsheet' }, h('tr', null, ['Team', 'Payroll', 'Status', 'Room / tax'].map((c) => h('th', null, c))), rows.map((r) => h('tr', { class: r.t.id === S.teamId ? 'me' : '' }, h('td', { style: 'text-align:left' }, r.t.name), h('td', null, money(r.payroll)), h('td', null, r.status), h('td', null, r.space ? money(r.space) + ' room' : r.taxBill ? money(r.taxBill) + ' tax' : '–')))));
+      h('div', { class: 'scroll' }, h('table', { class: 'lvq capsheet' }, h('tr', null, ['Team', 'Payroll', 'Status', 'Room / tax'].map((c) => h('th', null, c))), rows.map((r) => h('tr', { class: r.t.id === S.teamId ? 'me' : '' }, h('td', { style: 'text-align:left' }, r.t.name), h('td', null, money(r.payroll)), h('td', null, r.status), h('td', null, r.space ? money(r.space) + ' room' : r.taxBill ? money(r.taxBill) + ' tax' : '–'))))));
   }
   function carousel() {
     const log = (S.dec && S.dec.flags.coachLog || []).slice(-16).reverse(); if (!log.length) return null;
@@ -1461,6 +1486,7 @@
         d ? confirmBtn('Load', 'tiny', () => { const st = slotGet(i); if (st) { S = st; dropSnap(); save(); go(); } }) : null, d ? h('button', { class: 'tiny', onclick: () => { slotCmp = slotCmp === i ? null : i; render(); } }, slotCmp === i ? 'Hide compare' : 'Compare') : null)),
       cmp && me ? h('table', { class: 'small', style: 'margin-top:8px;border-collapse:collapse' }, h('tr', null, h('th', null, ''), h('th', { style: 'padding:0 10px' }, me.name + ' (now)'), h('th', { style: 'padding:0 10px' }, cmp.name + ' (slot ' + slotCmp + ')')),
         keys.map(([k, l]) => { const a = me[k], b = cmp[k], na = parseFloat(a), nb = parseFloat(b), win = isFinite(na) && isFinite(nb) ? (na > nb ? 0 : nb > na ? 1 : -1) : -1; return h('tr', null, h('td', null, l), h('td', { style: 'padding:0 10px;text-align:center', class: win === 0 ? 'pos' : '' }, String(a)), h('td', { style: 'padding:0 10px;text-align:center', class: win === 1 ? 'pos' : '' }, String(b))); })) : null,
+      h('p', { class: 'small' + (storageUsed() > 3.6e6 ? ' neg' : ' muted') }, 'Browser storage in use: ' + (storageUsed() / 1e6).toFixed(1) + ' MB of about 5 MB (each career save is 1 to 1.5 MB, and the mid-season replay copy is about the same).' + (storageUsed() > 3.6e6 ? ' You are close to the limit: delete a slot you no longer need.' : '')),
       h('p', { class: 'small muted' }, 'Slots live in this browser. Loading a slot replaces the current career (save it first if you want to keep it). A mid-season load starts that season from where it was saved, without mid-season moves.'));
   }
   function classCard() {
@@ -2249,6 +2275,6 @@
     document.body.classList.toggle('dlg-open', !!app.querySelector('.dlg-back'));
   }
   function boot() { S = null; draft.name = ''; render(); }
-  window.__NBA_UI = { get state() { return S; }, set state(v) { S = v; }, get live() { return LV; }, go, render, saveSnap };
+  window.__NBA_UI = { get state() { return S; }, set state(v) { S = v; }, get live() { return LV; }, go, render, saveSnap, silence, HOLD_FLAGS };
   boot();
 })();

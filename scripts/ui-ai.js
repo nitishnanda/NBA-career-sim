@@ -45,19 +45,21 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   await page.waitForSelector('button:text-matches("Play the game|Back to the season", "i")', { timeout: 8000 }); await page.waitForTimeout(900);
   const res = await page.evaluate(() => document.body.textContent);
   const okR = /MOCKREACT/.test(res) && /MOCKHEAD/.test(res) && /MOCKFAN one/.test(res); console.log('AI reaction', okR ? 'OK' : 'MISMATCH'); if (!okR) errors.push('reaction missing');
+  // the pop-ups under test are chance events: make the "does it happen tonight" roll certain (the test is about what they show, not how often)
+  await page.evaluate(() => { const Dc = window.NBA.Decisions, orig = Dc.rng; Dc.rng = function (st, k) { return /^(mention|podcast)\|/.test(k) ? (() => 0.0005) : orig.apply(this, arguments); }; });
   // "in the news": force a mention pop-up
   await page.evaluate(() => { const U = window.__NBA_UI, st = U.state; st.dec.pending = null; st.decResult = null; const Dc = window.NBA.Decisions; const items = st.matchLog; let i = 1; st.autoDec = false; st.inboxMode = false;
     for (; i < items.length; i++) { if (items[i].k !== 'g' || items[i].dnp) continue; { const nx = items[i + 1]; if (!nx || nx.k !== 'g' || nx.dnp || nx.inj || nx.pc || nx.cl || nx.po || nx.n === 12 || nx.n === 48 || nx.n < 5) continue; } st.matchIdx = i + 1; st.dec.flags.mn = { y: st.league.year, n: 0 }; items[i].pcast = 1; const pr = st.dec.flags.pr || (st.dec.flags.pr = { quotes: [], tally: [], feuds: {}, heads: [], rep: {} }); pr.feuds[items[i].o] = { star: 'Test Star', level: 1, y: st.league.year, quote: 'x', seen: 0 }; if (Dc.offer(st, 'mention')) break; }
     U.go(); });
-  await page.waitForTimeout(800);
+  await page.waitForFunction((re) => new RegExp(re).test(document.body.textContent), 'MOCKMENTION', { timeout: 10000 }).catch(() => {});
   const mn = await page.evaluate(() => document.body.textContent);
   const okM = /In the news/.test(mn) && /MOCKMENTION/.test(mn) && /MOCKC clap line/.test(mn); console.log('AI mention', okM ? 'OK' : 'MISMATCH'); if (!okM) errors.push('mention ' + mn.slice(0, 300));
   await page.evaluate(() => { Array.from(document.querySelectorAll('.wkcard button')).find((b) => true).click(); }); await page.waitForTimeout(500);
   const mr = await page.evaluate(() => document.body.textContent); const okR2 = /MOCKMHEAD/.test(mr) && /MOCKMFAN a/.test(mr); console.log('AI mention result', okR2 ? 'OK' : 'MISMATCH'); if (!okR2) errors.push('mention result ' + mr.slice(0, 300));
   await page.evaluate(() => { const U = window.__NBA_UI, st = U.state; st.dec.pending = null; st.decResult = null; st.inboxMode = false; const Dc = window.NBA.Decisions; const items = st.matchLog; let i = 1;
     for (; i < items.length; i++) { if (items[i].k !== 'g' || items[i].dnp) continue; { const nx = items[i + 1]; if (!nx || nx.k !== 'g' || nx.dnp || nx.inj || nx.pc || nx.cl || nx.po || nx.n === 12 || nx.n === 48 || nx.n < 5) continue; } st.matchIdx = i + 1; st.dec.flags.pod = { y: st.league.year, n: 0 }; items[i].md = 1; delete items[i].pcast; st.dec.flags.pr.feuds[items[i].o] = { star: 'Test Star', level: 1, y: st.league.year, quote: 'x', seen: 0 }; if (Dc.offer(st, 'podcast')) break; }
-    window.__dbg = { pend: st.dec.pending && st.dec.pending.id, mi: st.matchIdx, dr: !!st.decResult }; U.go(); });
-  await page.waitForTimeout(800);
+    window.__dbg = { rolls: items.slice(3, 9).map((x) => [x.n, Math.round(Dc.rng(st, 'podcast|' + st.league.year + '|' + (x.po ? 'p' : 'r') + x.n + (x.rnd || ''))() * 1000) / 1000]), feud: JSON.stringify(Object.keys(st.dec.flags.pr.feuds)), pend: st.dec.pending && st.dec.pending.id, mi: st.matchIdx, len: items.length, i, n: items[Math.min(i, items.length - 1)].n, po: !!items[Math.min(i, items.length - 1)].po, pod: st.dec.flags.pod, auto: st.autoPlay, noSocial: st.noSocial }; U.go(); });
+  await page.waitForFunction(() => /MOCKPOD/.test(document.body.textContent), null, { timeout: 10000 }).catch(() => {});
   console.log('DBG', JSON.stringify(await page.evaluate(() => window.__dbg)));
   const pod = await page.evaluate(() => document.body.textContent); const okP = /Fan podcast/.test(pod) && /MOCKPOD/.test(pod) && /MOCKPU unfiltered/.test(pod); console.log('AI podcast', okP ? 'OK' : 'MISMATCH'); if (!okP) errors.push('podcast ' + pod.slice(0, 300));
   await page.evaluate(() => { Array.from(document.querySelectorAll('.wkcard button'))[2].click(); }); await page.waitForTimeout(500);

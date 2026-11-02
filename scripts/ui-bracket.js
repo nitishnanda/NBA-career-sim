@@ -22,7 +22,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   });
   console.log('situations found:', found.join(', '));
   ok('found a direct playoff team and a team that missed', found.includes('direct') && found.includes('missed'), found);
-  const load = async (kind, where) => page.evaluate(([k, w]) => { const st = JSON.parse(window.__found[k]); st.autoPlay = false; st.autoDec = false; st.noSocial = true; st.dec.pending = null; st.decResult = null; st.stage = 'season_play'; st.matchLog.forEach((x) => { x.pd = x.ppd = x.sd = x.md = x.pcast = x.sij = x.cd = x.smd = x.rs = 1; delete x.bk; });
+  const load = async (kind, where) => page.evaluate(([k, w]) => { const st = JSON.parse(window.__found[k]); st.autoPlay = false; st.autoDec = false; st.noSocial = true; st.dec.pending = null; st.decResult = null; st.stage = 'season_play'; window.__NBA_UI.silence(st, null, ['bk']);
     const items = st.matchLog; const end = items.findIndex((x) => x.k === 'hdr' && /^Regular season complete/.test(x.text)), first = items.findIndex((x) => x.k === 'hdr' && x.ps === 0);
     st.dlDone = true; st.poPlans = { 0: 'balanced', 1: 'balanced', 2: 'balanced', 3: 'balanced' }; st.poPress = { 0: null, 1: null, 2: null, 3: null }; st.dec.flags.injChoice = { y: st.league.year };
     st.matchIdx = w === 'end' ? end : first; window.__NBA_UI.state = st; window.__NBA_UI.go(); return { end, first, len: items.length }; }, [kind, where]);

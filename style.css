@@ -333,3 +333,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
 
 .busyov { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.5); z-index: 9999; } .busyov .card { max-width: 340px; text-align: center; }
 .locked { opacity: .6; } .opt.locked { cursor: not-allowed; }
+
+/* phones: any wide data table scrolls inside its card instead of being cut off */
+@media (max-width: 600px) { table.lvq, table.st { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; } }
+@media (max-width: 380px) { .ph { flex-wrap: wrap; row-gap: 4px; } .ph .badge, .ph button { max-width: 100%; } }
