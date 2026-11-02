@@ -176,6 +176,7 @@
     return { hdr: items[h], w, l, n: it.n };
   }
   function momentOf(st, idx) {
+    const it0 = st.matchLog[idx]; if (it0 && it0.k === 'g' && it0.pi && !it0.dnp) return { key: 'playin', title: 'Win or go home', text: 'The play-in. One game decides whether your season goes on.' };
     const s = seriesState(st, idx); if (!s) return null; const it = st.matchLog[idx];
     if (it.g7 || it.cl) return null;
     if (s.w === 0 && s.l === 2) return { key: 'down02', title: 'Down 0-2', text: 'You are down 0-2 against the ' + it.o + '. Nobody has ever been this close to the end and felt fine.' };

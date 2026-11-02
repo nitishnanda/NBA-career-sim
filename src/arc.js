@@ -110,6 +110,42 @@
     DC().log(st, { kind: 'brand', title: ev.title, tone: 'neutral', text: ev.title + ': ' + o.label + '.' }); return { text: o.label + '. ' + (fx ? '(' + fx + ')' : '') };
   }
 
-  NBA.Arc = { assignmentOpen, lockdownOf, mateInjuryOpen, mateOutAt, narrative, HAZE, haze, rookieWallOpen, jerseyNights, jerseyNight, earned, storyFacts, storyPrompt, checkStory, storyChoose, scaleRange };
+  // ---------------------------------------------------------------- teammates with personalities, contracts and their own moments
+  const TRAITS = { leader: ['Leader', 'Sets the tone. Others follow his lead.'], hothead: ['Hothead', 'Plays on edge. Great energy, short fuse.'], joker: ['Joker', 'Keeps the locker room loose.'], grinder: ['Grinder', 'Quiet worker. First in, last out.'], diva: ['Diva', 'Wants the ball and the credit.'], quiet: ['Quiet', 'Says little. Lets his game talk.'], vet: ['Old head', 'Seen everything. Has an opinion about all of it.'] };
+  const hashT = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+  function traitOf(q) { if (q.age >= 32 && hashT('t|' + q.id) % 3 === 0) return 'vet'; return ['leader', 'hothead', 'joker', 'grinder', 'diva', 'quiet'][hashT('t|' + q.id + '|' + q.name) % 6]; }
+  function mateCards(st) {
+    const L = st.league, t = L.teams[st.teamId]; if (!t) return []; const rel = DC().state(st).rel || {};
+    return NBA.rosterOf(L, t).filter((q) => q.id !== 'user' && q.id !== st.player.id).slice(0, 7).map((q) => { const tr = traitOf(q), r = rel[q.id] ? rel[q.id].v : 0, cEnd = q.cEnd != null ? q.cEnd : null;
+      return { id: q.id, name: q.name, pos: q.pos, age: q.age, ovr: Math.round(ovr(q)), trait: TRAITS[tr][0], blurb: TRAITS[tr][1], rel: r, expiring: cEnd != null && cEnd <= L.year, cEnd }; });
+  }
+  // a moment with one teammate, built from his personality and situation (twice a season, at seeded games)
+  function mateEventOpen(st, n) {
+    const idx = st.matchIdx || 0, it = (st.matchLog || [])[idx], f = flags(st), L = st.league; if (!it || it.po || it.n !== n || it.dnp) return null;
+    const key = 'mateEv' + L.year + ':' + n; if (f[key]) return null; f[key] = 1; if (rng(st, 'mateev|' + L.year + '|' + n)() > 0.7) return null;
+    const t = L.teams[st.teamId], ms = NBA.rosterOf(L, t).filter((q) => q.id !== 'user' && q.id !== st.player.id).slice(0, 7); if (ms.length < 3) return null;
+    const exp = ms.find((q) => q.cEnd != null && q.cEnd <= L.year && ovr(q) >= 70), r = rng(st, 'mateev2|' + L.year + '|' + n)();
+    const q = exp && r < 0.45 ? exp : ms[Math.floor(r * ms.length)], tr = exp && q === exp && r < 0.45 ? 'contract' : traitOf(q);
+    return { idx, id: q.id, name: q.name, ovr: Math.round(ovr(q)), pos: q.pos, tr, trait: tr === 'contract' ? 'Contract year' : TRAITS[tr][0] };
+  }
+  const EV = {
+    contract: { text: (c) => c.name + '\'s contract is up this summer and he is playing for his next deal. He asks you to put in a word with the front office.', opts: [['vouch', 'Vouch for him', 'Tell the front office he is part of the plan.', { chem: 0.3, locker: 0.3 }, 0.8, 'fo'], ['quiet', 'Stay out of it', 'That is his business, not yours.', {}, 0, null], ['honest', 'Be honest: you are not sure', 'Say he is good, but not at that price.', { chem: -0.2 }, -0.3, null]] },
+    hothead: { text: (c) => c.name + ' got into it with a ref and then with a teammate in the same quarter. The group is looking at you.', opts: [['calm', 'Pull him aside and calm him down', 'A quiet word after the game.', { chem: 0.3 }, 0.6, null], ['back', 'Back him publicly', 'Tell reporters you would rather have a fighter than a pushover.', { media: 0.2, locker: 0.3, chem: -0.1 }, 0.5, null], ['ignore', 'Let the coach handle it', 'Not your job.', { chem: -0.2 }, -0.2, null]] },
+    diva: { text: (c) => c.name + ' is unhappy with his touches and the story is leaking. He wants a word.', opts: [['promise', 'Promise him more shots', 'Easy to say. Harder to keep.', { chem: 0.3, locker: -0.1 }, 0.7, null], ['earn', 'Tell him to earn it', 'Direct. He will not love it.', { chem: -0.2, locker: 0.3 }, -0.5, null], ['both', 'Offer a deal: he plays D, you run the offense', 'A real compromise.', { chem: 0.2, locker: 0.1 }, 0.2, null]] },
+    joker: { text: (c) => c.name + ' filmed you in the locker room and wants to post it. It is harmless. Probably.', opts: [['join', 'Join the bit', 'The clip goes everywhere. Your brand likes it.', { media: 0.3, locker: 0.3 }, 0.4, null], ['pro', 'Keep it professional', 'Not today. The team is on a bad run.', { locker: -0.1 }, -0.1, null]] },
+    leader: { text: (c) => c.name + ' pulls you aside before film: he wants you to speak up more in team meetings.', opts: [['speak', 'Take the mic', 'Step into a bigger voice.', { locker: 0.4, chem: 0.2 }, 0.5, null], ['lead', 'Let him lead, you follow', 'His room. Your game.', { chem: 0.3 }, 0.4, null], ['nope', 'Say you lead by playing', 'Not everybody wants a speech.', { locker: -0.1 }, 0, null]] },
+    grinder: { text: (c) => c.name + ' asks if you will stay after practice and work on your weak spot with him.', opts: [['stay', 'Stay and work', 'Extra reps. It costs you rest.', { locker: 0.3 }, 0.6, 'attr'], ['rest', 'Take the rest', 'Your legs matter too.', {}, 0, null]] },
+    quiet: { text: (c) => c.name + ' has barely said a word to you all month. Today he asks if you want to grab dinner.', opts: [['dinner', 'Go to dinner', 'You find out he is hilarious.', { chem: 0.3, locker: 0.2 }, 0.8, null], ['pass', 'Pass this time', 'Too tired.', {}, 0, null]] },
+    vet: { text: (c) => c.name + ' has seen thirty-one teams in this league. He has a story and a piece of advice about your situation.', opts: [['listen', 'Listen to him', 'Free wisdom from someone who has made all the mistakes.', { locker: 0.3 }, 0.6, 'iq'], ['polite', 'Nod politely', 'Not today.', {}, 0.1, null]] },
+  };
+  const mateEventAuto = (ctx) => { const o = EV[ctx.tr].opts; return o[o.length - 1][0]; };   // the last option is always the low-key one
+  function mateEventView(ctx) { const e = EV[ctx.tr]; return { title: ctx.name + ' · ' + ctx.trait, text: e.text(ctx), options: e.opts.map((o) => ({ key: o[0], label: o[1], blurb: o[2], vibe: ctx.trait })) }; }
+  function mateEventChoose(st, ctx, key) {
+    const o = EV[ctx.tr].opts.find((x) => x[0] === key); if (!o) throw new Error('no option'); const eff = Object.keys(o[3]).map((k) => ({ k: 'meter', f: k, d: o[3][k] })); eff.push({ k: 'rel', id: ctx.id, name: ctx.name, d: o[4] });
+    if (o[5] === 'iq') eff.push({ k: 'attr', a: 'iq', d: 0.5 }); if (o[5] === 'attr') { const a = Object.keys(st.player.attrs).filter((x) => x !== 'dur').sort((x, y) => st.player.attrs[x] - st.player.attrs[y])[0]; eff.push({ k: 'attr', a, d: 0.5 }); }
+    if (o[5] === 'fo' && NBA.Core) NBA.Core.setFo(st, 0.2);
+    return { done: true, tone: o[4] >= 0.3 ? 'good' : o[4] < 0 ? 'bad' : 'neutral', text: o[1] + '. ' + o[2], effects: eff, journal: { tone: 'neutral', text: ctx.name + ' (' + ctx.trait + '): ' + o[1] + '.' } };
+  }
+  NBA.Arc = { TRAITS, traitOf, mateCards, mateEventOpen, mateEventView, mateEventAuto, mateEventChoose, assignmentOpen, lockdownOf, mateInjuryOpen, mateOutAt, narrative, HAZE, haze, rookieWallOpen, jerseyNights, jerseyNight, earned, storyFacts, storyPrompt, checkStory, storyChoose, scaleRange };
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -816,6 +816,15 @@
     },
     auto() { return { key: 'rest' }; },
   });
+  // ================================================================ a moment with a teammate (his personality, his contract)
+  register({
+    id: 'mateevent', title: 'Teammate', trigger: 'mateevent',
+    when(st) { return !st.autoPlay && !!NBA.Arc; },
+    open(st) { const n = (st.matchLog || [])[st.matchIdx || 0]; return n ? NBA.Arc.mateEventOpen(st, n.n) : null; },
+    view(st, ctx) { return NBA.Arc.mateEventView(ctx); },
+    choose(st, ctx, key) { return NBA.Arc.mateEventChoose(st, ctx, key); },
+    auto(st, ctx) { return { key: NBA.Arc.mateEventAuto(ctx) }; },
+  });
   const clamp0 = (x) => Math.max(0.15, Math.min(0.85, x));
   const Dc0 = (st) => { const f = state(st).flags; return f.pr || (f.pr = { quotes: [], tally: [], feuds: {}, heads: [], rep: {} }); };
 

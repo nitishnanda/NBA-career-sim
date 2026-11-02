@@ -1072,3 +1072,13 @@ League tails in the first two seasons (8 leagues): 30+ ppg 1.5 a season (real er
 **Real team records**: all 30 teams' 2025-26 records (Wikipedia final standings; the Thunder corrected from 60 to 64 wins). 2026-27 wins blend 42% of the regressed real record (41 + 0.66 x (W − 41)), 2027-28 30% of a two-year regression plus last season; afterwards the usual 10% continuity. Per league: correlation with last season 0.73 / 0.69 and rms change 9.3 / 8.3 wins (real NBA ~0.65-0.75 and 9-10).
 
 Baseline: 76.57 / 12.26 on the standard 60 (the league's history now plays differently from 2026, so the user's careers diverge); on 120 fresh careers new vs old: 74.06 vs 73.97 peak, 10.81 vs 10.62 ppg (each ±0.5): no shift beyond noise.
+
+## v110 — game feel
+
+- **Fewer interruptions**: quiet mode is the default (mentions, fan podcasts and league injury news wait in the inbox for 8 games; the checkbox turns it off). Your switches (quiet mode, odds-as-words, load management, jersey) now also survive a mid-season replay.
+- **League wire** (season page): from the live standings, the conference leaders, the biggest riser and faller against last year's record, the worst team (lottery talk), your seed, and this year's deadline deals.
+- **Around the playoffs**: the other series, round by round (stored bracket in the season snapshot, series scores and winners), shown as your rounds finish, and all at once when you are out.
+- **Live play-in**: the play-in is played live too (win chance from the matchup and home court, plus a "Win or go home" approach card). A flipped game replays the bracket with your play-in result forced (`st.piForce`, with the random draw still spent so nothing else in the bracket moves).
+- **Teammates as people**: seven personalities (Leader, Hothead, Joker, Grinder, Diva, Quiet, Old head) from a hash of the player, shown with contract status and your relationship on the Team page; two teammate moments a season (games 20 and 62, 70% chance each) built from the personality or a contract year (vouch for him, calm him down, promise touches, join the bit, extra reps, dinner...), each with real effects on chemistry, locker room, relationship (and for the contract case, the front office).
+- Tests: simgo-check now covers the play-in (17 games across 32 seasons, results match `piForce`, every series valid) and the stored bracket (shape, series scores, champion); arc-check fires all eight teammate-moment types; ui-core checks the wire, quiet mode default, the playoffs panel and the teammates card.
+- Baseline: 76.57 / 12.26 (unchanged from v109).

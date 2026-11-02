@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v109';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v110';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -603,11 +603,40 @@
   }
   // quiet mode: the small news (mentions, podcasts, injuries around the league) goes to an inbox instead of stopping the season
   const INBOX_IDS = ['mention', 'podcast', 'starinjury'];
-  function toInbox() { if (!S.inboxMode || !S.dec.pending || !INBOX_IDS.includes(S.dec.pending.id)) return false; (S.inbox = S.inbox || []).push({ pd: S.dec.pending, at: S.matchIdx || 0 }); S.inbox = S.inbox.filter((x) => (S.matchIdx || 0) - x.at <= 8).slice(-6); S.dec.pending = null; save(); return true; }
+  function toInbox() { if (S.inboxMode === false || !S.dec.pending || !INBOX_IDS.includes(S.dec.pending.id)) return false; (S.inbox = S.inbox || []).push({ pd: S.dec.pending, at: S.matchIdx || 0 }); S.inbox = S.inbox.filter((x) => (S.matchIdx || 0) - x.at <= 8).slice(-6); S.dec.pending = null; save(); return true; }
+  // the league wire: what the other 29 teams are doing right now (from the live standings, last year's records and this year's deadline deals)
+  function wirePanel(rows, N, items, idx) {
+    if (N < 8 || !rows || !rows.length) return null; const L = S.league, lw = L.lastWins || {}, out = [];
+    const bucket = Math.floor(N / 8), seedR = seeded(S.league.year * 31 + bucket)(); const gp = (r) => Math.max(1, r.wins + r.losses), pct = (r) => r.wins / gp(r);
+    ['E', 'W'].forEach((c) => { const top = rows.filter((r) => r.conf === c).sort((a, b) => b.wins - a.wins || a.losses - b.losses)[0]; if (top) out.push({ k: 0, t: '🥇 The ' + top.nick + ' lead the ' + (c === 'E' ? 'East' : 'West') + ' at ' + top.wins + '-' + top.losses + '.' }); });
+    const dev = rows.filter((r) => r.id !== S.teamId && lw[r.nick] != null).map((r) => ({ r, d: pct(r) - lw[r.nick] / 82 })).sort((a, b) => b.d - a.d);
+    if (dev.length && dev[0].d >= 0.15) out.push({ k: 1, t: '📈 The ' + dev[0].r.nick + ' are ' + dev[0].r.wins + '-' + dev[0].r.losses + ' after winning ' + lw[dev[0].r.nick] + ' last year. Nobody saw it coming.' });
+    const fall = dev[dev.length - 1]; if (fall && fall.d <= -0.15) out.push({ k: 1, t: '📉 The ' + fall.r.nick + ' (' + fall.r.wins + '-' + fall.r.losses + ') won ' + lw[fall.r.nick] + ' last season. The trade rumors are starting.' });
+    const worst = rows.filter((r) => r.id !== S.teamId).sort((a, b) => pct(a) - pct(b))[0]; if (worst && pct(worst) < 0.3 && N >= 15) out.push({ k: 2, t: '🧱 The ' + worst.nick + ' are ' + worst.wins + '-' + worst.losses + '. Everyone is already talking about the lottery.' });
+    const mine = rows.find((r) => r.id === S.teamId); if (mine) { const c = rows.filter((r) => r.conf === mine.conf).sort((a, b) => b.wins - a.wins || a.losses - b.losses), sd = c.findIndex((r) => r.id === S.teamId) + 1; out.push({ k: 3, t: '📍 You are ' + ord(sd) + ' in the ' + (mine.conf === 'E' ? 'East' : 'West') + ' (' + mine.wins + '-' + mine.losses + ').' }); }
+    const dl = items.findIndex((x) => x.k === 'hdr' && x.dl); if (dl >= 0 && idx > dl) (L.moves || []).filter((m) => m.year === L.year && m.phase === 'deadline').slice(0, 3).forEach((m) => out.push({ k: 2, t: '🔁 ' + m.text + '.' }));
+    return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '📡'), h('h2', null, 'League wire'), h('span', { class: 'spacer' }), h('span', { class: 'small muted' }, 'after ' + N + ' games')), out.slice(0, 7).map((x) => h('p', { class: 'small', style: 'margin:4px 0' }, x.t)));
+  }
+  // the rest of the playoffs: the other series, round by round, as the rounds finish for you
+  function bracketPanel(items, idx) {
+    const br = S.leagueSnap && S.leagueSnap.bracket; if (!br || !br.length) return null;
+    const rounds = {}; items.forEach((x, i) => { if (x.k === 'g' && x.po && !x.pi) { const r = rounds[x.rnd] = rounds[x.rnd] || { last: -1 }; r.last = Math.max(r.last, i); } });
+    const mine = S.league.teams[S.teamId] ? S.league.teams[S.teamId].nick : '', regEnd = items.findIndex((x) => x.k === 'hdr' && /^Regular season complete/.test(x.text));
+    const futurePo = items.slice(idx).some((x) => x.k === 'g' && x.po && !x.pi), playedPo = Object.keys(rounds).length > 0, userOut = !futurePo && (playedPo ? idx > Math.max.apply(null, Object.keys(rounds).map((k) => rounds[k].last)) : regEnd >= 0 && idx > regEnd);   // you are out: the rest of the bracket is simply the news
+    const shown = br.filter((rd) => userOut || (rounds[rd.name] && rounds[rd.name].last < idx));
+    if (!shown.length) return null;
+    return h('details', { class: 'panel', open: true }, h('summary', { class: 'ph', style: 'cursor:pointer' }, h('span', { class: 'pi' }, '🏆'), h('h2', { style: 'display:inline' }, 'Around the playoffs')),
+      shown.map((rd) => h('div', { style: 'margin:6px 0' }, h('div', { class: 'small caps muted' }, rd.name), rd.series.map((x) => { const aw = x.w === x.a, me = x.a === mine || x.b === mine; return h('div', { class: 'row small', style: 'margin:2px 0;' + (me ? 'font-weight:600' : '') }, h('span', { style: aw ? 'font-weight:600' : 'opacity:.7' }, x.a), h('span', { class: 'muted' }, ' ' + x.wa + '-' + x.wb + ' '), h('span', { style: aw ? 'opacity:.7' : 'font-weight:600' }, x.b), h('span', { class: 'spacer' }), h('span', { class: 'small muted' }, x.w + ' advance' + (rd.name === 'NBA Finals' ? ' · champions' : ''))); }))));
+  }
+  function matesPanel() {
+    const A = NBA.Arc; if (!A || S.autoPlay) return null; const ms = A.mateCards(S); if (!ms.length) return null;
+    return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '👥'), h('h2', null, 'Your teammates')),
+      ms.map((m) => h('div', { class: 'row small', style: 'margin:4px 0;flex-wrap:wrap;gap:6px' }, h('b', null, plink(m.id, m.name)), h('span', { class: 'muted' }, m.pos + ' · ' + m.age + ' · ' + m.ovr + ' OVR'), h('span', { class: 'pill' }, m.trait), m.expiring ? h('span', { class: 'pill gold' }, 'Contract year') : null, h('span', { class: 'spacer' }), h('span', { class: m.rel > 0.5 ? 'pos' : m.rel < -0.5 ? 'neg' : 'muted' }, m.rel > 0.5 ? 'Close' : m.rel < -0.5 ? 'Strained' : 'Fine'), h('span', { class: 'small muted', style: 'width:100%' }, m.blurb))));
+  }
   function inboxPanel() {
     const box = (S.inbox || []).filter((x) => (S.matchIdx || 0) - x.at <= 8); S.inbox = box; const lbl = { mention: '📰 Someone mentioned you', podcast: '🎙️ A podcast wants you', starinjury: '🚨 Breaking news' };
-    return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '📥'), h('h2', null, 'Inbox'), h('span', { class: 'spacer' }), h('label', { class: 'small muted' }, h('input', { type: 'checkbox', checked: !!S.inboxMode, onchange: (e) => { S.inboxMode = e.target.checked; save(); render(); } }), ' Quiet mode (small news waits here)')),
-      box.length ? box.slice().reverse().map((x) => { const c = x.pd.ctx || {}, who = c.who ? c.who.name : c.star ? c.star.name : c.show || ''; return h('div', { class: 'row small', style: 'margin:4px 0' }, h('span', null, lbl[x.pd.id] + (who ? ': ' + who : '')), h('span', { class: 'spacer' }), h('span', { class: 'muted' }, (S.matchIdx - x.at) + ' games ago '), h('button', { class: 'tiny', onclick: () => { if (S.dec.pending) return; S.inbox = S.inbox.filter((y) => y !== x); S.dec.pending = x.pd; save(); render(); } }, 'Open')); }) : h('p', { class: 'small muted' }, S.inboxMode ? 'Nothing waiting. Small news lands here (it expires after 8 games).' : 'Quiet mode is off: news pops up as it happens.'));
+    return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '📥'), h('h2', null, 'Inbox'), h('span', { class: 'spacer' }), h('label', { class: 'small muted' }, h('input', { type: 'checkbox', checked: S.inboxMode !== false, onchange: (e) => { S.inboxMode = e.target.checked; save(); render(); } }), ' Quiet mode (small news waits here)')),
+      box.length ? box.slice().reverse().map((x) => { const c = x.pd.ctx || {}, who = c.who ? c.who.name : c.star ? c.star.name : c.show || ''; return h('div', { class: 'row small', style: 'margin:4px 0' }, h('span', null, lbl[x.pd.id] + (who ? ': ' + who : '')), h('span', { class: 'spacer' }), h('span', { class: 'muted' }, (S.matchIdx - x.at) + ' games ago '), h('button', { class: 'tiny', onclick: () => { if (S.dec.pending) return; S.inbox = S.inbox.filter((y) => y !== x); S.dec.pending = x.pd; save(); render(); } }, 'Open')); }) : h('p', { class: 'small muted' }, S.inboxMode !== false ? 'Nothing waiting. Small news lands here (it expires after 8 games).' : 'Quiet mode is off: news pops up as it happens.'));
   }
   const holdAt = () => {
     if (!S.matchLog) return false;
@@ -683,9 +712,14 @@
         if (!S.noSocial && !S.autoPlay && prev && prev.k === 'g' && !prev.dnp && !prev.sij) {
           if (pend('starinjury')) { if (S.autoDec) { Dc.autoResolve(S); prev.sij = 1; save(); return holdAt(); } return true; }
           prev.sij = 1; if (Dc.offer(S, 'starinjury')) { if (S.autoDec) { Dc.autoResolve(S); save(); return holdAt(); } if (toInbox()) return holdAt(); save(); return true; } } }
-      if (!S.autoPlay && NBA.Core && it.po && !it.pi && !it.smd) {   // a series moment before a big playoff game
+      if (!S.autoPlay && NBA.Core && it.po && !it.smd) {   // a series moment before a big playoff game
         if (!pend('seriesmoment') && !Dc.offer(S, 'seriesmoment')) it.smd = 1;
         if (pend('seriesmoment')) { if (S.autoDec) { Dc.autoResolve(S); it.smd = 1; save(); return holdAt(); } return true; }
+      }
+      for (const n of [20, 62]) {   // a moment with a teammate (his personality, his contract)
+        const fk = 'h_me' + n; if (S.autoPlay || it.po || it.n !== n || it[fk] || it.dnp) continue;
+        if (!pend('mateevent') && !Dc.offer(S, 'mateevent')) { it[fk] = 1; continue; }
+        if (pend('mateevent')) { if (S.autoDec) { Dc.autoResolve(S); it[fk] = 1; save(); return holdAt(); } return true; }
       }
       for (const id of ['mateinj', 'rookiewall', 'assignment']) {   // a co-star's injury, the rookie wall, the defensive assignment before a big game
         const fk = 'h_' + id; if (S.autoPlay || it.po || it[fk] || it.dnp) continue;
@@ -731,7 +765,7 @@
     let overlay = null;
     if (S.decResult) overlay = screenDecResult();
     else if (S.dec && S.dec.pending && INBOX_IDS.includes(S.dec.pending.id)) overlay = S.dec.pending.id === 'mention' ? screenMention() : S.dec.pending.id === 'podcast' ? screenPodcast() : screenStarInjury();
-    else if (holdAt()) { if (S.decResult) overlay = screenDecResult(); else if (NBA.AllStar.active(S)) overlay = screenAllStar(); else if (!(S.dec && S.dec.pending)) overlay = null; else { const pid = S.dec.pending.id; overlay = pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : pid === 'press' ? screenPress() : pid === 'injury' ? screenInjury() : pid === 'social' ? screenSocial() : pid === 'mention' ? screenMention() : pid === 'podcast' ? screenPodcast() : pid === 'starinjury' ? screenStarInjury() : ['seriesmoment', 'alpha', 'rumor', 'buyout', 'benched', 'assignment', 'mateinj', 'rookiewall'].includes(pid) ? screenSimpleDec() : screenDeadline(); } if (overlay === 'again') return screenSeasonPlay(); }
+    else if (holdAt()) { if (S.decResult) overlay = screenDecResult(); else if (NBA.AllStar.active(S)) overlay = screenAllStar(); else if (!(S.dec && S.dec.pending)) overlay = null; else { const pid = S.dec.pending.id; overlay = pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : pid === 'press' ? screenPress() : pid === 'injury' ? screenInjury() : pid === 'social' ? screenSocial() : pid === 'mention' ? screenMention() : pid === 'podcast' ? screenPodcast() : pid === 'starinjury' ? screenStarInjury() : ['seriesmoment', 'alpha', 'rumor', 'buyout', 'benched', 'assignment', 'mateinj', 'rookiewall', 'mateevent'].includes(pid) ? screenSimpleDec() : screenDeadline(); } if (overlay === 'again') return screenSeasonPlay(); }
     const items = S.matchLog || [], idx = S.matchIdx || 0, L = S.league, p = S.player, t = L.teams[S.teamId];
     const shown = items.slice(0, idx), done = idx >= items.length;
     const reg = shown.filter((x) => x.k === 'g' && !x.po), poG = shown.filter((x) => x.k === 'g' && x.po);
@@ -867,7 +901,7 @@
       return h('div', { class: 'callout inj' }, '🩹 You are hurt: ' + nm + '. ' + (lbl === 'Setback' ? 'A setback in rehab. ' : lbl === 'Rehab' ? 'Held out for rehab. ' : '') + 'Out ' + n + ' more game' + (n > 1 ? 's' : '') + ' · ' + back + '.');
     })();
     const histPanel = historyPanel(true);
-    const wrap = h('div', { class: 'dash mt-' + mTab }, injBanner, h('div', { class: 'dtop' }, hero, quick, mtabs, telemetry), playoffPanel, h('div', { class: 'dmid' }, stream, averages, defense), planPanel, histPanel, S.autoPlay ? null : inboxPanel(), feedPanel);
+    const wrap = h('div', { class: 'dash mt-' + mTab }, injBanner, h('div', { class: 'dtop' }, hero, quick, mtabs, telemetry), playoffPanel, h('div', { class: 'dmid' }, stream, averages, defense), planPanel, S.autoPlay ? null : wirePanel(rows, reg.length, items, idx), S.autoPlay ? null : bracketPanel(items, idx), histPanel, S.autoPlay ? null : inboxPanel(), feedPanel);
     if (!LV) setTimeout(aiFeedUpgrade, 600);
     return overlay ? h('div', null, modal(overlay), wrap) : wrap;
   }
@@ -1039,7 +1073,7 @@
     return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🎟'), h('h2', null, 'Draft picks'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, mine.filter((p) => p.r === 1).length + ' firsts · ' + mine.filter((p) => p.r === 2).length + ' seconds')),
       mine.map((p) => line(p, p.orig === t.id ? ' · own' : ' · from the ' + L.teams[p.orig].nick)), away.length ? h('div', { class: 'small caps muted', style: 'margin-top:10px' }, 'Traded away') : null, away.map((p) => line(p, ' · to the ' + L.teams[p.owner].nick)));
   }
-  function screenTeam() { if ((S.teamId == null || S.teamId < 0) && NBA.Euro) { const cl = NBA.Euro.clubOf(S); if (cl) return euroTeamPage(cl.key, cl.team.id); } const el = screenTeam0(); if (S.contract && S.teamId != null && el.append) { el.append(roomPanel()); el.append(capPanel(S.league.teams[S.teamId])); const pp = picksPanel(S.league.teams[S.teamId]); if (pp) el.append(pp); } return el; }
+  function screenTeam() { if ((S.teamId == null || S.teamId < 0) && NBA.Euro) { const cl = NBA.Euro.clubOf(S); if (cl) return euroTeamPage(cl.key, cl.team.id); } const el = screenTeam0(); if (S.contract && S.teamId != null && el.append) { el.append(roomPanel()); { const mp = matesPanel(); if (mp) el.append(mp); } el.append(capPanel(S.league.teams[S.teamId])); const pp = picksPanel(S.league.teams[S.teamId]); if (pp) el.append(pp); } return el; }
   function leaguePayrolls() {
     const C = NBA.Cap, rows = S.league.teams.map((t) => Object.assign({ t }, C.finance(S, t))).sort((a, b) => b.payroll - a.payroll);
     return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🏦'), h('h2', null, 'Payrolls around the league')),
@@ -2053,8 +2087,8 @@
   }
   function screenSimpleDec() {
     const Dc = DEC(), v = Dc.view(S), pd = S.dec.pending, t = S.league.teams[S.teamId], it = S.matchLog[S.matchIdx || 0] || {};
-    const pick = (key) => { try { const id = pd.id, r = Dc.choose(S, key); S.decResult = { title: v.title, sub: t.name + (id === 'seriesmoment' ? ' vs the ' + it.o + ' · Game ' + it.n : ''), text: r.text, tone: r.tone === 'good' ? 'good' : r.tone === 'bad' ? 'bad' : 'neutral', cap: id === 'seriesmoment' ? 'How it went' : 'The decision', post: !['seriesmoment', 'assignment'].includes(id) }; if (id === 'seriesmoment') { it.smd = 1; } else { const it2 = S.matchLog[S.matchIdx || 0]; if (it2) it2['h_' + id] = 1; } save(); go(); } catch (e) { console.error(e); } };
-    return h('div', null, h('h1', null, ({ seriesmoment: '🏀 ', alpha: '👑 ', rumor: '📰 ', buyout: '✍️ ', benched: '🪑 ', assignment: '🔒 ', mateinj: '🚑 ', rookiewall: '🧱 ' }[pd.id] || '') + v.title), h('p', { class: 'muted' }, t.name),
+    const pick = (key) => { try { const id = pd.id, r = Dc.choose(S, key); S.decResult = { title: v.title, sub: t.name + (id === 'seriesmoment' ? ' vs the ' + it.o + ' · Game ' + it.n : ''), text: r.text, tone: r.tone === 'good' ? 'good' : r.tone === 'bad' ? 'bad' : 'neutral', cap: id === 'seriesmoment' ? 'How it went' : 'The decision', post: !['seriesmoment', 'assignment'].includes(id) }; if (id === 'seriesmoment') { it.smd = 1; } else { const it2 = S.matchLog[S.matchIdx || 0]; if (it2) { it2['h_' + id] = 1; if (id === 'mateevent') it2['h_me' + it2.n] = 1; } } save(); go(); } catch (e) { console.error(e); } };
+    return h('div', null, h('h1', null, ({ seriesmoment: '🏀 ', alpha: '👑 ', rumor: '📰 ', buyout: '✍️ ', benched: '🪑 ', assignment: '🔒 ', mateinj: '🚑 ', rookiewall: '🧱 ', mateevent: '👥 ' }[pd.id] || '') + v.title), h('p', { class: 'muted' }, t.name),
       h('div', { class: 'card suspense' }, h('p', null, v.text)),
       h('div', { class: 'wkgrid' }, v.options.map((o, i) => h('div', { class: 'wkcard' + (['callout', 'demand', 'open', 'public'].includes(o.key) ? ' spicy' : '') }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: i === 0 ? 'primary' : '', onclick: () => pick(o.key) }, 'Go with this'))))), autoDecBar());
   }

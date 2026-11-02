@@ -230,7 +230,9 @@
       const s = confs[c].slice().sort((x, y) => y.wins - x.wins || rand() - 0.5);
       // play-in: 7 v 8 (winner is the 7 seed), 9 v 10 (loser is out), then the loser of 7 v 8 hosts the winner of 9 v 10 for the 8 seed
       const pi = (hi, lo, label, stake) => {
-        const r = playGame(hi.power, lo.power, true) ? [hi, lo] : [lo, hi];
+        let r = playGame(hi.power, lo.power, true) ? [hi, lo] : [lo, hi];
+        const pf = mods && mods.piForce && mods.piForce[label];   // a play-in game the player decided live: his result, with the draw above still spent
+        if (pf != null && userTeamId != null && (hi.id === userTeamId || lo.id === userTeamId)) { const u = hi.id === userTeamId ? hi : lo, o = u === hi ? lo : hi; r = pf === 1 ? [u, o] : [o, u]; }
         out.playin.push({ conf: c, label, stake, hi: hi.name, lo: lo.name, hiSeed: s.indexOf(hi) + 1, loSeed: s.indexOf(lo) + 1, w: r[0].name, l: r[1].name });
         if (userTeamId != null && (hi.id === userTeamId || lo.id === userTeamId)) { const won = r[0].id === userTeamId, opp = hi.id === userTeamId ? lo : hi; out.userSeries.push({ round: 'Play-In', playin: true, label, stake, opp: opp.name, home: hi.id === userTeamId, w: won ? 1 : 0, l: won ? 0 : 1, games: 1, won }); }
         return r;

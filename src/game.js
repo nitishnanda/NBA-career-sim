@@ -685,7 +685,7 @@
   function poMods(st) {
     const plans = st.poPlans || {}, rounds = [0, 0, 0, 0];
     for (let r = 0; r < 4; r++) rounds[r] = planPower(st, plans[r]) - (plans[r - 1] === 'allin' ? 0.45 : 0) + ((st.poPress && st.poPress[r] && st.poPress[r].d) || 0);
-    return { rounds, force: st.poForce || null };
+    return { rounds, force: st.poForce || null, piForce: st.piForce || null };
   }
   const planMult = (st, si) => { const pl = (st.poPlans || {})[si], m = (PLANS[pl] || PLANS.balanced).mult, prev = (st.poPlans || {})[si - 1] === 'allin', pm = (st.poPress && st.poPress[si] && st.poPress[si].m) || 1; return { mins: m.mins || 0, pts: (m.pts || 1) * (prev ? 0.96 : 1) * pm, ast: m.ast || 1, tov: m.tov || 1, stl: m.stl || 1, blk: m.blk || 1 }; };
 
@@ -1080,7 +1080,7 @@
       rec.rivalFacts = facts; }
     const gl = l.gameList; delete l.gameList;
     if (l.gpCut && !rec.injury) rec.injury = 'Suffered a season-ending injury and missed the rest of the year.';
-    st.leagueSnap = { year: L.year, label: res.label, standings: res.standings, leaders: res.leaders, leadersO: res.leadersOthers, race: A.race, raceO: A.raceOthers, playin: po.playin };
+    st.leagueSnap = { year: L.year, label: res.label, standings: res.standings, leaders: res.leaders, leadersO: res.leadersOthers, race: A.race, raceO: A.raceOthers, playin: po.playin, bracket: po.rounds.map((rd) => ({ name: rd.name, series: rd.series.map((x) => ({ a: x.a.nick, b: x.b.nick, aid: x.a.id, bid: x.b.id, wa: x.wa, wb: x.wb, w: x.winner.nick })) })), champion: po.champion ? po.champion.nick : null };
     st.matchLog = buildMatchLog(st, rec, l, gl, perSeries, t, rec.injury, pline); st.matchIdx = 0;
     manageReturn(st, rec, l); if (avail.po > 0 && avail.po < 99) playoffMiss(st, rec, perSeries, avail.po);
     if (!st.autoPlay) { st.layWins = {}; L.teams.forEach((x) => { st.layWins[x.id] = x.wins; }); }
@@ -1689,7 +1689,13 @@
   }
   function resolveGame(st, idx) {
     const items = st.matchLog, it = items && items[idx]; if (!it || it.k !== 'g' || it.rs || st.autoPlay) return null;
-    if (it.pi) { it.rs = 1; return { w: !!it.w, flipped: false }; }   // play-in games keep the season model's result
+    if (it.pi) {   // the play-in is played live too: one game, its win chance from the matchup and home court, plus what you decided (a swing re-draws the bracket)
+      const od = momentOdds(st, idx), r0 = mulberry(shotSeed(st, 12500 + idx)), was0 = !!it.w, label = (() => { let h = idx; while (h > 0 && st.matchLog[h].k !== 'hdr') h--; const t = st.matchLog[h].text || ''; const m = t.match(/Play-In Tournament · (.+?) · vs /); return m ? m[1] : ''; })();
+      const win = r0() < clamp(od.pg + (it.mod || 0) + nightShift(st, it) * 0.03, 0.08, 0.92); it.rs = 1; st.piForce = Object.assign({}, st.piForce, { [label]: win ? 1 : 0 });
+      if (win === was0 || !SNAP) { setScore(it, win); return { w: win, flipped: false }; }
+      const keep = JSON.parse(JSON.stringify(it)); replay(st, st.seasonMoves || [], { force: true });
+      st.matchLog[idx] = keep; setScore(keep, win); keep.rs = 1; recomputeFromLog(st); return { w: win, flipped: true, swing: true };
+    }
     const r = mulberry(shotSeed(st, 12000 + idx * 7)), was = !!it.w, mod = it.mod || 0, team = (x) => x.k === 'g' && !x.pi && (it.po ? x.po && x.si === it.si : !x.po);
     const sIdx = []; items.forEach((x, i) => { if (team(x)) sIdx.push(i); }); const lastI = sIdx[sIdx.length - 1];
     // the budget: this game and the unplayed ones (a series' deciding game stays where it is so the series still ends on it)
@@ -1884,11 +1890,12 @@
   // Replay the season from its tip-off snapshot with the player's changes applied (a new game plan, a mid-season move): the league's results come from the same seeds,
   // the games already shown stay exactly as they were, and everything after comes from the new situation.
   function replay(st, moves, opt) {
-    const keep = { idx: st.matchIdx || 0, shotTab: st.shotTab, shotScope: st.shotScope, log: st.matchLog, view: st.view, dec: st.dec, dlDone: st.dlDone, dlChecked: st.dlChecked, style: st.style, styleSeq: st.styleSeq, poPlans: st.poPlans, poPress: st.poPress, poForce: st.poForce, clutchDelta: st.clutchDelta || 0, clutchStats: st.career && st.career.clutch, autoDec: st.autoDec, reseed: st.reseed, noSocial: st.noSocial, noPress: st.noPress, liveMode: st.liveMode };
+    const keep = { idx: st.matchIdx || 0, shotTab: st.shotTab, shotScope: st.shotScope, log: st.matchLog, view: st.view, dec: st.dec, dlDone: st.dlDone, dlChecked: st.dlChecked, style: st.style, styleSeq: st.styleSeq, poPlans: st.poPlans, poPress: st.poPress, poForce: st.poForce, clutchDelta: st.clutchDelta || 0, clutchStats: st.career && st.career.clutch, autoDec: st.autoDec, reseed: st.reseed, piForce: st.piForce, noSocial: st.noSocial, noPress: st.noPress, liveMode: st.liveMode, inboxMode: st.inboxMode, oddsWords: st.oddsWords, loadMgmt: st.loadMgmt, jersey: st.jersey };
     const snapObj = JSON.parse(SNAP), startTeam = snapObj.teamId;
     Object.keys(st).forEach((k) => delete st[k]); Object.assign(st, snapObj);
     NBA.Decisions.carry(st, keep.dec);
-    st.style = opt.style || keep.style; st.styleSeq = opt.seq || keep.styleSeq; st.dlDone = keep.dlDone; st.dlChecked = keep.dlChecked; st.seasonMoves = moves; st.poPlans = keep.poPlans || {}; st.poPress = keep.poPress || {}; st.poForce = keep.poForce || null; st.clutchDelta = keep.clutchDelta; if (keep.clutchStats) st.career.clutch = keep.clutchStats; if (keep.autoDec) st.autoDec = true; ['noSocial', 'noPress', 'liveMode'].forEach((k) => { if (keep[k] != null) st[k] = keep[k]; });   // the player's own switches survive a replay
+    st.style = opt.style || keep.style; st.styleSeq = opt.seq || keep.styleSeq; st.dlDone = keep.dlDone; st.dlChecked = keep.dlChecked; st.seasonMoves = moves; st.poPlans = keep.poPlans || {}; st.poPress = keep.poPress || {}; st.poForce = keep.poForce || null; st.clutchDelta = keep.clutchDelta; if (keep.clutchStats) st.career.clutch = keep.clutchStats; if (keep.autoDec) st.autoDec = true; ['noSocial', 'noPress', 'liveMode', 'inboxMode', 'oddsWords', 'loadMgmt', 'jersey'].forEach((k) => { if (keep[k] != null) st[k] = keep[k]; });   // the player's own switches survive a replay
+    if (keep.piForce) st.piForce = keep.piForce;
     if (keep.reseed && keep.reseed.y === st.league.year) { st.reseed = keep.reseed; st.league.forceWins = Object.assign({}, keep.reseed.map); }
     moves.forEach((m) => applyMoveState(st, m));
     playSeason(st, { rerun: true });

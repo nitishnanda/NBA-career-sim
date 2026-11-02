@@ -11,6 +11,11 @@ N.onSeasonLog = (st, rec) => { if (IN) return; IN = true; try { R.seasons++; con
     if (o) { c.dec.pending = { id: 'mateinj', ctx: o, step: 0, log: [] }; R.mateinj++; Dc.choose(c, 'stepup'); const g = c.matchLog.find((y) => y.k === 'g' && !y.po && y.n === f.mateOut.from), b = W.boxOf(c, g); if (b && b.ours.every((m) => m.id !== f.mateOut.id)) R.mateOutOk++; else fail('injured mate in box'); } }
   // the rookie wall
   if (st.proSeasons.length === 0) { const iw = c.matchLog.findIndex((x) => x.k === 'g' && !x.po && x.n === 50); c.matchIdx = iw; if (Dc.offer(c, 'rookiewall')) { R.wall++; Dc.choose(c, ['rest', 'push', 'film'][R.wall % 3]); } }
+  { const tr = {}; N.rosterOf(c.league, c.league.teams[c.teamId]).forEach((q) => { tr[A.traitOf(q)] = 1; }); R.traits = Object.assign(R.traits || {}, tr);
+    const cards = A.mateCards(c); if (!cards.length || cards.some((m) => !m.trait || /undefined|NaN/.test(JSON.stringify(m)))) fail('mate cards');
+    const keyN = [20, 62]; keyN.forEach((n) => { const cc = JSON.parse(JSON.stringify(c)); cc.autoPlay = false; cc.dec.pending = null; const gi = cc.matchLog.findIndex((x) => x.k === 'g' && !x.po && x.n === n); cc.matchIdx = gi; const f = Dc.state(cc).flags; delete f['mateEv' + cc.league.year + ':' + n];
+      let tries = 0, got = null; while (!got && tries++ < 40) { delete f['mateEv' + cc.league.year + ':' + n]; cc.league.year += 0; cc.dec.pending = null; if (Dc.offer(cc, 'mateevent')) got = cc.dec.pending; else { cc.matchLog[gi].n = n; f['mateEvSalt'] = tries; cc.league.year += 0; if (tries % 2) cc.seasonSeed = (cc.seasonSeed || 1) + 1; } }
+      if (got) { R.mateEv = (R.mateEv || 0) + 1; const v = Dc.view(cc); if (!v.options || v.options.length < 2 || /undefined|NaN/.test(JSON.stringify(v))) fail('mateevent view ' + JSON.stringify(v).slice(0, 120)); const r = Dc.choose(cc, v.options[R.mateEv % v.options.length].key); if (!r.done || !r.text) fail('mateevent result'); R.mateEvKinds = R.mateEvKinds || {}; R.mateEvKinds[got.ctx.tr] = 1; } }); }
   const nr = A.narrative(c); if (nr) R.narr[nr.key] = (R.narr[nr.key] || 0) + 1;
   const js = A.jerseyNights(c); if (js.length) { A.jerseyNight(c, js[0].team, 'thanks'); R.nights++; }
   { const rr = JSON.parse(JSON.stringify(rec)); rr.tpa = 8; rr.ast = 7; A.earned(c, rr); rec.earned = rr.earned; }
@@ -24,4 +29,4 @@ const good = A.checkStory({ title: 'A rival calls you out', text: 'Your rival sa
 if (!good || good.options[0].effects.media !== 0.6) fail('story check good'); else R.story++;
 if (A.checkStory({ title: 'x', text: 'short', options: [] })) fail('story check bad passed');
 console.log(JSON.stringify(R));
-if (R.bad || !R.asg || !R.mateinj || !R.run || !R.story) { console.log('FAILED'); process.exit(1); } console.log('arc OK');
+if (R.bad || !R.asg || !R.mateinj || !R.run || !R.story || !R.mateEv) { console.log('FAILED'); process.exit(1); } console.log('arc OK');
