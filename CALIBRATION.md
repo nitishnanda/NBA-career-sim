@@ -1124,3 +1124,15 @@ Biggest moves vs v113: Kawhi Leonard 85 -> 95, Anthony Davis 80 -> 88, Isaiah Ha
 | year-to-year correlation 26/27 -> 27/28 (real ~0.65-0.75) | 0.68 | 0.73 |
 
 **Checks.** Real players' 2026-27 points correlate 0.97 with their real 2025-26 points (1,494 player-seasons, 6 leagues); roster #1-#10 average points match real within 0.5. Star lines stay real (Jokic 27.8/12.5/9.9, SGA 29.5/3.9/6.9, Wembanyama 26.3 -> 28.8 -> 29.4). League tails (3 seeds) unchanged within noise. Autopilot baseline 76.43 / 12.31 (was 76.57 / 12.26, within the 120-career noise). Known gap, not changed here: season minutes for a team's 8th-10th men read high (~29-31 mpg vs real 17-23); points are anchored so lines stay real, but the minutes column does not.
+
+## v115 — real rotation minutes
+
+The rating handed everyone in a ten-man rotation 27-35 minutes, so a team's 8th-10th men read ~29-31 mpg (real 17-23) and team minutes summed to ~263 a night. Season minutes are now capped by where a player sits in his team's minutes order (38/37/36/35/33/30/27/24/21/18/15/13/11), never the user's. Only the minutes column moves: points, boards and assists were already sized to a real bench role (real players are anchored to their real line), and nothing draws from the league's random stream.
+
+| minutes rank | 1 | 4 | 6 | 8 | 10 | team total |
+|---|---|---|---|---|---|---|
+| before | 35.5 | 33.1 | 31.7 | 30.2 | 27.1 | 263 |
+| after | 35.5 | 33.1 | 30.0 | 24.0 | 18.0 | 238 |
+| real 2025-26 (by roster spot) | 32.9 | 26.4 | 24.4 | 22.9 | 16.8 | 240 |
+
+Autopilot baseline unchanged: 76.43 / 12.31.
