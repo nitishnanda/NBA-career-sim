@@ -146,6 +146,65 @@
     if (o[5] === 'fo' && NBA.Core) NBA.Core.setFo(st, 0.2);
     return { done: true, tone: o[4] >= 0.3 ? 'good' : o[4] < 0 ? 'bad' : 'neutral', text: o[1] + '. ' + o[2], effects: eff, journal: { tone: 'neutral', text: ctx.name + ' (' + ctx.trait + '): ' + o[1] + '.' } };
   }
-  NBA.Arc = { TRAITS, traitOf, mateCards, mateEventOpen, mateEventView, mateEventAuto, mateEventChoose, assignmentOpen, lockdownOf, mateInjuryOpen, mateOutAt, narrative, HAZE, haze, rookieWallOpen, jerseyNights, jerseyNight, earned, storyFacts, storyPrompt, checkStory, storyChoose, scaleRange };
+
+  // ---------------------------------------------------------------- 9. the duel: one real star, your whole career
+  // At your first pro season the game names your career rival among the real young stars (closest in age, position and level); you can switch
+  // during that first season. Every game against his team is a duel night: the head-to-head, both lines, playoff meetings, the beef, and a verdict.
+  function duelCands(st) {
+    const L = st.league, me = st.player; if (!L || !me) return [];
+    const ps = Object.values(L.players).filter((q) => q.real && !q.rookie && q.age <= me.age + 5 && q.teamId != null && q.teamId !== st.teamId);
+    const sc = (q) => ovr(q) + (q.pos === me.pos ? 3 : 0) - 0.8 * Math.abs(q.age - me.age);
+    return ps.sort((a, b) => sc(b) - sc(a)).slice(0, 3).map((q) => ({ id: q.id, name: q.name, pos: q.pos, age: q.age, ovr: Math.round(ovr(q)), team: L.teams[q.teamId].nick }));
+  }
+  function duelOf(st) {
+    if (st.autoPlay || !st.league || st.teamId == null || st.teamId < 0 || !st.contract) return (flags(st).duel) || null;
+    const f = flags(st); if (!f.duel) { const c = duelCands(st)[0]; if (c) f.duel = { id: c.id, name: c.name, since: st.league.year, book: {} }; }
+    return f.duel || null;
+  }
+  const duelCanSwitch = (st) => { const d = flags(st).duel; return !!(d && st.league && d.since === st.league.year); };
+  function duelSet(st, id) { const q = st.league.players[id]; if (!q || !duelCanSwitch(st)) return false; flags(st).duel = { id: q.id, name: q.name, since: st.league.year, book: {}, picked: true }; return true; }
+  // his line on a duel night: his season scoring with a seeded game-to-game swing (the box score's own rng, so a replay shows the same night)
+  function duelHis(st, it, q) {
+    const h = q.hist && (q.hist.find((x) => x[0] === st.league.year) || q.hist[q.hist.length - 1]), base = h ? h[4] / 10 : Math.max(8, (ovr(q) - 55) * 0.8);
+    const r = rng(st, 'duel|' + st.league.year + '|' + it.n + (it.po ? 'p' : ''));
+    return Math.max(0, Math.round(base * (0.68 + 0.64 * r())));
+  }
+  const duelGames = (st, d) => { const q = st.league.players[d.id], t = q && st.league.teams[q.teamId]; if (!t) return []; return (st.matchLog || []).filter((x) => x.k === 'g' && x.o === t.nick && x.cd !== 0 && x.f != null); };
+  // the season's ledger (rebuilt from the games played so far; earlier seasons are kept in the book)
+  function duelRecord(st) {
+    const d = duelOf(st); if (!d) return null; const q = st.league.players[d.id]; if (!q) return d;
+    const gs = duelGames(st, d).filter((x, i) => i < 999 && (st.matchIdx == null || (st.matchLog.indexOf(x) < st.matchIdx))), po = gs.filter((x) => x.po);
+    const me = gs.filter((x) => !x.dnp), mp = me.map((x) => x.pt || 0), hp = gs.map((x) => duelHis(st, x, q));
+    d.book[st.league.year] = { y: st.league.year, team: st.league.teams[q.teamId].nick, w: gs.filter((x) => x.w).length, l: gs.filter((x) => !x.w).length, me: mp.length ? Math.round(mp.reduce((a, b) => a + b, 0) / mp.length * 10) / 10 : null, him: hp.length ? Math.round(hp.reduce((a, b) => a + b, 0) / hp.length * 10) / 10 : null, outscored: me.filter((x, i) => (x.pt || 0) > duelHis(st, x, q)).length, n: gs.length, po: po.length ? { w: po.filter((x) => x.w).length, l: po.filter((x) => !x.w).length } : null };
+    return d;
+  }
+  // the beef: what gets said after duel nights (seeded per game; only some nights make noise)
+  const BEEF = {
+    won: ['{him} after the loss: "One game. Let\'s see where we are in June."', 'Podcast clip of the day: "{me} cooked {him} and it was not close."', '{him}\'s camp is quiet tonight. {me}\'s timeline is not.'],
+    lost: ['{him}: "Respect to {me}. But it is my league right now."', 'The debate shows are loving this one: {him} got the better of {me} again.', '{me} walked off without dapping up {him}. The clip has 3 million views.'],
+  };
+  function duelNight(st, it) {
+    const d = duelOf(st); if (!d || !it || it.k !== 'g') return null; const q = st.league.players[d.id], t = q && st.league.teams[q.teamId]; if (!t || it.o !== t.nick) return null;
+    const rec = duelRecord(st), all = Object.values(rec.book || {}), w = all.reduce((a, x) => a + x.w, 0), l = all.reduce((a, x) => a + x.l, 0);
+    const out = { name: d.name, w, l };
+    if (it.f != null && it.cd !== 0) {
+      const his = duelHis(st, it, q), mine = it.dnp ? null : it.pt || 0; out.his = his; out.mine = mine; out.won = !!it.w;
+      const r = rng(st, 'beef|' + st.league.year + '|' + it.n); if (r() < 0.45) { const pool = BEEF[it.w ? 'won' : 'lost']; out.beef = pool[Math.floor(r() * pool.length)].replace(/\{him\}/g, d.name).replace(/\{me\}/g, st.player.name); }
+    }
+    return out;
+  }
+  // the career-long view, and the verdict when it is over
+  function duelCard(st) {
+    const d = duelOf(st); if (!d) return null; duelRecord(st); const L = st.league, q = L.players[d.id], all = Object.values(d.book || {}).sort((a, b) => a.y - b.y);
+    const w = all.reduce((a, x) => a + x.w, 0), l = all.reduce((a, x) => a + x.l, 0), meets = all.filter((x) => x.po && x.po.w + x.po.l >= 4), pw = meets.filter((x) => x.po.w > x.po.l).length;
+    const myA = st.career.awards || {}, hisA = (q && q.awd) || {}, score = (a) => 5 * (a.MVP || 0) + 4 * (a.Championships || a.Champion || 0) + 1.5 * (a['All-NBA'] || 0) + 0.6 * (a['All-Star'] || 0) + 2 * (a['Finals MVP'] || 0);
+    const sm = score(myA) + w * 0.05 + pw * 1.5, sh = score(hisA) + l * 0.05 + (meets.length - pw) * 1.5, share = Math.round(clamp(50 + (sm - sh) * 4, 5, 95));
+    const myPts = (st.proSeasons || []).filter((s) => s.year >= d.since).map((s) => ({ y: s.year, pts: s.pts })), hisPts = q && q.hist ? q.hist.filter((h) => h[0] >= d.since).map((h) => ({ y: h[0], pts: h[4] / 10 })) : [];
+    const verdict = st.retired ? (share >= 60 ? 'History will say you won the duel with ' + d.name + '.' : share <= 40 ? d.name + ' won the duel. You pushed him every step.' : 'Too close to call. Barbershops will argue about you two forever.')
+      : share >= 60 ? 'You are winning the duel right now.' : share <= 40 ? d.name + ' has the upper hand. For now.' : 'Dead even. Every meeting matters.';
+    return { name: d.name, id: d.id, since: d.since, picked: !!d.picked, team: q && L.teams[q.teamId] ? L.teams[q.teamId].nick : 'retired', ovr: q ? Math.round(ovr(q)) : null, w, l, seasons: all, meets: meets.map((x) => ({ y: x.y, won: x.po.w > x.po.l, w: x.po.w, l: x.po.l })), share, verdict, myPts, hisPts, canSwitch: duelCanSwitch(st), cands: duelCanSwitch(st) ? duelCands(st) : [] };
+  }
+
+  NBA.Arc = { duelCands, duelOf, duelSet, duelRecord, duelNight, duelCard, duelHis, TRAITS, traitOf, mateCards, mateEventOpen, mateEventView, mateEventAuto, mateEventChoose, assignmentOpen, lockdownOf, mateInjuryOpen, mateOutAt, narrative, HAZE, haze, rookieWallOpen, jerseyNights, jerseyNight, earned, storyFacts, storyPrompt, checkStory, storyChoose, scaleRange };
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 2 Nov · BallerSim dashboard v119';
+  const BUILD = 'build 2 Nov · BallerSim dashboard v120';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -181,6 +181,7 @@
       let i = 0; fill(0);
       const t = setInterval(() => { i++; fill(i); if (i >= S.stars) { clearInterval(t); S.revealed = true; save(); setTimeout(details, 350); } }, 520);
     }
+    if (S.legacy && S.legacy.parent) { const p = S.legacy.parent; return h('div', null, h('div', { class: 'callout' }, '🧬 ' + NBA.seasonLabel(S.league.year) + '. The scouts already know the name: you are ' + p.name + '\'s son (' + p.tier.toLowerCase() + ', ' + p.ppg + ' ppg over ' + p.seasons + ' seasons' + (p.titles ? ', ' + p.titles + ' title' + (p.titles > 1 ? 's' : '') : '') + '). Every gym you walk into, someone remembers him.'), box); }
     return h('div', null, box);
   }
 
@@ -978,6 +979,8 @@
   }
   function hotMate(g) {
     const W = NBA.World; if (!W || S.autoPlay || !g || g.dnp) return null; const b = W.boxOf(S, g); if (!b) return null; const hot = b.ours.find((x) => x.pts >= 33), opp = b.theirs.find((x) => x.pts >= 38);
+    const dn = NBA.Arc && NBA.Arc.duelNight && NBA.Arc.duelNight(S, g);
+    if (dn && dn.his != null) return h('div', { class: 'callout' }, '⚔️ Duel night vs ' + dn.name + ': ' + (dn.mine == null ? 'you sat this one out, he had ' + dn.his : 'you ' + dn.mine + ', him ' + dn.his) + ' · ' + (dn.won ? 'your team took it' : 'his team took it') + ' · career H2H ' + dn.w + '-' + dn.l + (dn.beef ? '. ' + dn.beef : '.'));
     const lk = NBA.Arc && NBA.Arc.lockdownOf(S, g); if (lk) return h('div', { class: 'callout' }, '🔒 Lockdown: you held ' + lk.name + ' to ' + lk.pts + ' points (he averages ' + lk.avg + ').');
     if (b.step && b.step.pts >= 15) return h('div', { class: 'callout' }, '🆙 With ' + b.out + ' out, ' + b.step.name + ' stepped into the rotation and scored ' + b.step.pts + (g.w ? ' in the win.' : '.'));
     return hot ? h('div', { class: 'callout' }, '🔥 ' + hot.name + ' went off for ' + hot.pts + ' ' + (g.w ? 'in the win.' : 'in the loss.')) : opp ? h('div', { class: 'callout' }, '😤 ' + opp.name + ' dropped ' + opp.pts + ' on you.') : null;
@@ -1135,7 +1138,7 @@
     return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🎟'), h('h2', null, 'Draft picks'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, mine.filter((p) => p.r === 1).length + ' firsts · ' + mine.filter((p) => p.r === 2).length + ' seconds')),
       mine.map((p) => line(p, p.orig === t.id ? ' · own' : ' · from the ' + L.teams[p.orig].nick)), away.length ? h('div', { class: 'small caps muted', style: 'margin-top:10px' }, 'Traded away') : null, away.map((p) => line(p, ' · to the ' + L.teams[p.owner].nick)));
   }
-  function screenTeam() { if ((S.teamId == null || S.teamId < 0) && NBA.Euro) { const cl = NBA.Euro.clubOf(S); if (cl) return euroTeamPage(cl.key, cl.team.id); } const el = screenTeam0(); if (S.contract && S.teamId != null && el.append) { el.append(roomPanel()); { const mp = matesPanel(); if (mp) el.append(mp); } el.append(capPanel(S.league.teams[S.teamId])); const pp = picksPanel(S.league.teams[S.teamId]); if (pp) el.append(pp); } return el; }
+  function screenTeam() { if ((S.teamId == null || S.teamId < 0) && NBA.Euro) { const cl = NBA.Euro.clubOf(S); if (cl) return euroTeamPage(cl.key, cl.team.id); } const el = screenTeam0(); if (S.contract && S.teamId != null && el.append) { el.append(roomPanel()); { const mp = matesPanel(); if (mp) el.append(mp); } { const dp = duelPanel(); if (dp) el.append(dp); } el.append(capPanel(S.league.teams[S.teamId])); const pp = picksPanel(S.league.teams[S.teamId]); if (pp) el.append(pp); } return el; }
   function leaguePayrolls() {
     const C = NBA.Cap, rows = S.league.teams.map((t) => Object.assign({ t }, C.finance(S, t))).sort((a, b) => b.payroll - a.payroll);
     return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🏦'), h('h2', null, 'Payrolls around the league')),
@@ -1496,6 +1499,19 @@
       h('p', { class: 'small muted' }, 'Best of the class right now: ' + c.best.map((q) => q.name + ' (' + q.ovr + ')').join(', ') + (c.gone ? ' · ' + c.gone + ' are already out of the league' : '')),
       c.list.map((q) => h('div', { class: 'row small', style: 'margin:3px 0' }, h('span', { style: 'width:34px' }, '#' + q.slot), h('span', null, plink(q.id, q.name)), h('span', { class: 'spacer' }), h('span', { class: 'muted' }, q.team + ' · ' + q.ovr + ' OVR' + (Object.keys(q.awd).length ? ' · ' + Object.keys(q.awd).slice(0, 2).map((k) => q.awd[k] + '× ' + k).join(', ') : '')))));
   }
+  // the duel: one real star across your whole career
+  function duelPanel() {
+    const A = NBA.Arc; if (!A || !A.duelCard || S.autoPlay) return null; let c; try { c = A.duelCard(S); } catch (e) { return null; } if (!c) return null;
+    const mine = {}; c.myPts.forEach((x) => (mine[x.y] = x.pts)); const his = {}; c.hisPts.forEach((x) => (his[x.y] = x.pts)); const ys = Array.from(new Set(Object.keys(mine).concat(Object.keys(his)))).map(Number).sort((a, b) => a - b).slice(-8);
+    const bk = {}; c.seasons.forEach((x) => (bk[x.y] = x));
+    return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '⚔️'), h('h2', null, 'The duel: ' + c.name), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, 'H2H ' + c.w + '-' + c.l)),
+      h('p', { class: 'small muted' }, (c.team === 'retired' ? 'Retired' : c.team + (c.ovr ? ' · ' + c.ovr + ' OVR' : '')) + ' · your career rival since ' + NBA.seasonLabel(c.since) + (c.meets.length ? ' · playoff meetings: ' + c.meets.map((m) => NBA.seasonLabel(m.y) + ' (' + (m.won ? 'you ' : 'him ') + Math.max(m.w, m.l) + '-' + Math.min(m.w, m.l) + ')').join(', ') : ' · no playoff meeting yet')),
+      ys.length ? h('table', { class: 'st small' }, h('tr', null, h('th', null, 'Season'), h('th', null, 'Your ppg'), h('th', null, 'His ppg'), h('th', null, 'Duels'), h('th', null, 'You outscored him')),
+        ys.map((y) => { const b = bk[y]; return h('tr', null, h('td', null, NBA.seasonLabel(y)), h('td', null, mine[y] != null ? mine[y].toFixed(1) : '-'), h('td', null, his[y] != null ? his[y].toFixed(1) : '-'), h('td', null, b && b.n ? b.w + '-' + b.l : '-'), h('td', null, b && b.n ? b.outscored + ' of ' + b.n : '-')); })) : null,
+      h('div', { style: 'margin:8px 0' }, h('div', { class: 'small caps muted' }, 'The debate'), h('div', { class: 'bar2' }, h('i', { style: 'width:' + c.share + '%' })), h('div', { class: 'row small' }, h('span', null, 'You ' + c.share + '%'), h('span', { class: 'spacer' }), h('span', null, c.name + ' ' + (100 - c.share) + '%'))),
+      h('p', { class: 'small' }, c.verdict),
+      c.canSwitch && c.cands.length > 1 ? h('div', { class: 'row small', style: 'flex-wrap:wrap;gap:6px' }, h('span', { class: 'muted' }, 'Pick your rival (this season only):'), c.cands.map((x) => h('button', { class: x.id === c.id ? 'primary' : '', onclick: () => { if (A.duelSet(S, x.id)) { save(); render(); } } }, x.name + ' · ' + x.team + ' · ' + x.ovr))) : null);
+  }
   function rivalBox(rc) {
     return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🔥 Rivalry: ' + rc.name), h('p', { class: 'small muted' }, (rc.team === 'retired' ? 'Retired' : rc.team + (rc.ovr ? ' · ' + rc.ovr + ' OVR' : '')) + ' · rivals since ' + rc.since),
       h('div', { class: 'row small' }, h('span', null, 'Head to head: ', h('b', null, rc.w + '-' + rc.l)), h('span', { class: 'spacer' }), h('span', null, rc.meets.length ? 'Playoff meetings: ' + rc.meets.map((m) => NBA.seasonLabel(m.y) + ' ' + m.rnd + ' (' + (m.won ? 'you, ' : 'him, ') + Math.max(m.w, m.l) + '-' + Math.min(m.w, m.l) + ')').join(' · ') : 'No playoff meetings yet')),
@@ -1669,7 +1685,7 @@
       (() => { const pt = playoffTotals(cv.pl); return pt ? h('div', null, h('h3', null, 'Playoff career'), h('div', { class: 'grid stats' }, pt.rating ? ratingBox(pt.rating, 'Playoff avg rating') : null, statBox(f1(pt.pts), 'PPG'), statBox(f1(pt.reb), 'RPG'), statBox(f1(pt.ast), 'APG'), statBox(f1(pt.stl), 'SPG'), statBox(f1(pt.blk), 'BPG'), statBox(pt.gp.toLocaleString(), 'Playoff games'), statBox(pt.totPts.toLocaleString(), 'Playoff points'), statBox(pt.totReb.toLocaleString(), 'Playoff rebounds'), statBox(pt.totAst.toLocaleString(), 'Playoff assists'), statBox(cv.career.titles || 0, 'Championships'))) : null; })(),
       h('div', { style: 'margin-top:8px' }, Object.keys(aw).map((k) => h('span', { class: 'pill gold' }, aw[k] + '× ' + k))),
       h('p', { class: 'muted small' }, 'Seasons averaging a triple-double: ' + cv.career.tdSeasons + (cv.career.td30Seasons ? ' (' + cv.career.td30Seasons + ' with 30+ ppg)' : '')),
-      slotsCard(), badgesCard(), S.jerseys && S.jerseys.length ? h('p', { class: 'small muted' }, '👕 ' + S.jerseys.map((j) => '#' + j.num + ' ' + j.team).join(' · ')) : null, S.contract ? historyPanel(false) : null, NBA.Story && NBA.Story.rivalCard(S) ? rivalBox(NBA.Story.rivalCard(S)) : null, classCard(),
+      slotsCard(), badgesCard(), S.jerseys && S.jerseys.length ? h('p', { class: 'small muted' }, '👕 ' + S.jerseys.map((j) => '#' + j.num + ' ' + j.team).join(' · ')) : null, S.contract ? historyPanel(false) : null, NBA.Story && NBA.Story.rivalCard(S) ? rivalBox(NBA.Story.rivalCard(S)) : null, duelPanel(), legacyPanel(), classCard(),
       highsSection(ps),
       h('h3', null, 'Regular season'), seasonTable(ps, false));
     if (cv.pl.length) wrap.append(h('h3', null, 'Playoffs'), seasonTable(cv.pl, true), playoffBySeries(cv.ps));
@@ -1767,6 +1783,81 @@
     return h('div', null, modal(h('div', null, h('h1', null, sp.title), h('p', { class: 'muted' }, sp.pathLabel + ' · age ' + sp.age + ' · decision ' + sp.n + ' of ' + sp.of), h('div', { class: 'card suspense' }, h('p', { style: 'margin:0' }, sp.text)),
       h('div', { class: 'wkgrid' }, sp.options.map((o) => h('div', { class: 'wkcard' }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: 'primary', onclick: () => { try { S.afterRes = L2.pathAnswer(S, o.key); save(); render(); } catch (e) { console.error(e); } } }, 'Choose'))))))), pg);
   }
+  // GM Mode: run a front office in the same league
+  function gmStartCard() {
+    const M = NBA.GM; if (!M) return null; const gm = S.gm;
+    if (gm && !gm.done && !gm.fired) return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🏢 Your front office'), h('button', { class: 'primary', onclick: () => { S.stage = 'gm'; save(); go(); } }, 'Back to the ' + S.league.teams[gm.teamId].nick + ' front office →'));
+    const sm = gm ? M.summary(S) : null, of = M.offers(S);
+    return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '🏢 GM Mode: run a front office'),
+      sm ? h('p', { class: 'small' }, (sm.fired ? 'Fired by the ' : 'You ran the ') + sm.team + ': ' + sm.seasons + ' season' + (sm.seasons === 1 ? '' : 's') + ', ' + sm.w + '-' + sm.l + ', ' + sm.playoffs + ' playoff trip' + (sm.playoffs === 1 ? '' : 's') + (sm.titles ? ', ' + sm.titles + ' title' + (sm.titles > 1 ? 's' : '') + ' 🏆' : '') + '.') : h('p', { class: 'small muted' }, 'Owners are calling. Trade, sign free agents, draft and keep the owner happy: win, make runs and stay out of the tax, or get fired. The league keeps going from here.'),
+      of.map((o) => h('div', { class: 'row small', style: 'margin:6px 0;flex-wrap:wrap;gap:6px' }, h('b', null, o.name), h('span', { class: 'muted' }, o.wins + '-' + o.losses + ' · best player ' + o.best + ' · ' + o.pitch), h('span', { class: 'spacer' }),
+        confirmBtn('Take the job', '', () => { try { M.start(S, o.id); S.stage = 'gm'; gmUi = { mine: [], theirs: [], other: null, quote: null, msg: null }; save(); go(); } catch (e) { console.error(e); } }))));
+  }
+  let gmUi = { mine: [], theirs: [], other: null, quote: null, msg: null };
+  function screenGM() {
+    const M = NBA.GM, gm = S.gm, L = S.league; if (!M || !gm) { S.stage = 'retired'; return screenRetired(); }
+    const t = L.teams[gm.teamId], cv = M.capView(S), ro = M.roster(S), money = (x) => '$' + x.toFixed(1) + 'M';
+    const head = h('div', { class: 'card' }, h('div', { class: 'row', style: 'flex-wrap:wrap;gap:8px' }, h('h1', { style: 'margin:0' }, '🏢 ' + t.name), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, NBA.seasonLabel(L.year) + (gm.phase === 'pre' ? ' · offseason' : ' · season over'))),
+      h('p', { class: 'small muted', style: 'margin:4px 0' }, 'President of basketball operations ' + S.player.name + ' · ' + gm.seasons.length + ' season' + (gm.seasons.length === 1 ? '' : 's') + ' on the job · the owner expects about ' + gm.exp + ' wins'),
+      h('div', { class: 'small caps muted' }, 'Owner patience'), h('div', { class: 'bar2' }, h('i', { style: 'width:' + gm.patience + '%' })), h('div', { class: 'row small' }, h('span', null, gm.patience + '/100'), h('span', { class: 'spacer' }), h('span', { class: 'muted' }, 'Fired at 15')),
+      h('p', { class: 'small', style: 'margin:6px 0 0' }, 'Payroll ' + money(cv.pay) + ' · cap ' + money(cv.cap) + ' · tax line ' + money(cv.tax) + ' · ', h('b', null, cv.status)));
+    const log = h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🚨'), h('h2', null, 'League sources')), gm.log.slice(0, 14).map((x) => h('div', { class: 'small', style: 'margin:3px 0' }, h('span', { class: 'muted' }, NBA.seasonLabel(x.y) + ' · '), x.text)));
+    const quit = h('div', { class: 'row', style: 'margin-top:10px' }, confirmBtn('Step down', '', () => { M.quit(S); save(); go(); }));
+    if (gm.fired) { const sm = M.summary(S); return h('div', null, head, h('div', { class: 'card' }, h('h2', { style: 'margin-top:0' }, 'You are fired'), h('p', null, 'The owner made the call after ' + sm.seasons + ' seasons (' + sm.w + '-' + sm.l + ', ' + sm.playoffs + ' playoff trips' + (sm.titles ? ', ' + sm.titles + ' titles' : '') + ').'), h('button', { class: 'primary', onclick: () => { gm.done = true; S.stage = 'retired'; save(); go(); } }, 'Back to retirement →')), log); }
+    const msg = gmUi.msg ? h('div', { class: 'callout' }, gmUi.msg) : null;
+    // the roster
+    const rosterP = h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '📋'), h('h2', null, 'Roster (' + ro.length + ')')),
+      h('table', { class: 'st small' }, h('tr', null, ['Player', 'Pos', 'Age', 'OVR', 'Salary', 'Through', ''].map((x) => h('th', null, x))),
+        ro.map((x) => h('tr', null, h('td', null, plink(x.id, x.name), x.rookie ? h('em', { class: 'muted' }, ' rookie') : ''), h('td', null, x.pos), h('td', null, x.age), h('td', null, h('b', null, x.ovr)), h('td', null, money(x.sal)), h('td', null, x.cEnd != null ? NBA.seasonLabel(x.cEnd) : '-'),
+          h('td', null, gm.phase === 'pre' && !x.rookie ? h('label', { class: 'small' }, h('input', { type: 'checkbox', checked: gmUi.mine.includes(x.id), onchange: (e) => { gmUi.mine = e.target.checked ? gmUi.mine.concat([x.id]) : gmUi.mine.filter((i) => i !== x.id); gmUi.quote = null; render(); } }), ' trade') : null,
+            gm.phase === 'pre' && !x.rookie ? confirmBtn('Waive', '', () => { M.waive(S, x.id); gmUi.mine = gmUi.mine.filter((i) => i !== x.id); save(); render(); }) : null)))));
+    if (gm.phase === 'pre') {
+      const others = L.teams.filter((x) => x.id !== gm.teamId), ot = gmUi.other != null ? L.teams[gmUi.other] : null, theirs = ot ? NBA.rosterOf(L, ot) : [];
+      const tradeP = h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🔁'), h('h2', null, 'Trade')),
+        h('p', { class: 'small muted' }, 'Tick your players above, pick a team and their players, then ask. Teams want to win the trade; rebuilding teams want youth; over the tax line salaries must match.'),
+        h('select', { onchange: (e) => { gmUi.other = e.target.value === '' ? null : +e.target.value; gmUi.theirs = []; gmUi.quote = null; render(); } }, h('option', { value: '' }, 'Choose a team…'), others.map((x) => h('option', { value: x.id, selected: gmUi.other === x.id }, x.name + ' (' + x.wins + '-' + x.losses + ')'))),
+        ot ? h('table', { class: 'st small' }, theirs.map((q) => h('tr', null, h('td', null, h('input', { type: 'checkbox', checked: gmUi.theirs.includes(q.id), onchange: (e) => { gmUi.theirs = e.target.checked ? gmUi.theirs.concat([q.id]) : gmUi.theirs.filter((i) => i !== q.id); gmUi.quote = null; render(); } })), h('td', null, plink(q.id, q.name)), h('td', null, q.pos), h('td', null, q.age), h('td', null, h('b', null, Math.round(NBA.ovr(q))))))) : null,
+        h('div', { class: 'row', style: 'margin-top:8px;gap:6px' }, h('button', { onclick: () => { gmUi.quote = M.quote(S, gmUi.mine, gmUi.other, gmUi.theirs); render(); } }, 'Ask them'),
+          gmUi.quote && gmUi.quote.ok ? confirmBtn('Make the trade', 'primary', () => { const r = M.trade(S, gmUi.mine, gmUi.other, gmUi.theirs); gmUi = { mine: [], theirs: [], other: null, quote: null, msg: r.done ? '✅ Trade done.' : r.why }; save(); render(); }) : null),
+        gmUi.quote ? h('p', { class: 'small' }, (gmUi.quote.ok ? '🤝 ' : '📵 ') + gmUi.quote.why) : null);
+      const faP = h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '✍️'), h('h2', null, 'Free agents')),
+        (gm.fa || []).map((f, i) => h('div', { class: 'row small', style: 'margin:4px 0;flex-wrap:wrap;gap:6px' }, h('b', null, f.p.name), h('span', { class: 'muted' }, f.p.pos + ' · ' + f.p.age + ' · ' + Math.round(NBA.ovr(f.p)) + ' OVR · ' + (NBA.data.ARCHETYPES[f.p.arch] ? NBA.data.ARCHETYPES[f.p.arch].name : '')), h('span', { class: 'spacer' }), h('span', null, money(f.ask) + ' × ' + f.yrs + 'y'),
+          h('button', { onclick: () => { const r = M.sign(S, i); gmUi.msg = r.ok ? '✅ Signed.' : '📵 ' + r.why; save(); render(); } }, 'Sign'))));
+      const go2 = h('div', { class: 'row', style: 'margin:10px 0' }, confirmBtn('Play the ' + NBA.seasonLabel(L.year) + ' season ▶', 'primary', () => { try { M.playSeason(S); gmUi = { mine: [], theirs: [], other: null, quote: null, msg: null }; save(); render(); } catch (e) { console.error(e); } }));
+      return h('div', null, head, msg, go2, rosterP, tradeP, faP, log, quit);
+    }
+    // after the season: the result, the draft, who to keep
+    const last = gm.last || {}, db = M.draftBoard(S), exp = M.expiring(S);
+    const res = h('div', { class: 'card' }, h('h2', { style: 'margin-top:0' }, (last.champ ? '🏆 ' : '') + t.nick + ' ' + last.w + '-' + last.l), h('p', null, (last.champ ? 'Champions!' : last.made ? 'Made the playoffs, ' + ['out in the first round', 'out in the second round', 'out in the conference finals', 'lost in the Finals'][Math.min(3, last.rounds)] + '.' : 'Missed the playoffs.') + ' The owner expected about ' + last.exp + ' wins. Champion: ' + (last.champion || '-') + (last.mvp ? ' · MVP: ' + last.mvp : '') + '.'));
+    const draftP = db ? h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🎓'), h('h2', null, 'The draft: you pick #' + db.slot)),
+      db.picked ? h('p', { class: 'small' }, 'You are taking ' + db.picked + '.') : h('p', { class: 'small muted' }, 'The board when you are on the clock (the teams before you take the best available).'),
+      db.board.map((q) => h('div', { class: 'row small', style: 'margin:4px 0;gap:6px' }, h('b', null, q.name), h('span', { class: 'muted' }, q.pos + ' · ' + q.age + ' · ' + q.ovr + ' now · ceiling ~' + q.ceil), h('span', { class: 'spacer' }), db.picked ? null : h('button', { onclick: () => { M.draftPick(S, q.id); save(); render(); } }, 'Pick')))) : null;
+    const expP = exp.length ? h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '📝'), h('h2', null, 'Contracts ending')), exp.map((x) => h('div', { class: 'row small', style: 'margin:4px 0;gap:6px' }, h('b', null, x.name), h('span', { class: 'muted' }, x.pos + ' · ' + x.age + ' · ' + x.ovr + ' OVR · ' + money(x.sal)), h('span', { class: 'spacer' }),
+      h('button', { onclick: () => { M.resign(S, x.id, true); save(); render(); } }, 'Re-sign'), h('button', { onclick: () => { M.resign(S, x.id, false); gmUi.msg = x.name + ' will test free agency.'; save(); render(); } }, 'Let walk')))) : null;
+    const nx = h('div', { class: 'row', style: 'margin:10px 0' }, confirmBtn('On to the offseason ▶', 'primary', () => { try { M.nextYear(S); gmUi = { mine: [], theirs: [], other: null, quote: null, msg: null }; save(); render(); } catch (e) { console.error(e); } }));
+    return h('div', null, head, msg, res, nx, draftP, expP, rosterP, log, quit);
+  }
+  // Legacy Mode: the next generation, in the same league years later
+  function legacyStartCard() {
+    if (!G.legacyCareer || S.player.age < 30 && !S.hof) return null;
+    const last = S.player.name.split(' ').slice(-1)[0], kid = { name: S.player.name.split(' ')[0] + ' ' + last + ' Jr.', pos: S.player.pos, arch: S.player.arch };
+    if (S.legacy && S.legacy.gen >= 2) kid.name = S.player.name.replace(/ (Jr\.|II|III|IV)$/, '') + (S.legacy.gen === 2 ? ' III' : ' IV');
+    return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '👶 Legacy Mode: play as your son'),
+      h('p', { class: 'small muted' }, 'Years pass in this same league (your teammates retire, your records stand) until he is 18. Your name gets him scouted from day one, his size takes after yours, and every box score will be measured against yours. This replaces this saved career (your story stays in his).'),
+      h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, h('input', { type: 'text', value: kid.name, maxlength: 28, oninput: (e) => (kid.name = e.target.value) }),
+        h('select', { onchange: (e) => (kid.pos = e.target.value) }, Object.keys(D.POSITIONS).map((p) => h('option', { value: p, selected: p === kid.pos }, p))),
+        h('select', { onchange: (e) => (kid.arch = e.target.value) }, Object.keys(D.ARCHETYPES).filter((k) => k !== 'generational').map((k) => h('option', { value: k, selected: k === kid.arch }, D.ARCHETYPES[k].name)))),
+      h('div', { class: 'row', style: 'margin-top:8px' }, confirmBtn('Start the next generation →', 'The years until he turns 18 are simulated (a few seconds).', () => { try { S = G.legacyCareer(S, { name: (kid.name || '').trim() || 'Junior', pos: kid.pos, arch: kid.arch }); S.stage = 'scouting'; S.revealed = false; save(); go(); } catch (e) { console.error(e); } })));
+  }
+  function legacyPanel() {
+    const v = G.legacyView && G.legacyView(S); if (!v) return null; const p = v.parent, m = v.me;
+    const row = (k, a, b) => h('tr', null, h('td', null, k), h('td', null, h('b', null, a)), h('td', null, b));
+    return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🧬'), h('h2', null, 'Legacy: you vs ' + p.name), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, v.gen === 2 ? '2nd generation' : v.gen + 'th generation')),
+      h('p', { class: 'small muted' }, p.name + ': ' + p.tier + (p.hall ? ' · Hall of Famer' : '') + ' · ' + p.seasons + ' seasons with ' + p.teams.slice(0, 3).join(', ') + (v.grand ? ' · and before him, ' + v.grand.name : '')),
+      h('table', { class: 'st small' }, h('tr', null, h('th', null, ''), h('th', null, 'You'), h('th', null, 'Your dad')), row('Seasons', m.seasons, p.seasons), row('Points per game', m.ppg, p.ppg), row('All-Star', m.allStars, p.allStars), row('MVP', m.mvps, p.mvps), row('Titles', m.titles, p.titles)),
+      v.dadTeam ? h('p', { class: 'small' }, '🏟️ You play for his old team' + (v.dadNum != null ? ' and his #' + v.dadNum + ' still means something here.' : '.')) : null,
+      h('p', { class: 'small' }, v.line));
+  }
   function screenRetired0() {
     const hof = S.hof, p = S.player;
     const mark = NBA.logos && NBA.logos._NBA ? h('div', { class: 'nbahero' }, h('span', null, h('img', { src: NBA.logos._NBA, alt: 'NBA' }))) : null;
@@ -1776,7 +1867,7 @@
       (G.canComeback(S) ? (() => { let yrs = 1; return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Miss it already?'),
         h('p', { class: 'small muted' }, 'Players do come back (ask Jordan). A few years away costs you athleticism and the league moves on, but a famous name still gets a call. You are ' + p.age + (S.farewellAnnounced || S.farewellDone ? '. You told the world it was your farewell, so the fans will be split.' : '.')),
         h('div', { class: 'row' }, h('select', { onchange: (e) => { yrs = +e.target.value; } }, [1, 2, 3].filter((y) => p.age + y <= 42).map((y) => h('option', { value: y }, y + (y === 1 ? ' year away' : ' years away')))), confirmBtn('Come out of retirement', '', () => { G.comeback(S, yrs); go(); }))); })() : null),
-      careerReportCard(), afterCard(), movesCard(), journalCard(40, 'Career journal'),
+      gmStartCard(), legacyStartCard(), careerReportCard(), afterCard(), movesCard(), journalCard(40, 'Career journal'),
       h('div', { class: 'card' }, careerBody()),
       h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { wipe(); S = null; boot(); } }, 'Start a new career')));
   }
@@ -2270,7 +2361,7 @@
     if (view === 'team' && st !== 'create') { app.append(screenTeam()); return; }
     if (view === 'league' && st !== 'create') { app.append(screenLeague()); return; }
     if (view === 'career' && st !== 'create') { app.append(screenCareer()); return; }
-    const m = { scouting: screenScouting, hs: screenHS, college_pick: screenCollegePick, college_ready: screenCollegeReady, college_decision: screenCollegeDecision, intl_pick: screenIntlPick, intl_ready: screenIntlReady, intl_decision: screenIntlDecision, combine: screenCombine, workouts: screenWorkouts, draft_night: screenDraft, training: screenTraining, camp: () => preModal(screenCamp), agent: () => preModal(screenAgent), promise: () => preModal(screenPromise), pro_ready: screenProReady, season_play: screenSeasonPlay, season_recap: screenRecap, decision: screenDecision, retired: screenRetired };
+    const m = { scouting: screenScouting, hs: screenHS, college_pick: screenCollegePick, college_ready: screenCollegeReady, college_decision: screenCollegeDecision, intl_pick: screenIntlPick, intl_ready: screenIntlReady, intl_decision: screenIntlDecision, combine: screenCombine, workouts: screenWorkouts, draft_night: screenDraft, training: screenTraining, camp: () => preModal(screenCamp), agent: () => preModal(screenAgent), promise: () => preModal(screenPromise), pro_ready: screenProReady, season_play: screenSeasonPlay, season_recap: screenRecap, decision: screenDecision, retired: screenRetired, gm: screenGM };
     if (S.flash && st !== 'decision') { app.append(h('div', { class: 'callout' }, S.flash)); S.flash = null; }
     app.append((m[st] || screenCreate)());
     document.body.classList.toggle('dlg-open', !!app.querySelector('.dlg-back'));

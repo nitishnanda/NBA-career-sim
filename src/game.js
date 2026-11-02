@@ -1,7 +1,7 @@
 (function (g) {
   'use strict';
   const NBA = g.NBA;
-  if (typeof require !== 'undefined') { try { require('./picks.js'); require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./feed.js'); require('./legacy.js'); require('./intl.js'); require('./hsdata.js'); require('./eurodata.js'); require('./euro.js'); require('./report.js'); require('./core.js'); require('./story.js'); require('./world.js'); require('./arc.js'); require('./social.js'); require('./room.js'); require('./live.js'); require('./allstar.js'); require('./cap.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
+  if (typeof require !== 'undefined') { try { require('./picks.js'); require('./real.js'); require('./sizes.js'); require('./combine.js'); require('./decisions.js'); require('./presslines.js'); require('./postpress.js'); require('./mempress.js'); require('./reporters.js'); require('./feed.js'); require('./legacy.js'); require('./intl.js'); require('./hsdata.js'); require('./eurodata.js'); require('./euro.js'); require('./report.js'); require('./core.js'); require('./story.js'); require('./world.js'); require('./arc.js'); require('./social.js'); require('./room.js'); require('./live.js'); require('./allstar.js'); require('./cap.js'); require('./gm.js'); require('./press.js'); } catch (e) { /* browser build loads real.js separately */ } }
   const D = NBA.data;
   const { rand, randn, clamp, rint, pick, weighted, sum, ovr, expLine, genGame, summarize, shootingLine, progress, applyTraining, trainPoints, rollAvail, applyMajorInjury, perfOf } = NBA;
   const ATTRS = D.ATTRS;
@@ -52,7 +52,7 @@
     const genBonus = genLevel && !lateBloomer ? (genLevel === 2 ? 8 : 4) : 0; // true generational talents are seen as such by scouts
     const p = NBA.makePlayer({ id: 'user', name: o.name || 'Rookie', pos: o.pos, arch: o.arch, sec: o.sec && o.sec !== o.arch ? o.sec : null, home: o.home, ht: o.ht, wt: o.wt, ws: o.ws, ceiling, age: 18, stars, gap });
     p.vis = clamp(0.15 + 0.19 * (stars - 1), 0.15, 0.92);
-    const L = NBA.newLeague(2026, { real: true }); // the real league as of 2 Nov 2026 (every team's ten-man rotation)
+    const L = o.league || NBA.newLeague(2026, { real: true }); // the real league as of 2 Nov 2026 (every team's ten-man rotation); Legacy Mode passes the parent's league, years on
     const st = {
       v: 1, stage: 'scouting', player: p, league: L, stars,
       genBonus, college: null, collegeYears: [], proSeasons: [], playoffLines: [],
@@ -62,7 +62,42 @@
     };
     if (o.origin && NBA.Intl && NBA.Intl.COUNTRIES[o.origin]) { st.origin = { country: o.origin, intl: true }; p.country = o.origin; }
     st.family = { tier: FAMILY[o.family] ? o.family : 'comfortable' };
+    if (o.legacy) st.legacy = o.legacy;
     return st;
+  }
+
+  // ---- Legacy Mode: when a career ends, play as your son. The league you played in rolls on (the years until he is 18 are simulated: your old
+  // teammates retire, your records stand), his name opens doors (scouts watch him from day one) and closes others (every game is a comparison).
+  // Genes: his size is near yours and a great parent nudges the ceiling, but most of it is still his own roll.
+  function parentSummary(ps) {
+    const seasons = ps.proSeasons || [], gp = seasons.reduce((a, s) => a + (s.gp || 0), 0), pts = seasons.reduce((a, s) => a + (s.pts || 0) * (s.gp || 0), 0);
+    const teams = []; seasons.forEach((s) => { if (s.team && !teams.includes(s.team)) teams.push(s.team); });
+    const aw = (ps.career && ps.career.awards) || {}, peak = Math.max(0, ...seasons.map((s) => s.ovr || 0));
+    return { name: ps.player.name, tier: ps.hof ? ps.hof.tier : '', hall: !!(ps.hof && ps.hof.hall), score: ps.hof ? ps.hof.score : 0, seasons: seasons.length, ppg: gp ? Math.round(pts / gp * 10) / 10 : 0,
+      titles: (ps.career && ps.career.titles) || 0, mvps: aw.MVP || 0, allStars: aw['All-Star'] || 0, peak: Math.round(peak), ht: ps.player.ht, wt: ps.player.wt, pos: ps.player.pos, arch: ps.player.arch,
+      jerseys: (ps.jerseys || []).slice(), teams, retiredYear: ps.league ? ps.league.year : null, age: ps.player.age, gen: ps.legacy ? ps.legacy.gen : 1, grand: ps.legacy ? ps.legacy.parent : null };
+  }
+  function legacyCareer(ps, o) {
+    const par = parentSummary(ps), L = ps.league, years = clamp(46 - (ps.player.age || 36), 3, 14);   // he is 18 when you are ~46
+    delete L.forceWins; delete L.draftPlan; delete L.realY;   // nothing of your own seasons steers the league any more
+    for (let i = 0; i < years; i++) NBA.runYear(L, { draft: true });
+    const ceil0 = NBA.rollCeiling(Math.min(5, (o.stars || 3)), o.arch), ceiling = clamp(ceil0 + clamp((par.peak - 78) * 0.2, -2, 4), 55, 99);   // a great parent nudges the ceiling, a little
+    const ht = par.ht ? Math.round(par.ht + (rand() * 4 - 2) + (o.pos && par.pos && o.pos !== par.pos ? (['PG', 'SG'].includes(o.pos) ? -2 : ['C', 'PF'].includes(o.pos) ? 2 : 0) : 0)) : undefined;
+    const st = newCareer(Object.assign({ family: (ps.earnings || 0) >= 40 ? 'wealthy' : 'comfortable' }, o, { league: L, ceiling, stars: Math.min(5, (o.stars || 3) + 1), ht, wt: ht && par.wt ? Math.round(par.wt + (ht - par.ht) * 6) : undefined,
+      legacy: { gen: par.gen + 1, parent: par, startYear: L.year } }));
+    st.player.vis = Math.min(0.95, st.player.vis + 0.15);   // every scout knows the name
+    return st;
+  }
+  // the comparison every reporter makes, and the moments the name brings
+  function legacyView(st) {
+    const lg = st.legacy; if (!lg) return null; const par = lg.parent, seasons = st.proSeasons || [], gp = seasons.reduce((a, s) => a + (s.gp || 0), 0), pts = seasons.reduce((a, s) => a + (s.pts || 0) * (s.gp || 0), 0);
+    const aw = (st.career && st.career.awards) || {}, me = { seasons: seasons.length, ppg: gp ? Math.round(pts / gp * 10) / 10 : 0, titles: (st.career && st.career.titles) || 0, mvps: aw.MVP || 0, allStars: aw['All-Star'] || 0 };
+    const t = st.teamId != null && st.teamId >= 0 ? st.league.teams[st.teamId] : null, dadTeam = t && par.teams.some((n) => n === t.name);
+    const dadNum = par.jerseys.find((j) => t && (j.team === t.nick || j.team === t.name));
+    const line = !seasons.length ? 'Everyone already knows your last name. Now they want to know your game.'
+      : me.titles > par.titles || me.mvps > par.mvps ? 'The debate has flipped: people are starting to call your dad "' + st.player.name.split(' ').slice(-1)[0] + '\'s father".'
+      : me.ppg >= par.ppg ? 'You are scoring like him already. The comparisons are getting louder.' : 'Every box score gets measured against his. You are still chasing his numbers.';
+    return { gen: lg.gen, parent: par, me, line, dadTeam, dadNum: dadNum ? dadNum.num : null, grand: par.grand };
   }
 
   // ---- family money: who can pay for prep school, a walk-on spot, an academy abroad or the move to the US. The best of the best from poor and
@@ -1099,6 +1134,7 @@
     if (!st.autoPlay && NBA.Arc) NBA.Arc.earned(st, rec);   // a human career also improves from how it actually played (three-point volume, passing, boards, stocks)
     if (NBA.Euro && !st.autoPlay) NBA.Euro.yearEnd(st);   // the EuroLeague and the G League play their season too (skipped on bulk autopilot runs)
     if (NBA.onSeasonLog) NBA.onSeasonLog(st, rec);
+    if (!st.autoPlay && NBA.Arc && NBA.Arc.duelRecord) { try { const mi = st.matchIdx; st.matchIdx = null; NBA.Arc.duelRecord(st); st.matchIdx = mi; } catch (e) { /* the duel ledger is a side story */ } }   // close the season's duel ledger
     rec.perSeries = perSeries.map((x) => { const y = Object.assign({}, x); delete y.list; delete y.w; delete y.l; delete y.won; return y; });
     st.proSeasons.push(rec); if (!st.autoPlay) NBA.AllStar.reapply(st, rec);
     awardsHere.forEach((a) => { if (/^NBA Champion|^MVP voting/.test(a)) return; if (a === 'All-Star') feedAdd(st, 'allstar', {}, { key: 'as' + L.year, at: null }); else feedAdd(st, 'award', { award: a.replace(/ \(.*\)$/, '') }, { key: 'aw' + L.year + a, at: null }); });
@@ -2370,6 +2406,6 @@
     return st;
   }
 
-  Object.assign(NBA, { capFor, marketCurve, Game: { scaleBox, momentOdds, momentPlay, resolveGame, resolveThrough, reseed, hsOptions, FAMILY, familyOf, canAfford, needScholarship, INTL_PLANS, setClause, euroBuyout, intlReport, nbaInterest, draftWant, pushDraft, callupStint, assignGLeague, teamWant, pushForSpot, stintYears, stashPlayer, stashStay, joinFromStash, buyoutM, intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { capFor, marketCurve, Game: { legacyCareer, legacyView, parentSummary, scaleBox, momentOdds, momentPlay, resolveGame, resolveThrough, reseed, hsOptions, FAMILY, familyOf, canAfford, needScholarship, INTL_PLANS, setClause, euroBuyout, intlReport, nbaInterest, draftWant, pushDraft, callupStint, assignGLeague, teamWant, pushForSpot, stintYears, stashPlayer, stashStay, joinFromStash, buyoutM, intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

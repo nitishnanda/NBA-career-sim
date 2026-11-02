@@ -1,0 +1,2872 @@
+{
+"203999": [
+7.47,
+"Shot Creator",
+"Anchor Big",
+34.842,
+"C"
+],
+"1641705": [
+5.91,
+"Shot Creator",
+"Anchor Big",
+29.148,
+"C"
+],
+"1628983": [
+6.65,
+"Shot Creator",
+"Low Activity",
+33.218,
+"PG"
+],
+"1629029": [
+5.58,
+"Shot Creator",
+"Helper",
+35.757,
+"PG"
+],
+"202695": [
+4.07,
+"Shot Creator",
+"Helper",
+32.072,
+"SF"
+],
+"1630162": [
+1.58,
+"Shot Creator",
+"Chaser",
+35.025,
+"SG"
+],
+"1628369": [
+4.0,
+"Shot Creator",
+"Wing Stopper",
+32.612,
+"PF"
+],
+"1630595": [
+3.68,
+"Shot Creator",
+"Chaser",
+33.929,
+"PG"
+],
+"1628378": [
+3.63,
+"Shot Creator",
+"Helper",
+33.456,
+"SG"
+],
+"201142": [
+1.81,
+"Shot Creator",
+"Helper",
+36.404,
+"SF"
+],
+"203954": [
+2.41,
+"Shot Creator",
+"Anchor Big",
+31.593,
+"C"
+],
+"203507": [
+5.84,
+"Shot Creator",
+"Wing Stopper",
+28.866,
+"PF"
+],
+"1626157": [
+2.84,
+"Versatile Big",
+"Mobile Big",
+30.953,
+"C"
+],
+"1631096": [
+4.01,
+"Shot Creator",
+"Mobile Big",
+28.944,
+"PF"
+],
+"1627750": [
+1.31,
+"Shot Creator",
+"Chaser",
+35.356,
+"PG"
+],
+"1629660": [
+2.55,
+"Shot Creator",
+"Helper",
+22.578,
+"SG"
+],
+"1628389": [
+2.86,
+"Shot Creator",
+"Helper",
+32.392,
+"C"
+],
+"1628973": [
+2.13,
+"Shot Creator",
+"Low Activity",
+34.993,
+"PG"
+],
+"1628384": [
+1.42,
+"Stationary Shooter",
+"Wing Stopper",
+33.19,
+"PF"
+],
+"1628386": [
+2.54,
+"Roll + Cut Big",
+"Mobile Big",
+27.124,
+"C"
+],
+"1630163": [
+2.46,
+"Primary Ball Handler",
+"Low Activity",
+28.016,
+"PG"
+],
+"203932": [
+0.27,
+"Shot Creator",
+"Wing Stopper",
+27.913,
+"PF"
+],
+"203497": [
+1.99,
+"Roll + Cut Big",
+"Anchor Big",
+31.313,
+"C"
+],
+"1630178": [
+2.32,
+"Shot Creator",
+"Chaser",
+38.013,
+"PG"
+],
+"201939": [
+3.39,
+"Primary Ball Handler",
+"Low Activity",
+30.897,
+"PG"
+],
+"1630567": [
+2.49,
+"Shot Creator",
+"Wing Stopper",
+33.507,
+"PF"
+],
+"1628392": [
+3.0,
+"Roll + Cut Big",
+"Mobile Big",
+24.197,
+"C"
+],
+"1630169": [
+3.63,
+"Shot Creator",
+"Low Activity",
+null,
+"PG"
+],
+"1630596": [
+2.93,
+"Shot Creator",
+"Mobile Big",
+31.909,
+"PF"
+],
+"1627936": [
+1.98,
+"Stationary Shooter",
+"Wing Stopper",
+18.216,
+"SG"
+],
+"1628368": [
+1.87,
+"Shot Creator",
+"Point of Attack",
+30.986,
+"PG"
+],
+"1629057": [
+1.53,
+"Roll + Cut Big",
+"Anchor Big",
+17.086,
+"C"
+],
+"1627751": [
+0.42,
+"Roll + Cut Big",
+"Mobile Big",
+24.977,
+"C"
+],
+"1630578": [
+1.4,
+"Shot Creator",
+"Mobile Big",
+33.296,
+"C"
+],
+"202681": [
+1.93,
+"Shot Creator",
+"Chaser",
+null,
+"SG"
+],
+"1627759": [
+1.56,
+"Shot Creator",
+"Helper",
+34.404,
+"SF"
+],
+"201935": [
+2.66,
+"Shot Creator",
+"Helper",
+34.835,
+"PG"
+],
+"1631169": [
+-0.35,
+"Movement Shooter",
+"Wing Stopper",
+17.012,
+"PF"
+],
+"1641717": [
+1.46,
+"Secondary Ball Handler",
+"Point of Attack",
+26.569,
+"SG"
+],
+"1631117": [
+0.92,
+"Athletic Finisher",
+"Anchor Big",
+null,
+"C"
+],
+"1628401": [
+3.56,
+"Primary Ball Handler",
+"Chaser",
+34.088,
+"SG"
+],
+"202710": [
+3.21,
+"Shot Creator",
+"Wing Stopper",
+31.096,
+"SF"
+],
+"1629674": [
+2.67,
+"Roll + Cut Big",
+"Anchor Big",
+25.341,
+"C"
+],
+"2544": [
+2.26,
+"Shot Creator",
+"Helper",
+33.15,
+"SF"
+],
+"203500": [
+-0.5,
+"Roll + Cut Big",
+"Anchor Big",
+22.82,
+"C"
+],
+"1630166": [
+1.39,
+"Shot Creator",
+"Helper",
+33.32,
+"SF"
+],
+"1630532": [
+2.64,
+"Shot Creator",
+"Helper",
+29.969,
+"SF"
+],
+"1642349": [
+1.25,
+"Primary Ball Handler",
+"Point of Attack",
+25.835,
+"SG"
+],
+"202331": [
+1.5,
+"Shot Creator",
+"Helper",
+30.675,
+"PF"
+],
+"1629008": [
+0.48,
+"Off Screen Shooter",
+"Helper",
+32.47,
+"SF"
+],
+"1630559": [
+1.88,
+"Shot Creator",
+"Point of Attack",
+34.54,
+"SG"
+],
+"1631114": [
+2.04,
+"Shot Creator",
+"Wing Stopper",
+28.36,
+"SG"
+],
+"1631105": [
+3.03,
+"Shot Creator",
+"Mobile Big",
+28.225,
+"C"
+],
+"1630577": [
+0.3,
+"Movement Shooter",
+"Helper",
+27.631,
+"SF"
+],
+"1629011": [
+1.32,
+"Athletic Finisher",
+"Mobile Big",
+19.571,
+"C"
+],
+"1631131": [
+0.05,
+"Roll + Cut Big",
+"Mobile Big",
+16.608,
+"C"
+],
+"203076": [
+2.47,
+"Shot Creator",
+"Mobile Big",
+31.28,
+"PF"
+],
+"1629630": [
+1.54,
+"Shot Creator",
+"Chaser",
+28.423,
+"PG"
+],
+"1630202": [
+2.07,
+"Primary Ball Handler",
+"Chaser",
+32.346,
+"PG"
+],
+"1642270": [
+2.56,
+"Stretch Big",
+"Anchor Big",
+27.186,
+"C"
+],
+"1629636": [
+0.88,
+"Shot Creator",
+"Chaser",
+29.87,
+"PG"
+],
+"1630549": [
+0.77,
+"Roll + Cut Big",
+"Mobile Big",
+18.706,
+"C"
+],
+"1626164": [
+2.42,
+"Shot Creator",
+"Helper",
+33.534,
+"SG"
+],
+"1630168": [
+0.97,
+"Stationary Shooter",
+"Mobile Big",
+31.038,
+"C"
+],
+"1630194": [
+1.82,
+"Roll + Cut Big",
+"Mobile Big",
+13.854,
+"C"
+],
+"1628374": [
+1.67,
+"Off Screen Shooter",
+"Wing Stopper",
+34.346,
+"PF"
+],
+"1629638": [
+-0.2,
+"Primary Ball Handler",
+"Point of Attack",
+33.373,
+"SG"
+],
+"204001": [
+2.6,
+"Versatile Big",
+"Mobile Big",
+24.024,
+"C"
+],
+"1627832": [
+2.92,
+"Primary Ball Handler",
+"Point of Attack",
+null,
+"PG"
+],
+"1642264": [
+0.21,
+"Primary Ball Handler",
+"Point of Attack",
+29.964,
+"PG"
+],
+"1628978": [
+0.45,
+"Movement Shooter",
+"Chaser",
+30.413,
+"SG"
+],
+"1630591": [
+1.89,
+"Primary Ball Handler",
+"Point of Attack",
+27.604,
+"PG"
+],
+"1641708": [
+1.87,
+"Shot Creator",
+"Point of Attack",
+37.378,
+"PG"
+],
+"1630170": [
+-0.54,
+"Movement Shooter",
+"Helper",
+30.51,
+"SG"
+],
+"1627884": [
+-0.26,
+"Stationary Shooter",
+"Point of Attack",
+26.99,
+"SF"
+],
+"1630568": [
+0.65,
+"Stretch Big",
+"Mobile Big",
+16.2,
+"C"
+],
+"203935": [
+0.27,
+"Movement Shooter",
+"Point of Attack",
+28.529,
+"SG"
+],
+"1629684": [
+-0.52,
+"Movement Shooter",
+"Wing Stopper",
+19.761,
+"PF"
+],
+"1629627": [
+1.14,
+"Shot Creator",
+"Helper",
+29.693,
+"PF"
+],
+"1631217": [
+1.51,
+"Roll + Cut Big",
+"Mobile Big",
+26.008,
+"C"
+],
+"1631106": [
+0.51,
+"Stationary Shooter",
+"Wing Stopper",
+25.814,
+"PF"
+],
+"1642851": [
+0.63,
+"Movement Shooter",
+"Chaser",
+31.488,
+"SF"
+],
+"1631221": [
+1.63,
+"Primary Ball Handler",
+"Point of Attack",
+28.52,
+"PG"
+],
+"1629628": [
+0.82,
+"Movement Shooter",
+"Helper",
+30.275,
+"SF"
+],
+"1628976": [
+0.41,
+"Stretch Big",
+"Mobile Big",
+29.336,
+"C"
+],
+"1629680": [
+0.5,
+"Movement Shooter",
+"Chaser",
+15.987,
+"SG"
+],
+"1629027": [
+1.48,
+"Primary Ball Handler",
+"Chaser",
+25.582,
+"PG"
+],
+"1641706": [
+0.43,
+"Shot Creator",
+"Chaser",
+30.279,
+"SF"
+],
+"1627783": [
+1.43,
+"Shot Creator",
+"Wing Stopper",
+33.17,
+"PF"
+],
+"1641739": [
+-0.05,
+"Stationary Shooter",
+"Wing Stopper",
+33.305,
+"PF"
+],
+"1641709": [
+2.32,
+"Roll + Cut Big",
+"Point of Attack",
+25.963,
+"SF"
+],
+"1631094": [
+0.93,
+"Shot Creator",
+"Wing Stopper",
+34.744,
+"PF"
+],
+"1630188": [
+1.14,
+"Stretch Big",
+"Mobile Big",
+20.666,
+"C"
+],
+"1627826": [
+0.9,
+"Post Scorer",
+"Anchor Big",
+30.136,
+"C"
+],
+"1629001": [
+0.63,
+"Primary Ball Handler",
+"Point of Attack",
+22.961,
+"PG"
+],
+"1630198": [
+0.48,
+"Movement Shooter",
+"Chaser",
+21.228,
+"SG"
+],
+"1631243": [
+1.04,
+"Stationary Shooter",
+"Helper",
+15.306,
+"PF"
+],
+"1628991": [
+0.8,
+"Shot Creator",
+"Helper",
+30.302,
+"C"
+],
+"1630611": [
+0.02,
+"Shot Creator",
+"Helper",
+20.518,
+"PF"
+],
+"201950": [
+1.06,
+"Shot Creator",
+"Helper",
+29.44,
+"PG"
+],
+"1629632": [
+-0.13,
+"Shot Creator",
+"Chaser",
+24.993,
+"SG"
+],
+"1641726": [
+1.61,
+"Athletic Finisher",
+"Mobile Big",
+null,
+"C"
+],
+"1630193": [
+1.87,
+"Primary Ball Handler",
+"Point of Attack",
+31.873,
+"PG"
+],
+"1630540": [
+0.63,
+"Secondary Ball Handler",
+"Point of Attack",
+26.34,
+"SG"
+],
+"1628371": [
+1.48,
+"Stretch Big",
+"Helper",
+10.013,
+"PF"
+],
+"1630541": [
+0.38,
+"Movement Shooter",
+"Wing Stopper",
+25.66,
+"SG"
+],
+"1642844": [
+0.95,
+"Shot Creator",
+"Point of Attack",
+22.577,
+"SG"
+],
+"1629048": [
+1.94,
+"Roll + Cut Big",
+"Mobile Big",
+15.186,
+"C"
+],
+"1630572": [
+1.46,
+"Stationary Shooter",
+"Mobile Big",
+21.881,
+"C"
+],
+"1630217": [
+1.46,
+"Primary Ball Handler",
+"Chaser",
+33.608,
+"SG"
+],
+"1630552": [
+1.14,
+"Shot Creator",
+"Helper",
+35.159,
+"SF"
+],
+"1630183": [
+-0.43,
+"Athletic Finisher",
+"Point of Attack",
+31.729,
+"PF"
+],
+"1630551": [
+-1.25,
+"Movement Shooter",
+"Helper",
+19.962,
+"SF"
+],
+"203991": [
+-0.02,
+"Roll + Cut Big",
+"Mobile Big",
+12.338,
+"C"
+],
+"202699": [
+1.22,
+"Movement Shooter",
+"Wing Stopper",
+27.703,
+"PF"
+],
+"1629750": [
+-0.13,
+"Stationary Shooter",
+"Helper",
+17.63,
+"SG"
+],
+"1642263": [
+-2.03,
+"Primary Ball Handler",
+"Chaser",
+26.176,
+"SG"
+],
+"1631128": [
+-0.22,
+"Stationary Shooter",
+"Point of Attack",
+31.795,
+"SG"
+],
+"1629020": [
+-0.97,
+"Stationary Shooter",
+"Helper",
+17.348,
+"PF"
+],
+"1630700": [
+2.03,
+"Primary Ball Handler",
+"Point of Attack",
+33.149,
+"SG"
+],
+"1642345": [
+-0.07,
+"Roll + Cut Big",
+"Mobile Big",
+22.05,
+"PF"
+],
+"203468": [
+-0.4,
+"Primary Ball Handler",
+"Chaser",
+29.777,
+"PG"
+],
+"1631095": [
+0.51,
+"Movement Shooter",
+"Helper",
+35.131,
+"PF"
+],
+"1630598": [
+-0.22,
+"Movement Shooter",
+"Helper",
+21.751,
+"SG"
+],
+"1642867": [
+0.62,
+"Roll + Cut Big",
+"Mobile Big",
+21.849,
+"PF"
+],
+"1641764": [
+0.66,
+"Primary Ball Handler",
+"Chaser",
+28.443,
+"SG"
+],
+"1642266": [
+-0.95,
+"Movement Shooter",
+"Point of Attack",
+20.464,
+"SG"
+],
+"1642843": [
+-0.15,
+"Shot Creator",
+"Helper",
+33.482,
+"SF"
+],
+"1627739": [
+0.79,
+"Primary Ball Handler",
+"Point of Attack",
+27.174,
+"PG"
+],
+"1628404": [
+1.29,
+"Stationary Shooter",
+"Wing Stopper",
+30.203,
+"SF"
+],
+"1629130": [
+0.14,
+"Off Screen Shooter",
+"Low Activity",
+27.438,
+"SF"
+],
+"1641710": [
+-0.22,
+"Primary Ball Handler",
+"Point of Attack",
+29.841,
+"PG"
+],
+"1629731": [
+0.5,
+"Movement Shooter",
+"Wing Stopper",
+22.33,
+"PF"
+],
+"1630692": [
+0.89,
+"Movement Shooter",
+"Wing Stopper",
+22.45,
+"PG"
+],
+"1630529": [
+-0.38,
+"Movement Shooter",
+"Wing Stopper",
+28.362,
+"SF"
+],
+"1630167": [
+0.21,
+"Movement Shooter",
+"Helper",
+17.654,
+"PF"
+],
+"1629661": [
+0.6,
+"Movement Shooter",
+"Helper",
+30.498,
+"SF"
+],
+"1630573": [
+0.62,
+"Off Screen Shooter",
+"Helper",
+24.794,
+"PF"
+],
+"1631119": [
+0.86,
+"Stationary Shooter",
+"Anchor Big",
+19.649,
+"PF"
+],
+"1641842": [
+-0.59,
+"Stationary Shooter",
+"Point of Attack",
+19.873,
+"SF"
+],
+"1631157": [
+-0.8,
+"Primary Ball Handler",
+"Point of Attack",
+32.1,
+"PG"
+],
+"1641750": [
+-0.5,
+"Roll + Cut Big",
+"Anchor Big",
+21.432,
+"C"
+],
+"1628960": [
+0.25,
+"Primary Ball Handler",
+"Chaser",
+28.767,
+"SG"
+],
+"1629028": [
+-0.46,
+"Roll + Cut Big",
+"Mobile Big",
+27.198,
+"C"
+],
+"1629639": [
+0.07,
+"Shot Creator",
+"Chaser",
+31.289,
+"SG"
+],
+"203084": [
+-0.35,
+"Movement Shooter",
+"Helper",
+25.797,
+"PF"
+],
+"1630631": [
+-1.32,
+"Primary Ball Handler",
+"Chaser",
+19.857,
+"PG"
+],
+"1629646": [
+0.03,
+"Athletic Finisher",
+"Mobile Big",
+null,
+"C"
+],
+"1629006": [
+0.06,
+"Stationary Shooter",
+"Wing Stopper",
+17.352,
+"SG"
+],
+"1627742": [
+-0.76,
+"Shot Creator",
+"Helper",
+33.815,
+"SF"
+],
+"1641744": [
+0.86,
+"Post Scorer",
+"Anchor Big",
+25.8,
+"C"
+],
+"1630538": [
+0.94,
+"Primary Ball Handler",
+"Chaser",
+16.574,
+"PG"
+],
+"1641774": [
+-0.68,
+"Stretch Big",
+"Mobile Big",
+13.692,
+"C"
+],
+"1641796": [
+-0.2,
+"Shot Creator",
+"Chaser",
+26.415,
+"SG"
+],
+"1629655": [
+1.13,
+"Roll + Cut Big",
+"Mobile Big",
+21.714,
+"C"
+],
+"1628969": [
+1.27,
+"Movement Shooter",
+"Point of Attack",
+32.824,
+"SF"
+],
+"1641757": [
+-1.06,
+"Shot Creator",
+"Chaser",
+22.078,
+"SF"
+],
+"1628436": [
+1.41,
+"Roll + Cut Big",
+"Anchor Big",
+21.027,
+"C"
+],
+"1641765": [
+-1.75,
+"Stretch Big",
+"Mobile Big",
+18.556,
+"PF"
+],
+"1642347": [
+-0.62,
+"Primary Ball Handler",
+"Point of Attack",
+22.586,
+"PG"
+],
+"1630530": [
+0.54,
+"Secondary Ball Handler",
+"Helper",
+35.461,
+"SF"
+],
+"1626181": [
+0.59,
+"Shot Creator",
+"Chaser",
+29.601,
+"SG"
+],
+"1642504": [
+-0.73,
+"Movement Shooter",
+"Point of Attack",
+24.605,
+"SG"
+],
+"1628381": [
+-0.18,
+"Stationary Shooter",
+"Helper",
+27.121,
+"PF"
+],
+"203944": [
+-0.0,
+"Shot Creator",
+"Helper",
+33.041,
+"PF"
+],
+"1631200": [
+-1.78,
+"Stationary Shooter",
+"Helper",
+23.386,
+"SF"
+],
+"1630583": [
+-0.34,
+"Movement Shooter",
+"Helper",
+27.859,
+"PF"
+],
+"1630543": [
+0.11,
+"Roll + Cut Big",
+"Mobile Big",
+16.512,
+"C"
+],
+"1630314": [
+0.54,
+"Primary Ball Handler",
+"Point of Attack",
+22.158,
+"PG"
+],
+"1631101": [
+-1.44,
+"Shot Creator",
+"Chaser",
+29.423,
+"SG"
+],
+"1641771": [
+-0.19,
+"Movement Shooter",
+"Helper",
+23.886,
+"SF"
+],
+"1630590": [
+-0.53,
+"Primary Ball Handler",
+"Point of Attack",
+21.187,
+"PG"
+],
+"203081": [
+2.41,
+"Primary Ball Handler",
+"Low Activity",
+null,
+"PG"
+],
+"1630182": [
+-1.44,
+"Stationary Shooter",
+"Point of Attack",
+15.649,
+"SG"
+],
+"1627749": [
+1.32,
+"Shot Creator",
+"Point of Attack",
+27.815,
+"PG"
+],
+"1631255": [
+-0.99,
+"Stretch Big",
+"Helper",
+14.705,
+"PF"
+],
+"1626167": [
+0.55,
+"Stretch Big",
+"Mobile Big",
+26.925,
+"C"
+],
+"1642864": [
+-0.13,
+"Stationary Shooter",
+"Wing Stopper",
+14.644,
+"SF"
+],
+"1629637": [
+-0.08,
+"Roll + Cut Big",
+"Mobile Big",
+18.28,
+"C"
+],
+"1631222": [
+-1.08,
+"Stationary Shooter",
+"Point of Attack",
+25.138,
+"PF"
+],
+"1629013": [
+-0.46,
+"Movement Shooter",
+"Chaser",
+22.958,
+"SG"
+],
+"1630558": [
+-0.51,
+"Shot Creator",
+"Point of Attack",
+28.574,
+"PG"
+],
+"1628989": [
+-0.21,
+"Movement Shooter",
+"Chaser",
+22.447,
+"SF"
+],
+"1641775": [
+-0.49,
+"Stationary Shooter",
+"Point of Attack",
+17.819,
+"PF"
+],
+"1642914": [
+-0.41,
+"Primary Ball Handler",
+"Point of Attack",
+20.241,
+"PG"
+],
+"1642285": [
+-0.31,
+"Primary Ball Handler",
+"Low Activity",
+23.809,
+"SG"
+],
+"1631321": [
+-1.68,
+"Stationary Shooter",
+"Helper",
+19.131,
+"SF"
+],
+"1631165": [
+0.31,
+"Movement Shooter",
+"Point of Attack",
+20.536,
+"SG"
+],
+"1641783": [
+-1.18,
+"Movement Shooter",
+"Helper",
+24.666,
+"SF"
+],
+"1630224": [
+-0.47,
+"Shot Creator",
+"Chaser",
+25.881,
+"SG"
+],
+"1642502": [
+-1.27,
+"Athletic Finisher",
+"Helper",
+11.056,
+"SF"
+],
+"203110": [
+0.5,
+"Stationary Shooter",
+"Helper",
+27.481,
+"PF"
+],
+"1642271": [
+-0.81,
+"Stationary Shooter",
+"Helper",
+23.388,
+"C"
+],
+"1631099": [
+-0.02,
+"Movement Shooter",
+"Wing Stopper",
+34.48,
+"PF"
+],
+"1627734": [
+1.89,
+"Roll + Cut Big",
+"Mobile Big",
+29.662,
+"C"
+],
+"1630581": [
+0.53,
+"Primary Ball Handler",
+"Helper",
+32.06,
+"PG"
+],
+"1641740": [
+-0.71,
+"Stationary Shooter",
+"Point of Attack",
+13.051,
+"SG"
+],
+"1631248": [
+-0.44,
+"Movement Shooter",
+"Wing Stopper",
+18.558,
+"SG"
+],
+"1630228": [
+-0.2,
+"Shot Creator",
+"Helper",
+23.068,
+"PF"
+],
+"1630241": [
+0.98,
+"Movement Shooter",
+"Chaser",
+26.48,
+"SG"
+],
+"1628379": [
+-2.25,
+"Off Screen Shooter",
+"Chaser",
+21.541,
+"SG"
+],
+"1642364": [
+-1.39,
+"Movement Shooter",
+"Point of Attack",
+20.641,
+"SG"
+],
+"1626168": [
+-0.19,
+"Movement Shooter",
+"Helper",
+null,
+"PF"
+],
+"1642346": [
+0.09,
+"Stationary Shooter",
+"Helper",
+19.355,
+"SF"
+],
+"1630174": [
+-0.61,
+"Off Screen Shooter",
+"Wing Stopper",
+29.663,
+"SF"
+],
+"1629026": [
+-0.53,
+"Stationary Shooter",
+"Helper",
+15.268,
+"PF"
+],
+"1642382": [
+-0.32,
+"Stretch Big",
+"Anchor Big",
+11.621,
+"C"
+],
+"1631323": [
+-0.76,
+"Off Screen Shooter",
+"Helper",
+16.747,
+"SF"
+],
+"1642928": [
+1.29,
+"Roll + Cut Big",
+"Mobile Big",
+20.601,
+"C"
+],
+"1631199": [
+-0.43,
+"Movement Shooter",
+"Chaser",
+10.948,
+"SF"
+],
+"1627780": [
+1.16,
+"Stretch Big",
+"Chaser",
+15.643,
+"SG"
+],
+"1631260": [
+-0.83,
+"Movement Shooter",
+"Chaser",
+29.1,
+"SG"
+],
+"1630200": [
+0.68,
+"Slasher",
+"Point of Attack",
+26.958,
+"PG"
+],
+"1642954": [
+-0.73,
+"Movement Shooter",
+"Point of Attack",
+19.951,
+"SG"
+],
+"1642366": [
+-0.44,
+"Stretch Big",
+"Mobile Big",
+17.298,
+"PF"
+],
+"1630173": [
+-0.42,
+"Athletic Finisher",
+"Wing Stopper",
+23.905,
+"C"
+],
+"1631109": [
+1.03,
+"Roll + Cut Big",
+"Mobile Big",
+23.598,
+"C"
+],
+"1631230": [
+-0.8,
+"Athletic Finisher",
+"Wing Stopper",
+23.78,
+"PF"
+],
+"1629640": [
+-0.17,
+"Movement Shooter",
+"Helper",
+23.309,
+"SF"
+],
+"1641763": [
+-1.5,
+"Stationary Shooter",
+"Helper",
+null,
+"SF"
+],
+"1631204": [
+-1.62,
+"Secondary Ball Handler",
+"Point of Attack",
+12.012,
+"PG"
+],
+"1629012": [
+-0.81,
+"Primary Ball Handler",
+"Point of Attack",
+23.721,
+"SG"
+],
+"1631245": [
+-0.9,
+"Primary Ball Handler",
+"Point of Attack",
+18.313,
+"PG"
+],
+"1630245": [
+-1.61,
+"Primary Ball Handler",
+"Point of Attack",
+27.26,
+"SG"
+],
+"1642907": [
+-1.17,
+"Movement Shooter",
+"Wing Stopper",
+25.771,
+"SG"
+],
+"1629622": [
+-0.37,
+"Movement Shooter",
+"Helper",
+24.024,
+"SF"
+],
+"1628970": [
+0.55,
+"Shot Creator",
+"Wing Stopper",
+31.0,
+"PF"
+],
+"1641772": [
+-0.61,
+"Stationary Shooter",
+"Helper",
+15.68,
+"PF"
+],
+"1642269": [
+0.1,
+"Primary Ball Handler",
+"Point of Attack",
+18.416,
+"PG"
+],
+"1630643": [
+-0.25,
+"Stretch Big",
+"Mobile Big",
+20.964,
+"C"
+],
+"1642274": [
+-0.82,
+"Roll + Cut Big",
+"Mobile Big",
+19.649,
+"C"
+],
+"1630180": [
+-0.32,
+"Shot Creator",
+"Helper",
+31.187,
+"SF"
+],
+"1628418": [
+0.04,
+"Stretch Big",
+"Mobile Big",
+12.194,
+"C"
+],
+"1628415": [
+-0.45,
+"Shot Creator",
+"Wing Stopper",
+30.381,
+"SF"
+],
+"1631170": [
+-1.4,
+"Shot Creator",
+"Helper",
+28.281,
+"SF"
+],
+"1630619": [
+0.06,
+"Roll + Cut Big",
+"Anchor Big",
+13.936,
+"C"
+],
+"1630533": [
+-1.21,
+"Movement Shooter",
+"Wing Stopper",
+22.878,
+"SF"
+],
+"203484": [
+-0.86,
+"Secondary Ball Handler",
+"Chaser",
+21.321,
+"SG"
+],
+"1629675": [
+0.95,
+"Movement Shooter",
+"Helper",
+26.067,
+"C"
+],
+"1629614": [
+0.03,
+"Primary Ball Handler",
+"Point of Attack",
+31.323,
+"PG"
+],
+"1630696": [
+0.17,
+"Shot Creator",
+"Point of Attack",
+16.302,
+"SG"
+],
+"203992": [
+-1.27,
+"Secondary Ball Handler",
+"Chaser",
+19.65,
+"SG"
+],
+"1642281": [
+0.6,
+"Movement Shooter",
+"Chaser",
+26.928,
+"SG"
+],
+"1627732": [
+-0.35,
+"Shot Creator",
+"Helper",
+null,
+"PG"
+],
+"1630695": [
+-1.18,
+"Stretch Big",
+"Mobile Big",
+19.324,
+"C"
+],
+"1641707": [
+-1.84,
+"Stationary Shooter",
+"Helper",
+18.956,
+"PF"
+],
+"1629004": [
+-1.85,
+"Movement Shooter",
+"Wing Stopper",
+23.11,
+"SF"
+],
+"203994": [
+1.0,
+"Roll + Cut Big",
+"Mobile Big",
+26.415,
+"C"
+],
+"1631133": [
+-1.29,
+"Stretch Big",
+"Helper",
+11.9,
+"PF"
+],
+"1642920": [
+-1.8,
+"Movement Shooter",
+"Chaser",
+19.895,
+"SG"
+],
+"1629111": [
+-0.39,
+"Stretch Big",
+"Mobile Big",
+22.145,
+"C"
+],
+"1642874": [
+-0.76,
+"Movement Shooter",
+"Helper",
+20.825,
+"PF"
+],
+"1629652": [
+-0.38,
+"Stationary Shooter",
+"Point of Attack",
+26.791,
+"SF"
+],
+"1642845": [
+0.0,
+"Primary Ball Handler",
+"Point of Attack",
+34.975,
+"SG"
+],
+"1642450": [
+0.18,
+"Primary Ball Handler",
+"Point of Attack",
+20.21,
+"PG"
+],
+"1642276": [
+0.25,
+"Stretch Big",
+"Mobile Big",
+22.125,
+"C"
+],
+"1630249": [
+-1.56,
+"Movement Shooter",
+"Chaser",
+21.414,
+"PG"
+],
+"1642377": [
+-0.77,
+"Movement Shooter",
+"Point of Attack",
+26.383,
+"SG"
+],
+"1642277": [
+-0.79,
+"Stationary Shooter",
+"Helper",
+18.37,
+"SG"
+],
+"1642367": [
+-1.13,
+"Athletic Finisher",
+"Helper",
+null,
+"PF"
+],
+"203952": [
+0.25,
+"Shot Creator",
+"Wing Stopper",
+30.331,
+"SF"
+],
+"1631123": [
+-0.27,
+"Slasher",
+"Point of Attack",
+13.998,
+"PG"
+],
+"1642854": [
+-1.2,
+"Stationary Shooter",
+"Helper",
+11.36,
+"PF"
+],
+"1641869": [
+-1.74,
+"Secondary Ball Handler",
+"Helper",
+23.921,
+"SG"
+],
+"201572": [
+0.12,
+"Versatile Big",
+"Mobile Big",
+21.802,
+"C"
+],
+"1631218": [
+0.34,
+"Athletic Finisher",
+"Mobile Big",
+null,
+"C"
+],
+"204456": [
+-0.02,
+"Slasher",
+"Chaser",
+17.186,
+"PG"
+],
+"1642261": [
+-3.26,
+"Movement Shooter",
+"Helper",
+10.238,
+"SF"
+],
+"1642869": [
+-0.75,
+"Stationary Shooter",
+"Helper",
+12.832,
+"SF"
+],
+"1626162": [
+-1.67,
+"Shot Creator",
+"Wing Stopper",
+31.484,
+"SF"
+],
+"1629162": [
+0.59,
+"Movement Shooter",
+"Point of Attack",
+null,
+"PG"
+],
+"201143": [
+0.94,
+"Versatile Big",
+"Mobile Big",
+21.534,
+"C"
+],
+"1641790": [
+-1.52,
+"Roll + Cut Big",
+"Anchor Big",
+11.228,
+"C"
+],
+"1641729": [
+-2.14,
+"Movement Shooter",
+"Helper",
+23.49,
+"SF"
+],
+"1641989": [
+-0.74,
+"Primary Ball Handler",
+"Point of Attack",
+20.953,
+"SG"
+],
+"1629656": [
+-1.29,
+"Movement Shooter",
+"Chaser",
+29.408,
+"SG"
+],
+"1630703": [
+-1.17,
+"Shot Creator",
+"Point of Attack",
+24.927,
+"PG"
+],
+"1628380": [
+0.35,
+"Stretch Big",
+"Mobile Big",
+null,
+"PF"
+],
+"1631250": [
+-1.68,
+"Movement Shooter",
+"Helper",
+15.681,
+"PF"
+],
+"1630192": [
+-2.59,
+"Stretch Big",
+"Helper",
+12.036,
+"PF"
+],
+"1642278": [
+-1.05,
+"Primary Ball Handler",
+"Point of Attack",
+11.726,
+"PG"
+],
+"1642857": [
+-0.76,
+"Shot Creator",
+"Chaser",
+17.822,
+"PG"
+],
+"1631159": [
+-0.99,
+"Stationary Shooter",
+"Helper",
+15.621,
+"SF"
+],
+"1631107": [
+-1.04,
+"Shot Creator",
+"Helper",
+17.191,
+"PF"
+],
+"203083": [
+-0.22,
+"Roll + Cut Big",
+"Anchor Big",
+19.534,
+"C"
+],
+"1642272": [
+-2.28,
+"Secondary Ball Handler",
+"Low Activity",
+17.306,
+"SG"
+],
+"1642949": [
+-0.35,
+"Roll + Cut Big",
+"Mobile Big",
+10.333,
+"C"
+],
+"1641854": [
+0.69,
+"Secondary Ball Handler",
+"Point of Attack",
+17.929,
+"PG"
+],
+"1641824": [
+-1.01,
+"Movement Shooter",
+"Helper",
+29.196,
+"PF"
+],
+"203924": [
+-0.69,
+"Shot Creator",
+"Wing Stopper",
+29.738,
+"PF"
+],
+"1628964": [
+-0.18,
+"Stretch Big",
+"Anchor Big",
+null,
+"C"
+],
+"1630658": [
+-1.32,
+"Athletic Finisher",
+"Mobile Big",
+null,
+"C"
+],
+"1642878": [
+-0.66,
+"Secondary Ball Handler",
+"Chaser",
+10.901,
+"PG"
+],
+"203501": [
+-1.22,
+"Off Screen Shooter",
+"Chaser",
+26.588,
+"SG"
+],
+"1628963": [
+-0.21,
+"Roll + Cut Big",
+"Mobile Big",
+20.013,
+"PF"
+],
+"1628975": [
+-1.06,
+"Movement Shooter",
+"Chaser",
+16.366,
+"PG"
+],
+"1631121": [
+-1.51,
+"Stationary Shooter",
+"Wing Stopper",
+20.949,
+"SG"
+],
+"1631212": [
+-1.69,
+"Movement Shooter",
+"Point of Attack",
+29.586,
+"SF"
+],
+"1629631": [
+-0.69,
+"Movement Shooter",
+"Wing Stopper",
+26.121,
+"SF"
+],
+"1643018": [
+-1.25,
+"Off Screen Shooter",
+"Chaser",
+16.227,
+"PG"
+],
+"1626171": [
+-1.53,
+"Versatile Big",
+"Helper",
+24.167,
+"PF"
+],
+"1629060": [
+-1.53,
+"Shot Creator",
+"Helper",
+28.33,
+"PF"
+],
+"1642258": [
+-1.05,
+"Movement Shooter",
+"Helper",
+22.435,
+"SF"
+],
+"1626172": [
+0.38,
+"Athletic Finisher",
+"Mobile Big",
+14.641,
+"C"
+],
+"1641871": [
+-0.08,
+"Stretch Big",
+"Helper",
+null,
+"C"
+],
+"1629618": [
+-2.53,
+"Secondary Ball Handler",
+"Chaser",
+16.129,
+"SG"
+],
+"1627827": [
+-2.28,
+"Stationary Shooter",
+"Wing Stopper",
+16.761,
+"PF"
+],
+"1627752": [
+-2.06,
+"Movement Shooter",
+"Helper",
+23.51,
+"SF"
+],
+"1642852": [
+-0.51,
+"Shot Creator",
+"Mobile Big",
+24.978,
+"C"
+],
+"203937": [
+-0.7,
+"Shot Creator",
+"Helper",
+19.841,
+"SF"
+],
+"1642348": [
+-2.22,
+"Movement Shooter",
+"Chaser",
+15.263,
+"SF"
+],
+"203903": [
+-1.69,
+"Movement Shooter",
+"Chaser",
+17.768,
+"SG"
+],
+"1631288": [
+-1.34,
+"Movement Shooter",
+"Point of Attack",
+12.147,
+"SF"
+],
+"1642419": [
+-2.94,
+"Off Screen Shooter",
+"Low Activity",
+null,
+"SF"
+],
+"1641718": [
+-1.4,
+"Primary Ball Handler",
+"Chaser",
+33.076,
+"PG"
+],
+"1627777": [
+-1.58,
+"Movement Shooter",
+"Helper",
+null,
+"PF"
+],
+"1642461": [
+-2.3,
+"Stationary Shooter",
+"Wing Stopper",
+22.135,
+"SF"
+],
+"1631108": [
+-2.0,
+"Movement Shooter",
+"Point of Attack",
+29.146,
+"SG"
+],
+"1629023": [
+-0.29,
+"Stationary Shooter",
+"Wing Stopper",
+30.992,
+"PF"
+],
+"1630230": [
+-1.15,
+"Secondary Ball Handler",
+"Wing Stopper",
+29.507,
+"SF"
+],
+"1630191": [
+-0.71,
+"Stretch Big",
+"Mobile Big",
+22.707,
+"C"
+],
+"1642847": [
+-1.47,
+"Primary Ball Handler",
+"Point of Attack",
+25.753,
+"PG"
+],
+"1642862": [
+-0.4,
+"Movement Shooter",
+"Low Activity",
+11.852,
+"SF"
+],
+"1630557": [
+-1.98,
+"Off Screen Shooter",
+"Helper",
+18.612,
+"SF"
+],
+"1642853": [
+-1.28,
+"Stationary Shooter",
+"Helper",
+12.242,
+"PF"
+],
+"1628370": [
+-0.69,
+"Secondary Ball Handler",
+"Low Activity",
+21.993,
+"SG"
+],
+"1642259": [
+-0.8,
+"Shot Creator",
+"Mobile Big",
+27.179,
+"C"
+],
+"1641737": [
+-1.14,
+"Roll + Cut Big",
+"Mobile Big",
+17.38,
+"C"
+],
+"1627741": [
+-0.86,
+"Movement Shooter",
+"Point of Attack",
+16.061,
+"SG"
+],
+"1642383": [
+-2.68,
+"Primary Ball Handler",
+"Point of Attack",
+20.442,
+"PG"
+],
+"1641738": [
+-2.94,
+"Movement Shooter",
+"Helper",
+15.775,
+"PF"
+],
+"1631124": [
+-2.49,
+"Movement Shooter",
+"Low Activity",
+15.099,
+"SG"
+],
+"1642856": [
+-0.89,
+"Primary Ball Handler",
+"Chaser",
+25.156,
+"PG"
+],
+"1642859": [
+-2.16,
+"Secondary Ball Handler",
+"Point of Attack",
+10.864,
+"SG"
+],
+"1642877": [
+-1.33,
+"Movement Shooter",
+"Point of Attack",
+14.963,
+"SG"
+],
+"1626220": [
+-1.07,
+"Movement Shooter",
+"Wing Stopper",
+28.368,
+"SF"
+],
+"1629014": [
+-0.36,
+"Shot Creator",
+"Chaser",
+24.941,
+"SG"
+],
+"1630311": [
+-1.84,
+"Primary Ball Handler",
+"Chaser",
+18.616,
+"PG"
+],
+"1642275": [
+-2.04,
+"Stationary Shooter",
+"Helper",
+15.547,
+"PF"
+],
+"201144": [
+0.05,
+"Primary Ball Handler",
+"Point of Attack",
+18.355,
+"PG"
+],
+"1642484": [
+-1.4,
+"Secondary Ball Handler",
+"Point of Attack",
+12.129,
+"PG"
+],
+"1641715": [
+-1.43,
+"Shot Creator",
+"Helper",
+16.853,
+"SF"
+],
+"1628396": [
+-1.92,
+"Roll + Cut Big",
+"Mobile Big",
+10.991,
+"C"
+],
+"1641767": [
+-2.06,
+"Movement Shooter",
+"Chaser",
+21.389,
+"SG"
+],
+"1641711": [
+-2.5,
+"Movement Shooter",
+"Low Activity",
+14.033,
+"SG"
+],
+"1641713": [
+-1.22,
+"Shot Creator",
+"Wing Stopper",
+21.412,
+"PF"
+],
+"203078": [
+-0.95,
+"Primary Ball Handler",
+"Point of Attack",
+null,
+"SG"
+],
+"202696": [
+0.53,
+"Versatile Big",
+"Mobile Big",
+28.407,
+"C"
+],
+"1629651": [
+-0.96,
+"Roll + Cut Big",
+"Mobile Big",
+27.831,
+"C"
+],
+"1643052": [
+-0.91,
+"Athletic Finisher",
+"Mobile Big",
+20.445,
+"SF"
+],
+"1642880": [
+-3.6,
+"Primary Ball Handler",
+"Point of Attack",
+16.655,
+"SG"
+],
+"1629021": [
+0.56,
+"Versatile Big",
+"Mobile Big",
+11.848,
+"C"
+],
+"1642273": [
+-1.61,
+"Primary Ball Handler",
+"Wing Stopper",
+28.977,
+"SF"
+],
+"202691": [
+-1.7,
+"Off Screen Shooter",
+"Chaser",
+21.69,
+"SF"
+],
+"1630264": [
+-3.58,
+"Athletic Finisher",
+"Anchor Big",
+17.289,
+"PF"
+],
+"1626145": [
+-0.57,
+"Primary Ball Handler",
+"Point of Attack",
+14.602,
+"PG"
+],
+"1641731": [
+-2.15,
+"Secondary Ball Handler",
+"Wing Stopper",
+26.206,
+"SG"
+],
+"1641724": [
+-1.93,
+"Movement Shooter",
+"Chaser",
+12.64,
+"SF"
+],
+"1630171": [
+-1.45,
+"Stationary Shooter",
+"Wing Stopper",
+26.9,
+"SG"
+],
+"1630579": [
+-3.3,
+"Athletic Finisher",
+"Helper",
+19.667,
+"C"
+],
+"1642883": [
+-0.28,
+"Movement Shooter",
+"Point of Attack",
+22.474,
+"SG"
+],
+"1630256": [
+-0.77,
+"Stationary Shooter",
+"Helper",
+null,
+"SF"
+],
+"1631097": [
+-0.82,
+"Shot Creator",
+"Chaser",
+30.0,
+"SF"
+],
+"1630570": [
+-2.26,
+"Shot Creator",
+"Helper",
+16.296,
+"PF"
+],
+"1642363": [
+-1.11,
+"Movement Shooter",
+"Chaser",
+25.091,
+"SG"
+],
+"1630702": [
+-2.49,
+"Shot Creator",
+"Low Activity",
+15.754,
+"SG"
+],
+"1642948": [
+-3.21,
+"Primary Ball Handler",
+"Point of Attack",
+19.513,
+"PG"
+],
+"1641730": [
+-2.42,
+"Movement Shooter",
+"Wing Stopper",
+26.969,
+"PF"
+],
+"201942": [
+-0.25,
+"Shot Creator",
+"Low Activity",
+31.239,
+"PF"
+],
+"1630545": [
+-2.14,
+"Shot Creator",
+"Helper",
+12.503,
+"SG"
+],
+"1642875": [
+-2.33,
+"Roll + Cut Big",
+"Mobile Big",
+26.537,
+"C"
+],
+"1630592": [
+-2.32,
+"Movement Shooter",
+"Helper",
+15.91,
+"PF"
+],
+"1642846": [
+-2.45,
+"Movement Shooter",
+"Helper",
+27.605,
+"SF"
+],
+"203114": [
+-0.67,
+"Shot Creator",
+"Helper",
+22.842,
+"SF"
+],
+"201599": [
+-1.59,
+"Athletic Finisher",
+"Mobile Big",
+null,
+"C"
+],
+"1631166": [
+-1.43,
+"Stretch Big",
+"Mobile Big",
+null,
+"PF"
+],
+"1631342": [
+-1.72,
+"Movement Shooter",
+"Point of Attack",
+26.385,
+"SG"
+],
+"1641716": [
+-2.03,
+"Movement Shooter",
+"Helper",
+25.7,
+"PF"
+],
+"1629673": [
+-1.71,
+"Primary Ball Handler",
+"Low Activity",
+23.927,
+"PG"
+],
+"1630172": [
+-2.27,
+"Stationary Shooter",
+"Wing Stopper",
+20.467,
+"PF"
+],
+"203897": [
+-1.72,
+"Shot Creator",
+"Chaser",
+31.389,
+"SG"
+],
+"1630208": [
+-1.59,
+"Roll + Cut Big",
+"Mobile Big",
+14.597,
+"C"
+],
+"1627747": [
+-0.95,
+"Secondary Ball Handler",
+"Chaser",
+19.239,
+"SG"
+],
+"1641736": [
+-1.5,
+"Secondary Ball Handler",
+"Point of Attack",
+null,
+"PG"
+],
+"1631104": [
+-1.6,
+"Shot Creator",
+"Chaser",
+11.637,
+"SG"
+],
+"1642868": [
+-1.24,
+"Stationary Shooter",
+"Helper",
+11.517,
+"PF"
+],
+"1628997": [
+-1.57,
+"Stationary Shooter",
+"Wing Stopper",
+14.758,
+"SF"
+],
+"1642849": [
+-3.4,
+"Primary Ball Handler",
+"Point of Attack",
+22.202,
+"PG"
+],
+"1642860": [
+-4.03,
+"Secondary Ball Handler",
+"Low Activity",
+22.06,
+"SF"
+],
+"1642882": [
+-1.95,
+"Roll + Cut Big",
+"Anchor Big",
+30.885,
+"PF"
+],
+"1629611": [
+-2.09,
+"Primary Ball Handler",
+"Point of Attack",
+24.269,
+"SG"
+],
+"1642962": [
+-4.8,
+"Movement Shooter",
+"Chaser",
+20.943,
+"SG"
+],
+"1629018": [
+-2.77,
+"Movement Shooter",
+"Chaser",
+21.188,
+"SG"
+],
+"1630544": [
+-1.71,
+"Secondary Ball Handler",
+"Low Activity",
+12.61,
+"PG"
+],
+"1642942": [
+-3.69,
+"Athletic Finisher",
+"Helper",
+21.713,
+"SG"
+],
+"1641712": [
+-3.27,
+"Stationary Shooter",
+"Chaser",
+16.755,
+"SG"
+],
+"203471": [
+-0.46,
+"Primary Ball Handler",
+"Point of Attack",
+24.231,
+"PG"
+],
+"1642262": [
+-3.75,
+"Athletic Finisher",
+"Point of Attack",
+24.335,
+"SG"
+],
+"1626204": [
+-0.89,
+"Stretch Big",
+"Mobile Big",
+12.821,
+"PF"
+],
+"1642268": [
+-2.57,
+"Shot Creator",
+"Point of Attack",
+25.709,
+"PG"
+],
+"1641778": [
+-2.63,
+"Stationary Shooter",
+"Chaser",
+28.87,
+"SF"
+],
+"1642848": [
+-4.4,
+"Secondary Ball Handler",
+"Chaser",
+24.044,
+"SG"
+],
+"1641722": [
+-3.44,
+"Off Screen Shooter",
+"Chaser",
+13.566,
+"SG"
+],
+"1642358": [
+-3.56,
+"Shot Creator",
+"Low Activity",
+null,
+"SG"
+],
+"1631126": [
+-2.42,
+"Secondary Ball Handler",
+"Chaser",
+20.663,
+"SG"
+],
+"1642879": [
+-3.58,
+"Slasher",
+"Chaser",
+20.825,
+"SG"
+],
+"1630164": [
+-2.83,
+"Roll + Cut Big",
+"Anchor Big",
+null,
+"C"
+],
+"1642267": [
+-5.34,
+"Primary Ball Handler",
+"Point of Attack",
+27.688,
+"PG"
+],
+"1628398": [
+-1.97,
+"Movement Shooter",
+"Wing Stopper",
+26.168,
+"PF"
+],
+"1631172": [
+-1.61,
+"Secondary Ball Handler",
+"Helper",
+19.287,
+"C"
+]
+}

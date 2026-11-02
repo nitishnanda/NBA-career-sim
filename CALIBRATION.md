@@ -1175,3 +1175,19 @@ The 10th man's soft cap drops from 10 to 7 (and the 11th-13th from 9/8/7 to 8/7/
 8. **12-man rosters.** Each team carries its 12 best (360 real players); the 11th man down (rookies included) has his line built from at most 9 minutes, so garbage time stays garbage time.
 
 Autopilot baseline 76.75 / 12.48 (60 careers; 180-career check 10.72 vs the old build's 10.88, within noise).
+
+## v120 — GM Mode, Legacy Mode, the duel; minutes that cost production
+
+**Fixes.**
+1. Ratings rebuild: `build-real.py` reads the newest `data/sources/darko-dpm-*.csv` (drop a fresh export in and rebuild), and writes `data/sources/lebron-derived.json` (one 3-season composite + roles per player, not the raw export) so a rebuild without the LEBRON file gives identical ratings (checked: byte-identical real.js with and without it).
+2. Minutes and production: the rotation caps now apply when a line is built, and a capped player loses production at 30% of the minutes cut (`capProd` 0.3: role players use more of the ball in short stints; at 100% league scoring fell to ~97 because the bench's per-minute scoring was never fitted). Minutes by roster spot stay within ~1.5 of real.
+3. Playoff rotations: a team's two best players add to its playoff strength (`poStarK`). The best regular-season record wins the title 42% of the time (60 leagues; real 2000-25 ~44%).
+4. The 10th man: a young project keeps his spot only within 5 of replacement level; the 10th spot holds 67-68 through year 10 (was 60-64).
+5. Bug fix (since v119): free agency only placed players on rosters under 10, but rosters hold 12, so good free agents went unsigned and left the league (~2 players rated 75+ a summer). Now 0; 12.7 70+ free agents a summer change teams.
+
+**New.**
+- **The duel** (arc.js): from your first pro season a real young star (closest in age, position and level; switchable that season) is your career rival. Duel nights show both scores, the career head-to-head and the beef; the career and team pages track it by season, playoff meetings and the debate; the verdict comes at retirement.
+- **Legacy Mode** (game.js `legacyCareer`): after retiring, play as your son. The same league is simulated forward until he is 18 (3-14 years), his size follows yours, a great parent nudges the ceiling (+0.2 per point of peak above 78, capped +4), scouts know the name (+1 star, more visibility), and a comparison panel tracks you vs your dad (and his dad).
+- **GM Mode** (src/gm.js): after retiring, take a front-office job (the worst teams call; a Hall of Famer also hears from a good team). Trade (value from talent, age and contract; they want to win the deal; salary matching over the tax line), sign free agents (cap room / mid-level / minimum rules), waive, re-sign or let walk, pick at your draft slot, sim seasons. Owner patience moves with wins vs expectation, playoff runs, titles and the tax; a rebuild that improves buys time; fired at 15. Moves are leaked by "league sources". GM randomness is hashed, never the league's random stream.
+
+Autopilot baseline 77.07 / 12.33 (was 76.75 / 12.48 at v119, within noise). New browser test `ui-modes` (duel, GM, Legacy).

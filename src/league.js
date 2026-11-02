@@ -87,11 +87,14 @@
     }
   }
   const fillCore = fillRoster;
+  // rotation minutes by the coach's pecking order (rating order), fitted to real 2025-26 minutes by roster spot; soft above the cap (40%, 60% for the top two)
+  const ROT = [32, 32, 26, 23, 24, 19, 19, 19, 18, 7, 8, 7, 6];
+  const softCap = (m, i) => { const c = ROT[Math.min(i, ROT.length - 1)]; return m > c ? c + (i < 2 ? 0.6 : 0.4) * (m - c) : m; };
   // replacement level: a real front office does not carry a 26-year-old who has stalled well below the league's minimum-contract veterans; it waives
   // him and signs one of those veterans (real: the 9th/10th men are ~70-rated in our scale, the sim's own pipeline left them near 58 by year 5)
   function replaceBench(L, t) {
     const low = (t.bench || []).map((id) => L.players[id]).filter((q) => q && !q.rookie).sort((a, b) => ovr(b) - ovr(a)).slice(0, 6).filter((q) => ovr(q) < T.replLevel);   // the rotation only: the 11th and 12th men are end-of-bench by design
-    const keep = low.filter((q) => q.age < 25 && q.yearsPro < 4).sort((a, b) => b.ceiling - a.ceiling).slice(0, T.replYoung != null ? T.replYoung : 2);   // two development projects at most
+    const keep = low.filter((q) => q.age < 25 && q.yearsPro < 4 && ovr(q) >= T.replLevel - (T.replYoungGap || 99)).sort((a, b) => b.ceiling - a.ceiling).slice(0, T.replYoung != null ? T.replYoung : 2);   // two development projects at most
     low.filter((q) => !keep.includes(q)).forEach((q) => {
       t.bench = t.bench.filter((id) => id !== q.id); delete L.players[q.id];
       const goal = T.replLevel + (T.replRange || 5) * rand(), p = makeNPC(L, rint(25, 31), { ceiling: goal + 1, bonus: 0 });
@@ -318,6 +321,7 @@
       const vals = roster.map(val).sort((x, y) => y - x).slice(0, 4), dv = bench.map(val).sort((x, y) => y - x).slice(0, 4);
       // the core four drive winning; the bench's best four are depth (back-to-backs, foul trouble, matchups) and count for a fraction
       t.S = sum(vals) + (T.depthW || 0) * sum(dv.map((v) => Math.max(0, v)));
+      t.st2 = (vals[0] || 0) + (vals[1] || 0);   // the two best: in the playoffs rotations shorten and they carry more
       t.pace = 99 + randn() * 1.4;
     });
     const meanS = sum(L.teams.map((t) => t.S)) / L.teams.length;
@@ -335,6 +339,8 @@
     L.teams.forEach((t) => { let w = t.wins - (mw - 41); if (w < 33) w -= (33 - w) * 0.22; if (w > 54) w -= (w - 54) * ((user && t.id === user.teamId && ovr(user.p) >= 88) ? T.userWinShrink : 0.2); t.wins = clamp(Math.round(w), 12, 73); t.losses = 82 - t.wins; });
     if (L.forceWins) { L.teams.forEach((t) => { const fw = L.forceWins[t.id]; if (fw != null) { t.wins = fw; t.losses = 82 - fw; } }); delete L.forceWins; }   // the season as it was really played (a human career's live results): seeding, playoffs and awards follow it
     L.teams.forEach((t) => { t.power = (t.wins - 41) / 2.7 + randn() * 0.8; t.prevWins = t.wins; });
+    // playoff rotations shrink to ~8 and the stars play 40 minutes: a team built on two stars beats its record, a deep team without one falls short of it
+    if (T.poStarK) { const m2 = sum(L.teams.map((t) => t.st2 || 0)) / L.teams.length; L.teams.forEach((t) => { t.power += T.poStarK * ((t.st2 || 0) - m2); }); }
     deadlineTrades(L);
     if (user && user.avail && user.avail.po) { const ut0 = L.teams[user.teamId]; ut0.power -= clamp((ovr(user.p) - 60) * 0.12, 0.8, 4.5) * (user.avail.po >= 99 ? 1 : clamp(user.avail.po / 16, 0.2, 0.85)); }   // the star is hurt for the playoffs: the team goes in without him
     if (user) { const ut = L.teams[user.teamId]; ut.power += clamp((ovr(user.p) - 84) * 0.1, 0, 1.5); } // superstars matter more in the playoffs: shorter rotations, more minutes
@@ -351,10 +357,13 @@
     const lines = {};
     // the end of the bench (11th man down, rookies included) plays garbage time: cap the minutes the line is built from, so the production shrinks with them
     const deep = {}; if (T.deepMins) L.teams.forEach((t) => { allPlayers.filter((q) => q.teamId === t.id).sort((a, b) => ovr(b) - ovr(a)).forEach((q, i) => { if (i >= 10) deep[q.id] = T.deepMins; }); });
+    // where each healthy player sits in his coach's pecking order (the user takes his place in it but is never capped)
+    const rk = {}, capped = new Set(); if (T.capProd) L.teams.forEach((t) => { const ps = allPlayers.filter((q) => q.teamId === t.id && avail[q.id].gp >= 20); if (user && user.teamId === t.id && user.avail.gp >= 20) ps.push(user.p); ps.sort((a, b) => ovr(b) - ovr(a)).forEach((q, i) => { if (q !== (user && user.p)) rk[q.id] = i; }); });
     allPlayers.forEach((p) => {
       const t = L.teams[p.teamId];
       const roster = teamRoster(L, t, user);
       const e = expLine(p, { coTax: coTaxFor(p, roster), fr: franchiseFor(p, roster), tsAdj: gravityFor(p, roster), wins: t.wins, pace: t.pace, rookie: p.rookie, minsFloor: p.rookie && !(p.draftSlot > 30) && !deep[p.id] ? NBA.rookieFloor(p.draftSlot) : 0, minsMax: deep[p.id] || 0 });
+      if (rk[p.id] != null && !deep[p.id]) { capped.add(p.id); const m2 = softCap(e.mins, rk[p.id]); if (m2 < e.mins) { const f = Math.pow(m2 / e.mins, T.capProd); ['pts', 'reb', 'ast', 'stl', 'blk', 'tov'].forEach((k) => { if (e[k] != null) e[k] *= f; }); e.mins = m2; } }   // fewer minutes, less production
       const l = lineFromExp(p, e, avail[p.id].gp); if (p.rl) realAnchor(L, p, l);
       l.id = p.id; l.teamId = p.teamId; l.wins = t.wins;
       lines[p.id] = l;
@@ -369,11 +378,10 @@
     // one game, 240 minutes: the rating gives everyone in a ten-man rotation 27-35 minutes, but real coaches tighten it (by minutes rank, real
     // 2025-26 rotations run ~35/33/31/29/27/24/21/18/15/12; the ten-man rotation plays ~222 of the 240, the 11th-15th men the rest). Minutes are soft-capped by where a player sits in the coach's pecking order (rating order; caps fitted to real minutes by roster spot); their
     // production is already sized to a real bench role (real players' points are anchored to their real line), so only the minutes move. Never the user.
-    const ROT = [32, 32, 26, 23, 24, 19, 19, 19, 18, 7, 8, 7, 6];
     const rotT = {}; entries.forEach((e) => { if (e.l.gp >= 20) (rotT[e.t.id] = rotT[e.t.id] || []).push(e); });
     Object.values(rotT).forEach((es) => {
       es.sort((a, b) => ovr(b.p) - ovr(a.p) || b.l.mins - a.l.mins);   // the coach's pecking order: by how good they are
-      es.forEach((e, i) => { const c = ROT[Math.min(i, ROT.length - 1)]; if (!e.isUser && e.l.mins > c) e.l.mins = c + (i < 2 ? 0.6 : 0.4) * (e.l.mins - c); });   // a soft cap: the order and the spread survive (no wall of 34.0s)
+      es.forEach((e, i) => { if (!e.isUser && !capped.has(e.p.id)) e.l.mins = softCap(e.l.mins, i); });   // the ones already capped when their line was built are not capped twice   // a soft cap: the order and the spread survive (no wall of 34.0s)
     });
     // one ball, one set of boards: a roster cannot have two players each taking a star's assists/rebounds/points
     // (a real team's rotation totals ~29 ast, ~46 reb); the extra is shaved off the lesser producers, never off the user
@@ -842,13 +850,13 @@
       if (p.cEnd > L.year) return;
       const o = ovr(p), tn = tenureAt(L, p, 'offseason');
       const keep = clamp(0.58 + 0.014 * (o - 66) + (tn >= 3 ? 0.1 : 0) - (p.age >= 33 ? 0.2 : 0) + (o >= 82 ? 0.15 : 0), 0.25, 0.97);
-      if (rand() < keep) { p.cEnd = L.year + 1 + (p.age >= 33 ? rint(0, 1) : p.age >= 30 ? rint(0, 2) : rint(1, 4)); return; }
+      if (!p.gmWalk && rand() < keep) { p.cEnd = L.year + 1 + (p.age >= 33 ? rint(0, 1) : p.age >= 30 ? rint(0, 2) : rint(1, 4)); return; }
       t.core = t.core.filter((id) => id !== p.id); t.bench = (t.bench || []).filter((id) => id !== p.id);
       fa.push({ p, from: t });
     }));
     fa.sort((x, y) => ovr(y.p) - ovr(x.p));
     fa.forEach((f) => {
-      const open = L.teams.filter((t) => rosterOf(L, t).length < 10 && t.id !== f.from.id);
+      const cap = 4 + (T.benchMax || 6), open = L.teams.filter((t) => rosterOf(L, t).length < cap && t.id !== f.from.id);   // a full roster (12 with the end of the bench) has no room; a good player still finds one
       if (!open.length) return;
       // stars and good players pick winners, role players take whatever fits
       const w = open.map((t) => Math.exp(clamp((ovr(f.p) - 68) / 12, -1, 2) * (t.wins - 41) / 14));
