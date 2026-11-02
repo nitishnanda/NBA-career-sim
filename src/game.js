@@ -62,7 +62,7 @@
     };
     if (o.origin && NBA.Intl && NBA.Intl.COUNTRIES[o.origin]) { st.origin = { country: o.origin, intl: true }; p.country = o.origin; }
     st.family = { tier: FAMILY[o.family] ? o.family : 'comfortable' };
-    if (o.legacy) st.legacy = o.legacy;
+    if (o.lineage) st.lineage = o.lineage;   // Legacy Mode's family line (st.legacy is the numeric legacy score)
     return st;
   }
 
@@ -75,7 +75,7 @@
     const aw = (ps.career && ps.career.awards) || {}, peak = Math.max(0, ...seasons.map((s) => s.ovr || 0));
     return { name: ps.player.name, tier: ps.hof ? ps.hof.tier : '', hall: !!(ps.hof && ps.hof.hall), score: ps.hof ? ps.hof.score : 0, seasons: seasons.length, ppg: gp ? Math.round(pts / gp * 10) / 10 : 0,
       titles: (ps.career && ps.career.titles) || 0, mvps: aw.MVP || 0, allStars: aw['All-Star'] || 0, peak: Math.round(peak), ht: ps.player.ht, wt: ps.player.wt, pos: ps.player.pos, arch: ps.player.arch,
-      jerseys: (ps.jerseys || []).slice(), teams, retiredYear: ps.league ? ps.league.year : null, age: ps.player.age, gen: ps.legacy ? ps.legacy.gen : 1, grand: ps.legacy ? ps.legacy.parent : null };
+      jerseys: (ps.jerseys || []).slice(), teams, retiredYear: ps.league ? ps.league.year : null, age: ps.player.age, gen: ps.lineage ? ps.lineage.gen : 1, grand: ps.lineage ? ps.lineage.parent : null };
   }
   function legacyCareer(ps, o) {
     const par = parentSummary(ps), L = ps.league, years = clamp(46 - (ps.player.age || 36), 3, 14);   // he is 18 when you are ~46
@@ -84,13 +84,13 @@
     const ceil0 = NBA.rollCeiling(Math.min(5, (o.stars || 3)), o.arch), ceiling = clamp(ceil0 + clamp((par.peak - 78) * 0.2, -2, 4), 55, 99);   // a great parent nudges the ceiling, a little
     const ht = par.ht ? Math.round(par.ht + (rand() * 4 - 2) + (o.pos && par.pos && o.pos !== par.pos ? (['PG', 'SG'].includes(o.pos) ? -2 : ['C', 'PF'].includes(o.pos) ? 2 : 0) : 0)) : undefined;
     const st = newCareer(Object.assign({ family: (ps.earnings || 0) >= 40 ? 'wealthy' : 'comfortable' }, o, { league: L, ceiling, stars: Math.min(5, (o.stars || 3) + 1), ht, wt: ht && par.wt ? Math.round(par.wt + (ht - par.ht) * 6) : undefined,
-      legacy: { gen: par.gen + 1, parent: par, startYear: L.year } }));
+      lineage: { gen: par.gen + 1, parent: par, startYear: L.year } }));
     st.player.vis = Math.min(0.95, st.player.vis + 0.15);   // every scout knows the name
     return st;
   }
   // the comparison every reporter makes, and the moments the name brings
   function legacyView(st) {
-    const lg = st.legacy; if (!lg) return null; const par = lg.parent, seasons = st.proSeasons || [], gp = seasons.reduce((a, s) => a + (s.gp || 0), 0), pts = seasons.reduce((a, s) => a + (s.pts || 0) * (s.gp || 0), 0);
+    const lg = st.lineage; if (!lg || !lg.parent) return null; const par = lg.parent, seasons = st.proSeasons || [], gp = seasons.reduce((a, s) => a + (s.gp || 0), 0), pts = seasons.reduce((a, s) => a + (s.pts || 0) * (s.gp || 0), 0);
     const aw = (st.career && st.career.awards) || {}, me = { seasons: seasons.length, ppg: gp ? Math.round(pts / gp * 10) / 10 : 0, titles: (st.career && st.career.titles) || 0, mvps: aw.MVP || 0, allStars: aw['All-Star'] || 0 };
     const t = st.teamId != null && st.teamId >= 0 ? st.league.teams[st.teamId] : null, dadTeam = t && par.teams.some((n) => n === t.name);
     const dadNum = par.jerseys.find((j) => t && (j.team === t.nick || j.team === t.name));
@@ -2006,11 +2006,16 @@
     const rb = NBA.rosterOf(L, t), top = rb[0] ? ovr(rb[0]) : 0;
     // the player coming back: close in value; their franchise player is only available if you are clearly better
     const lo = franchise ? o - 5 : system ? o - 7 : o - 12, hi = franchise ? o + 4 : o + 3;
-    const cand = rb.filter((q, i) => ovr(q) >= lo && ovr(q) <= hi && (i > 0 || o >= top + 2));
+    let cand = rb.filter((q, i) => ovr(q) >= lo && ovr(q) <= hi && (i > 0 || o >= top + 2));
+    if (!cand.length && !franchise && !system && rb.length >= 9) cand = rb.slice(-3).filter((q) => ovr(q) <= o + 12);   // a low-value request still moves: for one of their end-of-bench players (rosters hold replacement-level veterans now)
     if (!cand.length) return Object.assign(base, { ok: false, reason: 'The ' + t.nick + ' have nobody close to your value to send back.' });
     // the best player they can send back whose salary fits (an over-the-cap club may take back at most 125% + $0.1M of what it sends out)
     const sorted = cand.sort((a, b) => ovr(b) - ovr(a)), mySal0 = st.contract ? st.contract.salary : 0; let partner = sorted[0], matchWhy = null;
     for (let i = 0; i < sorted.length; i++) { const q = sorted[i], ps = NBA.Cap.salaryOf(L, q), a1 = NBA.Cap.tradeMatch(st, t, mySal0, ps), a2 = NBA.Cap.tradeMatch(st, mine, ps, mySal0); if (a1.ok && a2.ok) { partner = q; matchWhy = null; break; } if (!matchWhy) matchWhy = a1.ok ? a2.why : a1.why; }
+    if (matchWhy && !franchise) {   // nobody close in value fits the salary rules: a cheaper player off their bench who does (a rookie deal rarely matches a veteran's salary)
+      const cheap = rb.filter((q) => !sorted.includes(q) && ovr(q) <= o + 6 && ovr(q) >= o - 16).sort((a, b) => NBA.Cap.salaryOf(L, a) - NBA.Cap.salaryOf(L, b));
+      for (let i = 0; i < cheap.length; i++) { const q = cheap[i], ps = NBA.Cap.salaryOf(L, q); if ((NBA.Cap.tradeMatch(st, t, mySal0, ps).ok && NBA.Cap.tradeMatch(st, mine, ps, mySal0).ok) || ps <= NBA.Cap.minSal(L) * 1.05) { partner = q; matchWhy = null; break; } }   // a minimum contract can always be taken back (the minimum exception)
+    }
     base.partner = { id: partner.id, name: partner.name, pos: partner.pos, age: partner.age, ovr: Math.round(ovr(partner)) };
     { const mySal = mySal0, pSal = NBA.Cap.salaryOf(L, partner); base.partner.salary = pSal; base.mySalary = r1(mySal); if (matchWhy) return Object.assign(base, { ok: false, reason: matchWhy });
       // a club that gets the better player sweetens it with real picks, and sometimes a second player (a two-for-one) when the salaries and the rosters allow it

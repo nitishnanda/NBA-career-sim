@@ -181,7 +181,7 @@
       let i = 0; fill(0);
       const t = setInterval(() => { i++; fill(i); if (i >= S.stars) { clearInterval(t); S.revealed = true; save(); setTimeout(details, 350); } }, 520);
     }
-    if (S.legacy && S.legacy.parent) { const p = S.legacy.parent; return h('div', null, h('div', { class: 'callout' }, '🧬 ' + NBA.seasonLabel(S.league.year) + '. The scouts already know the name: you are ' + p.name + '\'s son (' + p.tier.toLowerCase() + ', ' + p.ppg + ' ppg over ' + p.seasons + ' seasons' + (p.titles ? ', ' + p.titles + ' title' + (p.titles > 1 ? 's' : '') : '') + '). Every gym you walk into, someone remembers him.'), box); }
+    if (S.lineage && S.lineage.parent) { const p = S.lineage.parent; return h('div', null, h('div', { class: 'callout' }, '🧬 ' + NBA.seasonLabel(S.league.year) + '. The scouts already know the name: you are ' + p.name + '\'s son (' + p.tier.toLowerCase() + ', ' + p.ppg + ' ppg over ' + p.seasons + ' seasons' + (p.titles ? ', ' + p.titles + ' title' + (p.titles > 1 ? 's' : '') : '') + '). Every gym you walk into, someone remembers him.'), box); }
     return h('div', null, box);
   }
 
@@ -1841,7 +1841,7 @@
   function legacyStartCard() {
     if (!G.legacyCareer || S.player.age < 30 && !S.hof) return null;
     const last = S.player.name.split(' ').slice(-1)[0], kid = { name: S.player.name.split(' ')[0] + ' ' + last + ' Jr.', pos: S.player.pos, arch: S.player.arch };
-    if (S.legacy && S.legacy.gen >= 2) kid.name = S.player.name.replace(/ (Jr\.|II|III|IV)$/, '') + (S.legacy.gen === 2 ? ' III' : ' IV');
+    if (S.lineage && S.lineage.gen >= 2) kid.name = S.player.name.replace(/ (Jr\.|II|III|IV)$/, '') + (S.lineage.gen === 2 ? ' III' : ' IV');
     return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, '👶 Legacy Mode: play as your son'),
       h('p', { class: 'small muted' }, 'Years pass in this same league (your teammates retire, your records stand) until he is 18. Your name gets him scouted from day one, his size takes after yours, and every box score will be measured against yours. This replaces this saved career (your story stays in his).'),
       h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, h('input', { type: 'text', value: kid.name, maxlength: 28, oninput: (e) => (kid.name = e.target.value) }),

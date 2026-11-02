@@ -1190,4 +1190,7 @@ Autopilot baseline 76.75 / 12.48 (60 careers; 180-career check 10.72 vs the old 
 - **Legacy Mode** (game.js `legacyCareer`): after retiring, play as your son. The same league is simulated forward until he is 18 (3-14 years), his size follows yours, a great parent nudges the ceiling (+0.2 per point of peak above 78, capped +4), scouts know the name (+1 star, more visibility), and a comparison panel tracks you vs your dad (and his dad).
 - **GM Mode** (src/gm.js): after retiring, take a front-office job (the worst teams call; a Hall of Famer also hears from a good team). Trade (value from talent, age and contract; they want to win the deal; salary matching over the tax line), sign free agents (cap room / mid-level / minimum rules), waive, re-sign or let walk, pick at your draft slot, sim seasons. Owner patience moves with wins vs expectation, playoff runs, titles and the tax; a rebuild that improves buys time; fired at 15. Moves are leaked by "league sources". GM randomness is hashed, never the league's random stream.
 
-Autopilot baseline 77.07 / 12.33 (was 76.75 / 12.48 at v119, within noise). New browser test `ui-modes` (duel, GM, Legacy).
+6. Trade requests: with replacement-level benches, a low-rated or rookie-deal player asking out found no partner (nobody near his value, or every salary over the 125% match). A low-value request can now go for an end-of-bench player, a cheaper bench player who fits the salary rules is tried, and a minimum contract can always be taken back (the minimum exception).
+7. Legacy Mode keeps its family line in `st.lineage` (`st.legacy` is the numeric legacy score the Hall of Fame reads).
+
+Autopilot baseline 76.87 / 12.20 (was 76.75 / 12.48 at v119, within noise). New browser test `ui-modes` (duel, GM, Legacy).

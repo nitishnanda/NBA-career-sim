@@ -38,7 +38,7 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   await clickConfirm('^Step down'); await page.waitForTimeout(400); t = await text(); ok('GM step down back to retirement', /You ran the /i.test(t) && /retires/i.test(t));
   // 3. Legacy Mode: start the son's career from the retired screen
   await clickConfirm('^Start the next generation'); await page.waitForTimeout(1500); t = await text();
-  const lg = await page.evaluate(() => { const S = window.__NBA_UI.state; return { stage: S.stage, gen: S.legacy && S.legacy.gen, parent: S.legacy && S.legacy.parent.name, year: S.league.year, name: S.player.name }; });
+  const lg = await page.evaluate(() => { const S = window.__NBA_UI.state; return { stage: S.stage, gen: S.lineage && S.lineage.gen, parent: S.lineage && S.lineage.parent.name, year: S.league.year, name: S.player.name }; });
   ok('LEGACY son starts in the same league, years later', lg.stage === 'scouting' && lg.gen === 2 && lg.parent === 'Front Office' && lg.year > 2040, lg);
   ok('LEGACY scouting callout', /Front Office's son/.test(t), t.slice(0, 200));
   console.log('errors:', errors.length ? errors : 'none');
