@@ -222,7 +222,7 @@
   }
   function simPlayoffs(L, userTeamId, mods) {
     const um = mods || {}, fxFor = (r, m) => (userTeamId != null && (m[0].id === userTeamId || m[1].id === userTeamId) ? { uid: userTeamId, d: (um.rounds || [])[r] || 0, force: um.force && um.force[r] } : null);
-    const out = { rounds: [], playin: [], champion: null, userSeries: [], userMade: false, userOut: null };
+    const out = { rounds: [], playin: [], champion: null, userSeries: [], userMade: false, userOut: null, top10: { E: [], W: [] }, seeds: { E: [], W: [] } };
     const confs = { E: [], W: [] };
     L.teams.forEach((t) => confs[t.conf].push(t));
     const seeds = {};
@@ -237,9 +237,10 @@
         if (userTeamId != null && (hi.id === userTeamId || lo.id === userTeamId)) { const won = r[0].id === userTeamId, opp = hi.id === userTeamId ? lo : hi; out.userSeries.push({ round: 'Play-In', playin: true, label, stake, opp: opp.name, home: hi.id === userTeamId, w: won ? 1 : 0, l: won ? 0 : 1, games: 1, won }); }
         return r;
       };
+      out.top10[c] = s.slice(0, 10).map((t) => t.nick);
       const g78 = pi(s[6], s[7], '7 vs 8', 'The winner is the ' + c + ' 7 seed; the loser gets a second chance'), g910 = pi(s[8], s[9], '9 vs 10', 'Win or go home');
       const g8 = pi(g78[1], g910[0], 'For the 8 seed', 'Win or go home');
-      seeds[c] = s.slice(0, 6).concat([g78[0], g8[0]]);
+      seeds[c] = s.slice(0, 6).concat([g78[0], g8[0]]); out.seeds[c] = seeds[c].map((t) => t.nick);
     });
     if (userTeamId != null) out.userMade = ['E', 'W'].some((c) => seeds[c].some((t) => t.id === userTeamId));
     const runConf = (c) => {

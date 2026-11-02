@@ -952,6 +952,13 @@
     return items;
   }
 
+  // the Finals MVP of a champion the player does not play for: his best Finals line, drawn without touching the league's random stream
+  function fmvpFor(L, champ) {
+    const cands = champ.core.map((id) => { const q = L.players[id]; if (!q) return null; const l = L.lines && L.lines[id], n = 1 + 0.12 * (((hashS(q.name + '|' + L.year + '|fm') % 1000) / 1000) - 0.5), b = l ? { pts: l.pts * 1.06 * n, reb: l.reb * 1.03, ast: l.ast * 0.97, db: l.stl + l.blk } : { pts: 8, reb: 3, ast: 2, db: 1 };
+      return { name: q.name, pts: b.pts, reb: b.reb, ast: b.ast, db: b.db, s: 2.0 * b.pts + b.reb + 1.3 * b.ast + 2.5 * b.db }; }).filter(Boolean);
+    if (!cands.length) return null; const mx = Math.max.apply(null, cands.map((c) => c.pts)), pool = cands.filter((c) => c.pts >= 0.86 * mx || (c.db >= 3 && c.pts >= 0.5 * mx)).sort((a, b) => b.s - a.s), w = (pool.length ? pool : cands.sort((a, b) => b.s - a.s))[0];
+    return { name: w.name, team: champ.nick, pts: Math.round(w.pts * 10) / 10, reb: Math.round(w.reb * 10) / 10, ast: Math.round(w.ast * 10) / 10 };
+  }
   // the timeline's take on the nights that stood out (all games at tip-off; one game again once its result is decided live)
   function gameFeed(st, items, t, only) {
     const rnd = NBA.Reporters.mulberry(shotSeed(st, 9700 + (only == null ? 0 : 31 * only))), F = NBA.Feed, tm = t; let w = 0, l = 0, nFan = 0, gp = 0, sp = 0, sr = 0, sa = 0; const ovrNow = ovr(st.player);
@@ -1055,11 +1062,12 @@
         pline = out.line; perSeries = out.perSeries; heater = out.heater; legend = out.legend; pform = out.form;
       }
     } else if (po.userOut === null) resultText = 'Missed the playoffs';
+    let fmName = null;
     if (po.champion.id === st.teamId) {
       st.career.titles++; cnt('Championships'); awardsHere.push('NBA Champion');
       const fin = perSeries.find((x) => x.round === 'NBA Finals');
       const who = NBA.finalsMVP(L, st.teamId, fin ? { pts: fin.pts, reb: fin.reb, ast: fin.ast, stl: userLine.stl, blk: userLine.blk } : null);
-      if (who === 'user') { cnt('Finals MVP'); awardsHere.push('Finals MVP'); fmvp = true; }
+      if (who === 'user') { cnt('Finals MVP'); awardsHere.push('Finals MVP'); fmvp = true; } fmName = who === 'user' ? st.player.name : who;
     }
 
     const l = userLine;
@@ -1080,7 +1088,7 @@
       rec.rivalFacts = facts; }
     const gl = l.gameList; delete l.gameList;
     if (l.gpCut && !rec.injury) rec.injury = 'Suffered a season-ending injury and missed the rest of the year.';
-    st.leagueSnap = { year: L.year, label: res.label, standings: res.standings, leaders: res.leaders, leadersO: res.leadersOthers, race: A.race, raceO: A.raceOthers, playin: po.playin, bracket: po.rounds.map((rd) => ({ name: rd.name, series: rd.series.map((x) => ({ a: x.a.nick, b: x.b.nick, aid: x.a.id, bid: x.b.id, wa: x.wa, wb: x.wb, w: x.winner.nick })) })), champion: po.champion ? po.champion.nick : null };
+    st.leagueSnap = { year: L.year, label: res.label, standings: res.standings, leaders: res.leaders, leadersO: res.leadersOthers, race: A.race, raceO: A.raceOthers, playin: po.playin, top10: po.top10, seeds: po.seeds, fmvp: fmName ? { name: fmName, team: po.champion.nick } : fmvpFor(L, po.champion), bracket: po.rounds.map((rd) => ({ name: rd.name, series: rd.series.map((x) => ({ a: x.a.nick, b: x.b.nick, aid: x.a.id, bid: x.b.id, wa: x.wa, wb: x.wb, w: x.winner.nick })) })), champion: po.champion ? po.champion.nick : null };
     st.matchLog = buildMatchLog(st, rec, l, gl, perSeries, t, rec.injury, pline); st.matchIdx = 0;
     manageReturn(st, rec, l); if (avail.po > 0 && avail.po < 99) playoffMiss(st, rec, perSeries, avail.po);
     if (!st.autoPlay) { st.layWins = {}; L.teams.forEach((x) => { st.layWins[x.id] = x.wins; }); }

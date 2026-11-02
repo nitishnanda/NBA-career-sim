@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 26 Oct · BallerSim dashboard v110';
+  const BUILD = 'build 26 Oct · BallerSim dashboard v111';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -604,6 +604,36 @@
   // quiet mode: the small news (mentions, podcasts, injuries around the league) goes to an inbox instead of stopping the season
   const INBOX_IDS = ['mention', 'podcast', 'starinjury'];
   function toInbox() { if (S.inboxMode === false || !S.dec.pending || !INBOX_IDS.includes(S.dec.pending.id)) return false; (S.inbox = S.inbox || []).push({ pd: S.dec.pending, at: S.matchIdx || 0 }); S.inbox = S.inbox.filter((x) => (S.matchIdx || 0) - x.at <= 8).slice(-6); S.dec.pending = null; save(); return true; }
+  // ---- the postseason bracket screens
+  function bracketTeam(nick, seed, rec) { const me = S.league.teams[S.teamId] && S.league.teams[S.teamId].nick === nick; return h('div', { class: 'row small', style: 'margin:2px 0;gap:6px' + (me ? ';font-weight:700' : '') }, seed ? h('span', { class: 'muted', style: 'width:20px' }, seed) : null, logo(nick, 20), h('span', null, nick), h('span', { class: 'spacer' }), h('span', { class: 'muted' }, rec || '')); }
+  function screenBracket() {
+    const sn = S.leagueSnap, L = S.league, kind = S.bracketHold.kind, rec = {}; (sn.standings || []).forEach((r) => { rec[r.nick] = r.wins + '-' + r.losses; });
+    const nickOf = (full) => { const t = L.teams.find((x) => x.name === full); return t ? t.nick : full; };
+    const confs = [['E', 'Eastern Conference'], ['W', 'Western Conference']];
+    const cols = (fn) => h('div', { class: 'grid2 conf', style: 'gap:14px' }, confs.map(([c, nm]) => h('div', null, h('h3', { style: 'margin:6px 0' }, nm), fn(c))));
+    const sec = (title, sub) => h('div', { style: 'margin-top:10px' }, h('div', { class: 'small caps muted' }, title), sub ? h('div', { class: 'small muted' }, sub) : null);
+    let body, title, btn;
+    if (kind === 'playin') {
+      title = '⚔ The Play-In Tournament'; btn = 'Continue to the play-in →';
+      body = h('div', null, h('p', { class: 'muted' }, 'You finished in the play-in spots (7th to 10th). Win and you are in. Lose and your season can still be saved by the second game.'),
+        cols((c) => { const t10 = (sn.top10 && sn.top10[c]) || []; return h('div', null, sec('Locked in (seeds 1-6)'), t10.slice(0, 6).map((n, i) => bracketTeam(n, i + 1, rec[n])), sec('7 vs 8', 'The winner is the 7 seed. The loser gets a second chance.'), bracketTeam(t10[6], 7, rec[t10[6]]), bracketTeam(t10[7], 8, rec[t10[7]]), sec('9 vs 10', 'Win or go home.'), bracketTeam(t10[8], 9, rec[t10[8]]), bracketTeam(t10[9], 10, rec[t10[9]]), sec('For the 8 seed', 'Loser of 7 vs 8 against the winner of 9 vs 10.')); }));
+    } else {
+      const user = L.teams[S.teamId], made = user && (sn.seeds.E.includes(user.nick) || sn.seeds.W.includes(user.nick)), inPi = (sn.playin || []).some((g) => g.hi === (user && user.name) || g.lo === (user && user.name));
+      title = '🏀 The playoff bracket'; btn = made ? 'Continue to the playoffs →' : 'Continue →';
+      body = h('div', null, h('p', { class: 'muted' }, made ? (inPi ? 'You came through the play-in. Here is the bracket.' : 'You are in. Here is how the postseason is set.') : 'Your season is over, but the postseason is on. Here is how it is set.'),
+        sn.playin && sn.playin.length ? h('div', null, sec('Play-In results'), cols((c) => h('div', null, sn.playin.filter((g) => g.conf === c).map((g) => h('div', { class: 'small', style: 'margin:3px 0' }, h('span', { class: 'muted' }, g.label + ': '), h('b', null, nickOf(g.w)), ' beat ' + nickOf(g.l)))))) : null,
+        sec('First round'), cols((c) => { const s8 = sn.seeds[c] || []; return h('div', null, [[0, 7], [3, 4], [2, 5], [1, 6]].map(([i, j]) => h('div', { class: 'card', style: 'padding:6px 10px;margin:6px 0' }, bracketTeam(s8[i], i + 1, rec[s8[i]]), bracketTeam(s8[j], j + 1, rec[s8[j]])))); }));
+    }
+    const go1 = () => { const it = S.matchLog[S.matchIdx]; if (it) it.bk = 1; S.bracketHold = null; if (it && it.k === 'hdr' && /^Regular season complete/.test(it.text || '')) { S.matchIdx++; liveSkipHdrs(); } save(); render(); window.scrollTo(0, 0); };
+    return h('div', null, h('h1', null, title), h('p', { class: 'muted' }, S.league.teams[S.teamId].name + ' · ' + NBA.seasonLabel(L.year)), h('div', { class: 'card suspense' }, body), h('div', { class: 'row', style: 'margin-top:10px' }, h('button', { class: 'primary big-btn', onclick: go1 }, btn)));
+  }
+  // the Finals result: who won, how it went, and the Finals MVP (for everyone, including teams that were out long ago)
+  function finalsCard() {
+    const sn = S.leagueSnap; if (!sn || !sn.bracket || !sn.bracket[3] || !sn.bracket[3].series[0]) return null; const f = sn.bracket[3].series[0], champ = f.w, other = f.w === f.a ? f.b : f.a, wins = Math.max(f.wa, f.wb), loss = Math.min(f.wa, f.wb), fm = sn.fmvp, mine = S.league.teams[S.teamId] && S.league.teams[S.teamId].nick;
+    return h('div', { class: 'card suspense', style: 'text-align:center' }, h('div', { style: 'font-size:34px' }, '🏆'), h('div', { class: 'small caps muted' }, NBA.seasonLabel(S.league.year) + ' NBA Finals'),
+      h('h2', { style: 'margin:4px 0' }, 'The ' + champ + ' are champions'), h('p', { style: 'margin:2px 0' }, champ + ' beat the ' + other + ' ' + wins + '-' + loss + (champ === mine ? '. That is you.' : other === mine ? '. You were in the Finals.' : '.')),
+      fm ? h('p', { style: 'margin:6px 0' }, '🏅 Finals MVP: ', h('b', null, fm.name), fm.pts != null ? h('span', { class: 'muted' }, ' · ' + fm.pts + ' pts, ' + fm.reb + ' reb, ' + fm.ast + ' ast') : null) : null);
+  }
   // the league wire: what the other 29 teams are doing right now (from the live standings, last year's records and this year's deadline deals)
   function wirePanel(rows, N, items, idx) {
     if (N < 8 || !rows || !rows.length) return null; const L = S.league, lw = L.lastWins || {}, out = [];
@@ -665,6 +695,12 @@
       if (!pend('injury')) Dc.offer(S, 'injury');
       if (pend('injury')) { if (S.autoDec) { Dc.autoResolve(S); save(); return holdAt(); } return true; }
     }
+    // the postseason opens with a bracket: the play-in if you are in it, otherwise the play-in results and the first round; a team that came through the play-in sees the playoff bracket before its first game
+    { const sn = S.leagueSnap, tm0 = S.league.teams[S.teamId], isEnd = it.k === 'hdr' && /^Regular season complete/.test(it.text || ''), isFirst = it.k === 'hdr' && it.ps === 0;
+      const inPi = !!(sn && sn.playin && tm0 && sn.playin.some((g) => g.hi === tm0.name || g.lo === tm0.name));
+      const want = S.autoPlay || !sn || !sn.seeds || it.bk ? null : isEnd ? (inPi ? 'playin' : 'overview') : isFirst && inPi ? 'overview' : null;
+      if (want) { if (S.autoDec) { it.bk = 1; if (isEnd) { S.matchIdx++; liveSkipHdrs(); } save(); return holdAt(); } if (!S.bracketHold || S.bracketHold.kind !== want) { S.bracketHold = { kind: want }; save(); } return true; }
+      if (S.bracketHold) { S.bracketHold = null; save(); } }
     if (it.k === 'hdr' && it.asw) {   // All-Star Weekend: the selection, the events you are invited to, the game
       if (S.autoDec) { NBA.AllStar.skip(S); S.matchIdx++; save(); return holdAt(); }
       if (NBA.AllStar.start(S)) return true;
@@ -746,7 +782,7 @@
       if (S.matchLog[S.matchIdx].k === 'g') G.resolveGame(S, S.matchIdx);   // sim as you go: the result is decided now (a swing can rebuild the log)
       const items = S.matchLog, it = items[S.matchIdx]; S.matchIdx++;
       if (it.k === 'g') got = true;
-      if (got) { while (items[S.matchIdx] && items[S.matchIdx].k === 'hdr' && !(items[S.matchIdx].dl && !S.dlDone) && !(items[S.matchIdx].ps != null) && !items[S.matchIdx].asw) S.matchIdx++; break; }
+      if (got) { while (items[S.matchIdx] && items[S.matchIdx].k === 'hdr' && !(items[S.matchIdx].dl && !S.dlDone) && !(items[S.matchIdx].ps != null) && !items[S.matchIdx].asw && !(/^Regular season complete/.test(items[S.matchIdx].text || '') && !items[S.matchIdx].bk)) S.matchIdx++; break; }
     }
   }
   function autoplay(until) {
@@ -765,7 +801,7 @@
     let overlay = null;
     if (S.decResult) overlay = screenDecResult();
     else if (S.dec && S.dec.pending && INBOX_IDS.includes(S.dec.pending.id)) overlay = S.dec.pending.id === 'mention' ? screenMention() : S.dec.pending.id === 'podcast' ? screenPodcast() : screenStarInjury();
-    else if (holdAt()) { if (S.decResult) overlay = screenDecResult(); else if (NBA.AllStar.active(S)) overlay = screenAllStar(); else if (!(S.dec && S.dec.pending)) overlay = null; else { const pid = S.dec.pending.id; overlay = pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : pid === 'press' ? screenPress() : pid === 'injury' ? screenInjury() : pid === 'social' ? screenSocial() : pid === 'mention' ? screenMention() : pid === 'podcast' ? screenPodcast() : pid === 'starinjury' ? screenStarInjury() : ['seriesmoment', 'alpha', 'rumor', 'buyout', 'benched', 'assignment', 'mateinj', 'rookiewall', 'mateevent'].includes(pid) ? screenSimpleDec() : screenDeadline(); } if (overlay === 'again') return screenSeasonPlay(); }
+    else if (holdAt()) { if (S.decResult) overlay = screenDecResult(); else if (S.bracketHold) overlay = screenBracket(); else if (NBA.AllStar.active(S)) overlay = screenAllStar(); else if (!(S.dec && S.dec.pending)) overlay = null; else { const pid = S.dec.pending.id; overlay = pid === 'series' ? screenSeries() : pid === 'clutch' ? screenClutch() : pid === 'press' ? screenPress() : pid === 'injury' ? screenInjury() : pid === 'social' ? screenSocial() : pid === 'mention' ? screenMention() : pid === 'podcast' ? screenPodcast() : pid === 'starinjury' ? screenStarInjury() : ['seriesmoment', 'alpha', 'rumor', 'buyout', 'benched', 'assignment', 'mateinj', 'rookiewall', 'mateevent'].includes(pid) ? screenSimpleDec() : screenDeadline(); } if (overlay === 'again') return screenSeasonPlay(); }
     const items = S.matchLog || [], idx = S.matchIdx || 0, L = S.league, p = S.player, t = L.teams[S.teamId];
     const shown = items.slice(0, idx), done = idx >= items.length;
     const reg = shown.filter((x) => x.k === 'g' && !x.po), poG = shown.filter((x) => x.k === 'g' && x.po);
@@ -901,7 +937,7 @@
       return h('div', { class: 'callout inj' }, '🩹 You are hurt: ' + nm + '. ' + (lbl === 'Setback' ? 'A setback in rehab. ' : lbl === 'Rehab' ? 'Held out for rehab. ' : '') + 'Out ' + n + ' more game' + (n > 1 ? 's' : '') + ' · ' + back + '.');
     })();
     const histPanel = historyPanel(true);
-    const wrap = h('div', { class: 'dash mt-' + mTab }, injBanner, h('div', { class: 'dtop' }, hero, quick, mtabs, telemetry), playoffPanel, h('div', { class: 'dmid' }, stream, averages, defense), planPanel, S.autoPlay ? null : wirePanel(rows, reg.length, items, idx), S.autoPlay ? null : bracketPanel(items, idx), histPanel, S.autoPlay ? null : inboxPanel(), feedPanel);
+    const wrap = h('div', { class: 'dash mt-' + mTab }, done && !S.autoPlay ? finalsCard() : null, injBanner, h('div', { class: 'dtop' }, hero, quick, mtabs, telemetry), playoffPanel, h('div', { class: 'dmid' }, stream, averages, defense), planPanel, S.autoPlay ? null : wirePanel(rows, reg.length, items, idx), S.autoPlay ? null : bracketPanel(items, idx), histPanel, S.autoPlay ? null : inboxPanel(), feedPanel);
     if (!LV) setTimeout(aiFeedUpgrade, 600);
     return overlay ? h('div', null, modal(overlay), wrap) : wrap;
   }
@@ -1295,7 +1331,7 @@
     const rk = (cls, l, v, sub) => h('div', { class: 'kpi ' + cls }, h('div', { class: 'k-lbl' }, l), h('div', { class: 'k-val' }, v), sub);
     const recKpis = h('div', { class: 'kpis' }, rk('hot', 'Points', f1(r.pts), dl(r.pts, pr && pr.pts)), rk('', 'Rebounds', f1(r.reb), dl(r.reb, pr && pr.reb)), rk('', 'Assists', f1(r.ast), dl(r.ast, pr && pr.ast)),
       h('div', { class: 'kpi ink' }, h('div', { class: 'k-lbl' }, 'Avg rating'), h('div', { style: 'margin-top:8px' }, r.avgRating ? ratingBadge(r.avgRating, 2) : '–'), h('div', { class: 'k-sub' }, r.wins + '-' + r.losses + (r.poRating ? ' · playoffs ' + r.poRating.toFixed(2) : ''))));
-    return h('div', null, h('h1', null, r.label + ' season recap'), recKpis, champCard(), awardsCard(),
+    return h('div', null, h('h1', null, r.label + ' season recap'), recKpis, champCard(), finalsCard(), awardsCard(),
       h('div', { class: 'card' }, h('p', { class: 'muted' }, r.team + ' · age ' + r.age + ' · OVR ' + r.ovr + ' · ' + money(r.salary)),
         h('div', { class: 'grid stats' }, statBox(f1(r.stl), 'SPG'), statBox(f1(r.blk), 'BPG'), statBox(r.gp, 'Games'), statBox(r.td, 'Triple-doubles')),
         h('p', { style: 'margin-top:10px' }, 'FG ' + pct(r.fgp) + '% · 3P ' + pct(r.tpp) + '% · FT ' + pct(r.ftp) + '% · TS ' + pct(r.ts) + '% · ' + f1(r.mins) + ' mpg · High game ' + r.high),
@@ -1911,7 +1947,7 @@
   const LIVE_SPEEDS = [[24, 'Max · 2 min'], [12, '4 min'], [6, '8 min'], [1, 'Real time']];
   const LV_COLS = [['pt', 'PTS'], ['rb', 'REB'], ['as', 'AST'], ['st', 'STL'], ['bk', 'BLK'], ['to', 'TO'], ['pf', 'PF']];
   function liveStop() { if (LV && LV.timer) { clearInterval(LV.timer); LV.timer = null; } }
-  function liveSkipHdrs() { const items = S.matchLog; while (items[S.matchIdx] && items[S.matchIdx].k === 'hdr' && !(items[S.matchIdx].dl && !S.dlDone) && items[S.matchIdx].ps == null && !items[S.matchIdx].asw) S.matchIdx++; }
+  function liveSkipHdrs() { const items = S.matchLog; while (items[S.matchIdx] && items[S.matchIdx].k === 'hdr' && !(items[S.matchIdx].dl && !S.dlDone) && items[S.matchIdx].ps == null && !(/^Regular season complete/.test(items[S.matchIdx].text || '') && !items[S.matchIdx].bk) && !items[S.matchIdx].asw) S.matchIdx++; }
   function startLive() {
     stopAuto(); const items = S.matchLog;
     if (holdAt()) { render(); return; }
