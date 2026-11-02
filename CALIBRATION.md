@@ -1136,3 +1136,14 @@ The rating handed everyone in a ten-man rotation 27-35 minutes, so a team's 8th-
 | real 2025-26 (by roster spot) | 32.9 | 26.4 | 24.4 | 22.9 | 16.8 | 240 |
 
 Autopilot baseline unchanged: 76.43 / 12.31.
+
+## v116 — tighter top of the rotation
+
+v115 capped only the 6th man down; the 2nd-5th still read 33-35 mpg (real 26-33). The caps by minutes rank are now 36/34/32/30/28/26/24/22/20/17/14/12/10 (never the user). Measured by roster spot (rating order, 6 real leagues, players with 30+ games), sim vs real 2025-26:
+
+| spot | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| sim v116 | 32.4 | 30.2 | 28.2 | 28.5 | 29.7 | 28.0 | 27.0 | 24.5 | 22.2 | 19.2 |
+| real | 32.9 | 32.5 | 28.1 | 26.4 | 27.2 | 24.4 | 23.9 | 22.9 | 21.8 | 16.8 |
+
+The ten-man rotation now plays ~221 minutes a night (real ~222; the 11th-15th men, who the sim does not carry, play the rest). Points, boards and assists unchanged; autopilot baseline unchanged (76.43 / 12.31).

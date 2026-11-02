@@ -349,11 +349,14 @@
       user.line.perf = l.perf;
     }
     // one game, 240 minutes: the rating gives everyone in a ten-man rotation 27-35 minutes, but real coaches tighten it (by minutes rank, real
-    // 2025-26 rotations run ~35/33/31/29/27/24/21/18/15/12). Lesser players' minutes are capped by where they sit in the pecking order; their
+    // 2025-26 rotations run ~35/33/31/29/27/24/21/18/15/12; the ten-man rotation plays ~222 of the 240, the 11th-15th men the rest). Lesser players' minutes are capped by where they sit in the pecking order; their
     // production is already sized to a real bench role (real players' points are anchored to their real line), so only the minutes move. Never the user.
-    const ROT = [38, 37, 36, 35, 33, 30, 27, 24, 21, 18, 15, 13, 11];
+    const ROT = [36, 34, 32, 30, 28, 26, 24, 22, 20, 17, 14, 12, 10];
     const rotT = {}; entries.forEach((e) => { if (e.l.gp >= 20) (rotT[e.t.id] = rotT[e.t.id] || []).push(e); });
-    Object.values(rotT).forEach((es) => es.sort((a, b) => b.l.mins - a.l.mins).forEach((e, i) => { if (!e.isUser) e.l.mins = Math.min(e.l.mins, ROT[Math.min(i, ROT.length - 1)]); }));
+    Object.values(rotT).forEach((es) => {
+      es.sort((a, b) => b.l.mins - a.l.mins);
+      es.forEach((e, i) => { if (!e.isUser) e.l.mins = Math.min(e.l.mins, ROT[Math.min(i, ROT.length - 1)]); });
+    });
     // one ball, one set of boards: a roster cannot have two players each taking a star's assists/rebounds/points
     // (a real team's rotation totals ~29 ast, ~46 reb); the extra is shaved off the lesser producers, never off the user
     const byTeam = {}; entries.forEach((e) => { if (e.l.gp >= 20) (byTeam[e.t.id] = byTeam[e.t.id] || []).push(e); });
