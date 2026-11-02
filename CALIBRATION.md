@@ -1147,3 +1147,14 @@ v115 capped only the 6th man down; the 2nd-5th still read 33-35 mpg (real 26-33)
 | real | 32.9 | 32.5 | 28.1 | 26.4 | 27.2 | 24.4 | 23.9 | 22.9 | 21.8 | 16.8 |
 
 The ten-man rotation now plays ~221 minutes a night (real ~222; the 11th-15th men, who the sim does not carry, play the rest). Points, boards and assists unchanged; autopilot baseline unchanged (76.43 / 12.31).
+
+## v117 — rotation minutes by the coach's pecking order
+
+The v116 caps went by minutes order, which barely moved the 6th and 7th men (the sim's minutes order and rating order differ: injured starters drop out, rookies get floor minutes). The caps now follow rating order, fitted to real 2025-26 minutes by roster spot, and are soft (above the cap a player keeps 40% of the extra, 60% for a team's top two), so the order and spread survive instead of a wall of identical numbers. Caps: 32/32/26/23/24/19/19/19/18/10/9/8/7. Never the user; nothing else in the line moves.
+
+| spot | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| sim v117 | 33.4 | 32.8 | 28.7 | 27.2 | 27.3 | 24.8 | 24.3 | 23.6 | 22.2 | 18.3 |
+| real | 32.9 | 32.5 | 28.1 | 26.4 | 27.2 | 24.4 | 23.9 | 22.9 | 21.8 | 16.8 |
+
+League minutes leaders 34-35 mpg (one season, 228 qualifiers, no value shared by more than 6).
