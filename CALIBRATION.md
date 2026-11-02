@@ -1158,3 +1158,7 @@ The v116 caps went by minutes order, which barely moved the 6th and 7th men (the
 | real | 32.9 | 32.5 | 28.1 | 26.4 | 27.2 | 24.4 | 23.9 | 22.9 | 21.8 | 16.8 |
 
 League minutes leaders 34-35 mpg (one season, 228 qualifiers, no value shared by more than 6).
+
+## v118 — the 10th man
+
+The 10th man's soft cap drops from 10 to 7 (and the 11th-13th from 9/8/7 to 8/7/6, for rosters that carry an extra rookie). By roster spot the 10th man now plays 17.0 mpg (real 16.8; was 18.3); the 9th 21.9 (real 21.8); spots 1-8 unchanged. Points and the user untouched.

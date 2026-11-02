@@ -351,7 +351,7 @@
     // one game, 240 minutes: the rating gives everyone in a ten-man rotation 27-35 minutes, but real coaches tighten it (by minutes rank, real
     // 2025-26 rotations run ~35/33/31/29/27/24/21/18/15/12; the ten-man rotation plays ~222 of the 240, the 11th-15th men the rest). Minutes are soft-capped by where a player sits in the coach's pecking order (rating order; caps fitted to real minutes by roster spot); their
     // production is already sized to a real bench role (real players' points are anchored to their real line), so only the minutes move. Never the user.
-    const ROT = [32, 32, 26, 23, 24, 19, 19, 19, 18, 10, 9, 8, 7];
+    const ROT = [32, 32, 26, 23, 24, 19, 19, 19, 18, 7, 8, 7, 6];
     const rotT = {}; entries.forEach((e) => { if (e.l.gp >= 20) (rotT[e.t.id] = rotT[e.t.id] || []).push(e); });
     Object.values(rotT).forEach((es) => {
       es.sort((a, b) => ovr(b.p) - ovr(a.p) || b.l.mins - a.l.mins);   // the coach's pecking order: by how good they are
