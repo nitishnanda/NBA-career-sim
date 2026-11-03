@@ -259,7 +259,7 @@
     if (!G.gpaOf || S.origin && S.origin.intl) return null; const g = G.gpaOf(S), el = G.eligibility(S), cur = S.study || null;
     return h('div', { class: 'card' }, h('div', { class: 'row' }, h('h2', { style: 'margin:0' }, '📚 Senior year: how hard do you study?'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, 'GPA ' + g.toFixed(2))),
       h('p', { class: 'small muted' }, G.ELIG_TXT[el] + '. Academic schools want more (Duke 3.4, Stanford 3.6); the Ivy League wants about a 3.7 and gives no athletic scholarships, but its need-based aid is a full ride for most families.'),
-      h('div', { class: 'wkgrid' }, Object.keys(G.STUDY).map((k) => h('div', { class: 'wkcard' + (cur === k ? ' done t3' : '') }, h('b', null, G.STUDY[k].label), h('div', { class: 'small', style: 'margin:6px 0' }, G.STUDY[k].blurb), h('div', { class: 'small vibe' }, (G.STUDY[k].gpa > 0 ? '+' : '') + G.STUDY[k].gpa.toFixed(2) + ' GPA' + (k === 'gym' ? ' · a little better at the start of college' : '')),
+      h('div', { class: 'wkgrid' }, Object.keys(G.STUDY).map((k) => h('div', { class: 'scard' + (cur === k ? ' on' : '') }, h('b', null, G.STUDY[k].label), h('div', { class: 'small', style: 'margin:6px 0' }, G.STUDY[k].blurb), h('div', { class: 'small vibe' }, (G.STUDY[k].gpa > 0 ? '+' : '') + G.STUDY[k].gpa.toFixed(2) + ' GPA' + (k === 'gym' ? ' · a little better at the start of college' : '')),
         h('div', { style: 'margin-top:8px' }, cur === k ? h('span', { class: 'pill good' }, 'Your plan') : h('button', { onclick: () => { G.setStudy(S, k); save(); render(); } }, 'Choose'))))));
   }
   function gpaCollegeCard() {

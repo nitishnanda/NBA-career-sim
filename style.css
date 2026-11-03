@@ -379,3 +379,4 @@ html.reduce-motion *, html.reduce-motion *::before, html.reduce-motion *::after 
   .dtabs button { padding: 10px 11px; font-size: 12.5px; }
   .tlcol { flex-basis: 140px; }
 }
+.scard { background: var(--well); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; } .scard.on { border-color: rgba(95,213,143,.6); }   /* the study plan: looks like a choice card, but is not one of the school/path cards */
