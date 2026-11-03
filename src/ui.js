@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 2 Nov · BallerSim dashboard v121';
+  const BUILD = 'build 2 Nov · BallerSim dashboard v122';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -254,18 +254,32 @@
       h('div', { class: 'card' }, h('h2', null, 'Career in Europe'), collegeTable()));
   }
 
+  // grades: senior-year study focus (high school screen) and what the GPA opens and closes (college pick)
+  function studyCard() {
+    if (!G.gpaOf || S.origin && S.origin.intl) return null; const g = G.gpaOf(S), el = G.eligibility(S), cur = S.study || null;
+    return h('div', { class: 'card' }, h('div', { class: 'row' }, h('h2', { style: 'margin:0' }, '📚 Senior year: how hard do you study?'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, 'GPA ' + g.toFixed(2))),
+      h('p', { class: 'small muted' }, G.ELIG_TXT[el] + '. Academic schools want more (Duke 3.4, Stanford 3.6); the Ivy League wants about a 3.7 and gives no athletic scholarships, but its need-based aid is a full ride for most families.'),
+      h('div', { class: 'wkgrid' }, Object.keys(G.STUDY).map((k) => h('div', { class: 'wkcard' + (cur === k ? ' done t3' : '') }, h('b', null, G.STUDY[k].label), h('div', { class: 'small', style: 'margin:6px 0' }, G.STUDY[k].blurb), h('div', { class: 'small vibe' }, (G.STUDY[k].gpa > 0 ? '+' : '') + G.STUDY[k].gpa.toFixed(2) + ' GPA' + (k === 'gym' ? ' · a little better at the start of college' : '')),
+        h('div', { style: 'margin-top:8px' }, cur === k ? h('span', { class: 'pill good' }, 'Your plan') : h('button', { onclick: () => { G.setStudy(S, k); save(); render(); } }, 'Choose'))))));
+  }
+  function gpaCollegeCard() {
+    if (!G.gpaOf || S.autoPlay) return null; const g = G.gpaOf(S), el = G.eligibility(S);
+    return h('div', { class: 'card' }, h('div', { class: 'row' }, h('h3', { style: 'margin:0' }, '📚 Your grades'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, 'GPA ' + g.toFixed(2))), h('p', { class: 'small' }, G.ELIG_TXT[el] + '.'),
+      el !== 'qualifier' && !S.prepYearDone ? h('div', null, h('p', { class: 'small muted' }, 'A postgrad year at a prep school: you arrive a year older, but with a summer of classes behind you (about +0.45 GPA).'), h('button', { class: el === 'ineligible' ? 'primary' : '', onclick: () => { try { G.prepYear(S); S.collegeOpts = null; save(); render(); } catch (e) { S.flash = e.message; render(); } } }, 'Do a postgrad prep year')) : null);
+  }
   function screenCollegePick() {
     S.collegeOpts = S.collegeOpts || G.collegeOptions(S);
-    return h('div', null, h('h1', null, 'Pick your college'),
+    return h('div', null, h('h1', null, 'Pick your college'), S.study ? null : studyCard(),
       h('p', { class: 'muted' }, 'Your ' + S.stars + '★ rating decides who recruits you. Bigger programs give more draft hype but fewer shots; smaller schools mean more usage and stats, less exposure. Home-state schools get a small role bump.'),
       h('p', { class: 'small' }, '🏠 Family: ' + G.familyOf(S).label + (G.needScholarship(S) ? ' · 🎓 need-based full scholarship' : '') + ' · every school that recruits you offers an athletic scholarship; a walk-on spot at a bigger program means your family pays.'),
       h('div', { class: 'grid g2' }, S.collegeOpts.map((c) => h('div', { class: 'opt' + (c.locked ? ' locked' : ''), onclick: () => { if (c.locked) return; try { G.chooseCollege(S, c.id, !!c.walkOn); S.collegeOpts = null; go(); } catch (e) { S.flash = e.message; render(); } } },
-        h('b', null, c.name + (c.home ? ' 🏠' : '')), h('div', { class: 'small muted' }, c.state + ' · program ' + '★'.repeat(c.prestige) + ' · ' + ['', 'Mid-major', 'Rising program', 'Power conference', 'Elite program', 'Blue blood'][c.prestige]), h('div', { class: 'small' }, c.walkOn ? (c.locked ? '🔒 ' + c.locked : '💵 Walk-on: your family pays tuition, and you start with a smaller role') : '🎓 Athletic scholarship')))));
+        h('b', null, c.name + (c.home ? ' 🏠' : '')), h('div', { class: 'small muted' }, c.state + ' · program ' + '★'.repeat(c.prestige) + ' · ' + ['', 'Mid-major', 'Rising program', 'Power conference', 'Elite program', 'Blue blood'][c.prestige]), h('div', { class: 'small' }, c.walkOn ? (c.locked ? '🔒 ' + c.locked : '💵 Walk-on: your family pays tuition, and you start with a smaller role') : c.locked ? '🔒 ' + c.locked : c.ivy ? '🎓 ' + (c.aid && c.aid.full ? 'Ivy League · need-based full ride' : 'Ivy League · your family pays (no athletic scholarships)') : '🎓 Athletic scholarship' + (c.acad ? ' · academic school (' + c.acad.toFixed(1) + '+ GPA)' : '')), c.note ? h('div', { class: 'small', style: 'color:var(--gold)' }, '📚 ' + c.note) : null))),
+      gpaCollegeCard());
   }
 
   function collegeTable(rows) {
-    return h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, ['Year', 'School', 'Record', 'GP', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', '3P%', 'FT%'].map((x) => h('th', null, x)))),
-      h('tbody', null, (rows || S.collegeYears).map((y) => h('tr', null, h('td', null, y.label), h('td', { class: 'l' }, y.school), h('td', null, y.record), h('td', null, y.line.gp), h('td', null, f1(y.line.mins)), h('td', null, f1(y.line.pts)), h('td', null, f1(y.line.reb)), h('td', null, f1(y.line.ast)), h('td', null, f1(y.line.stl)), h('td', null, f1(y.line.blk)), h('td', null, pct(y.line.fgp)), h('td', null, pct(y.line.tpp)), h('td', null, pct(y.line.ftp)))))));
+    return h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, ['Year', 'School', 'Record', 'GP', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', '3P%', 'FT%', 'GPA'].map((x) => h('th', null, x)))),
+      h('tbody', null, (rows || S.collegeYears).map((y) => h('tr', null, h('td', null, y.label), h('td', { class: 'l' }, y.school), h('td', null, y.record), h('td', null, y.line.gp), h('td', null, f1(y.line.mins)), h('td', null, f1(y.line.pts)), h('td', null, f1(y.line.reb)), h('td', null, f1(y.line.ast)), h('td', null, f1(y.line.stl)), h('td', null, f1(y.line.blk)), h('td', null, pct(y.line.fgp)), h('td', null, pct(y.line.tpp)), h('td', null, pct(y.line.ftp)), h('td', { title: y.note || '' }, y.gpa != null ? y.gpa.toFixed(2) + (y.note ? ' 📚' : '') : '–'))))));
   }
 
   function screenCollegeReady() {
@@ -2303,13 +2317,13 @@
         h('div', { class: 'small vibe' }, sc.locked ? '🔒 ' + sc.locked : sc.paidBy ? '🎓 Paid for by your scholarship' : sc.kind === 'national' ? 'Elite coaching, every scout in the building, modest numbers' : sc.kind === 'power' ? 'Good coaching and real exposure' : 'You are the whole offense; fewer scouts see you'),
         h('div', { style: 'margin-top:8px' }, h('button', { class: 'primary', disabled: !!sc.locked, onclick: () => pick(i) }, 'Enroll')));
       const home = schools.map((sc, i) => [sc, i]).filter(([sc]) => sc.kind !== 'national'), nat = schools.map((sc, i) => [sc, i]).filter(([sc]) => sc.kind === 'national'), circ = v.options.find((o) => o.key === 'circuit');
-      return h('div', null, h('h1', null, 'Where do you finish high school?'), h('p', { class: 'muted' }, 'Real schools in ' + S.player.home + ' and the national prep powerhouses, with the NBA players who came through them. Where you go decides how good your game is when you arrive and how many people have seen it.'),
+      return h('div', null, h('h1', null, 'Where do you finish high school?'), studyCard(), h('p', { class: 'muted' }, 'Real schools in ' + S.player.home + ' and the national prep powerhouses, with the NBA players who came through them. Where you go decides how good your game is when you arrive and how many people have seen it.'),
         h('p', { class: 'small' }, '🏠 Family: ' + G.familyOf(S).label + (G.needScholarship(S) ? ' · 🎓 need-based scholarship' : '') + ' · public schools are free; private schools and boarding academies cost money.'),
         home.length ? h('div', { class: 'card' }, h('h2', null, 'Schools in ' + S.player.home), h('div', { class: 'wkgrid' }, home.map(([sc, i]) => card(sc, i)))) : null,
         h('div', { class: 'card' }, h('h2', null, 'National prep powerhouses'), h('div', { class: 'wkgrid' }, nat.map(([sc, i]) => card(sc, i)))),
         circ ? h('div', { class: 'card' }, h('h2', null, 'Or: chase the summer circuit'), h('p', { class: 'small' }, circ.blurb), h('div', { class: 'small vibe' }, circ.vibe), h('button', { onclick: () => { try { S.hsResult = Dc.choose(S, 'circuit'); save(); go(); } catch (e) { console.error(e); } } }, 'Hit the circuit')) : null);
     }
-    return h('div', null, h('h1', null, 'Where do you finish high school?'), h('p', { class: 'muted' }, 'This is your recruiting year. It decides how good your game is when you arrive and how many people have seen it. Every path has a price.'),
+    return h('div', null, h('h1', null, 'Where do you finish high school?'), studyCard(), h('p', { class: 'muted' }, 'This is your recruiting year. It decides how good your game is when you arrive and how many people have seen it. Every path has a price.'),
       h('div', { class: 'wkgrid' }, v.options.map((o) => h('div', { class: 'wkcard' + (o.locked ? ' locked' : '') }, h('b', null, o.label), h('div', { class: 'small', style: 'margin:6px 0' }, o.blurb), h('div', { class: 'small vibe' }, o.locked ? '🔒 ' + o.locked : o.vibe), h('div', { style: 'margin-top:8px' }, h('button', { class: 'primary', disabled: !!o.locked, onclick: () => { try { S.hsResult = Dc.choose(S, o.key); save(); go(); } catch (e) { console.error(e); } } }, 'Choose'))))));
   }
 

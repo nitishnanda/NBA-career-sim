@@ -135,25 +135,60 @@
     return { stars: st.stars, label: STAR_NAMES[st.stars], ovr: Math.round(ovr(p)), potential: grade };
   }
 
+  // ---------------------------------------------------------------- grades
+  // A GPA that opens and closes doors, for human careers (the bulk autopilot never sees it, so the calibration is untouched). It starts from
+  // the family (more money, more tutoring) and a personal roll, then moves with how you spend senior year and each college year.
+  // NCAA Division I initial eligibility: a 2.3 core GPA to play as a freshman; 2.0-2.29 is an academic redshirt (practice, no games: here,
+  // a game simplification, you sit until late in the season); under 2.0 no D1 this year (a postgrad prep year can fix it). Admissions at a few
+  // academic schools want more. The Ivy League gives no athletic scholarships at all: aid there is need-based, a full ride for most families.
+  const GPA_BASE = { wealthy: 3.25, comfortable: 3.05, working: 2.9, poor: 2.8 };   // money buys tutoring, but most of the spread is the student
+  const STUDY = { books: { gpa: 0.4, label: 'Hit the books', blurb: 'Tutoring, study hall, every assignment in. Your grades go up; the extra gym hours do not happen.' },
+    balance: { gpa: 0, label: 'Balance it', blurb: 'Enough work to stay on track, enough gym to keep improving.' },
+    gym: { gpa: -0.35, label: 'Live in the gym', blurb: 'Two-a-days all year. Your game gets a little better and your grades slide.' } };
+  const r2 = (x) => Math.round(x * 100) / 100;
+  function gpaOf(st) {
+    if (st.gpa0 == null) { const r = mulberry(hashStr(st.player.name + '|gpa|' + ((st.family && st.family.tier) || '') + '|' + st.player.pos)); st.gpa0 = r2(clamp((GPA_BASE[(st.family && st.family.tier) || 'comfortable'] || 3) + (r() + r() + r() - 1.5) * 0.9, 1.6, 4)); }
+    return r2(clamp(st.gpa0 + (STUDY[st.study || 'balance'] || STUDY.balance).gpa + (st.gpaAdj || 0), 1.4, 4));
+  }
+  const eligibility = (st) => { const g = gpaOf(st); return g < 2.0 ? 'ineligible' : g < 2.3 ? 'redshirt' : 'qualifier'; };
+  const ELIG_TXT = { ineligible: 'Not eligible for Division I this year (core GPA under 2.0)', redshirt: 'Academic redshirt: you can join a D1 team and practice, but you sit most of your freshman season', qualifier: 'NCAA full qualifier: eligible to play as a freshman' };
+  function setStudy(st, k) { if (!STUDY[k]) throw new Error('bad study'); if (st.college) throw new Error('too late'); st.study = k; st.collegeOpts = null; return gpaOf(st); }
+  // a postgrad year at a prep school: a year older, a summer of classes, grades up (once)
+  function prepYear(st) {
+    if (st.prepYearDone || st.college) throw new Error('not available'); st.prepYearDone = true; progress(st.player); st.gpaAdj = (st.gpaAdj || 0) + 0.45; st.collegeOpts = null;
+    NBA.Decisions.log(st, { kind: 'college', title: 'Postgrad year', tone: 'neutral', text: 'A postgrad year at a prep school: classes every morning, games at night. GPA now ' + gpaOf(st).toFixed(2) + '.' });
+    return gpaOf(st);
+  }
+  function ivyAid(st) { const t = (st.family && st.family.tier) || 'comfortable'; return t === 'wealthy' ? { full: false, text: 'Your family pays tuition: the Ivy League gives no athletic scholarships, and its aid is need-based' } : { full: true, text: 'Need-based full ride (Ivy League financial aid: no athletic scholarships, but families like yours pay nothing)' }; }
+
   // ---------------------------------------------------------------- college
   function collegeOptions(st) {
     const s = st.stars, p = st.player;
     const maxP = s === 1 ? 2 : s === 2 ? 3 : s === 3 ? 4 : 5;
     const minP = s === 5 ? 4 : s === 4 ? 3 : 1;
     const homeAbbr = D.STATE_ABBR[p.home];
-    let list = D.COLLEGES.filter((c) => c.prestige <= maxP && c.prestige >= minP);
+    const human = !st.autoPlay, g = human ? gpaOf(st) : 4, el = human ? eligibility(st) : 'qualifier';
+    let list = D.COLLEGES.filter((c) => (human || !c.added) && !c.ivy && c.prestige <= maxP && c.prestige >= minP);   // the autopilot sees exactly the original 56 programs
     // a handful, always including a home-state school if one is eligible
     const home = list.filter((c) => c.state === homeAbbr);
     const rest = list.filter((c) => c.state !== homeAbbr).sort(() => rand() - 0.5);
     const picks = home.slice(0, 2).concat(rest).slice(0, s >= 4 ? 9 : 8);
     const out = picks.sort((a, b) => b.prestige - a.prestige).map((c) => Object.assign({ home: c.state === homeAbbr }, c));
+    if (human) {
+      // the Ivy League recruits on grades (3.7 here): two of them call a student with the numbers, the home state's first
+      if (g >= 3.4) D.COLLEGES.filter((c) => c.ivy).sort((a, b) => (b.state === homeAbbr) - (a.state === homeAbbr) || (hashStr(st.player.name + a.name) % 97) - (hashStr(st.player.name + b.name) % 97)).slice(0, 2).forEach((c) => out.push(Object.assign({ home: c.state === homeAbbr, aid: ivyAid(st) }, c)));
+      out.forEach((c) => { if (el === 'ineligible') c.locked = 'NCAA: a core GPA under 2.0 means no Division I this year'; else if (c.acad && g < c.acad) c.locked = 'Admissions wants a ' + c.acad.toFixed(1) + ' GPA (yours: ' + g.toFixed(2) + ')'; if (el === 'redshirt' && !c.locked) c.note = 'Academic redshirt year'; });
+    }
     if (!st.autoPlay && maxP < 5) D.COLLEGES.filter((c) => c.prestige === maxP + 1).sort((a, b) => (a.name.length * 7 + a.id) % 13 - (b.name.length * 7 + b.id) % 13).slice(0, 2).forEach((c) => out.push(Object.assign({ home: c.state === homeAbbr, walkOn: true, locked: canAfford(st, 'walkon').ok ? null : canAfford(st, 'walkon').why }, c)));
     return out;
   }
   function chooseCollege(st, id, walkOn) {
     const c = D.COLLEGES[id];
+    if (!st.autoPlay) { const g = gpaOf(st), el = eligibility(st); if (el === 'ineligible') throw new Error(ELIG_TXT.ineligible + '.'); if (c.acad && g < c.acad) throw new Error(c.name + ' wants a ' + c.acad.toFixed(1) + ' GPA.'); st.acadRS = el === 'redshirt';
+      if (c.ivy) NBA.Decisions.log(st, { kind: 'college', title: 'The Ivy League', tone: 'good', text: c.name + ': ' + ivyAid(st).text + '. A degree that opens doors after basketball, and a lot less exposure to NBA scouts.' });
+      if (st.study === 'gym' && !st.gymDone) { st.gymDone = true; ['ath', 'inside', 'mid'].forEach((a) => (st.player.attrs[a] = clamp(st.player.attrs[a] + 0.8, 8, 99))); } }
     if (walkOn) { const a = canAfford(st, 'walkon'); if (!a.ok) throw new Error(a.why); st.walkOn = true; NBA.Decisions.log(st, { kind: 'college', title: 'Walk-on', tone: 'neutral', text: 'Your family paid for a walk-on spot at ' + c.name + ': a bigger program, a smaller role to start.' }); }
-    st.college = { id: c.id, name: c.name, state: c.state, prestige: c.prestige, home: c.state === D.STATE_ABBR[st.player.home] };
+    st.college = { id: c.id, name: c.name, state: c.state, prestige: c.prestige, home: c.state === D.STATE_ABBR[st.player.home], ivy: !!c.ivy, acad: c.acad || 0 };
     st.stage = 'college_ready';
     return st.college;
   }
@@ -168,7 +203,9 @@
     const role = ({ takeover: { u: 1.1, m: 2, w: -2.5 }, fit: { u: 0.97, m: 0, w: 3 }, quiet: { u: 0.93, m: -3, w: 0 } })[st.collegeRole] || { u: 1, m: 0, w: 0 };
     const e = expLine(p, { pace: 81.6, minsFixed: minsFixed + role.m, usgMult: role.u * (1.03 + ({ 1: 0, 2: 0.04, 3: 0.1, 4: 0.19, 5: 0.27 }[st.stars] || 0) + 0.02 * (5 - c.prestige) + (c.home ? 0.01 : 0)), tsAdj: -0.012 + 0.003 * (oEff - 70) / 5, rebMult: 0.97, astMult: 1.05, coTax: 0 });
     const av = rollAvail(p, { noRest: true });
-    const gp = clamp(34 - Math.round(av.miss * 0.35), 12, 36);
+    let gp = clamp(34 - Math.round(av.miss * 0.35), 12, 36), acadNote = null;
+    if (!st.autoPlay && yr === 1 && st.acadRS) { gp = Math.min(gp, 9); acadNote = 'Academic redshirt: you sat until late in the season'; }
+    else if (!st.autoPlay && st.acadProb) { gp = Math.min(gp, 17); acadNote = 'Academic probation: ineligible for the first half of the season'; }
     const m = { pts: e.pts * (1 + 0.04 * randn()), reb: e.reb, ast: e.ast, stl: e.stl * 1.1, blk: e.blk * 1.1, tov: e.tov, mins: e.mins };
     const games = []; for (let i = 0; i < gp; i++) games.push(genGame(m));
     const s = summarize(games);
@@ -187,6 +224,11 @@
     if (pf >= 40) honors.push('National Player of the Year'); else if (pf >= 33) honors.push('Consensus All-American'); else if (pf >= 26) honors.push('All-Conference');
     if (yr === 1 && pf >= 29) honors.push('Freshman of the Year');
     const rec = { year: yr, label: ['Freshman', 'Sophomore', 'Junior', 'Senior'][yr - 1], age: p.age, school: c.name, record: wins + '-' + (games2 - wins), tourney, honors, line, ovr: Math.round(o), pf };
+    if (!st.autoPlay) {   // the year's grades: how you study, plus a semester's luck; under 2.0 and next year starts on academic probation
+      const r = mulberry(hashStr(p.name + '|gpa' + yr)), d = ((st.study === 'books' ? 0.06 : st.study === 'gym' ? -0.08 : 0) + (r() - 0.5) * 0.3) * (c.ivy ? 0.8 : 1);
+      st.gpaAdj = r2((st.gpaAdj || 0) + d); rec.gpa = gpaOf(st); st.acadProb = rec.gpa < 2.0; if (acadNote) rec.note = acadNote;
+      if (st.acadProb) NBA.Decisions.log(st, { kind: 'college', title: 'Academic probation', tone: 'bad', text: 'Your GPA fell to ' + rec.gpa.toFixed(2) + '. You are ineligible for the first half of next season.' });
+    }
     st.collegeYears.push(rec);
     return rec;
   }
@@ -375,7 +417,7 @@
   function transferCollege(st, id) {
     const c = D.COLLEGES[id], old = st.college.name;
     if (st.transferred) throw new Error('already transferred');
-    st.college = { id: c.id, name: c.name, state: c.state, prestige: c.prestige, home: c.state === D.STATE_ABBR[st.player.home] }; st.transferred = true; st.collegeRole = null;
+    st.college = { id: c.id, name: c.name, state: c.state, prestige: c.prestige, home: c.state === D.STATE_ABBR[st.player.home], ivy: !!c.ivy, acad: c.acad || 0 }; st.transferred = true; st.collegeRole = null;
     NBA.Decisions.log(st, { kind: 'college', title: 'Transfer', tone: 'neutral', text: 'Left ' + old + ' through the transfer portal for ' + c.name + '.' });
     return stayInCollege(st);
   }
@@ -2411,6 +2453,6 @@
     return st;
   }
 
-  Object.assign(NBA, { capFor, marketCurve, Game: { legacyCareer, legacyView, parentSummary, scaleBox, momentOdds, momentPlay, resolveGame, resolveThrough, reseed, hsOptions, FAMILY, familyOf, canAfford, needScholarship, INTL_PLANS, setClause, euroBuyout, intlReport, nbaInterest, draftWant, pushDraft, callupStint, assignGLeague, teamWant, pushForSpot, stintYears, stashPlayer, stashStay, joinFromStash, buyoutM, intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
+  Object.assign(NBA, { capFor, marketCurve, Game: { gpaOf, eligibility, setStudy, prepYear, ivyAid, STUDY, ELIG_TXT, legacyCareer, legacyView, parentSummary, scaleBox, momentOdds, momentPlay, resolveGame, resolveThrough, reseed, hsOptions, FAMILY, familyOf, canAfford, needScholarship, INTL_PLANS, setClause, euroBuyout, intlReport, nbaInterest, draftWant, pushDraft, callupStint, assignGLeague, teamWant, pushForSpot, stintYears, stashPlayer, stashStay, joinFromStash, buyoutM, intlOptions, chooseClub, playIntl, stayIntl, moveClub, intlToUS, gameGrade, gradeIn, starInjuryOpen, podcastOpen, mentionOpen, seasonSoFar, careerFacts, patchPressAI, liveDecision, clutchLock, chooseAgent, choosePromise, announceFarewell, canComeback, comeback, pressTarget, postTarget, pressOpen, resolvePress, pressFacts, feedAdd, injuryInfo, applyInjuryChoice, transferCollege, finalizeRivals, SERIES_INFO, planOptions, setPlan, clutchInfo, resolveClutch, PLANS, protection, pitch, negotiate, negOdds, acceptCounter, declineCounter, ROLES, tradeOffers, midSeasonMove, minSalary, marketV: (st) => marketPct(st).v, teamKey, shotsFor, shotSeed, newCareer, scoutReport, collegeOptions, chooseCollege, playCollege, stayInCollege, declare, runCombine, startWorkouts, doWorkout, enterDraft, startPro, trainingInfo, autoAlloc, train, playSeason, seasonBests, setStyle, getSnap: () => SNAP, setSnap: (x) => { SNAP = x; }, decisionOptions, decide, rollLeague, retire, hofScore, capNow, auto, STAR_ODDS } });
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

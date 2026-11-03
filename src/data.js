@@ -117,13 +117,18 @@
   };
 
   // [name, state abbr, prestige 1-5]
+  // the GPA an admissions office wants from a recruited athlete (most programs: the NCAA minimum; a few academic schools ask more)
+  const ACAD_REQ = { Duke: 3.4, Georgetown: 3.3, 'Wake Forest': 3.3, Villanova: 3.2, UCLA: 3.2, 'North Carolina': 3.0, Davidson: 3.3, USC: 3.1, Butler: 3.0, "Saint Mary's": 3.0 };
   const COLLEGES = [
     ['Duke', 'NC', 5], ['Kentucky', 'KY', 5], ['Kansas', 'KS', 5], ['North Carolina', 'NC', 5], ['UConn', 'CT', 5], ['Gonzaga', 'WA', 5],
     ['UCLA', 'CA', 4], ['Michigan State', 'MI', 4], ['Villanova', 'PA', 4], ['Arizona', 'AZ', 4], ['Houston', 'TX', 4], ['Texas', 'TX', 4], ['Alabama', 'AL', 4], ['Tennessee', 'TN', 4], ['Purdue', 'IN', 4], ['Baylor', 'TX', 4],
     ['Florida', 'FL', 3], ['Arkansas', 'AR', 3], ['Illinois', 'IL', 3], ['Creighton', 'NE', 3], ['Marquette', 'WI', 3], ['Oregon', 'OR', 3], ['USC', 'CA', 3], ['Louisville', 'KY', 3], ['Syracuse', 'NY', 3], ['Georgetown', 'DC', 3], ['Memphis', 'TN', 3], ['Auburn', 'AL', 3], ['Indiana', 'IN', 3], ['Ohio State', 'OH', 3],
     ['Wake Forest', 'NC', 2], ['Utah', 'UT', 2], ['Colorado', 'CO', 2], ['Seton Hall', 'NJ', 2], ["St. John's", 'NY', 2], ['Dayton', 'OH', 2], ['San Diego State', 'CA', 2], ['Virginia Tech', 'VA', 2], ['TCU', 'TX', 2], ['Cincinnati', 'OH', 2], ['Xavier', 'OH', 2], ['Butler', 'IN', 2],
     ['Davidson', 'NC', 1], ["Saint Mary's", 'CA', 1], ['VCU', 'VA', 1], ['Loyola Chicago', 'IL', 1], ['Wichita State', 'KS', 1], ['Belmont', 'TN', 1], ['Santa Clara', 'CA', 1], ['Murray State', 'KY', 1], ['Northern Iowa', 'IA', 1], ['Drake', 'IA', 1], ['Weber State', 'UT', 1], ['South Dakota State', 'SD', 1], ['Furman', 'SC', 1], ['Oral Roberts', 'OK', 1],
-  ].map((c, i) => ({ id: i, name: c[0], state: c[1], prestige: c[2] }));
+    // v122: academic schools and the Ivy League (appended so saved college ids keep their meaning; human careers only, see collegeOptions)
+    ['Stanford', 'CA', 2, 3.6], ['Northwestern', 'IL', 2, 3.5], ['Vanderbilt', 'TN', 2, 3.5], ['Notre Dame', 'IN', 2, 3.4],
+    ['Harvard', 'MA', 1, 3.7, 1], ['Yale', 'CT', 1, 3.7, 1], ['Princeton', 'NJ', 1, 3.7, 1], ['Penn', 'PA', 1, 3.7, 1], ['Columbia', 'NY', 1, 3.7, 1], ['Cornell', 'NY', 1, 3.7, 1], ['Brown', 'RI', 1, 3.7, 1], ['Dartmouth', 'NH', 1, 3.7, 1],
+  ].map((c, i) => ({ id: i, name: c[0], state: c[1], prestige: c[2], acad: c[3] || ACAD_REQ[c[0]] || 0, ivy: !!c[4], added: c[3] != null }));
 
   const FIRST = ['Marcus', 'Jalen', 'Devin', 'Tyrese', 'Darius', 'Cam', 'Trey', 'Isaiah', 'Malik', 'Jaylen', 'Zion', 'Ant', 'Josh', 'Kyle', 'Brandon', 'Terrence', 'Caleb', 'Donovan', 'Elijah', 'Xavier', 'Reggie', 'Andre', 'Nico', 'Luka', 'Tobias', 'Jamal', 'Rashad', 'Dominic', 'Mason', 'Ty', 'Corey', 'Jordan', 'Derrick', 'Jabari', 'Kelvin', 'Omar', 'Shai', 'Paolo', 'Victor', 'Chet', 'Cooper', 'Amari', 'Keegan', 'Bryce', 'Dyson', 'Kobe', 'Lonzo', 'Immanuel'];
   const LAST = ['Johnson', 'Williams', 'Brown', 'Davis', 'Miller', 'Wilson', 'Moore', 'Taylor', 'Anderson', 'Thomas', 'Jackson', 'White', 'Harris', 'Martin', 'Thompson', 'Robinson', 'Clark', 'Lewis', 'Walker', 'Hall', 'Young', 'King', 'Wright', 'Scott', 'Green', 'Baker', 'Adams', 'Nelson', 'Hill', 'Campbell', 'Mitchell', 'Carter', 'Roberts', 'Phillips', 'Evans', 'Turner', 'Parker', 'Collins', 'Edwards', 'Stewart', 'Morris', 'Murphy', 'Cook', 'Rogers', 'Reed', 'Bailey', 'Cooper', 'Howard', 'Ward', 'Brooks', 'Sanders', 'Price', 'Bennett', 'Wood', 'Barnes', 'Ross', 'Henderson', 'Coleman', 'Jenkins', 'Perry', 'Powell', 'Long', 'Patterson', 'Hughes', 'Flores', 'Washington', 'Butler', 'Simmons', 'Foster', 'Bryant', 'Alexander', 'Russell', 'Griffin', 'Hayes'];
