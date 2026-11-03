@@ -1483,10 +1483,10 @@
     const star = NBA.rosterOf(L, opp)[0], coach = NBA.Room.coachOf(st, opp.id), rv = Dc.state(st).rival, rvp = rv && L.players[rv.id], rvHere = !!(rvp && rvp.teamId === opp.id);
     const who = rvHere ? { kind: 'player', name: rvp.name, id: 'p' + rvp.id, role: 'your rival' } : rnd() < 0.62 && star ? { kind: 'player', name: star.name, id: 'p' + star.id, role: 'the ' + opp.nick + ' star' } : { kind: 'coach', name: coach.name, id: 'coach' + opp.id, role: 'head coach of the ' + opp.nick };
     const kind = feud || bad ? 'dig' : good && rnd() < 0.6 ? 'praise' : (gr.grade === 'ok' && it.w && rnd() < 0.15) ? 'praise' : 'dig', ss = seasonSoFar(st, (st.matchIdx || 0));
-    const pw = lastW(st, opp), orec = pw != null ? pw + '-' + (82 - pw) : '?';
-    const bank = MENTION[kind][who.kind], fill = (t) => t.replace(/\{me\}/g, st.player.name).replace(/\{pts\}/g, it.pt).replace(/\{fg\}/g, it.fgm + '-' + it.fga).replace(/\{fga\}/g, it.fga).replace(/\{orec\}/g, orec).replace(/\{orecw\}/g, opp.wins != null ? opp.wins : 50);
+    const pw = lastW(st, opp), orec = pw != null ? pw + '-' + (82 - pw) + ' (last season)' : '?', onow = NBA.Game.recordNow ? NBA.Game.recordNow(opp.nick) : null;
+    const bank = MENTION[kind][who.kind], fill = (t) => t.replace(/\{me\}/g, st.player.name).replace(/\{pts\}/g, it.pt).replace(/\{fg\}/g, it.fgm + '-' + it.fga).replace(/\{fga\}/g, it.fga).replace(/\{orec\}/g, orec).replace(/\{orecw\}/g, pw != null ? pw : 41);
     m.n++;
-    return { who, kind, quote: fill(bank[Math.floor(rnd() * bank.length)]), opp: it.o, oppId: opp.id, oppName: opp.name, game: { n: it.n, po: !!it.po, round: it.rnd || '', won: !!it.w, score: it.f + '-' + it.a, pts: it.pt, reb: it.rb, ast: it.as, fg: it.fgm + '-' + it.fga, rating: it.r, grade: gr.grade, usuallyScores: gr.expected }, season: ss, career: careerFacts(st), feud: feud ? { with: feud.star, said: feud.quote } : null, oppLastSeason: orec, me: st.player.name, team: L.teams[st.teamId].name, idx: (st.matchIdx || 0) - 1 };
+    return { who, kind, quote: fill(bank[Math.floor(rnd() * bank.length)]), opp: it.o, oppId: opp.id, oppName: opp.name, game: { n: it.n, po: !!it.po, round: it.rnd || '', won: !!it.w, score: it.f + '-' + it.a, pts: it.pt, reb: it.rb, ast: it.as, fg: it.fgm + '-' + it.fga, rating: it.r, grade: gr.grade, usuallyScores: gr.expected }, season: ss, career: careerFacts(st), feud: feud ? { with: feud.star, said: feud.quote } : null, opponentRecordLastSeason: orec, opponentRecordThisSeason: onow ? onow + ' (this season so far)' : null, yourRecordThisSeason: ss.record + ' (this season so far)', me: st.player.name, team: L.teams[st.teamId].name, idx: (st.matchIdx || 0) - 1 };
   }
   // a fan podcast invites you on: no league fines there, the language is real (hand-written lines; in the artifact Claude writes them from the stats)
   const POD_SHOWS = ['Dead Rim Radio', 'The Late Night Hoops Hour', 'Court Side Chaos', 'Dre & Marcus Unplugged', 'The Bad Pass Podcast', 'Zone Press Live'];
@@ -1509,12 +1509,12 @@
     const rnd = Dc.rng(st, 'podcast|' + y + '|' + (it.po ? 'p' : 'r') + it.n + (it.rnd || '')), feud = pr.feuds[it.o];
     const p0 = (it.po ? 0.05 : 0.012) + (feud ? 0.1 : 0) + (it.pt >= 35 ? 0.02 : 0) + Math.min(0.02, (NBA.Social.state(st).f || 0) / 600000);
     if (rnd() > p0) return null;
-    const star = NBA.rosterOf(L, opp)[0], me = st.player.name, ss = seasonSoFar(st, st.matchIdx || 0), orec = lastRec(st, opp) || '?';
+    const star = NBA.rosterOf(L, opp)[0], me = st.player.name, ss = seasonSoFar(st, st.matchIdx || 0), orec = lastRec(st, opp) || '?', onow = NBA.Game.recordNow ? NBA.Game.recordNow(opp.nick) : null;
     const fill = (t) => t.replace(/\{pts\}/g, it.pt).replace(/\{opp\}/g, opp.nick).replace(/\{star\}/g, star ? star.name : 'their star').replace(/\{team\}/g, L.teams[st.teamId].nick).replace(/\{rec\}/g, ss.record).replace(/\{res\}/g, it.w ? 'win' : 'loss');
     const gr = gradeIn(st, it, (st.matchIdx || 0) - 1), poor = gr.grade === 'poor' || gr.grade === 'awful';
     const pick = (a) => a[Math.floor(rnd() * a.length)], base = {}; Object.keys(POD_L).forEach((k) => { base[k] = fill(pick((poor ? POD_LB : POD_L)[k])); });
     m.n++;
-    return { host: pick(['Big Mike', 'Tasha G', 'Dre', 'Marcus', 'Jo Jo']), show: pick(POD_SHOWS), hostQ: fill(pick(poor ? POD_QB : POD_Q)), base, opp: it.o, oppName: opp.name, star: star ? star.name : null, game: { n: it.n, po: !!it.po, round: it.rnd || '', won: !!it.w, score: it.f + '-' + it.a, pts: it.pt, reb: it.rb, ast: it.as, fg: it.fgm + '-' + it.fga }, season: ss, career: careerFacts(st), oppRecord: orec, feud: feud ? { with: feud.star, said: feud.quote } : null, me, team: L.teams[st.teamId].name, idx: (st.matchIdx || 0) - 1 };
+    return { host: pick(['Big Mike', 'Tasha G', 'Dre', 'Marcus', 'Jo Jo']), show: pick(POD_SHOWS), hostQ: fill(pick(poor ? POD_QB : POD_Q)), base, opp: it.o, oppName: opp.name, star: star ? star.name : null, game: { n: it.n, po: !!it.po, round: it.rnd || '', won: !!it.w, score: it.f + '-' + it.a, pts: it.pt, reb: it.rb, ast: it.as, fg: it.fgm + '-' + it.fga }, season: ss, career: careerFacts(st), opponentRecordLastSeason: orec, opponentRecordThisSeason: onow ? onow + ' (this season so far)' : null, feud: feud ? { with: feud.star, said: feud.quote } : null, me, team: L.teams[st.teamId].name, idx: (st.matchIdx || 0) - 1 };
   }
   function pressFacts(st, ctx) {
     const R = NBA.Reporters, pr = prState(st), c = ctx.c, p = st.player, team = st.league.teams[st.teamId], it = st.matchLog[ctx.idx];

@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 2 Nov · BallerSim dashboard v126';
+  const BUILD = 'build 2 Nov · BallerSim dashboard v127';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -613,6 +613,9 @@
       return Object.assign({}, t, { wins: w, losses: N0 - w, gp: N0 });
     });
   }
+  // any team's record so far this season (the same numbers the standings show), for what Claude writes: the season is simulated ahead,
+  // so a team's final record must never reach a post or a question while the season is being played
+  G.recordNow = (nick) => { try { if (!S || S.stage !== 'season_play' || !S.leagueSnap || !S.matchLog) return null; const items = S.matchLog, idx = S.matchIdx || 0, reg = items.slice(0, idx).filter((x) => x.k === 'g' && !x.po); const r = proRate(Object.assign({ live: true }, S.leagueSnap), reg.length, items, idx).find((x) => x.nick === nick); return r ? r.wins + '-' + r.losses : null; } catch (e) { return null; } };
   function confTable(rows, conf, mine) {
     const list = rows.filter((t) => t.conf === conf).sort((a, b) => b.wins - a.wins || a.losses - b.losses);
     const lead = list[0] || { wins: 0, losses: 0 };
@@ -1344,7 +1347,7 @@
       h('div', { class: 'grid2 conf' }, ['E', 'W'].map((c) => h('div', null, h('h3', null, c === 'E' ? 'Eastern conference' : 'Western conference'),
         piGames.filter((g) => g.conf === c).map((g) => h('div', { class: 'jrow' }, h('div', null, h('div', { class: 'small caps muted' }, g.label), h('div', null, h('b', null, g.w), ' beat ' + g.l), h('div', { class: 'small muted' }, g.stake)))))))) : null;
     return h('div', { class: 'dash' },
-      h('div', { class: 'dlg' },
+      h('div', { class: 'lgrid' },
         h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '☷'), h('h2', null, 'Standings'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, label)),
           h('div', { class: 'grid2 conf' }, h('div', null, h('h3', null, 'Eastern conference'), confTable(rows, 'E', mine)), h('div', null, h('h3', null, 'Western conference'), confTable(rows, 'W', mine))), h('p', { class: 'small muted' }, 'Top 6 clinch a playoff spot, 7-10 go to the play-in.')),
         h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '★'), h('h2', null, live && !votesIn ? 'Award ladder' : votesIn ? 'Award voting' : 'Award race'), h('span', { class: 'spacer' }), h('div', { class: 'seg2 tight' }, raceKeys.map(([k, n]) => h('button', { class: leagueRace === k ? 'on' : '', onclick: () => { leagueRace = k; render(); } }, n)))), raceBody)),

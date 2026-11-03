@@ -93,7 +93,7 @@ table { width: 100%; border-collapse: collapse; font-size: 13.5px; } th, td { pa
 
 /* dashboard layout */
 .dash { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }   /* minmax(0, ...): the playoff tab row scrolls inside the column instead of widening the page on phones */
-.dtop { display: grid; grid-template-columns: 1.4fr 1fr; gap: 22px; } .dmid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; } .dlg { display: grid; grid-template-columns: 1.15fr 1fr; gap: 22px; align-items: start; }
+.dtop { display: grid; grid-template-columns: 1.4fr 1fr; gap: 22px; } .dmid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; } .lgrid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 22px; align-items: start; }   /* the league page: standings beside the award race (was .dlg, the pop-up box's name) */
 .ph { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; } .ph h2 { font-size: 24px; } .cap2 { font: 600 11.5px var(--disp); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
 .pi { width: 22px; text-align: center; color: var(--muted); font-size: 18px; }
 .badge { font: 600 11.5px var(--disp); letter-spacing: .12em; text-transform: uppercase; padding: 6px 13px; border-radius: 999px; background: rgba(255,255,255,.06); border: 1px solid var(--line); color: #d6dae3; white-space: nowrap; }
@@ -132,8 +132,8 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
 
 /* ---------------- tablet / phone ---------------- */
 /* the two conference tables sit side by side only when the panel is wide enough for both (a standings table needs ~340px); otherwise they stack instead of spilling under the next panel */
-.dlg > * { min-width: 0; } .grid2.conf { grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); }
-@media (max-width: 1100px) { .dtop, .dlg { grid-template-columns: 1fr; } .dmid { grid-template-columns: 1fr 1fr; } .dmid > :last-child { grid-column: 1 / -1; } }
+.lgrid > * { min-width: 0; } .grid2.conf { grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); }
+@media (max-width: 1100px) { .dtop, .lgrid { grid-template-columns: 1fr; } .dmid { grid-template-columns: 1fr 1fr; } .dmid > :last-child { grid-column: 1 / -1; } }
 @media (max-width: 720px) {
   html, body { font-size: 16px; -webkit-text-size-adjust: 100%; }
   header { flex-wrap: wrap; padding: 10px 12px; gap: 8px; }
@@ -153,7 +153,7 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
   table { font-size: 12.5px; } th, td { padding: 7px 5px; }
   .row > button.primary:only-child, .card > .row > select, .callout.row > button { flex: 1 1 100%; }
   .card > .row > .spacer { display: none; } .card > .row > .spacer ~ button { flex: 1 1 100%; }
-  .dash, .dtop, .dmid, .dlg { gap: 14px; } .dmid { grid-template-columns: 1fr; }
+  .dash, .dtop, .dmid, .lgrid { gap: 14px; } .dmid { grid-template-columns: 1fr; }
   .hid { text-align: center; margin: 4px 0 20px; } .jr { display: flex; justify-content: center; align-items: center; gap: 14px; margin-top: 16px; } .jr .jersey { padding: 0; font-size: 46px; }
 .hero .nm { font-size: 40px; } .jersey { font-size: 28px; padding: 4px 6px 0; } .recbox2 { min-width: 96px; padding: 10px 12px; } .recbox2 .num { font-size: 32px; }
   .chips2 { margin-bottom: 12px; } .cp { font-size: 11px; padding: 6px 11px; }
@@ -214,7 +214,7 @@ html, body { overflow-x: hidden; } .panel, .card { min-width: 0; } .scroll { max
   .dash .dtop, .dash .dmid { display: block; } .dash .dtop > *, .dash .dmid > * { margin-bottom: 12px; } .dash { gap: 0; }
   .panel.mp { padding: 14px; } .ph { margin-bottom: 10px; } .ph h2 { font-size: 20px; }
   /* standings and wide tables fit the phone instead of scrolling sideways */
-  .grid2 { grid-template-columns: 1fr; } .dlg { grid-template-columns: 1fr; }
+  .grid2 { grid-template-columns: 1fr; } .lgrid { grid-template-columns: 1fr; }
   table.st th, table.st td { padding: 6px 4px; font-size: 12px; } table.st td:nth-child(2) { white-space: normal; }
   table.roster { font-size: 12px; } table.roster td.l b { font-size: 14px; }
   .kpis { grid-template-columns: 1fr 1fr; }

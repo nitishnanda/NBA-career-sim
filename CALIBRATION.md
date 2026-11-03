@@ -1227,3 +1227,10 @@ Pop-ups (decisions, press, draft night, settings…) share the `.dlg` class with
 ## v126 — the matchup file: how the star you guarded shot against you
 
 When you take the assignment ("Give me…", the coach's offer before a game against a star), the game now shows how he did against you: his field goals with you as the primary defender (about 55-70% of his attempts) against his season FG% (estimated from his true shooting, ~10 points under TS%), his points against his average and turnovers you forced. It is split from his box line for that game (which the assignment already holds down), so it never disagrees with the box score, and it is seeded from the game (a replay shows the same file). Your defense (perimeter or rim rating) sets how much you take off his percentage (~4 points per 10 rating points above 70, plus game-to-game noise); a 89-rated defender held stars to 39% vs their 49% over 40 test games. Shown as a callout on the game card, a line in the full box score, and a "Matchup file" (each game, the season's total, earlier seasons kept at season end) in the Defense tab. No simulation change.
+
+## v127 — AI facts only (no spoiler/fake records) + league page layout
+- Root cause of "fake stats": the season is pre-simulated, so team records in AI facts were end-of-season finals (spoilers), and last-season records weren't labelled, so posts mixed "51-31" (last year) with "4-3" (now).
+- Mention/press/story facts now carry `opponentRecordLastSeason` (labelled) and `opponentRecordThisSeason` (standings to date via `G.recordNow`, built on `proRate`); story facts use the user's record so far mid-season.
+- A shared FACT_RULE is prepended to all 11 AI prompts: numbers only from facts, last season stays labelled, no invented stats, one clear idea per line.
+- League page: the standings/award grid used class `dlg`, which clashed with the modal `.dlg` styles (660px width, clipped overflow). Renamed to `.lgrid`.
+- No engine change; calibration unchanged.
