@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 2 Nov · BallerSim dashboard v122';
+  const BUILD = 'build 2 Nov · BallerSim dashboard v123';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -1917,7 +1917,40 @@
   // ------------------------------------------------------------ the press conference
   // Claude in the artifact: the same page also runs on plain GitHub Pages, where there is no window.claude and the built-in reader does the job
   let samplePromise = null;
-  const getSample = () => (samplePromise || (samplePromise = (async () => { try { return window.claude && window.claude.use ? await window.claude.use('sample') : null; } catch (e) { return null; } })()));
+  const getSample = () => (samplePromise || (samplePromise = (async () => { try { return window.claude && window.claude.use ? await window.claude.use('sample') : byokSampler(); } catch (e) { return null; } })()));
+  // ---- GitHub Pages: the player's own Claude API key (settings). The key stays in this browser's storage and goes only to api.anthropic.com,
+  // through the official Anthropic SDK (bundled into the GitHub Pages build; inside Claude the page uses Claude directly and never asks for a key).
+  // Press room, timeline, mentions, podcasts: Claude Haiku 5.5 at low effort. Career verdict and Hall of Fame speech: Claude Opus 5.5.
+  const KEY_STORE = 'nbacs-claude-key', inClaude = () => !!(window.claude && window.claude.use), canByok = () => !inClaude() && typeof window.AnthropicSDK === 'function';
+  const apiKey = () => { try { return localStorage.getItem(KEY_STORE) || ''; } catch (e) { return ''; } };
+  function parseJsonLoose(t) {
+    const s0 = String(t || '').replace(/```(?:json)?/gi, '').trim(); try { return JSON.parse(s0); } catch (e) { /* fall through: take the outermost object or array */ }
+    const a = s0.indexOf('{'), b = s0.indexOf('['), i = a < 0 ? b : b < 0 ? a : Math.min(a, b); if (i < 0) return null; const close = s0[i] === '{' ? '}' : ']', j = s0.lastIndexOf(close);
+    try { return j > i ? JSON.parse(s0.slice(i, j + 1)) : null; } catch (e) { return null; }
+  }
+  function byokSampler() {
+    const key = apiKey(); if (!key || !canByok()) return null;
+    const SDK = window.AnthropicSDK, client = new SDK({ apiKey: key, dangerouslyAllowBrowser: true, maxRetries: 1 });
+    const call = async (prompt, o) => {
+      const hq = !(o && o.model), content = String(prompt) + '\n\nReply with the JSON only, no other text.';
+      try {
+        const r = hq
+          // Opus 5.5 for the two big writing jobs; a refused request falls back server-side (fallbacks "default") instead of failing
+          ? await client.beta.messages.create({ model: 'claude-opus-5-5', max_tokens: 8000, output_config: { effort: 'medium' }, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default', messages: [{ role: 'user', content }] })
+          : await client.messages.create({ model: 'claude-haiku-5-5', max_tokens: 3000, output_config: { effort: 'low' }, messages: [{ role: 'user', content }] });
+        if (r.stop_reason === 'refusal') return null;
+        return parseJsonLoose(r.content.filter((x) => x.type === 'text').map((x) => x.text).join(''));
+      } catch (e) {
+        if (e instanceof SDK.RateLimitError) throw { code: 'rate_limited' };
+        if (e instanceof SDK.AuthenticationError || e instanceof SDK.PermissionDeniedError) { byokErr = 'The API key was rejected (' + e.status + '). Check it in settings.'; throw { code: 'not_granted' }; }
+        if (e instanceof SDK.APIError) { byokErr = 'Claude API error ' + (e.status || '') + ': ' + String(e.message || '').slice(0, 120); throw { code: 'api_error' }; }
+        throw e;
+      }
+    };
+    return { json: call, byok: true };
+  }
+  let byokErr = null, byokTest = null;
+  function resetSample() { samplePromise = null; sampleOk = null; feedAiNone = false; aiOff = 0; getSample().then((sm) => { sampleOk = !!sm; render(); }); }
   // when this page runs inside Claude, Claude writes the press questions and the answers, the room's reaction, tomorrow's headline and the timeline posts; everywhere else (and whenever Claude is busy) the hand-written banks are used
   let aiOff = 0, feedAiBusy = false, feedAiNone = false, sampleOk = null;
   getSample().then((sm) => { sampleOk = !!sm; });
@@ -2511,6 +2544,7 @@
     if (overlayUi === 'settings') { const p = prefs(), seg = (k, opts) => h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap' }, opts.map(([v, l]) => h('button', { class: p[k] === v ? 'primary' : '', onclick: () => { setPref(k, v); applyPrefs(); render(); } }, l)));
       return modal(h('div', null, h('h1', null, '⚙️ Settings'), h('h3', null, 'Text size'), seg('text', [['normal', 'Normal'], ['large', 'Large']]), h('h3', null, 'Motion'), seg('motion', [['full', 'Full'], ['reduced', 'Reduced']]),
         h('h3', null, 'Team colours'), seg('teamTheme', [[true, 'On'], [false, 'Off']]), h('h3', null, 'Season screen'), seg('dashTab', [['games', 'Tabs'], ['all', 'Everything at once']]),
+        aiKeySection(),
         h('div', { class: 'row', style: 'margin-top:16px;gap:6px' }, h('button', { onclick: () => { setPref('tipsDone', false); tipStep = 0; overlayUi = 'tips'; render(); } }, 'Show the tips again'), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => { overlayUi = null; render(); } }, 'Done')))); }
     if (overlayUi === 'card') return modal(h('div', null, h('h1', null, '📸 Your career card'), cardUrl ? h('img', { src: cardUrl, alt: 'Career card', class: 'cardimg' }) : h('p', null, 'Your browser could not draw the card.'),
       h('p', { class: 'small muted' }, 'Long-press (phone) or right-click (computer) the picture to save it, or use the button.'),
@@ -2519,6 +2553,19 @@
       return modal(h('div', null, h('p', { class: 'small muted' }, 'Tip ' + (tipStep + 1) + ' of ' + TIPS.length), h('h1', null, t[0]), h('p', null, t[1]),
         h('div', { class: 'row', style: 'margin-top:12px;gap:6px' }, h('button', { onclick: end }, 'Skip'), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => { if (tipStep < TIPS.length - 1) { tipStep++; render(); } else end(); } }, tipStep < TIPS.length - 1 ? 'Next' : 'Got it')))); }
     return null;
+  }
+  // ---- settings: your own Claude API key (GitHub Pages only)
+  function aiKeySection() {
+    if (inClaude()) return h('div', null, h('h3', null, '🤖 AI features'), h('p', { class: 'small muted' }, 'On: this page is running inside Claude, so the reporters, timeline, podcasts, career verdict and Hall of Fame speech are written by Claude. No API key needed.'));
+    if (typeof window.AnthropicSDK !== 'function') return h('div', null, h('h3', null, '🤖 AI features'), h('p', { class: 'small muted' }, 'Not available in this copy of the page.'));
+    const has = !!apiKey(); let val = '';
+    return h('div', null, h('h3', null, '🤖 AI features (your Claude API key)'),
+      h('p', { class: 'small muted' }, 'Paste a Claude API key from console.anthropic.com to have Claude write the press room, the timeline, mentions and podcasts (Claude Haiku 5.5) and your career verdict and Hall of Fame speech (Claude Opus 5.5). Roughly $0.30 a full career. The key is saved only in this browser and sent only to api.anthropic.com. Do not save it on a shared computer, and set a monthly spend limit in the Console.'),
+      h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap' }, h('input', { type: 'password', placeholder: has ? 'Key saved: paste a new one to replace it' : 'sk-ant-…', autocomplete: 'off', oninput: (e) => (val = e.target.value.trim()) }),
+        h('button', { class: 'primary', onclick: () => { if (!/^sk-ant-/.test(val)) { byokTest = '⚠️ That does not look like a Claude API key (they start with sk-ant-).'; render(); return; } try { localStorage.setItem(KEY_STORE, val); } catch (e) { /* storage blocked */ } byokErr = null; byokTest = '✅ Saved. AI features are on.'; resetSample(); } }, 'Save key'),
+        has ? h('button', { onclick: async () => { byokTest = '⏳ Testing…'; render(); try { const sm = byokSampler(), r = sm && await sm.json('Return {"ok": true} as JSON.', { model: 'claude-haiku-5-5' }); byokTest = r && r.ok ? '✅ The key works (Claude Haiku 5.5 answered).' : '⚠️ No usable answer. ' + (byokErr || ''); } catch (e) { byokTest = '❌ ' + (byokErr || 'The test call failed.'); } render(); } }, 'Test') : null,
+        has ? h('button', { class: 'danger', onclick: () => { try { localStorage.removeItem(KEY_STORE); } catch (e) { /* ignore */ } byokTest = 'Key removed. The game uses its hand-written text.'; resetSample(); } }, 'Remove key') : null),
+      byokTest || byokErr ? h('p', { class: 'small' }, byokTest || byokErr) : h('p', { class: 'small muted' }, has ? 'AI features: on.' : 'AI features: off (hand-written text).'));
   }
   // ---- badges on the nav: news or a decision waiting (Season), something new won (Career)
   function awardCount() { try { const aw = careerView().career.awards || {}; return Object.keys(aw).reduce((a, k) => a + (aw[k] || 0), 0) + careerView().ps.filter((s) => s.champion && s.champion === s.team).length; } catch (e) { return 0; } }
