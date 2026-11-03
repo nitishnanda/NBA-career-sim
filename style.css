@@ -380,3 +380,4 @@ html.reduce-motion *, html.reduce-motion *::before, html.reduce-motion *::after 
   .tlcol { flex-basis: 140px; }
 }
 .scard { background: var(--well); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; } .scard.on { border-color: rgba(95,213,143,.6); }   /* the study plan: looks like a choice card, but is not one of the school/path cards */
+.dlg-back > .dlg { display: block; }   /* the pop-up box shares the .dlg name with the league page's two-column layout: a pop-up is one column (its content used to sit in the left half) */

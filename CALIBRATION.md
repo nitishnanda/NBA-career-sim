@@ -1212,3 +1212,7 @@ Human careers only: the autopilot's college list is exactly the original 56 prog
 ## v123 — AI features on GitHub Pages with your own Claude API key
 
 No simulation change. Inside Claude (the artifact) nothing changes: Claude writes the AI text through the page's built-in access. On GitHub Pages there was no Claude at all (hand-written text only); now settings (⚙️) take a Claude API key. The official Anthropic TypeScript SDK (0.134.0, bundled for the browser by `scripts/build-sdk.sh` into `vendor/`, included only in `dist/index.html`) calls `api.anthropic.com` straight from the browser (`dangerouslyAllowBrowser`, which sends the direct-browser-access header). Press room, timeline, mentions, podcasts: Claude Haiku 5.5 at low effort. Career verdict and Hall of Fame speech: Claude Opus 5.5 at medium effort with the server-side refusal fallback (`fallbacks: "default"`). The key is stored only in that browser's localStorage and sent only to api.anthropic.com; settings can test or remove it. Estimated cost: ~$0.30 a full career. A rejected key, rate limits and API errors fall back to the hand-written text with a note in settings. New browser test `ui-byok` (the API is mocked: key handling, headers, models, effort, fallback, a rejected key).
+
+## v124 — pop-up layout fix
+
+Pop-ups (decisions, press, draft night, settings…) share the `.dlg` class with the league page's two-column layout (standings beside the award race), so on wide screens a pop-up's content sat in the left ~55% of the box. `.dlg-back > .dlg` is now one column. No simulation change.
