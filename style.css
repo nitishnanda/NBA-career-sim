@@ -381,3 +381,7 @@ html.reduce-motion *, html.reduce-motion *::before, html.reduce-motion *::after 
 }
 .scard { background: var(--well); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; } .scard.on { border-color: rgba(95,213,143,.6); }   /* the study plan: looks like a choice card, but is not one of the school/path cards */
 .dlg-back > .dlg { display: block; }   /* the pop-up box shares the .dlg name with the league page's two-column layout: a pop-up is one column (its content used to sit in the left half) */
+/* v125: the duel table is compact (a few numbers, not a full-width sheet), charts keep their proportions, and stacked panels inside a card get a gap */
+table.st.duelt { width: auto; min-width: min(560px, 100%); } table.st.duelt th, table.st.duelt td { padding-right: 22px; }
+.chart { max-width: 760px; } .chart svg { max-height: 240px; }
+.panel section.panel { margin: 14px 0; }   /* panels nested in the career card (history watch, the duel, legacy) used to touch */

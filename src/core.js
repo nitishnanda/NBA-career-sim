@@ -124,7 +124,7 @@
   const LABEL = { pts: 'points', reb: 'rebounds', ast: 'assists' };
   function allTime(k, total) {
     const list = ALLTIME[k].slice().sort((a, b) => b[1] - a[1]), rank = 1 + list.filter((x) => x[1] > total).length, ahead = list.filter((x) => x[1] > total).slice(-2).reverse();
-    return { rank, ahead: ahead.map((x) => ({ name: x[0], v: x[1], gap: x[1] - Math.round(total) })), passed: list.filter((x) => x[1] <= total).map((x) => x[0]) };
+    return { rank, onList: rank <= list.length, ahead: ahead.map((x) => ({ name: x[0], v: x[1], gap: x[1] - Math.round(total) })), passed: list.filter((x) => x[1] <= total).map((x) => x[0]) };   // below the last name on a list you are not on it (the rebound and assist lists are shorter than 50)
   }
   // new passes and milestones since the last check (each one once), for the toast, the journal and the feed
   function historyCheck(st, totals) {

@@ -1216,3 +1216,10 @@ No simulation change. Inside Claude (the artifact) nothing changes: Claude write
 ## v124 — pop-up layout fix
 
 Pop-ups (decisions, press, draft night, settings…) share the `.dlg` class with the league page's two-column layout (standings beside the award race), so on wide screens a pop-up's content sat in the left ~55% of the box. `.dlg-back > .dlg` is now one column. No simulation change.
+
+## v125 — fixes from play: history watch, rookie facts, trophy room, duel panel
+
+- History watch said "#31 all-time" with 10 rebounds and "#26" with 1 assist: the rebound and assist lists are shorter than 50 (30 and 25 names), and below the last name the rank was list length + 1. `allTime` now says `onList`; below the list it reads "not on the all-time list yet" (the career card uses the same rule).
+- AI posts at the end of a rookie season said "zero career games": the career facts sent to Claude left out the season being played (it is simulated ahead, so it is hidden until it ends). They now include the games already shown (`careerGames`, `careerPoints`, `seasonInProgress`).
+- The trophy room counted the jersey number you wear as a trophy; it now shows only jerseys a club retired for you (jersey nights).
+- The duel panel: the current season shows your average over the games played so far, not the pre-simulated season, and his current season stays hidden until it ends (no spoilers). Its table is compact, charts keep their proportions (no stretched text), and panels nested in the career card have a gap.

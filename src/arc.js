@@ -199,7 +199,10 @@
     const w = all.reduce((a, x) => a + x.w, 0), l = all.reduce((a, x) => a + x.l, 0), meets = all.filter((x) => x.po && x.po.w + x.po.l >= 4), pw = meets.filter((x) => x.po.w > x.po.l).length;
     const myA = st.career.awards || {}, hisA = (q && q.awd) || {}, score = (a) => 5 * (a.MVP || 0) + 4 * (a.Championships || a.Champion || 0) + 1.5 * (a['All-NBA'] || 0) + 0.6 * (a['All-Star'] || 0) + 2 * (a['Finals MVP'] || 0);
     const sm = score(myA) + w * 0.05 + pw * 1.5, sh = score(hisA) + l * 0.05 + (meets.length - pw) * 1.5, share = Math.round(clamp(50 + (sm - sh) * 4, 5, 95));
-    const myPts = (st.proSeasons || []).filter((s) => s.year >= d.since).map((s) => ({ y: s.year, pts: s.pts })), hisPts = q && q.hist ? q.hist.filter((h) => h[0] >= d.since).map((h) => ({ y: h[0], pts: h[4] / 10 })) : [];
+    // a season being played is simulated ahead: until it ends, your line is the games shown so far and his season is left out (no spoilers)
+    const live = st.stage === 'season_play' && st.pre, cur = live ? L.year : null, shown = live && st.matchLog ? st.matchLog.slice(0, st.matchIdx || 0).filter((g) => g.k === 'g' && !g.po && !g.dnp) : [];
+    const myPts = (st.proSeasons || []).filter((s) => s.year >= d.since && s.year !== cur).map((s) => ({ y: s.year, pts: s.pts })).concat(live && shown.length ? [{ y: cur, pts: shown.reduce((a, g) => a + (g.pt || 0), 0) / shown.length }] : []);
+    const hisPts = q && q.hist ? q.hist.filter((h) => h[0] >= d.since && h[0] !== cur).map((h) => ({ y: h[0], pts: h[4] / 10 })) : [];
     const verdict = st.retired ? (share >= 60 ? 'History will say you won the duel with ' + d.name + '.' : share <= 40 ? d.name + ' won the duel. You pushed him every step.' : 'Too close to call. Barbershops will argue about you two forever.')
       : share >= 60 ? 'You are winning the duel right now.' : share <= 40 ? d.name + ' has the upper hand. For now.' : 'Dead even. Every meeting matters.';
     return { name: d.name, id: d.id, since: d.since, picked: !!d.picked, team: q && L.teams[q.teamId] ? L.teams[q.teamId].nick : 'retired', ovr: q ? Math.round(ovr(q)) : null, w, l, seasons: all, meets: meets.map((x) => ({ y: x.y, won: x.po.w > x.po.l, w: x.po.w, l: x.po.l })), share, verdict, myPts, hisPts, canSwitch: duelCanSwitch(st), cands: duelCanSwitch(st) ? duelCands(st) : [] };

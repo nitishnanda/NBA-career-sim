@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 2 Nov · BallerSim dashboard v124';
+  const BUILD = 'build 2 Nov · BallerSim dashboard v125';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -1013,7 +1013,7 @@
     const tot = { pts: ct.totPts, reb: ct.totReb, ast: ct.totAst };
     if (live) { const n = C.historyCheck(S, tot); if (n.length) { histSeen = { idx: S.matchIdx || 0, news: n }; save(); } else if (histSeen.idx !== (S.matchIdx || 0) && histSeen.idx >= 0 && (S.matchIdx || 0) - histSeen.idx > 2) histSeen = { idx: -1, news: [] }; }
     const LBL = { pts: 'Points', reb: 'Rebounds', ast: 'Assists' };
-    const rows = ['pts', 'reb', 'ast'].map((k) => { const a = C.allTime(k, tot[k]), nx = a.ahead[0]; return h('div', { class: 'row small', style: 'margin:4px 0' }, h('b', { style: 'width:80px' }, LBL[k]), h('span', null, tot[k].toLocaleString('en-US')), h('span', { class: 'spacer' }), h('span', { class: a.rank <= 50 ? 'pos' : 'muted' }, a.rank <= 50 ? '#' + a.rank + ' all-time' : 'not on the top-50 list yet'), nx ? h('span', { class: 'muted', style: 'margin-left:8px' }, '· next: ' + nx.name + ' (' + nx.gap.toLocaleString('en-US') + ' away)') : h('span', { class: 'pos', style: 'margin-left:8px' }, '· nobody ahead 👑')); });
+    const rows = ['pts', 'reb', 'ast'].map((k) => { const a = C.allTime(k, tot[k]), nx = a.ahead[0]; return h('div', { class: 'row small', style: 'margin:4px 0' }, h('b', { style: 'width:80px' }, LBL[k]), h('span', null, tot[k].toLocaleString('en-US')), h('span', { class: 'spacer' }), h('span', { class: a.onList ? 'pos' : 'muted' }, a.onList ? '#' + a.rank + ' all-time' : 'not on the all-time list yet'), nx ? h('span', { class: 'muted', style: 'margin-left:8px' }, '· next: ' + nx.name + ' (' + nx.gap.toLocaleString('en-US') + ' away)') : h('span', { class: 'pos', style: 'margin-left:8px' }, '· nobody ahead 👑')); });
     const nr = NBA.Arc && NBA.Arc.narrative(S);
     return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '📈'), h('h2', null, 'History watch')), nr ? h('div', { class: 'callout' + (nr.tone === 'bad' ? ' inj' : '') }, h('b', null, '🗞️ The narrative: "' + nr.label + '"'), ' since ' + NBA.seasonLabel(nr.since) + '. ' + nr.text + (nr.shed ? ' To shed it: ' + nr.shed : '')) : null, live && histSeen.news.length ? h('div', { class: 'callout' }, histSeen.news.map((x) => h('div', null, x))) : null, rows);
   }
@@ -1527,7 +1527,7 @@
     const bk = {}; c.seasons.forEach((x) => (bk[x.y] = x));
     return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '⚔️'), h('h2', null, 'The duel: ' + c.name), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, 'H2H ' + c.w + '-' + c.l)),
       h('p', { class: 'small muted' }, (c.team === 'retired' ? 'Retired' : c.team + (c.ovr ? ' · ' + c.ovr + ' OVR' : '')) + ' · your career rival since ' + NBA.seasonLabel(c.since) + (c.meets.length ? ' · playoff meetings: ' + c.meets.map((m) => NBA.seasonLabel(m.y) + ' (' + (m.won ? 'you ' : 'him ') + Math.max(m.w, m.l) + '-' + Math.min(m.w, m.l) + ')').join(', ') : ' · no playoff meeting yet')),
-      ys.length ? h('table', { class: 'st small' }, h('tr', null, h('th', null, 'Season'), h('th', null, 'Your ppg'), h('th', null, 'His ppg'), h('th', null, 'Duels'), h('th', null, 'You outscored him')),
+      ys.length ? h('table', { class: 'st small duelt' }, h('tr', null, h('th', null, 'Season'), h('th', null, 'Your ppg'), h('th', null, 'His ppg'), h('th', null, 'Duels'), h('th', null, 'You outscored him')),
         ys.map((y) => { const b = bk[y]; return h('tr', null, h('td', null, NBA.seasonLabel(y)), h('td', null, mine[y] != null ? mine[y].toFixed(1) : '-'), h('td', null, his[y] != null ? his[y].toFixed(1) : '-'), h('td', null, b && b.n ? b.w + '-' + b.l : '-'), h('td', null, b && b.n ? b.outscored + ' of ' + b.n : '-')); })) : null,
       ys.length >= 2 ? lineChart([{ label: 'You', color: 'var(--gold)', pts: ys.filter((y) => mine[y] != null).map((y) => [y, mine[y]]) }, { label: c.name, color: '#ff8a80', pts: ys.filter((y) => his[y] != null).map((y) => [y, his[y]]) }], { title: 'Points per game race', xFmt: (v) => NBA.seasonLabel(v), h: 160 }) : null,
       h('div', { style: 'margin:8px 0' }, h('div', { class: 'small caps muted' }, 'The debate'), h('div', { class: 'bar2' }, h('i', { style: 'width:' + c.share + '%' })), h('div', { class: 'row small' }, h('span', null, 'You ' + c.share + '%'), h('span', { class: 'spacer' }), h('span', null, c.name + ' ' + (100 - c.share) + '%'))),
@@ -2435,7 +2435,7 @@
     series.forEach((s) => { if (!s.pts.length) return; const d = s.pts.map((p, i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1)).join(' '), last = s.pts[s.pts.length - 1];
       g += '<path d="' + d + '" fill="none" style="stroke:' + s.color + ';stroke-width:' + (s.thin ? 1.2 : 2.4) + (s.dash ? ';stroke-dasharray:4 4' : '') + ';opacity:' + (s.thin ? 0.55 : 1) + '"/>';
       if (!s.thin) g += '<circle cx="' + X(last[0]) + '" cy="' + Y(last[1]) + '" r="3.5" style="fill:' + s.color + '"/>'; });
-    const el = h('div', { class: 'chart' }); el.innerHTML = '<svg viewBox="0 0 ' + o.w + ' ' + o.h + '" role="img" aria-label="' + (o.title || 'chart') + '" preserveAspectRatio="none">' + g + '</svg>';
+    const el = h('div', { class: 'chart' }); el.innerHTML = '<svg viewBox="0 0 ' + o.w + ' ' + o.h + '" role="img" aria-label="' + (o.title || 'chart') + '">' + g + '</svg>';
     const leg = h('div', { class: 'chleg small' }, series.filter((s) => s.label).map((s) => h('span', null, h('i', { style: 'background:' + s.color }), s.label)));
     return h('div', null, el, leg);
   }
@@ -2471,14 +2471,15 @@
     keys.forEach((k) => { const ys = yearsOf(k); tiles.push(tile(AWARD_ICON(k), aw[k], k, ys.length && ys.length <= 8 ? ys.join(' · ') : ys.length ? ys[0] + ' – ' + ys[ys.length - 1] : '', /MVP/.test(k) ? 'gold' : '')); });
     if (S.hof && S.hof.hall) tiles.unshift(tile('🏛️', '', 'Hall of Fame', S.hof.tier, 'gold'));
     if (high) tiles.push(tile('🔥', high.pt, 'Career high', 'vs ' + (high.o || '?') + ' · ' + NBA.seasonLabel(high.y)));
-    if (S.jerseys && S.jerseys.length) tiles.push(tile('👕', S.jerseys.length, S.jerseys.length === 1 ? 'Jersey' : 'Jerseys', S.jerseys.map((j) => '#' + j.num + ' ' + j.team).join(' · ')));
+    const ret = Object.keys((S.after && S.after.nights) || {}).map((team) => { const j = (S.jerseys || []).filter((x) => x.team === team).pop(); return { team, num: j ? j.num : '?' }; });   // the numbers you wore are not trophies; a jersey a club retired for you (a jersey night) is
+    if (ret.length) tiles.push(tile('👕', ret.length, ret.length === 1 ? 'Retired jersey' : 'Retired jerseys', ret.map((j) => '#' + j.num + ' ' + j.team).join(' · '), 'gold'));
     return h('section', { class: 'panel troom' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🏆'), h('h2', null, 'Trophy room'), h('span', { class: 'spacer' }), h('button', { class: 'ghost tiny', onclick: showCard }, '📸 Career card')),
       tiles.length ? h('div', { class: 'tshelf' }, tiles) : h('p', { class: 'muted' }, 'The shelf is empty. For now.'));
   }
   // ---- the shareable career card: a picture drawn on a canvas, to save and post
   function cardData() {
     const cv = careerView(), ct = careerTotals(cv.ps) || { pts: 0, reb: 0, ast: 0, totPts: 0, gp: 0 }, aw = (cv.career && cv.career.awards) || {}, p = S.player;
-    const rings = cv.ps.filter((s) => s.champion && s.champion === s.team).length, rank = NBA.Core && NBA.Core.allTime ? NBA.Core.allTime('pts', ct.totPts || 0).rank : null;
+    const rings = cv.ps.filter((s) => s.champion && s.champion === s.team).length, at = NBA.Core && NBA.Core.allTime ? NBA.Core.allTime('pts', ct.totPts || 0) : null, rank = at && at.onList ? at.rank : null;
     const nick = myTeamNick() || (cv.ps.length ? cv.ps[cv.ps.length - 1].team.split(' ').slice(-1)[0] : null);
     return { name: p.name, pos: p.pos, arch: archLabel(p), team: cv.ps.length ? cv.ps[cv.ps.length - 1].team : (S.draft && S.draft.team) || '', nick, ppg: ct.pts, rpg: ct.reb, apg: ct.ast, seasons: cv.ps.length, rings, mvp: aw.MVP || 0, allStar: aw['All-Star'] || 0, allNba: aw['All-NBA'] || 0, totPts: ct.totPts || 0, rank, hof: S.hof ? S.hof.tier : null, ovr: Math.round(NBA.ovr(p)) };
   }
