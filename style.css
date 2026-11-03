@@ -385,3 +385,4 @@ html.reduce-motion *, html.reduce-motion *::before, html.reduce-motion *::after 
 table.st.duelt { width: auto; min-width: min(560px, 100%); } table.st.duelt th, table.st.duelt td { padding-right: 22px; }
 .chart { max-width: 760px; } .chart svg { max-height: 240px; }
 .panel section.panel { margin: 14px 0; }   /* panels nested in the career card (history watch, the duel, legacy) used to touch */
+.mulist { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; } .murow { padding: 6px 0; border-top: 1px solid var(--line2); } .murow:first-child { border-top: 0; }

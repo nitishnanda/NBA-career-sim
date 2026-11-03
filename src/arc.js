@@ -208,6 +208,31 @@
     return { name: d.name, id: d.id, since: d.since, picked: !!d.picked, team: q && L.teams[q.teamId] ? L.teams[q.teamId].nick : 'retired', ovr: q ? Math.round(ovr(q)) : null, w, l, seasons: all, meets: meets.map((x) => ({ y: x.y, won: x.po.w > x.po.l, w: x.po.w, l: x.po.l })), share, verdict, myPts, hisPts, canSwitch: duelCanSwitch(st), cands: duelCanSwitch(st) ? duelCands(st) : [] };
   }
 
-  NBA.Arc = { duelCands, duelOf, duelSet, duelRecord, duelNight, duelCard, duelHis, TRAITS, traitOf, mateCards, mateEventOpen, mateEventView, mateEventAuto, mateEventChoose, assignmentOpen, lockdownOf, mateInjuryOpen, mateOutAt, narrative, HAZE, haze, rookieWallOpen, jerseyNights, jerseyNight, earned, storyFacts, storyPrompt, checkStory, storyChoose, scaleRange };
+
+  // ---------------------------------------------------------------- 10. the matchup file: how the man you guarded shot against you
+  // On a night you took the assignment, his box line (already held down) is split into the possessions you guarded and the rest: his field goals
+  // with you as the primary defender against his season FG% (estimated from his true shooting: real FG% runs ~10 points under TS%), his points
+  // against his average, and turnovers you forced. Seeded from the game, so a replay shows the same file; it never changes the game itself.
+  function matchupOf(st, it) {
+    const W = NBA.World; if (!W || !it || it.k !== 'g' || it.dnp || it.asg !== 1 || it.f == null) return null; const b = W.boxOf(st, it); if (!b || !b.theirs[0]) return null;
+    const s = b.theirs[0], L = st.league, q = L.players[s.id]; if (!q) return null;
+    const avg = W.avgOf(st, s.id) || s.pts, ln = L.lines && L.lines[q.id], ts = ln && ln.ts ? ln.ts : 0.575, fgSeason = clamp(ts - 0.105, 0.38, 0.6);
+    const r = rng(st, 'mu|' + L.year + '|' + it.n + (it.po ? 'p' : '')), dv = Math.max(st.player.attrs.perD, st.player.attrs.rimP);
+    const supp = clamp((dv - 70) * 0.004, -0.02, 0.09) + (r() - 0.5) * 0.08 + (s.pts < avg * 0.75 ? 0.03 : s.pts > avg * 1.15 ? -0.04 : 0);   // a bad night for him is usually a bad night against you
+    const fgGuard = clamp(fgSeason - supp, 0.18, 0.72), fgGame = clamp(fgSeason - supp * 0.6, 0.22, 0.7);
+    const fgm = Math.max(1, Math.round(s.pts * 0.82 / 2.3)), fga = Math.max(fgm + 1, Math.round(fgm / fgGame));
+    const fgaM = Math.max(1, Math.round(fga * (0.55 + 0.15 * r()))), fgmM = Math.min(fgm, Math.round(fgaM * fgGuard)), ptsM = Math.min(s.pts, Math.round(fgmM * 2.3));
+    const tov = Math.max(0, Math.round((dv - 60) / 14 * r() + (it.st || 0) * 0.5));
+    return { id: s.id, name: s.name, pos: s.pos, pts: s.pts, avg: Math.round(avg * 10) / 10, fgm, fga, fgmM, fgaM, pctM: fgaM ? fgmM / fgaM : 0, pctSeason: fgSeason, ptsM, tov, won: !!it.w, opp: it.o, n: it.n, po: !!it.po };
+  }
+  // the season's file (games shown so far) and the career's (kept when each season ends)
+  function matchupSeason(st) {
+    const L = st.league, gs = (st.matchLog || []).slice(0, st.matchIdx == null ? (st.matchLog || []).length : st.matchIdx).map((it) => matchupOf(st, it)).filter(Boolean);
+    if (!gs.length) return null; const sum = (k) => gs.reduce((a, x) => a + x[k], 0);
+    return { y: L.year, games: gs, n: gs.length, fgmM: sum('fgmM'), fgaM: sum('fgaM'), pctSeason: sum('pctSeason') / gs.length, pts: sum('pts'), avg: sum('avg'), tov: sum('tov'), w: gs.filter((x) => x.won).length };
+  }
+  function matchupBook(st) { const m = matchupSeason(st), f = flags(st); if (!m) return f.muBook || {}; (f.muBook = f.muBook || {})[m.y] = { y: m.y, n: m.n, fgmM: m.fgmM, fgaM: m.fgaM, pctSeason: m.pctSeason, pts: m.pts, avg: m.avg, tov: m.tov, w: m.w }; return f.muBook; }
+
+  NBA.Arc = { matchupOf, matchupSeason, matchupBook, duelCands, duelOf, duelSet, duelRecord, duelNight, duelCard, duelHis, TRAITS, traitOf, mateCards, mateEventOpen, mateEventView, mateEventAuto, mateEventChoose, assignmentOpen, lockdownOf, mateInjuryOpen, mateOutAt, narrative, HAZE, haze, rookieWallOpen, jerseyNights, jerseyNight, earned, storyFacts, storyPrompt, checkStory, storyChoose, scaleRange };
   if (typeof module !== 'undefined') module.exports = NBA;
 })(typeof window !== 'undefined' ? window : globalThis);

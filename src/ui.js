@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 2 Nov · BallerSim dashboard v125';
+  const BUILD = 'build 2 Nov · BallerSim dashboard v126';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -946,7 +946,18 @@
     // ---- defensive impact
     const att = p.attrs || {};
     const skill = (l, v) => h('div', { class: 'sk' }, h('span', null, l), h('div', { class: 'bar2' }, h('i', { style: 'width:' + Math.round(v) + '%' })), h('b', null, Math.round(v)));
+    const muFile = (() => {
+      const A2 = NBA.Arc; if (!A2 || !A2.matchupSeason || S.autoPlay) return null; const m = A2.matchupSeason(S), book = Object.values((S.dec && S.dec.flags && S.dec.flags.muBook) || {}).filter((x) => !m || x.y !== m.y).sort((a, b) => a.y - b.y);
+      if (!m && !book.length) return h('div', { class: 'well' }, h('div', { class: 'small caps muted' }, '🔒 Matchup file'), h('div', { class: 'small muted' }, 'When the coach offers you the other team\'s star and you take him ("Give me…"), every one of those games shows up here: his shooting against you vs his season.'));
+      const pc = (a, b) => (b ? Math.round(a / b * 100) : 0) + '%';
+      return h('div', { class: 'well' }, h('div', { class: 'row small caps' }, h('span', null, '🔒 Matchup file'), h('span', { class: 'spacer' }), m ? h('span', { class: m.fgmM / Math.max(1, m.fgaM) < m.pctSeason - 0.03 ? 'pos' : 'muted' }, 'This season: ' + pc(m.fgmM, m.fgaM) + ' on you vs ' + Math.round(m.pctSeason * 100) + '% on their seasons') : null),
+        m ? h('div', { class: 'mulist' }, m.games.map((x) => h('div', { class: 'murow small' }, h('div', { class: 'row' }, h('b', null, x.name), h('span', { class: 'muted' }, ' · ' + x.opp + ' · ' + (x.po ? 'playoffs G' : 'G') + x.n), h('span', { class: 'spacer' }), h('span', { class: x.won ? 'pos' : 'neg' }, x.won ? 'W' : 'L')),
+          h('div', null, h('span', { class: x.pctM < x.pctSeason - 0.03 ? 'pos' : x.pctM > x.pctSeason + 0.03 ? 'neg' : '' }, x.fgmM + '/' + x.fgaM + ' on you (' + Math.round(x.pctM * 100) + '%)'), h('span', { class: 'muted' }, ' vs ' + Math.round(x.pctSeason * 100) + '% season · ' + x.pts + ' pts (avg ' + x.avg + ')' + (x.tov ? ' · ' + x.tov + ' TO forced' : '')))))) : null,
+        m ? h('div', { class: 'small muted', style: 'margin-top:4px' }, m.n + ' assignment' + (m.n > 1 ? 's' : '') + ': they scored ' + (m.pts / m.n).toFixed(1) + ' a night against their ' + (m.avg / m.n).toFixed(1) + ' average · ' + m.tov + ' turnovers forced · your team went ' + m.w + '-' + (m.n - m.w) + '.') : null,
+        book.length ? h('div', { class: 'small', style: 'margin-top:6px' }, h('b', null, 'Earlier seasons: '), book.map((x) => NBA.seasonLabel(x.y) + ' ' + pc(x.fgmM, x.fgaM) + ' on you vs ' + Math.round(x.pctSeason * 100) + '% (' + x.n + ' games)').join(' · ')) : null);
+    })();
     const defense = h('section', { class: 'panel mp', 'data-mt': 'def' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '⛨'), h('h2', null, 'Defensive impact'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, (rec && rec.awards && rec.awards.some((a) => /Defens/.test(a)) && done) ? 'All-Defense' : 'Two-way tracker')),
+      muFile,
       h('div', { class: 'grid2' }, avgCard('Steals (SPG)', A.st.toFixed(1), sel('stl'), Math.round(T.st) + ' total steals', lastVals('st')), avgCard('Blocks (BPG)', A.bk.toFixed(1), sel('blk'), Math.round(T.bk) + ' total blocks', lastVals('bk'))),
       h('div', { class: 'grid2' }, [['Turnovers / gm', A.to.toFixed(1), A.to ? (A.as / A.to).toFixed(1) + ' assist-to-TO' : '–'], ['Fouls / gm', A.pf.toFixed(1), 'Discipline'], ['Avg +/-', (A.pm > 0 ? '+' : '') + A.pm.toFixed(1), 'On-court margin'], ['Stocks / gm', (A.st + A.bk).toFixed(1), 'Steals + blocks']].map(([l, v, s]) => h('div', { class: 'well' }, h('div', { class: 'small caps muted' }, l), h('div', { class: 'bignum sm' }, v), h('div', { class: 'small muted' }, s)))),
       h('div', { class: 'well' }, h('div', { class: 'row small caps' }, h('span', null, 'Skill spectrum profile'), h('span', { class: 'spacer' }), h('span', null, archLabel(p))),
@@ -995,10 +1006,13 @@
       q ? h('table', { class: 'qtab small', style: 'margin:6px 0;border-collapse:collapse' }, h('tr', null, h('th', null, ''), q.us.map((_, i) => h('th', { style: 'padding:0 8px' }, i < 4 ? 'Q' + (i + 1) : 'OT')), h('th', { style: 'padding:0 8px' }, 'F')),
         h('tr', null, h('td', null, ab(t.nick)), q.us.map((x) => h('td', { style: 'padding:0 8px;text-align:center' }, x)), h('td', { style: 'padding:0 8px' }, h('b', null, g.f))), h('tr', null, h('td', null, ab(g.o)), q.them.map((x) => h('td', { style: 'padding:0 8px;text-align:center' }, x)), h('td', { style: 'padding:0 8px' }, h('b', null, g.a)))) : null,
       h('p', { class: 'small', style: 'margin:4px 0' }, '📖 ' + W.gameStory(S, g)),
+      (() => { const mu = NBA.Arc && NBA.Arc.matchupOf && NBA.Arc.matchupOf(S, g); return mu ? h('p', { class: 'small', style: 'margin:4px 0' }, '🔒 Your matchup: ' + mu.name + ' went ' + mu.fgmM + '-for-' + mu.fgaM + ' with you on him (' + Math.round(mu.pctM * 100) + '%; ' + Math.round(mu.pctSeason * 100) + '% on the season), ' + mu.fgm + '-for-' + mu.fga + ' overall, ' + mu.pts + ' points.') : null; })(),
       h('div', { class: 'small caps muted', style: 'margin-top:6px' }, 'Your teammates' + (b.out ? ' (' + b.out + ' out)' : '')), b.ours.map(row), h('div', { class: 'small caps muted', style: 'margin-top:6px' }, 'The ' + g.o), b.theirs.map(row));
   }
   function hotMate(g) {
     const W = NBA.World; if (!W || S.autoPlay || !g || g.dnp) return null; const b = W.boxOf(S, g); if (!b) return null; const hot = b.ours.find((x) => x.pts >= 33), opp = b.theirs.find((x) => x.pts >= 38);
+    const mu = NBA.Arc && NBA.Arc.matchupOf && NBA.Arc.matchupOf(S, g);
+    if (mu) return h('div', { class: 'callout' }, '🔒 You guarded ' + mu.name + ': ' + mu.fgmM + '/' + mu.fgaM + ' shooting on you (' + Math.round(mu.pctM * 100) + '%) vs ' + Math.round(mu.pctSeason * 100) + '% on the season · ' + mu.pts + ' points (he averages ' + mu.avg + ')' + (mu.tov ? ' · ' + mu.tov + ' turnover' + (mu.tov > 1 ? 's' : '') + ' forced' : '') + '.');
     const dn = NBA.Arc && NBA.Arc.duelNight && NBA.Arc.duelNight(S, g);
     if (dn && dn.his != null) return h('div', { class: 'callout' }, '⚔️ Duel night vs ' + dn.name + ': ' + (dn.mine == null ? 'you sat this one out, he had ' + dn.his : 'you ' + dn.mine + ', him ' + dn.his) + ' · ' + (dn.won ? 'your team took it' : 'his team took it') + ' · career H2H ' + dn.w + '-' + dn.l + (dn.beef ? '. ' + dn.beef : '.'));
     const lk = NBA.Arc && NBA.Arc.lockdownOf(S, g); if (lk) return h('div', { class: 'callout' }, '🔒 Lockdown: you held ' + lk.name + ' to ' + lk.pts + ' points (he averages ' + lk.avg + ').');

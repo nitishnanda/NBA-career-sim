@@ -1176,7 +1176,7 @@
     if (!st.autoPlay && NBA.Arc) NBA.Arc.earned(st, rec);   // a human career also improves from how it actually played (three-point volume, passing, boards, stocks)
     if (NBA.Euro && !st.autoPlay) NBA.Euro.yearEnd(st);   // the EuroLeague and the G League play their season too (skipped on bulk autopilot runs)
     if (NBA.onSeasonLog) NBA.onSeasonLog(st, rec);
-    if (!st.autoPlay && NBA.Arc && NBA.Arc.duelRecord) { try { const mi = st.matchIdx; st.matchIdx = null; NBA.Arc.duelRecord(st); st.matchIdx = mi; } catch (e) { /* the duel ledger is a side story */ } }   // close the season's duel ledger
+    if (!st.autoPlay && NBA.Arc && NBA.Arc.duelRecord) { try { const mi = st.matchIdx; st.matchIdx = null; NBA.Arc.duelRecord(st); if (NBA.Arc.matchupBook) NBA.Arc.matchupBook(st); st.matchIdx = mi; } catch (e) { /* the duel ledger is a side story */ } }   // close the season's duel ledger
     rec.perSeries = perSeries.map((x) => { const y = Object.assign({}, x); delete y.list; delete y.w; delete y.l; delete y.won; return y; });
     st.proSeasons.push(rec); if (!st.autoPlay) NBA.AllStar.reapply(st, rec);
     awardsHere.forEach((a) => { if (/^NBA Champion|^MVP voting/.test(a)) return; if (a === 'All-Star') feedAdd(st, 'allstar', {}, { key: 'as' + L.year, at: null }); else feedAdd(st, 'award', { award: a.replace(/ \(.*\)$/, '') }, { key: 'aw' + L.year + a, at: null }); });
