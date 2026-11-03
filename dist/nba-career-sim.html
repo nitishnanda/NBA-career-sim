@@ -343,6 +343,48 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
 @media (max-width: 600px) { table.lvq, table.st { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; } }
 @media (max-width: 380px) { .ph { flex-wrap: wrap; row-gap: 4px; } .ph .badge, .ph button { max-width: 100%; } }
 
+/* v121: team colours, season tabs, nav badges, charts, trophy room, timeline, settings, phone bottom nav */
+html.team-theme #nav button.on { background: var(--team); color: var(--team-ink); box-shadow: 0 0 28px -6px var(--team); }
+html.team-theme header { border-bottom-color: color-mix(in srgb, var(--team) 45%, transparent); }
+html.team-theme body { background: radial-gradient(900px 520px at 85% -10%, color-mix(in srgb, var(--team) 16%, transparent), transparent 70%), var(--bg); }
+html.team-theme .avatar { border-color: var(--team); }
+html.team-theme .dtabs button.on { background: var(--team); color: var(--team-ink); }
+.nbadge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 6px; border-radius: 999px; background: var(--bad); color: #fff; font: 700 11px/18px var(--disp); letter-spacing: 0; text-align: center; vertical-align: 1px; }
+.nbadge.new { background: var(--gold); color: #05070a; }
+.gear { font-size: 16px; padding: 4px 8px; }
+.dtabs { display: flex; gap: 6px; margin: 14px 0 4px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.03); overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.dtabs button { flex: 1 0 auto; border: 0; background: transparent; color: var(--muted); font: 600 13.5px var(--disp); letter-spacing: .08em; text-transform: uppercase; padding: 10px 14px; border-radius: 999px; white-space: nowrap; }
+.dtabs button.on { background: #fff; color: #05070a; }
+.chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+.chart .cht { font: 500 11px var(--disp); fill: var(--muted); letter-spacing: .04em; }
+.chleg { display: flex; gap: 14px; flex-wrap: wrap; margin: 4px 0 2px; color: var(--muted); } .chleg i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: 3px; }
+.skbars { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 22px; } @media (max-width: 600px) { .skbars { grid-template-columns: 1fr; } }
+.skrow { display: grid; grid-template-columns: 110px 1fr 32px; align-items: center; gap: 8px; } .sklab { color: var(--muted); } .skv { text-align: right; }
+.skbar { height: 8px; border-radius: 999px; background: rgba(255,255,255,.08); overflow: hidden; } .skbar i { display: block; height: 100%; border-radius: 999px; background: var(--team, #fff); }
+.tshelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 6px; }
+.trophy { text-align: center; padding: 16px 10px 12px; border-radius: 20px; border: 1px solid var(--line); background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.015)); }
+.trophy.gold { border-color: rgba(255,209,102,.45); box-shadow: inset 0 0 30px -12px rgba(255,209,102,.45); }
+.trophy .ticon { font-size: 34px; line-height: 1.1; } .trophy .tnum { font: 800 30px/1.1 var(--disp); } .trophy .tlab { font: 600 13px var(--disp); letter-spacing: .08em; text-transform: uppercase; } .trophy .tsub { margin-top: 4px; line-height: 1.3; }
+.tlrow { display: flex; gap: 10px; overflow-x: auto; padding: 6px 2px 12px; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; }
+.tlcol { flex: 0 0 158px; scroll-snap-align: start; border: 1px solid var(--line); border-radius: 18px; padding: 10px 12px; background: rgba(255,255,255,.03); position: relative; }
+.tlcol::before { content: ''; position: absolute; left: -11px; top: 22px; width: 10px; height: 2px; background: var(--line); }
+.tlcol:first-child::before { display: none; } .tlcol.tlring { border-color: rgba(255,209,102,.55); } .tlcol.tldraft, .tlcol.tlend { background: rgba(255,255,255,.07); }
+.tlhead { font: 700 17px var(--disp); letter-spacing: .04em; } .tlchips { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; } .tlchip { font-size: 12px; line-height: 1.3; }
+table.cmp td.win { color: var(--good); font-weight: 700; } table.cmp td:first-child { color: var(--muted); }
+.cardimg { width: 100%; max-width: 420px; display: block; margin: 8px auto; border-radius: 16px; }
+a.btnlike { display: inline-block; padding: 10px 16px; border-radius: 999px; border: 1px solid var(--line); color: var(--text); text-decoration: none; font: 600 14px var(--disp); letter-spacing: .08em; text-transform: uppercase; }
+html.big-text body { font-size: 17px; } html.big-text .small { font-size: 15px; } html.big-text h3 { font-size: 14px; }
+html.reduce-motion *, html.reduce-motion *::before, html.reduce-motion *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+@media (max-width: 600px) {
+  /* phones: the four tabs become a bar at the bottom of the screen, under the thumb */
+  header { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(7,10,15,.96); }   /* a backdrop-filter would make the header the containing block of the fixed bar */
+  #nav { position: fixed; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); top: auto; z-index: 20; margin: 0; max-width: none; width: auto; order: 0; backdrop-filter: blur(16px); background: rgba(10,13,19,.88); box-shadow: 0 10px 30px -8px #000; }
+  #nav button { padding: 13px 2px; min-height: 48px; }
+  main { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  .dtabs button { padding: 10px 11px; font-size: 12.5px; }
+  .tlcol { flex-basis: 140px; }
+}
+
 </style>
 <header id="top"><div class="brand"><span class="logo">🏀</span><div><b>NBA CAREER SIM</b><small>PRO CIRCUIT</small></div></div><nav id="nav"></nav><div id="who"></div></header>
 <main id="app"></main>
@@ -8852,7 +8894,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 2 Nov · BallerSim dashboard v120';
+  const BUILD = 'build 2 Nov · BallerSim dashboard v121';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -8931,9 +8973,9 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
     nav.textContent = ''; who.textContent = '';
     if (!S || S.stage === 'create') return;
     const p = S.player, ini = p.name.split(/\s+/).map((x) => x[0]).join('').slice(0, 2).toUpperCase();
-    [['season', 'Season', 'Season'], ['team', 'Team', 'Team'], ['league', 'Around the league', 'League'], ['career', 'Career', 'Career']].forEach(([k, l, sh]) => nav.append(h('button', { class: view === k ? 'on' : '', onclick: () => { if (view !== k) { stopAuto(); view = k; leagueTeam = null; render(); window.scrollTo(0, 0); } } }, h('span', { class: 'nlg' }, l), h('span', { class: 'nsm' }, sh))));
+    [['season', 'Season', 'Season'], ['team', 'Team', 'Team'], ['league', 'Around the league', 'League'], ['career', 'Career', 'Career']].forEach(([k, l, sh]) => nav.append(h('button', { class: view === k ? 'on' : '', onclick: () => { if (view !== k) { stopAuto(); view = k; leagueTeam = null; render(); window.scrollTo(0, 0); } } }, h('span', { class: 'nlg' }, l), h('span', { class: 'nsm' }, sh), (() => { const b = navBadge(k); return b ? h('span', { class: 'nbadge' + (b === 'NEW' ? ' new' : '') }, b) : null; })())));
     who.append(h('div', { class: 'whotxt' }, h('div', null, 'OVR ' + Math.round(NBA.ovr(p)) + ' · ' + archLabel(p)), h('div', { class: 'muted' }, 'Age ' + p.age + ' · ' + p.pos + (p.country && NBA.Intl.COUNTRIES[p.country] ? ' · ' + NBA.Intl.COUNTRIES[p.country].flag : '') + (S.proSeasons.length ? ' · Year ' + S.proSeasons.length : ''))),
-      confirmBtn('New', 'danger tiny', () => { wipe(); S = null; view = 'season'; stopAuto(); boot(); }), h('div', { class: 'avatar' }, ini));
+      h('button', { class: 'ghost tiny gear', title: 'Settings', 'aria-label': 'Settings', onclick: () => { overlayUi = 'settings'; render(); } }, '⚙️'), confirmBtn('New', 'danger tiny', () => { wipe(); S = null; view = 'season'; stopAuto(); boot(); }), h('div', { class: 'avatar' }, ini));
   }
 
   // ------------------------------------------------------------ screens
@@ -9457,7 +9499,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
   }
 
   // autoplay engine for the season screen
-  let mTab = 'box';
+  let mTab = 'box', dTab = 'games';
   let speed = '2x', playing = false, timer = null, leagueRace = 'mvp';
   function stopAuto() { bulk = false; playing = false; if (timer) { clearTimeout(timer); timer = null; } }
   // the trade deadline stops the games: the front office has something to say (or nothing, and the season carries on)
@@ -9813,7 +9855,13 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
       return h('div', { class: 'callout inj' }, '🩹 You are hurt: ' + nm + '. ' + (lbl === 'Setback' ? 'A setback in rehab. ' : lbl === 'Rehab' ? 'Held out for rehab. ' : '') + 'Out ' + n + ' more game' + (n > 1 ? 's' : '') + ' · ' + back + '.');
     })();
     const histPanel = historyPanel(true);
-    const wrap = h('div', { class: 'dash mt-' + mTab }, done && !S.autoPlay ? finalsCard() : null, injBanner, h('div', { class: 'dtop' }, hero, quick, mtabs, telemetry), playoffPanel, h('div', { class: 'dmid' }, stream, averages, defense), planPanel, S.autoPlay ? null : wirePanel(rows, reg.length, items, idx), S.autoPlay ? null : bracketPanel(items, idx), histPanel, S.autoPlay ? null : inboxPanel(), feedPanel);
+    // the season screen in tabs (or everything at once, a setting): the top block always shows
+    const all = prefs().dashTab === 'all' || S.autoPlay, nIn = (S.inbox || []).filter((x) => (S.matchIdx || 0) - x.at <= 8).length;
+    const groups = { games: () => [playoffPanel, h('div', { class: 'dmid' }, stream, averages, defense), planPanel, seasonChart()], league: () => [S.autoPlay ? null : wirePanel(rows, reg.length, items, idx), S.autoPlay ? null : bracketPanel(items, idx)], inbox: () => [S.autoPlay ? null : inboxPanel(), feedPanel], history: () => [histPanel] };
+    if (!groups[dTab]) dTab = 'games';
+    const dtabs = all ? null : h('div', { class: 'dtabs' }, [['games', '🏀 Games'], ['league', '🌎 League'], ['inbox', '📥 Inbox'], ['history', '📜 History']].map(([k, l]) => h('button', { class: dTab === k ? 'on' : '', onclick: () => { dTab = k; render(); } }, l, k === 'inbox' && nIn ? h('span', { class: 'nbadge' }, String(nIn)) : null)));
+    const body = all ? [].concat(groups.games().slice(0, 3), groups.league(), [histPanel], groups.inbox(), [seasonChart()]) : groups[dTab]();
+    const wrap = h('div', { class: 'dash mt-' + mTab }, done && !S.autoPlay ? finalsCard() : null, injBanner, h('div', { class: 'dtop' }, hero, quick, mtabs, telemetry), dtabs, body);
     if (!LV) setTimeout(aiFeedUpgrade, 600);
     return overlay ? h('div', null, modal(overlay), wrap) : wrap;
   }
@@ -10184,7 +10232,8 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
   }
   function screenCareer() { const el = screenCareer0(); if (S.contract && el.append) el.append(socialCard()); return el; }
   function screenCareer0() {
-    return h('div', { class: 'dash' }, h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '▣'), h('h2', null, S.player.name + ' · career'), h('span', { class: 'spacer' }), h('button', { class: 'ghost tiny', title: 'Download this career as a file (for bug reports)', onclick: exportSave }, '⬇ Export save')), careerBody()));
+    const cv = careerView();
+    return h('div', { class: 'dash' }, trophyRoom(cv), h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '▣'), h('h2', null, S.player.name + ' · career'), h('span', { class: 'spacer' }), h('button', { class: 'ghost tiny', title: 'Download this career as a file (for bug reports)', onclick: exportSave }, '⬇ Export save')), careerBody()), careerCharts(cv), skillsPanel(), timelinePanel(cv), comparePanel(cv));
   }
 
   function champCard() {
@@ -10358,6 +10407,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
       h('p', { class: 'small muted' }, (c.team === 'retired' ? 'Retired' : c.team + (c.ovr ? ' · ' + c.ovr + ' OVR' : '')) + ' · your career rival since ' + NBA.seasonLabel(c.since) + (c.meets.length ? ' · playoff meetings: ' + c.meets.map((m) => NBA.seasonLabel(m.y) + ' (' + (m.won ? 'you ' : 'him ') + Math.max(m.w, m.l) + '-' + Math.min(m.w, m.l) + ')').join(', ') : ' · no playoff meeting yet')),
       ys.length ? h('table', { class: 'st small' }, h('tr', null, h('th', null, 'Season'), h('th', null, 'Your ppg'), h('th', null, 'His ppg'), h('th', null, 'Duels'), h('th', null, 'You outscored him')),
         ys.map((y) => { const b = bk[y]; return h('tr', null, h('td', null, NBA.seasonLabel(y)), h('td', null, mine[y] != null ? mine[y].toFixed(1) : '-'), h('td', null, his[y] != null ? his[y].toFixed(1) : '-'), h('td', null, b && b.n ? b.w + '-' + b.l : '-'), h('td', null, b && b.n ? b.outscored + ' of ' + b.n : '-')); })) : null,
+      ys.length >= 2 ? lineChart([{ label: 'You', color: 'var(--gold)', pts: ys.filter((y) => mine[y] != null).map((y) => [y, mine[y]]) }, { label: c.name, color: '#ff8a80', pts: ys.filter((y) => his[y] != null).map((y) => [y, his[y]]) }], { title: 'Points per game race', xFmt: (v) => NBA.seasonLabel(v), h: 160 }) : null,
       h('div', { style: 'margin:8px 0' }, h('div', { class: 'small caps muted' }, 'The debate'), h('div', { class: 'bar2' }, h('i', { style: 'width:' + c.share + '%' })), h('div', { class: 'row small' }, h('span', null, 'You ' + c.share + '%'), h('span', { class: 'spacer' }), h('span', null, c.name + ' ' + (100 - c.share) + '%'))),
       h('p', { class: 'small' }, c.verdict),
       c.canSwitch && c.cands.length > 1 ? h('div', { class: 'row small', style: 'flex-wrap:wrap;gap:6px' }, h('span', { class: 'muted' }, 'Pick your rival (this season only):'), c.cands.map((x) => h('button', { class: x.id === c.id ? 'primary' : '', onclick: () => { if (A.duelSet(S, x.id)) { save(); render(); } } }, x.name + ' · ' + x.team + ' · ' + x.ovr))) : null);
@@ -10529,7 +10579,7 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
   function careerBody() {
     const cv = careerView(); CV_TD = cv.td;
     const ps = cv.ps, ct = careerTotals(ps), aw = cv.career.awards;
-    const wrap = h('div');
+    const wrap = h('div'), app0 = wrap.append.bind(wrap); wrap.append = (...xs) => app0(...xs.flat(Infinity).filter((x) => x != null && x !== false));   // a missing section adds nothing (Element.append would print "null")
     if (!ct) { wrap.append(h('p', { class: 'muted' }, 'No NBA games yet.'), S.collegeYears.length ? collegeTable() : null); return wrap; }
     wrap.append(h('h3', null, 'Regular season career'), h('div', { class: 'grid stats' }, ct.rating ? ratingBox(ct.rating, 'Avg match rating') : null, statBox(f1(ct.pts), 'PPG'), statBox(f1(ct.reb), 'RPG'), statBox(f1(ct.ast), 'APG'), statBox(ct.totPts.toLocaleString(), 'Total points'), statBox(ct.totReb.toLocaleString(), 'Total rebounds'), statBox(ct.totAst.toLocaleString(), 'Total assists'), statBox(ct.totStl.toLocaleString(), 'Total steals'), statBox(ct.totBlk.toLocaleString(), 'Total blocks'), statBox(ct.gp.toLocaleString(), 'Games'), statBox(ct.td, 'Triple-doubles (' + (100 * ct.td / ct.gp).toFixed(1) + '%)'), statBox(money(cv.earnings), 'Career earnings · ' + money(cv.earnings26 || cv.earnings) + ' in 2026 $')),
       (() => { const pt = playoffTotals(cv.pl); return pt ? h('div', null, h('h3', null, 'Playoff career'), h('div', { class: 'grid stats' }, pt.rating ? ratingBox(pt.rating, 'Playoff avg rating') : null, statBox(f1(pt.pts), 'PPG'), statBox(f1(pt.reb), 'RPG'), statBox(f1(pt.ast), 'APG'), statBox(f1(pt.stl), 'SPG'), statBox(f1(pt.blk), 'BPG'), statBox(pt.gp.toLocaleString(), 'Playoff games'), statBox(pt.totPts.toLocaleString(), 'Playoff points'), statBox(pt.totReb.toLocaleString(), 'Playoff rebounds'), statBox(pt.totAst.toLocaleString(), 'Playoff assists'), statBox(cv.career.titles || 0, 'Championships'))) : null; })(),
@@ -11201,8 +11251,170 @@ details.poseries > summary::-webkit-details-marker { margin-right: 6px; }
         h('div', { class: 'row', style: 'flex-wrap:wrap' }, v.soloGain > 0 ? v.solo.map((a) => h('button', { onclick: () => finish('solo', a.key) }, a.label + ' (' + a.v + ')')) : null, h('button', { onclick: () => finish('rest') }, v.soloGain > 0 ? 'Take the summer off' : 'Continue →'))));
   }
 
+  // ------------------------------------------------------------ v121: settings, team colours, charts, trophy room, career card, compare, timeline, tips
+  // Preferences live in this browser (not in the save): text size, motion, team colours, the season-screen layout, the first-time tips.
+  // Automated browsers (navigator.webdriver: the test suite) see every panel and no tips.
+  const PREF_KEY = 'nbacs-prefs', AUTOMATED = typeof navigator !== 'undefined' && !!navigator.webdriver;
+  const PREF0 = { text: 'normal', motion: 'full', teamTheme: true, dashTab: 'games', tipsDone: false };
+  function prefs() { let p = {}; try { p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}') || {}; } catch (e) { /* private window: defaults */ } p = Object.assign({}, PREF0, p); if (AUTOMATED) { p.dashTab = 'all'; p.tipsDone = true; } return p; }
+  function setPref(k, v) { const p = prefs(); p[k] = v; try { localStorage.setItem(PREF_KEY, JSON.stringify(Object.assign({}, p, AUTOMATED ? { dashTab: undefined, tipsDone: undefined } : {}))); } catch (e) { /* ignore */ } }
+  const lumOf = (hex) => { const n = parseInt(hex.slice(1), 16), c = [n >> 16, (n >> 8) & 255, n & 255].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+  const mixWhite = (hex, k) => { const n = parseInt(hex.slice(1), 16), c = [n >> 16, (n >> 8) & 255, n & 255].map((v) => Math.round(v + (255 - v) * k)); return '#' + c.map((v) => v.toString(16).padStart(2, '0')).join(''); };
+  function myTeamNick() { if (!S || S.teamId == null || S.teamId < 0 || !S.league) return null; if (S.gm && S.stage === 'gm') return S.league.teams[S.gm.teamId].nick; return S.league.teams[S.teamId] ? S.league.teams[S.teamId].nick : null; }
+  function applyPrefs() {
+    const p = prefs(), root = document.documentElement; root.classList.toggle('big-text', p.text === 'large'); root.classList.toggle('reduce-motion', p.motion === 'reduced');
+    const nick = p.teamTheme ? myTeamNick() : null, cols = nick && D.TEAM_COLORS[nick];
+    if (cols) {   // the brighter of the team's two colours, lifted toward white until it reads on the dark page
+      let a = lumOf(cols[0]) >= lumOf(cols[1]) ? cols[0] : cols[1], k = 0; while (lumOf(a) < 0.18 && k < 6) { a = mixWhite(a, 0.18); k++; }
+      root.style.setProperty('--team', a); root.style.setProperty('--team-ink', lumOf(a) > 0.45 ? '#05070a' : '#ffffff'); root.style.setProperty('--team2', cols[0] === a ? cols[1] : cols[0]); root.classList.add('team-theme');
+    } else { root.classList.remove('team-theme'); root.style.removeProperty('--team'); root.style.removeProperty('--team-ink'); root.style.removeProperty('--team2'); }
+  }
+  // ---- charts: inline SVG, no library. series: [{ label, color (CSS colour or var), pts: [[x, y], ...], dash }]
+  function lineChart(series, o) {
+    o = Object.assign({ w: 640, h: 200, yFmt: (v) => Math.round(v), xFmt: (v) => v, y0: 0 }, o || {});
+    const all = series.reduce((a, s) => a.concat(s.pts), []); if (all.length < 2) return null;
+    const xs = all.map((p) => p[0]), ys = all.map((p) => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), yMin = o.y0 != null ? Math.min(o.y0, ...ys) : Math.min(...ys), yMax = Math.max(...ys) * 1.08 || 1;
+    const L = 38, R = 12, T = 12, B = 26, W = o.w - L - R, H = o.h - T - B, X = (x) => L + (x1 === x0 ? W / 2 : (x - x0) / (x1 - x0) * W), Y = (y) => T + H - (y - yMin) / (yMax - yMin || 1) * H;
+    let g = ''; for (let i = 0; i <= 3; i++) { const v = yMin + (yMax - yMin) * i / 3, y = Y(v); g += '<line x1="' + L + '" x2="' + (L + W) + '" y1="' + y + '" y2="' + y + '" style="stroke:var(--line2)"/><text x="' + (L - 6) + '" y="' + (y + 4) + '" text-anchor="end" class="cht">' + o.yFmt(v) + '</text>'; }
+    g += '<text x="' + L + '" y="' + (o.h - 6) + '" class="cht">' + o.xFmt(x0) + '</text><text x="' + (L + W) + '" y="' + (o.h - 6) + '" text-anchor="end" class="cht">' + o.xFmt(x1) + '</text>';
+    series.forEach((s) => { if (!s.pts.length) return; const d = s.pts.map((p, i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1)).join(' '), last = s.pts[s.pts.length - 1];
+      g += '<path d="' + d + '" fill="none" style="stroke:' + s.color + ';stroke-width:' + (s.thin ? 1.2 : 2.4) + (s.dash ? ';stroke-dasharray:4 4' : '') + ';opacity:' + (s.thin ? 0.55 : 1) + '"/>';
+      if (!s.thin) g += '<circle cx="' + X(last[0]) + '" cy="' + Y(last[1]) + '" r="3.5" style="fill:' + s.color + '"/>'; });
+    const el = h('div', { class: 'chart' }); el.innerHTML = '<svg viewBox="0 0 ' + o.w + ' ' + o.h + '" role="img" aria-label="' + (o.title || 'chart') + '" preserveAspectRatio="none">' + g + '</svg>';
+    const leg = h('div', { class: 'chleg small' }, series.filter((s) => s.label).map((s) => h('span', null, h('i', { style: 'background:' + s.color }), s.label)));
+    return h('div', null, el, leg);
+  }
+  function seasonChart() {
+    if (!S.matchLog) return null; const gs = S.matchLog.slice(0, S.matchIdx || 0).filter((x) => x.k === 'g' && !x.po && !x.dnp && x.pt != null); if (gs.length < 3) return null;
+    const pts = gs.map((x, i) => [i + 1, x.pt]), roll = gs.map((x, i) => { const w = gs.slice(Math.max(0, i - 4), i + 1); return [i + 1, w.reduce((a, y) => a + y.pt, 0) / w.length]; });
+    const avg = gs.reduce((a, x) => a + x.pt, 0) / gs.length;
+    return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '📈'), h('h2', null, 'Your season, game by game'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, avg.toFixed(1) + ' ppg')),
+      lineChart([{ label: 'Points', color: 'var(--muted)', pts, thin: true }, { label: '5-game average', color: 'var(--gold)', pts: roll }], { title: 'Points by game', xFmt: (v) => 'G' + v }));
+  }
+  const yrOf = (s) => (s.year != null ? s.year : parseInt(s.label, 10));   // the season being played shows as a live line ('2033-34 ●') without a year field
+  function careerCharts(cv) {
+    const ps = cv.ps.filter((s) => s.gp > 0 && !isNaN(yrOf(s))).map((s) => Object.assign({}, s, { year: yrOf(s) })); if (ps.length < 2) return null;
+    return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '📊'), h('h2', null, 'Career arc')),
+      h('div', { class: 'small caps muted' }, 'Points, rebounds, assists per game'), lineChart([{ label: 'PTS', color: 'var(--gold)', pts: ps.map((s) => [s.year, s.pts]) }, { label: 'REB', color: 'var(--good)', pts: ps.map((s) => [s.year, s.reb]) }, { label: 'AST', color: '#7fb4ff', pts: ps.map((s) => [s.year, s.ast]) }], { title: 'Career per-game stats', xFmt: (v) => NBA.seasonLabel(v) }),
+      h('div', { class: 'small caps muted', style: 'margin-top:10px' }, 'Overall rating'), lineChart([{ label: 'OVR', color: 'var(--team, #fff)', pts: ps.filter((s) => s.ovr).map((s) => [s.year, s.ovr]) }], { title: 'Overall by season', y0: 40, xFmt: (v) => NBA.seasonLabel(v), h: 150 }));
+  }
+  function skillsPanel() {
+    const p = S.player, at = p.attrs || {}, keys = (D.ATTRS || []).filter((k) => at[k] != null); if (!keys.length) return null;
+    return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🧪'), h('h2', null, 'Skill breakdown'), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, 'OVR ' + Math.round(NBA.ovr(p)))),
+      h('div', { class: 'skbars' }, keys.map((k) => { const v = Math.round(at[k]); return h('div', { class: 'skrow small' }, h('span', { class: 'sklab' }, (D.ATTR_LABELS && D.ATTR_LABELS[k]) || k), h('span', { class: 'skbar' }, h('i', { style: 'width:' + Math.max(2, Math.min(100, v)) + '%' + (v >= 85 ? ';background:var(--gold)' : v < 50 ? ';background:var(--bad)' : '') })), h('b', { class: 'skv' }, v)); })));
+  }
+  // ---- the trophy room: everything you won, on shelves
+  const AWARD_ICON = (k) => /MVP/.test(k) && /Finals/.test(k) ? '🏅' : /MVP/.test(k) ? '👑' : /All-Star/.test(k) ? '⭐' : /All-NBA/.test(k) ? '🥇' : /Defen/.test(k) ? '🛡️' : /Rookie/.test(k) ? '🌱' : /Sixth/.test(k) ? '6️⃣' : /Improved/.test(k) ? '📈' : /medal/i.test(k) ? (/Gold/.test(k) ? '🥇' : /Silver/.test(k) ? '🥈' : '🥉') : /Champ/.test(k) ? '🏆' : /scor|Scoring/i.test(k) ? '🎯' : '🎖️';
+  function trophyRoom(cv) {
+    const ps = cv.ps || [], aw = (cv.career && cv.career.awards) || {}, rings = ps.filter((s) => s.champion && s.team && s.champion === s.team);
+    const yearsOf = (k) => ps.filter((s) => (s.awards || []).some((a) => a === k || a.indexOf(k) === 0 || (k === 'All-NBA' && /^All-NBA/.test(a)))).map((s) => NBA.seasonLabel(s.year));
+    const keys = Object.keys(aw).filter((k) => aw[k] > 0 && !/^All-NBA (1st|2nd|3rd) Team$/.test(k)).sort((a, b) => (/MVP/.test(b) ? 3 : /All-NBA/.test(b) ? 2 : /All-Star/.test(b) ? 1 : 0) - (/MVP/.test(a) ? 3 : /All-NBA/.test(a) ? 2 : /All-Star/.test(a) ? 1 : 0));
+    const tile = (icon, n, label, sub, cls) => h('div', { class: 'trophy ' + (cls || '') }, h('div', { class: 'ticon' }, icon), h('div', { class: 'tnum' }, n), h('div', { class: 'tlab' }, label), sub ? h('div', { class: 'tsub small muted' }, sub) : null);
+    let high = null; ps.forEach((s) => { const b = s.bests && s.bests.reg && s.bests.reg.pts; if (b && (!high || b.pt > high.pt)) high = Object.assign({ y: s.year }, b); });
+    const tiles = [];
+    if (rings.length) tiles.push(tile('🏆', rings.length, rings.length === 1 ? 'Championship' : 'Championships', rings.map((s) => NBA.seasonLabel(s.year) + ' ' + s.team.split(' ').slice(-1)[0]).join(' · '), 'gold'));
+    keys.forEach((k) => { const ys = yearsOf(k); tiles.push(tile(AWARD_ICON(k), aw[k], k, ys.length && ys.length <= 8 ? ys.join(' · ') : ys.length ? ys[0] + ' – ' + ys[ys.length - 1] : '', /MVP/.test(k) ? 'gold' : '')); });
+    if (S.hof && S.hof.hall) tiles.unshift(tile('🏛️', '', 'Hall of Fame', S.hof.tier, 'gold'));
+    if (high) tiles.push(tile('🔥', high.pt, 'Career high', 'vs ' + (high.o || '?') + ' · ' + NBA.seasonLabel(high.y)));
+    if (S.jerseys && S.jerseys.length) tiles.push(tile('👕', S.jerseys.length, S.jerseys.length === 1 ? 'Jersey' : 'Jerseys', S.jerseys.map((j) => '#' + j.num + ' ' + j.team).join(' · ')));
+    return h('section', { class: 'panel troom' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🏆'), h('h2', null, 'Trophy room'), h('span', { class: 'spacer' }), h('button', { class: 'ghost tiny', onclick: showCard }, '📸 Career card')),
+      tiles.length ? h('div', { class: 'tshelf' }, tiles) : h('p', { class: 'muted' }, 'The shelf is empty. For now.'));
+  }
+  // ---- the shareable career card: a picture drawn on a canvas, to save and post
+  function cardData() {
+    const cv = careerView(), ct = careerTotals(cv.ps) || { pts: 0, reb: 0, ast: 0, totPts: 0, gp: 0 }, aw = (cv.career && cv.career.awards) || {}, p = S.player;
+    const rings = cv.ps.filter((s) => s.champion && s.champion === s.team).length, rank = NBA.Core && NBA.Core.allTime ? NBA.Core.allTime('pts', ct.totPts || 0).rank : null;
+    const nick = myTeamNick() || (cv.ps.length ? cv.ps[cv.ps.length - 1].team.split(' ').slice(-1)[0] : null);
+    return { name: p.name, pos: p.pos, arch: archLabel(p), team: cv.ps.length ? cv.ps[cv.ps.length - 1].team : (S.draft && S.draft.team) || '', nick, ppg: ct.pts, rpg: ct.reb, apg: ct.ast, seasons: cv.ps.length, rings, mvp: aw.MVP || 0, allStar: aw['All-Star'] || 0, allNba: aw['All-NBA'] || 0, totPts: ct.totPts || 0, rank, hof: S.hof ? S.hof.tier : null, ovr: Math.round(NBA.ovr(p)) };
+  }
+  function drawCard(c) {
+    const W = 1080, H = 1350, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const x = cv.getContext('2d'); if (!x) return null;
+    const cols = (c.nick && D.TEAM_COLORS[c.nick]) || ['#1b2333', '#ffd166'], gr = x.createLinearGradient(0, 0, W, H); gr.addColorStop(0, cols[0]); gr.addColorStop(1, '#05070a');
+    x.fillStyle = gr; x.fillRect(0, 0, W, H); x.fillStyle = 'rgba(255,255,255,.06)'; for (let i = 0; i < 14; i++) x.fillRect(0, 120 + i * 90, W, 2);
+    x.strokeStyle = cols[1]; x.lineWidth = 14; x.strokeRect(36, 36, W - 72, H - 72);
+    const font = (w, s) => w + ' ' + s + 'px "Barlow Condensed", "Arial Narrow", sans-serif';
+    x.fillStyle = cols[1]; x.font = font(700, 40); x.fillText('NBA CAREER SIM', 84, 120); x.fillStyle = '#fff'; x.textAlign = 'right'; x.fillText('OVR ' + c.ovr, W - 84, 120); x.textAlign = 'left';
+    x.font = font(800, c.name.length > 16 ? 96 : 120); x.fillText(c.name.toUpperCase(), 84, 300, W - 168);
+    x.font = font(600, 46); x.fillStyle = 'rgba(255,255,255,.8)'; x.fillText((c.pos + ' · ' + c.arch + (c.team ? ' · ' + c.team : '')).toUpperCase(), 84, 370, W - 168);
+    const stat = (v, l, i) => { const cx = 84 + i * 310; x.fillStyle = '#fff'; x.font = font(800, 150); x.fillText(v, cx, 590); x.fillStyle = cols[1]; x.font = font(700, 42); x.fillText(l, cx + 4, 645); };
+    stat(c.ppg.toFixed(1), 'PPG', 0); stat(c.rpg.toFixed(1), 'RPG', 1); stat(c.apg.toFixed(1), 'APG', 2);
+    const row = (l, v, i) => { const y = 790 + i * 82; x.fillStyle = 'rgba(255,255,255,.65)'; x.font = font(600, 46); x.fillText(l.toUpperCase(), 84, y); x.fillStyle = '#fff'; x.textAlign = 'right'; x.font = font(800, 54); x.fillText(String(v), W - 84, y); x.textAlign = 'left'; };
+    [['Seasons', c.seasons], ['Championships', c.rings ? '🏆 ×' + c.rings : '0'], ['MVP', c.mvp], ['All-Star', c.allStar], ['All-NBA', c.allNba], ['Career points', c.totPts.toLocaleString('en-US') + (c.rank && c.rank <= 50 ? '  (#' + c.rank + ' all-time)' : '')]].forEach((r, i) => row(r[0], r[1], i));
+    if (c.hof) { x.fillStyle = cols[1]; x.font = font(800, 54); x.textAlign = 'center'; x.fillText(c.hof.toUpperCase(), W / 2, H - 92, W - 168); x.textAlign = 'left'; }
+    try { return cv.toDataURL('image/png'); } catch (e) { return null; }
+  }
+  let cardUrl = null;
+  function showCard() { const url = drawCard(cardData()); cardUrl = url; overlayUi = 'card'; render(); }
+  // ---- compare: you against anyone in the league (or your dad)
+  let cmpId = null;
+  function careerOfNpc(q) {
+    const hs = q.hist || [], gp = hs.reduce((a, r) => a + (r[3] || 0), 0), w = (i) => gp ? hs.reduce((a, r) => a + (r[i] / 10) * (r[3] || 0), 0) / gp : 0;
+    const best = hs.slice().sort((a, b) => b[4] - a[4])[0], aw = q.awd || {};
+    return { name: q.name, seasons: hs.length, gp, pts: w(4), reb: w(5), ast: w(6), best: best ? best[4] / 10 : 0, bestY: best ? best[0] : null, mvp: aw.MVP || 0, allStar: aw['All-Star'] || 0, rings: aw.Championships || aw.Champion || 0, ovr: Math.round(NBA.ovr(q)), age: q.age, team: S.league.teams[q.teamId] ? S.league.teams[q.teamId].nick : '' };
+  }
+  function comparePanel(cv) {
+    const L = S.league; if (!L) return null; const ct = careerTotals(cv.ps); if (!ct) return null;
+    const pool = Object.values(L.players).filter((q) => q.hist && q.hist.length && !q.rookie).sort((a, b) => NBA.ovr(b) - NBA.ovr(a)).slice(0, 200);
+    const par = S.lineage && S.lineage.parent;
+    const aw = (cv.career && cv.career.awards) || {}, me = { name: 'You', seasons: cv.ps.length, pts: ct.pts, reb: ct.reb, ast: ct.ast, best: Math.max(0, ...cv.ps.map((s) => s.pts || 0)), mvp: aw.MVP || 0, allStar: aw['All-Star'] || 0, rings: cv.ps.filter((s) => s.champion && s.champion === s.team).length, ovr: Math.round(NBA.ovr(S.player)) };
+    let them = null; if (cmpId === 'dad' && par) them = { name: par.name, seasons: par.seasons, pts: par.ppg, reb: null, ast: null, best: null, mvp: par.mvps, allStar: par.allStars, rings: par.titles, ovr: par.peak }; else if (cmpId != null && L.players[cmpId]) them = careerOfNpc(L.players[cmpId]);
+    if (!them && pool[0]) { cmpId = pool[0].id; them = careerOfNpc(pool[0]); }
+    const f1 = (v) => (v == null ? '–' : typeof v === 'number' && v % 1 ? v.toFixed(1) : v), row = (l, a, b, hi) => { const better = a != null && b != null && a !== b ? ((hi ? a > b : a < b) ? 'a' : 'b') : null; return h('tr', null, h('td', null, l), h('td', { class: better === 'a' ? 'win' : '' }, f1(a)), h('td', { class: better === 'b' ? 'win' : '' }, f1(b))); };
+    return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '⚖️'), h('h2', null, 'Compare')),
+      h('select', { onchange: (e) => { cmpId = e.target.value === 'dad' ? 'dad' : +e.target.value; render(); } }, par ? h('option', { value: 'dad', selected: cmpId === 'dad' }, '🧬 Your dad: ' + par.name) : null,
+        pool.map((q) => h('option', { value: q.id, selected: cmpId === q.id }, q.name + ' · ' + (L.teams[q.teamId] ? L.teams[q.teamId].nick : '') + ' · ' + Math.round(NBA.ovr(q))))),
+      them ? h('table', { class: 'st small cmp' }, h('tr', null, h('th', null, ''), h('th', null, S.player.name), h('th', null, them.name)),
+        row('Seasons', me.seasons, them.seasons, true), row('Points per game', me.pts, them.pts, true), row('Rebounds per game', me.reb, them.reb, true), row('Assists per game', me.ast, them.ast, true), row('Best season (ppg)', me.best, them.best, true), row('MVP', me.mvp, them.mvp, true), row('All-Star', me.allStar, them.allStar, true), row('Titles', me.rings, them.rings, true), row('Rating now (peak for your dad)', me.ovr, them.ovr, true)) : null,
+      h('p', { class: 'small muted' }, 'Their numbers cover the seasons this league has tracked (up to 16).'));
+  }
+  // ---- the career timeline: one column a season, left to right
+  function timelinePanel(cv) {
+    const ps = (cv.ps || []).map((s) => Object.assign({}, s, { year: yrOf(s) })); if (!ps.length) return null; let prev = null;
+    const col = (head, sub, chips, cls) => h('div', { class: 'tlcol ' + (cls || '') }, h('div', { class: 'tlhead' }, head), h('div', { class: 'tlsub small muted' }, sub), h('div', { class: 'tlchips' }, chips.filter(Boolean).map((c) => h('span', { class: 'tlchip' }, c))));
+    const cols = [];
+    if (S.draft) cols.push(col('Draft', S.draft.slot ? '#' + S.draft.slot + ' pick' : 'Undrafted', [S.draft.team ? '🧢 ' + S.draft.team.split(' ').slice(-1)[0] : null], 'tldraft'));
+    ps.forEach((s) => { const nick = s.team ? s.team.split(' ').slice(-1)[0] : '', moved = prev && s.team !== prev;
+      cols.push(col(NBA.seasonLabel(s.year), nick + ' · ' + (s.pts || 0).toFixed(1) + ' ppg', [moved ? '🔁 New team' : null, s.champion && s.champion === s.team ? '🏆 Champion' : null].concat((s.awards || []).slice(0, 4).map((a) => AWARD_ICON(a) + ' ' + a)).concat([s.injury && s.injury.name ? '🩹 ' + s.injury.name : null, s.gp < 40 ? '🩹 ' + s.gp + ' games' : null]), s.champion && s.champion === s.team ? 'tlring' : ''));
+      prev = s.team; });
+    if (S.retired) cols.push(col('Retired', 'Age ' + S.player.age, [S.hof && S.hof.hall ? '🏛️ Hall of Fame' : S.hof ? S.hof.tier : null], 'tlend'));
+    return h('section', { class: 'panel' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '🕰️'), h('h2', null, 'Career timeline')), h('div', { class: 'tlrow' }, cols));
+  }
+  // ---- settings and first-time tips (pop-ups over any screen)
+  let overlayUi = null, tipStep = 0;
+  const TIPS = [['🏀 Welcome to the league', 'This is your season screen. "Sim next game" plays one game; the sim buttons jump ahead. Big moments stop and ask you.'],
+    ['🗂️ Tabs', 'Games, League, Inbox and History split the season screen up. Pick "Everything" in settings (⚙️) to see it all at once.'],
+    ['🔔 Badges', 'A number on Season means news or a decision is waiting. NEW on Career means you won something: it is in your trophy room.'],
+    ['⚙️ Settings', 'Bigger text, less motion, and your team\'s colours on or off: the gear at the top right.']];
+  function overlayView() {
+    if (overlayUi === 'settings') { const p = prefs(), seg = (k, opts) => h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap' }, opts.map(([v, l]) => h('button', { class: p[k] === v ? 'primary' : '', onclick: () => { setPref(k, v); applyPrefs(); render(); } }, l)));
+      return modal(h('div', null, h('h1', null, '⚙️ Settings'), h('h3', null, 'Text size'), seg('text', [['normal', 'Normal'], ['large', 'Large']]), h('h3', null, 'Motion'), seg('motion', [['full', 'Full'], ['reduced', 'Reduced']]),
+        h('h3', null, 'Team colours'), seg('teamTheme', [[true, 'On'], [false, 'Off']]), h('h3', null, 'Season screen'), seg('dashTab', [['games', 'Tabs'], ['all', 'Everything at once']]),
+        h('div', { class: 'row', style: 'margin-top:16px;gap:6px' }, h('button', { onclick: () => { setPref('tipsDone', false); tipStep = 0; overlayUi = 'tips'; render(); } }, 'Show the tips again'), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => { overlayUi = null; render(); } }, 'Done')))); }
+    if (overlayUi === 'card') return modal(h('div', null, h('h1', null, '📸 Your career card'), cardUrl ? h('img', { src: cardUrl, alt: 'Career card', class: 'cardimg' }) : h('p', null, 'Your browser could not draw the card.'),
+      h('p', { class: 'small muted' }, 'Long-press (phone) or right-click (computer) the picture to save it, or use the button.'),
+      h('div', { class: 'row', style: 'gap:6px' }, cardUrl ? h('a', { class: 'btnlike', href: cardUrl, download: (S.player.name || 'career').replace(/\s+/g, '-') + '-card.png' }, '⬇ Download') : null, h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => { overlayUi = null; render(); } }, 'Close'))));
+    if (overlayUi === 'tips') { const t = TIPS[tipStep], end = () => { setPref('tipsDone', true); overlayUi = null; render(); };
+      return modal(h('div', null, h('p', { class: 'small muted' }, 'Tip ' + (tipStep + 1) + ' of ' + TIPS.length), h('h1', null, t[0]), h('p', null, t[1]),
+        h('div', { class: 'row', style: 'margin-top:12px;gap:6px' }, h('button', { onclick: end }, 'Skip'), h('span', { class: 'spacer' }), h('button', { class: 'primary', onclick: () => { if (tipStep < TIPS.length - 1) { tipStep++; render(); } else end(); } }, tipStep < TIPS.length - 1 ? 'Next' : 'Got it')))); }
+    return null;
+  }
+  // ---- badges on the nav: news or a decision waiting (Season), something new won (Career)
+  function awardCount() { try { const aw = careerView().career.awards || {}; return Object.keys(aw).reduce((a, k) => a + (aw[k] || 0), 0) + careerView().ps.filter((s) => s.champion && s.champion === s.team).length; } catch (e) { return 0; } }
+  function navBadge(k) {
+    if (!S || !S.ui) S.ui = S.ui || {};
+    if (k === 'season' && view !== 'season') { const n = (S.inbox || []).length + (S.dec && S.dec.pending ? 1 : 0); return n ? String(n) : null; }
+    if (k === 'career') { const n = awardCount(); if (view === 'career') { S.ui.seenAw = n; return null; } if (S.ui.seenAw == null) S.ui.seenAw = n; return n > S.ui.seenAw ? 'NEW' : null; }
+    return null;
+  }
+
   // ------------------------------------------------------------ router
   function render() {
+    applyPrefs(); render0();
+    if (S && !overlayUi && !AUTOMATED && S.stage === 'season_play' && !S.autoPlay && !prefs().tipsDone) { tipStep = 0; overlayUi = 'tips'; }
+    const ov = S || overlayUi === 'settings' ? overlayView() : null; if (ov) app.append(ov);
+    document.body.classList.toggle('dlg-open', !!app.querySelector('.dlg-back'));
+  }
+  function render0() {
     renderHeader();
     app.replaceChildren();
     if (!S) { app.append(screenCreate()); return; }
