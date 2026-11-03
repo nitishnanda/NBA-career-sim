@@ -1,0 +1,735 @@
+{
+ "playoff_vs_regular": {
+  "all_rotation_players": {
+   "n": 1859,
+   "mpg_ratio": 1.034,
+   "mpg_reg": 31.9,
+   "mpg_po": 33.1,
+   "pts_ratio": 0.954,
+   "pts_reg": 15.2,
+   "pts_po": 14.7,
+   "reb_ratio": 1.017,
+   "ast_ratio": 0.878,
+   "stl_ratio": 0.942,
+   "blk_ratio": 1.072,
+   "tov_ratio": 0.987,
+   "ts_change": -0.5546,
+   "usg_change": -0.56,
+   "perf_ratio": 0.928,
+   "pts_ratio_sd": 0.253,
+   "share_pts_up_15pct": 0.196,
+   "share_pts_up_25pct": 0.094,
+   "share_pts_down_15pct": 0.31,
+   "share_perf_up_20pct": 0.109,
+   "share_perf_up_30pct": 0.052
+  },
+  "stars_perf40": {
+   "n": 202,
+   "mpg_ratio": 1.086,
+   "mpg_reg": 36.2,
+   "mpg_po": 39.3,
+   "pts_ratio": 1.005,
+   "pts_reg": 25.7,
+   "pts_po": 25.8,
+   "reb_ratio": 1.055,
+   "ast_ratio": 0.944,
+   "stl_ratio": 0.977,
+   "blk_ratio": 1.147,
+   "tov_ratio": 1.093,
+   "ts_change": -0.5896,
+   "usg_change": -0.35,
+   "perf_ratio": 0.968,
+   "pts_ratio_sd": 0.155,
+   "share_pts_up_15pct": 0.178,
+   "share_pts_up_25pct": 0.035,
+   "share_pts_down_15pct": 0.149,
+   "share_perf_up_20pct": 0.05,
+   "share_perf_up_30pct": 0.01
+  },
+  "stars_perf48": {
+   "n": 62,
+   "mpg_ratio": 1.081,
+   "mpg_reg": 36.2,
+   "mpg_po": 39.2,
+   "pts_ratio": 1.003,
+   "pts_reg": 28.3,
+   "pts_po": 28.2,
+   "reb_ratio": 1.05,
+   "ast_ratio": 0.929,
+   "stl_ratio": 0.952,
+   "blk_ratio": 1.097,
+   "tov_ratio": 1.082,
+   "ts_change": -0.6024,
+   "usg_change": -0.23,
+   "perf_ratio": 0.96,
+   "pts_ratio_sd": 0.137,
+   "share_pts_up_15pct": 0.129,
+   "share_pts_up_25pct": 0.016,
+   "share_pts_down_15pct": 0.129,
+   "share_perf_up_20pct": 0.032,
+   "share_perf_up_30pct": 0.0
+  },
+  "scorers_25ppg": {
+   "n": 156,
+   "mpg_ratio": 1.085,
+   "mpg_reg": 36.7,
+   "mpg_po": 39.8,
+   "pts_ratio": 1.0,
+   "pts_reg": 27.6,
+   "pts_po": 27.5,
+   "reb_ratio": 1.072,
+   "ast_ratio": 0.97,
+   "stl_ratio": 1.023,
+   "blk_ratio": 1.183,
+   "tov_ratio": 1.085,
+   "ts_change": -0.5841,
+   "usg_change": -0.5,
+   "perf_ratio": 0.975,
+   "pts_ratio_sd": 0.138,
+   "share_pts_up_15pct": 0.122,
+   "share_pts_up_25pct": 0.013,
+   "share_pts_down_15pct": 0.122,
+   "share_perf_up_20pct": 0.051,
+   "share_perf_up_30pct": 0.013
+  }
+ },
+ "top_playoff_scoring_runs": [
+  [
+   1990,
+   "Michael Jordan",
+   16,
+   36.7,
+   7.2,
+   6.8
+  ],
+  [
+   1988,
+   "Michael Jordan",
+   10,
+   36.3,
+   7.1,
+   4.7
+  ],
+  [
+   2009,
+   "LeBron James",
+   14,
+   35.3,
+   9.1,
+   7.3
+  ],
+  [
+   1993,
+   "Michael Jordan",
+   19,
+   35.1,
+   6.7,
+   6.0
+  ],
+  [
+   1989,
+   "Michael Jordan",
+   17,
+   34.8,
+   7.0,
+   7.6
+  ],
+  [
+   1984,
+   "Bernard King",
+   12,
+   34.8,
+   6.2,
+   3.0
+  ],
+  [
+   1977,
+   "Kareem Abdul-Jabbar",
+   11,
+   34.6,
+   17.7,
+   4.1
+  ],
+  [
+   1992,
+   "Michael Jordan",
+   22,
+   34.5,
+   6.2,
+   5.8
+  ],
+  [
+   2021,
+   "Kevin Durant",
+   12,
+   34.2,
+   9.2,
+   4.4
+  ],
+  [
+   2018,
+   "LeBron James",
+   22,
+   34.0,
+   9.1,
+   9.0
+  ],
+  [
+   2023,
+   "Devin Booker",
+   11,
+   33.7,
+   4.8,
+   7.2
+  ],
+  [
+   1995,
+   "Hakeem Olajuwon",
+   22,
+   33.0,
+   10.3,
+   4.5
+  ],
+  [
+   2001,
+   "Allen Iverson",
+   22,
+   32.9,
+   4.7,
+   6.1
+  ],
+  [
+   2017,
+   "LeBron James",
+   18,
+   32.8,
+   9.1,
+   7.8
+  ],
+  [
+   2024,
+   "Jalen Brunson",
+   13,
+   32.4,
+   3.3,
+   7.5
+  ]
+ ],
+ "playoff_triple_double_runs": [
+  [
+   2007,
+   "Jason Kidd",
+   12,
+   14.6,
+   10.9,
+   10.9
+  ],
+  [
+   2017,
+   "Russell Westbrook",
+   5,
+   37.4,
+   11.6,
+   10.8
+  ],
+  [
+   2021,
+   "Russell Westbrook",
+   5,
+   19.0,
+   10.4,
+   11.8
+  ]
+ ],
+ "playoff_35ppg_runs_4plus_games": [
+  [
+   1975,
+   "Bob McAdoo",
+   7,
+   37.4
+  ],
+  [
+   1988,
+   "Michael Jordan",
+   10,
+   36.3
+  ],
+  [
+   1988,
+   "Hakeem Olajuwon",
+   4,
+   37.5
+  ],
+  [
+   1990,
+   "Michael Jordan",
+   16,
+   36.7
+  ],
+  [
+   1993,
+   "Michael Jordan",
+   19,
+   35.1
+  ],
+  [
+   2009,
+   "LeBron James",
+   14,
+   35.3
+  ],
+  [
+   2017,
+   "Russell Westbrook",
+   5,
+   37.4
+  ],
+  [
+   2020,
+   "Donovan Mitchell",
+   7,
+   36.3
+  ],
+  [
+   2021,
+   "Luka Don\u010di\u0107",
+   7,
+   35.7
+  ]
+ ],
+ "star_playoff_games": {
+  "mean": 12.4,
+  "p25": 6.0,
+  "median": 12.0,
+  "p75": 18.0,
+  "max": 24
+ },
+ "playoff_perf_distribution_stars_perf44plus": {
+  "mean_playoff_perf": 47.5,
+  "mean_regular_perf": 49.4
+ },
+ "cap_history": {
+  "1985": 3600000.0,
+  "1986": 4233000.0,
+  "1987": 4945000.0,
+  "1988": 6164000.0,
+  "1989": 7232000.0,
+  "1990": 9802000.0,
+  "1991": 11871000.0,
+  "1992": 12500000.0,
+  "1993": 14000000.0,
+  "1994": 15175000.0,
+  "1995": 15964000.0,
+  "1996": 23000000.0,
+  "1997": 24363000.0,
+  "1998": 26900000.0,
+  "1999": 30000000.0,
+  "2000": 34000000.0,
+  "2001": 35500000.0,
+  "2002": 42500000.0,
+  "2003": 40271000.0,
+  "2004": 43840000.0,
+  "2005": 43870000.0,
+  "2006": 49500000.0,
+  "2007": 53135000.0,
+  "2008": 55630000.0,
+  "2009": 58680000.0,
+  "2010": 57700000.0,
+  "2011": 58044000.0,
+  "2012": 58044000.0,
+  "2013": 58044000.0,
+  "2014": 58679000.0,
+  "2015": 63065000.0,
+  "2016": 70000000.0,
+  "2017": 94143000.0,
+  "2018": 99093000.0,
+  "2019": 101869000.0,
+  "2020": 109140000.0,
+  "2021": 109140000.0,
+  "2022": 112414000.0,
+  "2023": 123655000.0,
+  "2024": 136021000.0,
+  "2025": 140588000.0,
+  "2026": 154647000.0,
+  "2027": 164961000.0,
+  "2028": 174000000.0,
+  "2029": 182700000.0,
+  "2030": 191835000.0,
+  "2031": 201427000.0,
+  "2032": 211498000.0,
+  "2033": 222073000.0,
+  "2034": 233177000.0,
+  "2035": 244836000.0
+ },
+ "cap_growth_pct": {
+  "2006": 12.8,
+  "2007": 7.3,
+  "2008": 4.7,
+  "2009": 5.5,
+  "2010": -1.7,
+  "2011": 0.6,
+  "2012": 0.0,
+  "2013": 0.0,
+  "2014": 1.1,
+  "2015": 7.5,
+  "2016": 11.0,
+  "2017": 34.5,
+  "2018": 5.3,
+  "2019": 2.8,
+  "2020": 7.1,
+  "2021": 0.0,
+  "2022": 3.0,
+  "2023": 10.0,
+  "2024": 10.0,
+  "2025": 3.4,
+  "2026": 10.0,
+  "2027": 6.7,
+  "2028": 5.5,
+  "2029": 5.0,
+  "2030": 5.0,
+  "2031": 5.0,
+  "2032": 5.0,
+  "2033": 5.0,
+  "2034": 5.0,
+  "2035": 5.0
+ },
+ "salary_pct_cap_by_perf_rank_2005plus": {
+  "1-5": {
+   "n": 100,
+   "mean_pct_cap": 0.2558,
+   "median_pct_cap": 0.2713,
+   "p90_pct_cap": 0.35,
+   "mean_salary_m": 20.9
+  },
+  "6-10": {
+   "n": 100,
+   "mean_pct_cap": 0.2461,
+   "median_pct_cap": 0.268,
+   "p90_pct_cap": 0.351,
+   "mean_salary_m": 19.4
+  },
+  "11-24": {
+   "n": 280,
+   "mean_pct_cap": 0.2048,
+   "median_pct_cap": 0.2169,
+   "p90_pct_cap": 0.3191,
+   "mean_salary_m": 16.0
+  },
+  "25-50": {
+   "n": 520,
+   "mean_pct_cap": 0.1771,
+   "median_pct_cap": 0.1787,
+   "p90_pct_cap": 0.3015,
+   "mean_salary_m": 14.3
+  },
+  "51-100": {
+   "n": 1000,
+   "mean_pct_cap": 0.1216,
+   "median_pct_cap": 0.1106,
+   "p90_pct_cap": 0.2386,
+   "mean_salary_m": 9.5
+  },
+  "101-150": {
+   "n": 1000,
+   "mean_pct_cap": 0.0874,
+   "median_pct_cap": 0.0718,
+   "p90_pct_cap": 0.1779,
+   "mean_salary_m": 6.8
+  },
+  "151-250": {
+   "n": 2000,
+   "mean_pct_cap": 0.0611,
+   "median_pct_cap": 0.0443,
+   "p90_pct_cap": 0.1287,
+   "mean_salary_m": 4.7
+  },
+  "251-600": {
+   "n": 2632,
+   "mean_pct_cap": 0.0342,
+   "median_pct_cap": 0.0218,
+   "p90_pct_cap": 0.0753,
+   "mean_salary_m": 2.7
+  }
+ },
+ "salary_pct_cap_by_age_top60": {
+  "21": 0.0635,
+  "24": 0.1147,
+  "27": 0.1923,
+  "30": 0.2407,
+  "33": 0.2852,
+  "45": 0.274
+ },
+ "share_of_top24_seasons_at_30pct_cap_or_more": 0.231,
+ "share_of_top5_seasons_at_30pct_cap_or_more": 0.35,
+ "highest_pct_of_cap_seen": 0.631,
+ "career_earnings_by_all_star_tier_1996_2021_careers": {
+  "never_all_star": {
+   "n": 744,
+   "mean_seasons": 7.2,
+   "mean_nominal_m": 22.0,
+   "median_nominal_m": 11.0,
+   "mean_cap_years": 0.4,
+   "max_nominal_m": 133.0
+  },
+  "1-2 all-star": {
+   "n": 37,
+   "mean_seasons": 13.2,
+   "mean_nominal_m": 100.0,
+   "median_nominal_m": 96.0,
+   "mean_cap_years": 1.86,
+   "max_nominal_m": 187.0
+  },
+  "3-5 all-star": {
+   "n": 10,
+   "mean_seasons": 14.3,
+   "mean_nominal_m": 121.0,
+   "median_nominal_m": 113.0,
+   "mean_cap_years": 2.35,
+   "max_nominal_m": 183.0
+  },
+  "6-9 all-star": {
+   "n": 10,
+   "mean_seasons": 15.8,
+   "mean_nominal_m": 157.0,
+   "median_nominal_m": 165.0,
+   "mean_cap_years": 2.95,
+   "max_nominal_m": 203.0
+  },
+  "10+ all-star": {
+   "n": 6,
+   "mean_seasons": 19.3,
+   "mean_nominal_m": 259.0,
+   "median_nominal_m": 248.0,
+   "mean_cap_years": 4.91,
+   "max_nominal_m": 336.0
+  }
+ },
+ "top_career_salary_totals_through_2024_m": [
+  [
+   "LeBron James",
+   482,
+   2004,
+   2024,
+   5.7
+  ],
+  [
+   "Chris Paul",
+   390,
+   2006,
+   2024,
+   4.6
+  ],
+  [
+   "Kevin Durant",
+   368,
+   2008,
+   2024,
+   4.1
+  ],
+  [
+   "Stephen Curry",
+   357,
+   2010,
+   2024,
+   3.5
+  ],
+  [
+   "James Harden",
+   340,
+   2010,
+   2024,
+   3.5
+  ],
+  [
+   "Kevin Garnett",
+   335,
+   1996,
+   2016,
+   7.2
+  ],
+  [
+   "Kobe Bryant",
+   328,
+   1997,
+   2016,
+   6.2
+  ],
+  [
+   "Paul George",
+   307,
+   2011,
+   2024,
+   3.0
+  ],
+  [
+   "Russell Westbrook",
+   296,
+   2009,
+   2024,
+   3.3
+  ],
+  [
+   "Shaquille O'Neal",
+   292,
+   1993,
+   2011,
+   7.6
+  ],
+  [
+   "Damian Lillard",
+   281,
+   2013,
+   2024,
+   2.6
+  ],
+  [
+   "Al Horford",
+   279,
+   2008,
+   2024,
+   3.2
+  ],
+  [
+   "Mike Conley",
+   276,
+   2008,
+   2024,
+   3.0
+  ],
+  [
+   "Kyrie Irving",
+   274,
+   2012,
+   2024,
+   2.7
+  ],
+  [
+   "Kyle Lowry",
+   274,
+   2007,
+   2024,
+   2.9
+  ]
+ ],
+ "rookie_year_salary_by_pick_2012plus": {
+  "31-60": {
+   "n": 2,
+   "rookie_year_pct_cap": 0.0809,
+   "rookie_year_salary_m": 5.53
+  }
+ },
+ "veteran_salary_pct_cap_by_rank_2012plus": {
+  "1-3": {
+   "n": 33,
+   "median": 0.282,
+   "mean": 0.286,
+   "p25": 0.25,
+   "p75": 0.32,
+   "mid_rank": 2.0
+  },
+  "4-6": {
+   "n": 28,
+   "median": 0.323,
+   "mean": 0.308,
+   "p25": 0.28,
+   "p75": 0.345,
+   "mid_rank": 5.0
+  },
+  "7-10": {
+   "n": 36,
+   "median": 0.292,
+   "mean": 0.283,
+   "p25": 0.244,
+   "p75": 0.35,
+   "mid_rank": 8.5
+  },
+  "11-15": {
+   "n": 42,
+   "median": 0.241,
+   "mean": 0.246,
+   "p25": 0.195,
+   "p75": 0.294,
+   "mid_rank": 13.0
+  },
+  "16-24": {
+   "n": 76,
+   "median": 0.25,
+   "mean": 0.244,
+   "p25": 0.192,
+   "p75": 0.29,
+   "mid_rank": 20.0
+  },
+  "25-35": {
+   "n": 83,
+   "median": 0.24,
+   "mean": 0.241,
+   "p25": 0.189,
+   "p75": 0.284,
+   "mid_rank": 30.0
+  },
+  "36-50": {
+   "n": 120,
+   "median": 0.225,
+   "mean": 0.217,
+   "p25": 0.157,
+   "p75": 0.277,
+   "mid_rank": 43.0
+  },
+  "51-75": {
+   "n": 155,
+   "median": 0.169,
+   "mean": 0.183,
+   "p25": 0.131,
+   "p75": 0.234,
+   "mid_rank": 63.0
+  },
+  "76-100": {
+   "n": 170,
+   "median": 0.134,
+   "mean": 0.144,
+   "p25": 0.099,
+   "p75": 0.179,
+   "mid_rank": 88.0
+  },
+  "101-125": {
+   "n": 152,
+   "median": 0.119,
+   "mean": 0.132,
+   "p25": 0.082,
+   "p75": 0.173,
+   "mid_rank": 113.0
+  },
+  "126-150": {
+   "n": 152,
+   "median": 0.095,
+   "mean": 0.105,
+   "p25": 0.063,
+   "p75": 0.132,
+   "mid_rank": 138.0
+  },
+  "151-200": {
+   "n": 296,
+   "median": 0.085,
+   "mean": 0.092,
+   "p25": 0.05,
+   "p75": 0.129,
+   "mid_rank": 175.5
+  },
+  "201-300": {
+   "n": 517,
+   "median": 0.06,
+   "mean": 0.069,
+   "p25": 0.026,
+   "p75": 0.096,
+   "mid_rank": 250.5
+  },
+  "301-600": {
+   "n": 307,
+   "median": 0.032,
+   "mean": 0.045,
+   "p25": 0.021,
+   "p75": 0.062,
+   "mid_rank": 450.5
+  }
+ }
+}

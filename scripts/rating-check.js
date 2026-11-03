@@ -1,0 +1,7 @@
+// Rating distribution by season ppg tier; Sofascore reference: avg starter ~6.5-7, star nights 8+, masterclass 9+
+require('../src/data.js'); require('../src/engine.js'); require('../src/league.js'); const N = require('../src/game.js'); const G = N.Game;
+const tiers = { '<12': [], '12-20': [], '20-26': [], '26+': [] }; const seasonAvg = { '<12': [], '12-20': [], '20-26': [], '26+': [] };
+NBA.onSeasonLog = (st, rec) => { const g = st.matchLog.filter((x) => x.k === 'g' && !x.po && !x.dnp); if (g.length < 40) return; const k = rec.pts < 12 ? '<12' : rec.pts < 20 ? '12-20' : rec.pts < 26 ? '20-26' : '26+'; g.forEach((x) => tiers[k].push(x.r)); seasonAvg[k].push(g.reduce((a, x) => a + x.r, 0) / g.length); };
+for (let i = 0; i < 90; i++) { const st = G.newCareer({ name: 'x', pos: ['SF', 'PG', 'C', 'PF'][i % 4], arch: ['scorer', 'dominator', 'twoway', 'defender', 'shooter', 'generational'][i % 6], home: 'Ohio', seed: 1200 + i, stars: 1 + (i % 5) }); G.auto(st); }
+const q = (a, p) => a.slice().sort((x, y) => x - y)[Math.floor(a.length * p)];
+Object.keys(tiers).forEach((k) => { const a = tiers[k]; if (!a.length) return; const m = a.reduce((x, y) => x + y, 0) / a.length; console.log(k.padEnd(6), 'games', a.length, 'mean', m.toFixed(2), 'p5', q(a, .05), 'p50', q(a, .5), 'p95', q(a, .95), 'max', Math.max.apply(null, a), '| share 8+', (a.filter((x) => x >= 8).length / a.length * 100).toFixed(1) + '%', '9+', (a.filter((x) => x >= 9).length / a.length * 100).toFixed(2) + '%', '<5', (a.filter((x) => x < 5).length / a.length * 100).toFixed(1) + '%'); });

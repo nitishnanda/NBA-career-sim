@@ -1,0 +1,6 @@
+// 50/40/90 seasons (real: Nash x4, Bird, Dirk, Durant, Curry, Kyrie, Brogdon ... about a dozen ever, almost all low-volume or one-offs)
+require('../src/data.js'); require('../src/engine.js'); require('../src/league.js'); const N = require('../src/game.js'); const G = N.Game;
+const by = {}; NBA.onSeasonLog = (st, rec) => { const a = st.player.arch; const b = by[a] = by[a] || { seasons: 0, club: 0, lowVol: 0, careers: 0, near: 0 }; if (rec.gp < 58 || rec.pts < 12) return; b.seasons++; const tpaPg = rec.tpa; if (rec.fgp >= 0.5 && rec.tpp >= 0.4 && rec.ftp >= 0.9) { b.club++; } else if (rec.fgp >= 0.49 && rec.tpp >= 0.39 && rec.ftp >= 0.89) b.near++; };
+const n = +process.env.N || 120; const careers = {};
+for (let i = 0; i < n; i++) { const arch = ['shooter', 'scorer', 'generational', 'twoway', 'dominator', 'defender'][i % 6]; const st = G.newCareer({ name: 'x', pos: ['PG', 'SG', 'SF', 'PF', 'C'][i % 5], arch, home: 'Ohio', seed: 17000 + i, stars: 5, ceiling: 88 + (i % 10) }); G.auto(st); careers[arch] = (careers[arch] || 0) + 1; }
+Object.keys(by).forEach((a) => { const b = by[a]; console.log(a.padEnd(13), 'careers', careers[a], 'qualified seasons', b.seasons, '| 50/40/90 seasons', b.club, '(per career ' + (b.club / careers[a]).toFixed(2) + ') | near-misses (49/39/89)', b.near); });
