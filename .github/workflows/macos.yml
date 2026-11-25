@@ -1,0 +1,36 @@
+name: macOS app
+
+# Compiles the SwiftUI app in macos/ on a real Mac and builds the .app.
+on:
+  push:
+    branches: [macos-app]
+    paths: ['macos/**', 'src/**', 'style.css', 'scripts/build.py', '.github/workflows/macos.yml']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          swift --version
+          xcodebuild -version
+
+      - name: Compile the Swift package
+        working-directory: macos
+        run: swift build -c release
+
+      - name: Build the app bundle
+        run: ./macos/build-app.sh
+
+      - name: Zip the app
+        run: |
+          cd macos/build
+          ditto -c -k --keepParent "NBA Career Sim.app" NBA-Career-Sim-mac.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NBA-Career-Sim-mac
+          path: macos/build/NBA-Career-Sim-mac.zip
