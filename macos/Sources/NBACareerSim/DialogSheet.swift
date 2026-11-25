@@ -71,16 +71,19 @@ private struct DialogButton: View {
     private var isPrimary: Bool { (node.cls ?? "").contains("primary") }
     private var isDanger: Bool { (node.cls ?? "").contains("danger") }
 
+    private static let accent = Color(red: 0.039, green: 0.518, blue: 1.0)   // the same blue as the page's primary buttons
+
     var body: some View {
         let button = Button {
             if let id = node.id { model.pressDialogButton(id) }
         } label: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(node.text ?? "")
+                    .foregroundStyle(isPrimary ? Color.white : Color.primary)
                 if let sub = node.sub, !sub.isEmpty {
                     Text(sub)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(isPrimary ? Color.white.opacity(0.8) : Color.secondary)
                         .multilineTextAlignment(.leading)
                 }
             }
@@ -90,7 +93,7 @@ private struct DialogButton: View {
         .disabled(node.off == true)
 
         if isPrimary {
-            button.buttonStyle(.borderedProminent)
+            button.buttonStyle(.borderedProminent).tint(Self.accent)
         } else {
             button.buttonStyle(.bordered).tint(isDanger ? Color.red : nil)
         }
