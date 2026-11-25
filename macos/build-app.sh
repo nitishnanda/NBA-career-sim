@@ -50,6 +50,19 @@ for s in 16 32 128 256 512; do
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 
+# macOS 26 Icon Composer file (Liquid Glass): compiled with actool when this Xcode can do it; the PNG-based icon above is the fallback
+if [[ -d "Resources/NBA Career Sim.icon" ]] && xcrun --find actool >/dev/null 2>&1; then
+  ACT="$(mktemp -d)"
+  if xcrun actool "Resources/NBA Career Sim.icon" --compile "$APP/Contents/Resources" --output-format human-readable-text \
+       --notices --warnings --errors --output-partial-info-plist "$ACT/partial.plist" --app-icon "NBA Career Sim" \
+       --include-all-app-icons --enable-on-demand-resources NO --development-region en --target-device mac \
+       --minimum-deployment-target 13.0 --platform macosx >"$ACT/actool.log" 2>&1; then
+    echo "    icon: compiled the Icon Composer file"
+  else
+    echo "    icon: this Xcode could not compile the .icon file, using the PNG icon (log: $ACT/actool.log)"
+  fi
+fi
+
 echo "4/5 signing (ad hoc, so it runs on this Mac) and checking the bundle"
 codesign --force --deep --sign - "$APP"
 codesign --verify --deep --strict "$APP"

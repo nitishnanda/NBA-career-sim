@@ -470,3 +470,4 @@ html.host-mac .speed span { font-size: 12px; font-weight: 600; }
 html.host-mac .speed button { background: transparent; border: 0; box-shadow: none; padding: 5px 12px; border-radius: 7px; color: var(--text); }
 html.host-mac .speed button.on { background: rgba(255,255,255,.22); color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.35); }
 html.host-mac input[type=password], html.host-mac input[type=search], html.host-mac input[type=number] { font-size: 13px; background: rgba(255,255,255,.07); border: 1px solid var(--line); border-radius: 7px; padding: 6px 10px; }
+html.host-sheet .dlg-back { display: none !important; }   /* a native sheet shows this pop-up instead */

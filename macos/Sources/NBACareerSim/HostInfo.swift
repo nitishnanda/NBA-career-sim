@@ -20,11 +20,12 @@ struct HostInfo: Decodable, Equatable {
     var year: Int
     var team: String?
     var record: String?
+    var inbox: Int
     var badges: Badges
 
     static let empty = HostInfo(
         hasCareer: false, view: "season", stage: "create", name: "", pos: "", age: 0, ovr: 0,
-        arch: "", year: 0, team: nil, record: nil,
+        arch: "", year: 0, team: nil, record: nil, inbox: 0,
         badges: Badges(season: nil, team: nil, league: nil, career: nil)
     )
 
@@ -36,4 +37,19 @@ struct HostInfo: Decodable, Equatable {
         case .career: return badges.career
         }
     }
+}
+
+/// One piece of a pop-up the game described to the app (headings, text, buttons and cards of those).
+/// `t` is "h" heading, "p" text, "b" button, "g" group.
+struct DialogNode: Decodable, Equatable {
+    var t: String
+    var id: String?
+    var text: String?
+    var sub: String?
+    var lv: Int?
+    var dim: Bool?
+    var cls: String?
+    var off: Bool?
+    var warn: Bool?
+    var kids: [DialogNode]?
 }

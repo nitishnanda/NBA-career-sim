@@ -60,6 +60,13 @@ struct ContentView: View {
         } message: {
             Text("This erases the career you are playing now.")
         }
+        .sheet(isPresented: Binding(get: { model.dialog != nil }, set: { _ in })) {
+            if let nodes = model.dialog {
+                DialogSheet(nodes: nodes)
+                    .environmentObject(model)
+            }
+        }
+        .background(WindowAccessor())
         .frame(minWidth: 980, minHeight: 640)
         .preferredColorScheme(.dark)
     }

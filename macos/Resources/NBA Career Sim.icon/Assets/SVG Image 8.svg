@@ -1,0 +1,137 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Base Vibrant Leather Color -->
+    <radialGradient id="baseOrange" cx="38%" cy="30%" r="72%" fx="34%" fy="26%">
+      <stop offset="0%" stop-color="#FF9B3D" />
+      <stop offset="42%" stop-color="#EB6B09" />
+      <stop offset="82%" stop-color="#B03A00" />
+      <stop offset="100%" stop-color="#6B1D00" />
+    </radialGradient>
+
+    <!-- 3D Spherical Shadow & Form Shading (Applied Over Pebbles) -->
+    <radialGradient id="sphereShading" cx="35%" cy="26%" r="74%" fx="31%" fy="22%">
+      <stop offset="0%" stop-color="#FFF0DC" stop-opacity="0.22" />
+      <stop offset="30%" stop-color="#FF8C24" stop-opacity="0" />
+      <stop offset="68%" stop-color="#4A1200" stop-opacity="0.22" />
+      <stop offset="90%" stop-color="#260700" stop-opacity="0.62" />
+      <stop offset="100%" stop-color="#140300" stop-opacity="0.82" />
+    </radialGradient>
+
+    <!-- Subtle Warm Bounce Light Along Lower-Right Terminator (No Milky White Halo) -->
+    <radialGradient id="warmBounce" cx="68%" cy="74%" r="48%">
+      <stop offset="0%" stop-color="#FF8C38" stop-opacity="0.16" />
+      <stop offset="65%" stop-color="#FF8C38" stop-opacity="0" />
+      <stop offset="100%" stop-color="#FF8C38" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Soft Top-Left Key Specular Sheen -->
+    <radialGradient id="keySpecular" cx="34%" cy="24%" r="32%">
+      <stop offset="0%" stop-color="#FFF7EC" stop-opacity="0.30" />
+      <stop offset="55%" stop-color="#FFB770" stop-opacity="0.06" />
+      <stop offset="100%" stop-color="#FFB770" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Final Vignette Applied Over Seams So Grooves Darken Around the 3D Edge -->
+    <radialGradient id="seamLightingOverlay" cx="38%" cy="30%" r="68%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.06" />
+      <stop offset="55%" stop-color="#000000" stop-opacity="0" />
+      <stop offset="88%" stop-color="#120400" stop-opacity="0.32" />
+      <stop offset="100%" stop-color="#0A0200" stop-opacity="0.58" />
+    </radialGradient>
+
+    <!-- Fine Staggered Leather Pebble Grain -->
+    <pattern id="pebbleGrain" width="10" height="10" patternUnits="userSpaceOnUse">
+      <circle cx="2.5" cy="2.5" r="1.55" fill="#290900" fill-opacity="0.22" />
+      <circle cx="7.5" cy="7.5" r="1.55" fill="#290900" fill-opacity="0.22" />
+      <circle cx="2.1" cy="2.0" r="0.75" fill="#FFD1A3" fill-opacity="0.18" />
+      <circle cx="7.1" cy="7.0" r="0.75" fill="#FFD1A3" fill-opacity="0.18" />
+    </pattern>
+
+    <!-- Matte Dark Rubber Seam Gradient -->
+    <linearGradient id="rubberChannel" x1="20%" y1="15%" x2="80%" y2="85%">
+      <stop offset="0%" stop-color="#241C18" />
+      <stop offset="50%" stop-color="#130E0C" />
+      <stop offset="100%" stop-color="#080504" />
+    </linearGradient>
+
+    <!-- Grounded Elevation Shadow -->
+    <filter id="elevationShadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="22" stdDeviation="24" flood-color="#000000" flood-opacity="0.62" />
+    </filter>
+
+    <!-- Sphere Clip Path (R = 320, Centered at 512, 512) -->
+    <clipPath id="ballClip">
+      <circle cx="512" cy="512" r="320" />
+    </clipPath>
+
+    <!-- Mathematically Projected 3D Seams (Pitch = 20 deg, a = 0.76, b = 0.94, R = 320) -->
+    <!-- Change rotate(-15 512 512) to rotate(0 512 512) for dead-upright symmetry -->
+    <g id="projectedSeams" transform="rotate(-15 512 512)">
+      <!-- Vertical Great Circle (Axis of Symmetry) -->
+      <path d="M 512 180 L 512 844" fill="none" />
+
+      <!-- Horizontal Great Circle (Exact Orthographic Ellipse: rx=320, ry=320*sin(20 deg)=109.45) -->
+      <path d="M 192 500 L 192 512 A 320 109.45 0 0 0 832 512 L 832 500" fill="none" />
+
+      <!-- Right Curved Rib (Exact 5-Segment Hermite Projection, t in [-73.603 deg, +106.397 deg]) -->
+      <path d="M 726.29 750.19
+               L 713.88 760.28
+               C 703.22 768.95, 677.03 752.52, 652.54 715.36
+               C 635.69 689.79, 621.17 654.77, 621.17 614.88
+               C 621.17 555.05, 653.39 484.50, 678.09 423.15
+               C 702.79 361.80, 719.97 310.40, 719.97 283.47
+               C 719.97 273.66, 717.89 266.98, 713.88 263.72
+               L 701.47 253.63" fill="none" />
+
+      <!-- Left Curved Rib (Exact Bilateral Mirror Across x = 512) -->
+      <path d="M 297.71 750.19
+               L 310.12 760.28
+               C 320.78 768.95, 346.97 752.52, 371.46 715.36
+               C 388.31 689.79, 402.83 654.77, 402.83 614.88
+               C 402.83 555.05, 370.61 484.50, 345.91 423.15
+               C 321.21 361.80, 304.03 310.40, 304.03 283.47
+               C 304.03 273.66, 306.11 266.98, 310.12 263.72
+               L 322.53 253.63" fill="none" />
+    </g>
+  </defs>
+
+  <!-- Main Basketball Layer -->
+  <g filter="url(#elevationShadow)">
+    <!-- Base Sphere -->
+    <circle cx="512" cy="512" r="320" fill="url(#baseOrange)" />
+
+    <g clip-path="url(#ballClip)">
+      <!-- 1. Leather Pebble Texture (Sits Underneath Shading) -->
+      <circle cx="512" cy="512" r="320" fill="url(#pebbleGrain)" />
+
+      <!-- 2. 3D Spherical Form Shading & Warm Bounce -->
+      <circle cx="512" cy="512" r="320" fill="url(#sphereShading)" />
+      <circle cx="512" cy="512" r="320" fill="url(#warmBounce)" />
+      <circle cx="512" cy="512" r="320" fill="url(#keySpecular)" />
+
+      <!-- 3. Recessed Seam Grooves -->
+      <!-- Ambient Occlusion Dip Around Channel -->
+      <g stroke="#3D1000" stroke-opacity="0.32" stroke-width="21" stroke-linecap="round" stroke-linejoin="round" fill="none">
+        <use href="#projectedSeams" />
+      </g>
+
+      <!-- Warm Bevel Catchlight on Lower-Right Groove Lip -->
+      <g stroke="#FFB973" stroke-opacity="0.30" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="none" transform="translate(1.8, 2.2)">
+        <use href="#projectedSeams" />
+      </g>
+
+      <!-- Primary Matte Rubber Channel -->
+      <g stroke="url(#rubberChannel)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none">
+        <use href="#projectedSeams" />
+      </g>
+
+      <!-- Deep Center Groove Crease -->
+      <g stroke="#050302" stroke-opacity="0.60" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">
+        <use href="#projectedSeams" />
+      </g>
+
+      <!-- 4. Global Spherical Vignette Over Seams for Unified 3D Falloff -->
+      <circle cx="512" cy="512" r="320" fill="url(#seamLightingOverlay)" />
+    </g>
+  </g>
+</svg>

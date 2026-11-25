@@ -1,0 +1,19 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Primary directional gradient matching your original palette -->
+    <linearGradient id="bgGrad" x1="15%" y1="90%" x2="85%" y2="10%">
+      <stop offset="0%" stop-color="#05070B" />
+      <stop offset="55%" stop-color="#0E1420" />
+      <stop offset="100%" stop-color="#2D3B55" />
+    </linearGradient>
+
+    <!-- Subtle radial glow in the upper right for optical depth -->
+    <radialGradient id="topGlow" cx="78%" cy="20%" r="65%">
+      <stop offset="0%" stop-color="#4A608A" stop-opacity="0.45" />
+      <stop offset="100%" stop-color="#05070B" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#bgGrad)" />
+  <rect width="1024" height="1024" fill="url(#topGlow)" />
+</svg>

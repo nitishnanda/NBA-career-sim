@@ -7,12 +7,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+
+    /// Lets the page hand over its last changes and writes the save file before quitting.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        AppModel.shared.flushForQuit { sender.reply(toApplicationShouldTerminate: true) }
+        return .terminateLater
+    }
 }
 
 @main
 struct NBACareerSimApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @StateObject private var model = AppModel()
+    @StateObject private var model = AppModel.shared
 
     var body: some Scene {
         WindowGroup("NBA Career Sim") {
@@ -36,6 +42,18 @@ struct GameCommands: Commands {
         CommandGroup(replacing: .newItem) {
             Button("New Career…") { model.confirmNewCareer = true }
                 .keyboardShortcut("n")
+        }
+
+        CommandGroup(after: .newItem) {
+            Button("Open Career…") { model.openCareer() }
+                .keyboardShortcut("o")
+            Button("Save Career As…") { model.saveCareerAs() }
+                .keyboardShortcut("s", modifiers: [.command, .shift])
+                .disabled(!model.info.hasCareer)
+            Divider()
+            Button("Share Player Card…") { model.sharePlayerCard() }
+                .disabled(!model.info.hasCareer)
+            Button("Show Save Files in Finder") { model.revealSaveFiles() }
         }
 
         CommandMenu("Game") {

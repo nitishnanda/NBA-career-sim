@@ -58,6 +58,7 @@
   function wipe() { dropSnap(); try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ } }
   function go() { stopAuto(); view = 'season'; if (S && S.stage !== 'season_play') dropSnap(); save(); render(); window.scrollTo(0, 0); }
   function confirmBtn(label, cls, fn) {
+    if (HOST) return h('button', { class: cls, onclick: () => { if (window.confirm(label)) fn(); } }, label);   // the Mac app shows a real alert
     let armed = false, t = null;
     const b = h('button', { class: cls, onclick: () => {
       if (!armed) { armed = true; b.textContent = 'Tap again to confirm'; t = setTimeout(() => { armed = false; b.textContent = label; }, 3500); return; }
@@ -2604,16 +2605,32 @@
   }
   // ---- native macOS shell (SwiftUI app, macos/): it shows our state and sends commands back; absent in a normal browser
   const HOST = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nbacs;
-  let hostLast = '';
-  // the app's two looks, both on by default: 'host-mac' restyles the page like a Mac app, 'host-nav' hides the web top bar because the window toolbar has the tabs
+  let hostLast = '', hostDlgLast = '';
+  // the app's looks, all on by default: 'host-mac' restyles the page like a Mac app, 'host-nav' hides the web top bar (the window toolbar has the tabs),
+  // 'sheets' shows simple pop-ups as native sheets
   const hostFlag = (k) => { try { return localStorage.getItem(k) !== '0'; } catch (e) { return true; } };
-  function hostLook(mac, nav) {
-    try { localStorage.setItem('nbacs-host-mac', mac ? '1' : '0'); localStorage.setItem('nbacs-host-nav', nav ? '1' : '0'); } catch (e) { /* ignore */ }
+  let hostSheets = true;
+  function hostLook(mac, nav, sheets) {
+    hostSheets = sheets !== false;
+    try { localStorage.setItem('nbacs-host-mac', mac ? '1' : '0'); localStorage.setItem('nbacs-host-nav', nav ? '1' : '0'); localStorage.setItem('nbacs-host-sheets', hostSheets ? '1' : '0'); } catch (e) { /* ignore */ }
     document.documentElement.classList.toggle('host-mac', !!mac); document.documentElement.classList.toggle('host-nav', !!nav);
+    hostDlgLast = ''; hostDialogSync();
   }
   if (HOST) {
-    hostLook(hostFlag('nbacs-host-mac'), hostFlag('nbacs-host-nav'));
+    hostSheets = hostFlag('nbacs-host-sheets');
+    document.documentElement.classList.toggle('host-mac', hostFlag('nbacs-host-mac')); document.documentElement.classList.toggle('host-nav', hostFlag('nbacs-host-nav'));
     document.addEventListener('contextmenu', (e) => { if (!/^(INPUT|TEXTAREA)$/.test(e.target.tagName)) e.preventDefault(); });   // no browser menu (Reload, Inspect)
+  }
+  const hostPost = (o) => { try { HOST.postMessage(JSON.stringify(o)); } catch (e) { /* the shell is optional */ } };
+  const hostPrev = { aw: null, stage: null, game: null, dlg: false };
+  // trackpad taps on the big moments: a pop-up opening, a 9+ game, a season recap, a new award
+  function hostEvents(live) {
+    if (!live) { hostPrev.aw = hostPrev.stage = hostPrev.game = null; return; }
+    const aw = awardCount(); if (hostPrev.aw != null && aw > hostPrev.aw) hostPost({ kind: 'haptic', style: 'big' }); hostPrev.aw = aw;
+    if (hostPrev.stage && hostPrev.stage !== S.stage && S.stage === 'season_recap') hostPost({ kind: 'haptic', style: 'level' }); hostPrev.stage = S.stage;
+    const items = S.matchLog || []; let lg = null; for (let i = Math.min(S.matchIdx == null ? items.length : S.matchIdx, items.length) - 1; i >= 0; i--) if (items[i].k === 'g') { lg = items[i]; break; }
+    const gk = lg ? S.matchIdx + ':' + lg.n + ':' + lg.f + '-' + lg.a : null;
+    if (hostPrev.game != null && gk && gk !== hostPrev.game && lg.r >= 9) hostPost({ kind: 'haptic', style: 'level' }); hostPrev.game = gk;
   }
   function hostSync() {
     if (!HOST) return;
@@ -2621,13 +2638,67 @@
       const live = !!S && S.stage !== 'create' && !!S.player, p = live ? S.player : null;
       let record = null; if (live && S.stage === 'season_play' && G.seasonSoFar) { try { record = G.seasonSoFar(S, S.matchIdx || 0).record; } catch (e) { record = null; } }
       const badge = (k) => { try { return live ? navBadge(k) : null; } catch (e) { return null; } };
-      const info = JSON.stringify({ hasCareer: live, view, stage: S ? S.stage : 'create', name: p ? p.name : '', pos: p ? p.pos : '', age: p ? p.age : 0, ovr: p ? Math.round(NBA.ovr(p)) : 0, arch: p ? archLabel(p) : '', year: live ? S.proSeasons.length : 0, team: live ? myTeamNick() : null, record, badges: { season: badge('season'), team: badge('team'), league: badge('league'), career: badge('career') } });
+      const inbox = live ? (S.inbox || []).length + (S.dec && S.dec.pending ? 1 : 0) : 0;
+      const info = JSON.stringify({ kind: 'state', hasCareer: live, view, stage: S ? S.stage : 'create', name: p ? p.name : '', pos: p ? p.pos : '', age: p ? p.age : 0, ovr: p ? Math.round(NBA.ovr(p)) : 0, arch: p ? archLabel(p) : '', year: live ? S.proSeasons.length : 0, team: live ? myTeamNick() : null, record, inbox, badges: { season: badge('season'), team: badge('team'), league: badge('league'), career: badge('career') } });
+      hostEvents(live);
       if (info !== hostLast) { hostLast = info; HOST.postMessage(info); }
     } catch (e) { /* the shell is optional */ }
+    hostDialogSync();
   }
+  // ---- pop-ups as native sheets. A pop-up made only of headings, text and buttons is described to the app, which shows a SwiftUI sheet;
+  // anything else (tables, fields, pickers, images) stays a web pop-up.
+  function hostDialogTree() {
+    const dlg = app.querySelector('.dlg-back .dlg'); if (!dlg) return null;
+    let ok = true, n = 0;
+    const INLINE = /^(SPAN|B|STRONG|I|EM|SMALL|CODE|U|BR|SUP|SUB|MARK|A)$/, BAD = /^(TABLE|INPUT|SELECT|TEXTAREA|CANVAS|DETAILS|VIDEO|IFRAME|FORM|LABEL)$/;
+    const lines = (e) => e.innerText.split('\n').map((x) => x.replace(/\s+/g, ' ').trim()).filter(Boolean);
+    const walk = (el, depth) => {
+      const out = [];
+      for (const c of el.children) {
+        const tag = c.tagName; if (c.hidden || getComputedStyle(c).display === 'none') continue;
+        if (tag === 'IMG' || tag === 'svg' || tag === 'SVG') continue;
+        if (BAD.test(tag)) { ok = false; continue; }
+        if (/^H[1-4]$/.test(tag)) { const t = lines(c).join(' '); if (t) out.push({ t: 'h', text: t, lv: +tag[1] }); continue; }
+        if (tag === 'BUTTON') { const id = String(++n), l = lines(c); c.setAttribute('data-hid', id); out.push({ t: 'b', id, text: l[0] || '', sub: l.slice(1).join(' · '), cls: String(c.className), off: !!c.disabled }); continue; }
+        const block = Array.from(c.children).some((x) => !INLINE.test(x.tagName) && x.tagName !== 'IMG' && x.tagName !== 'svg' && x.tagName !== 'SVG');
+        if (!block) { const t = lines(c).join(' '); if (t) out.push({ t: 'p', text: t, dim: /\b(muted|small)\b/.test(c.className) }); continue; }
+        if (depth > 6) { ok = false; continue; }
+        const kids = walk(c, depth + 1);
+        if (kids.length) { if (/\b(card|well|srow|callout|kpi|statbox|wkcard)\b/.test(c.className)) out.push({ t: 'g', kids, warn: /\bcallout\b/.test(c.className) }); else out.push(...kids); }
+      }
+      return out;
+    };
+    const kids = walk(dlg, 0);
+    return ok && kids.length ? kids : null;
+  }
+  function hostDialogSync() {
+    if (!HOST) return;
+    try {
+      document.documentElement.classList.remove('host-sheet');   // measured while visible, so the text keeps its line breaks
+      const tree = hostSheets ? hostDialogTree() : null;
+      if (tree) document.documentElement.classList.add('host-sheet');
+      const msg = JSON.stringify({ kind: 'dialog', nodes: tree });
+      if (msg !== hostDlgLast) { if (tree && !hostPrev.dlg) hostPost({ kind: 'haptic', style: 'tap' }); hostDlgLast = msg; HOST.postMessage(msg); }
+      hostPrev.dlg = !!tree;
+    } catch (e) { document.documentElement.classList.remove('host-sheet'); }
+  }
+  function hostPress(id) { const b = app.querySelector('[data-hid="' + id + '"]'); if (b && !b.disabled) b.click(); }
   function hostSetView(k) { if (!S || S.stage === 'create' || !['season', 'team', 'league', 'career'].includes(k)) return; overlayUi = null; if (view !== k) { stopAuto(); view = k; leagueTeam = null; } render(); window.scrollTo(0, 0); }
   function hostNewCareer() { wipe(); S = null; view = 'season'; overlayUi = null; stopAuto(); boot(); }
   function hostSettings() { if (!S) return; overlayUi = 'settings'; render(); }
+  // the whole career as text (same format as the in-game export) and back
+  function hostSaveText() { if (!S || S.stage === 'create') return null; try { return JSON.stringify({ build: BUILD, exportedAt: new Date().toISOString(), state: S, snap: G.getSnap() || null }); } catch (e) { return null; } }
+  function hostImport(text) {
+    try {
+      const d = JSON.parse(text), st = d && d.state ? d.state : d;
+      if (!st || !st.player || !st.stage) return 'That file is not a career save.';
+      S = migrateSave(st); if (S.player && S.player.ht == null) NBA.rollSize(S.player, { sizeFx: false });
+      G.setSnap(d && d.snap ? d.snap : null); if (S.stage === 'season_play') saveSnap(); else dropSnap();
+      save(); view = 'season'; overlayUi = null; stopAuto(); render(); return 'ok';
+    } catch (e) { return 'Could not read that file: ' + e.message; }
+  }
+  function hostCard() { try { return S && S.stage !== 'create' ? drawCard(cardData()) : null; } catch (e) { return null; } }
+  function hostKeyChanged() { try { resetSample(); } catch (e) { /* ignore */ } render(); }
   function render0() {
     renderHeader();
     app.replaceChildren();
@@ -2643,6 +2714,6 @@
     document.body.classList.toggle('dlg-open', !!app.querySelector('.dlg-back'));
   }
   function boot() { S = null; draft.name = ''; render(); }
-  window.__NBA_UI = { get state() { return S; }, set state(v) { S = v; }, get live() { return LV; }, go, render, saveSnap, silence, HOLD_FLAGS, host: { look: hostLook, setView: hostSetView, newCareer: hostNewCareer, settings: hostSettings, sync: () => { hostLast = ''; hostSync(); } } };
+  window.__NBA_UI = { get state() { return S; }, set state(v) { S = v; }, get live() { return LV; }, go, render, saveSnap, silence, HOLD_FLAGS, host: { look: hostLook, setView: hostSetView, newCareer: hostNewCareer, settings: hostSettings, press: hostPress, saveText: hostSaveText, importSave: hostImport, card: hostCard, keyChanged: hostKeyChanged, sync: () => { hostLast = ''; hostSync(); } } };
   boot();
 })();
