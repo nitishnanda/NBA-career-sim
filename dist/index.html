@@ -403,11 +403,6 @@ table.st.duelt { width: auto; min-width: min(560px, 100%); } table.st.duelt th, 
 .panel section.panel { margin: 14px 0; }   /* panels nested in the career card (history watch, the duel, legacy) used to touch */
 .mulist { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; } .murow { padding: 6px 0; border-top: 1px solid var(--line2); } .murow:first-child { border-top: 0; }
 
-/* native macOS shell (macos/): the SwiftUI sidebar replaces the web header */
-html.host-mac header#top { display: none; }
-html.host-mac body { overscroll-behavior: none; }
-html.host-mac main { padding-top: 26px; }
-
 </style>
 </head>
 <body>
@@ -11624,10 +11619,9 @@ new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
     document.body.classList.toggle('dlg-open', !!app.querySelector('.dlg-back'));
     hostSync();
   }
-  // ---- native macOS shell (SwiftUI sidebar, macos/): it shows our state and sends commands back; absent in a normal browser
+  // ---- native macOS shell (SwiftUI app, macos/): it shows our state and sends commands back; absent in a normal browser
   const HOST = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nbacs;
   let hostLast = '';
-  if (HOST) document.documentElement.classList.add('host-mac');
   function hostSync() {
     if (!HOST) return;
     try {

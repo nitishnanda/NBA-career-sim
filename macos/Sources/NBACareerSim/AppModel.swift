@@ -3,7 +3,7 @@ import SwiftUI
 import WebKit
 
 /// Owns the one WKWebView that runs the game and keeps the SwiftUI side in step with it.
-/// The game reports its state through the `nbacs` message handler; menu items, the sidebar
+/// The game reports its state through the `nbacs` message handler; menu items
 /// and the toolbar send commands back through `window.__NBA_UI.host` (see src/ui.js).
 final class AppModel: NSObject, ObservableObject {
     @Published var info = HostInfo.empty

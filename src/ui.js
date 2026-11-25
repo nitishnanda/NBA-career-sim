@@ -2602,10 +2602,9 @@
     document.body.classList.toggle('dlg-open', !!app.querySelector('.dlg-back'));
     hostSync();
   }
-  // ---- native macOS shell (SwiftUI sidebar, macos/): it shows our state and sends commands back; absent in a normal browser
+  // ---- native macOS shell (SwiftUI app, macos/): it shows our state and sends commands back; absent in a normal browser
   const HOST = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nbacs;
   let hostLast = '';
-  if (HOST) document.documentElement.classList.add('host-mac');
   function hostSync() {
     if (!HOST) return;
     try {

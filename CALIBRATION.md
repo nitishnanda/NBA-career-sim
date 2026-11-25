@@ -1237,5 +1237,5 @@ When you take the assignment ("Give me…", the coach's offer before a game agai
 
 ## v128 — native macOS shell hooks
 - `window.__NBA_UI.host` (setView, newCareer, settings, sync) plus a state message to `webkit.messageHandlers.nbacs`, used only by the SwiftUI app in `macos/`. Absent in a browser, so nothing changes there.
-- CSS: `html.host-mac` hides the web header (the native sidebar replaces it).
+- The web header stays: the app window shows the normal top navigation bar.
 - No engine change; calibration unchanged.

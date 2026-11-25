@@ -1,41 +1,18 @@
 import SwiftUI
 
+/// The window is just the game: its own top bar (Season, Team, Around the League, Career) is the navigation.
 struct ContentView: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        NavigationSplitView {
-            SidebarView()
-                .navigationSplitViewColumnWidth(min: 210, ideal: 240, max: 300)
-        } detail: {
-            ZStack {
-                GameWebView(webView: model.webView)
-                if let problem = model.loadError {
-                    ContentUnavailableMessage(text: problem) { model.load() }
-                }
+        ZStack {
+            GameWebView(webView: model.webView)
+            if let problem = model.loadError {
+                LoadProblem(text: problem) { model.load() }
             }
         }
         .navigationTitle(model.windowTitle)
         .navigationSubtitle(model.windowSubtitle)
-        .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                Button {
-                    model.simNextGame()
-                } label: {
-                    Label("Sim Next Game", systemImage: "play.fill")
-                }
-                .help("Sim the next game (⌘↩)")
-                .disabled(!model.canSimNextGame)
-
-                Button {
-                    model.openGameSettings()
-                } label: {
-                    Label("Game Settings", systemImage: "gearshape")
-                }
-                .help("Theme, AI key and saves")
-                .disabled(!model.info.hasCareer)
-            }
-        }
         .alert("Start a new career?", isPresented: $model.confirmNewCareer) {
             Button("Cancel", role: .cancel) {}
             Button("New Career", role: .destructive) { model.startNewCareer() }
@@ -48,7 +25,7 @@ struct ContentView: View {
 }
 
 /// Shown only if the page could not be loaded.
-private struct ContentUnavailableMessage: View {
+private struct LoadProblem: View {
     let text: String
     let retry: () -> Void
 
