@@ -2605,6 +2605,16 @@
   // ---- native macOS shell (SwiftUI app, macos/): it shows our state and sends commands back; absent in a normal browser
   const HOST = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nbacs;
   let hostLast = '';
+  // the app's two looks, both on by default: 'host-mac' restyles the page like a Mac app, 'host-nav' hides the web top bar because the window toolbar has the tabs
+  const hostFlag = (k) => { try { return localStorage.getItem(k) !== '0'; } catch (e) { return true; } };
+  function hostLook(mac, nav) {
+    try { localStorage.setItem('nbacs-host-mac', mac ? '1' : '0'); localStorage.setItem('nbacs-host-nav', nav ? '1' : '0'); } catch (e) { /* ignore */ }
+    document.documentElement.classList.toggle('host-mac', !!mac); document.documentElement.classList.toggle('host-nav', !!nav);
+  }
+  if (HOST) {
+    hostLook(hostFlag('nbacs-host-mac'), hostFlag('nbacs-host-nav'));
+    document.addEventListener('contextmenu', (e) => { if (!/^(INPUT|TEXTAREA)$/.test(e.target.tagName)) e.preventDefault(); });   // no browser menu (Reload, Inspect)
+  }
   function hostSync() {
     if (!HOST) return;
     try {
@@ -2633,6 +2643,6 @@
     document.body.classList.toggle('dlg-open', !!app.querySelector('.dlg-back'));
   }
   function boot() { S = null; draft.name = ''; render(); }
-  window.__NBA_UI = { get state() { return S; }, set state(v) { S = v; }, get live() { return LV; }, go, render, saveSnap, silence, HOLD_FLAGS, host: { setView: hostSetView, newCareer: hostNewCareer, settings: hostSettings, sync: () => { hostLast = ''; hostSync(); } } };
+  window.__NBA_UI = { get state() { return S; }, set state(v) { S = v; }, get live() { return LV; }, go, render, saveSnap, silence, HOLD_FLAGS, host: { look: hostLook, setView: hostSetView, newCareer: hostNewCareer, settings: hostSettings, sync: () => { hostLast = ''; hostSync(); } } };
   boot();
 })();

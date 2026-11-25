@@ -18,6 +18,15 @@ final class AppModel: NSObject, ObservableObject {
         }
     }
 
+    /// Season / Team / League / Career as a segmented control in the window toolbar. Off: the game's own top bar shows instead.
+    @Published var toolbarTabs: Bool {
+        didSet { UserDefaults.standard.set(toolbarTabs, forKey: "toolbarTabs"); applyLook() }
+    }
+    /// The Mac look for the page (system font, flat surfaces, Mac-style controls). Off: the game's original look.
+    @Published var macLook: Bool {
+        didSet { UserDefaults.standard.set(macLook, forKey: "macLook"); applyLook() }
+    }
+
     let webView: WKWebView
     private static let pageURL = URL(string: "nbacs://app/index.html")!
 
@@ -28,6 +37,8 @@ final class AppModel: NSObject, ObservableObject {
         webView = WKWebView(frame: .zero, configuration: config)
         let saved = UserDefaults.standard.double(forKey: "pageZoom")
         zoom = saved == 0 ? 1.0 : saved
+        toolbarTabs = UserDefaults.standard.object(forKey: "toolbarTabs") as? Bool ?? true
+        macLook = UserDefaults.standard.object(forKey: "macLook") as? Bool ?? true
         super.init()
         config.userContentController.add(self, name: "nbacs")
         webView.navigationDelegate = self
@@ -50,6 +61,12 @@ final class AppModel: NSObject, ObservableObject {
     var canSimNextGame: Bool { info.hasCareer && info.stage == "season_play" }
 
     func badge(for section: GameSection) -> String? { info.badge(for: section) }
+
+    /// Tab label for the toolbar: "Career" or "Season · 2" when the game has news there.
+    func tabTitle(for section: GameSection) -> String {
+        guard let badge = info.badge(for: section) else { return section.shortTitle }
+        return section.shortTitle + " · " + badge
+    }
 
     // MARK: commands to the game
 
@@ -80,6 +97,10 @@ final class AppModel: NSObject, ObservableObject {
           if (b && !b.disabled) b.click();
         })()
         """)
+    }
+
+    func applyLook() {
+        run("window.__NBA_UI && window.__NBA_UI.host.look(\(macLook), \(toolbarTabs))")
     }
 
     func zoomIn() { zoom += 0.1 }
@@ -153,6 +174,7 @@ extension AppModel: WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate {
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        applyLook()
         webView.evaluateJavaScript("window.__NBA_UI && window.__NBA_UI.host.sync()", completionHandler: nil)
         DispatchQueue.main.async { webView.window?.makeFirstResponder(webView) }
     }

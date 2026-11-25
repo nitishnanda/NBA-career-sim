@@ -15,6 +15,15 @@ enum GameSection: String, CaseIterable, Identifiable {
         }
     }
 
+    var shortTitle: String {
+        switch self {
+        case .season: return "Season"
+        case .team: return "Team"
+        case .league: return "League"
+        case .career: return "Career"
+        }
+    }
+
     var symbol: String {
         switch self {
         case .season: return "calendar"

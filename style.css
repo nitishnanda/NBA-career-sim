@@ -386,3 +386,87 @@ table.st.duelt { width: auto; min-width: min(560px, 100%); } table.st.duelt th, 
 .chart { max-width: 760px; } .chart svg { max-height: 240px; }
 .panel section.panel { margin: 14px 0; }   /* panels nested in the career card (history watch, the duel, legacy) used to touch */
 .mulist { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; } .murow { padding: 6px 0; border-top: 1px solid var(--line2); } .murow:first-child { border-top: 0; }
+
+/* ===== Mac look: only inside the macOS app (macos/), switched on by html.host-mac. The website never gets these rules. ===== */
+html.host-mac {
+  --bg: #1c1c1e; --text: #f5f5f7; --muted: #a1a1a6; --faint: #6e6e73; --line: rgba(255,255,255,.12); --line2: rgba(255,255,255,.07);
+  --glass: #29292c; --well: rgba(255,255,255,.045); --accent: #0a84ff; --good: #32d74b; --bad: #ff453a; --gold: #ffd60a;
+  --panel: rgba(255,255,255,.05); --panel2: rgba(255,255,255,.08);
+}
+html.host-mac, html.host-mac * { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Helvetica Neue", Arial, sans-serif !important; text-transform: none !important; letter-spacing: 0 !important; }
+html.host-mac, html.host-mac body { font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+html.host-mac body { background: var(--bg); overscroll-behavior: none; cursor: default; -webkit-user-select: none; user-select: none; }
+html.host-mac p, html.host-mac td, html.host-mac li, html.host-mac input, html.host-mac textarea { -webkit-user-select: text; user-select: text; }
+html.host-mac a, html.host-mac button, html.host-mac select, html.host-mac summary, html.host-mac label { cursor: default; }
+html.host-mac ::selection { background: rgba(10,132,255,.45); }
+html.host-nav header#top { display: none; }
+html.host-nav main { padding-top: 18px; }
+
+/* type: sentence case, system font, steady weights */
+html.host-mac h1 { font-size: 28px; font-weight: 700; line-height: 1.12; letter-spacing: -.01em !important; }
+html.host-mac h2 { font-size: 17px; font-weight: 600; line-height: 1.2; }
+html.host-mac h3, html.host-mac .eyebrow, html.host-mac .caps, html.host-mac th, html.host-mac .kpi .k-lbl, html.host-mac .statbox .lbl { font-size: 12px; font-weight: 600; color: var(--muted); }
+html.host-mac .hero .nm { font-size: 44px; font-weight: 700; line-height: 1.05; letter-spacing: -.02em !important; }
+html.host-mac .hero .sub { font-size: 15px; font-weight: 500; }
+html.host-mac .kpi .k-val { font-size: 40px; font-weight: 600; }
+html.host-mac .big, html.host-mac .bignum, html.host-mac .recbox2 .num { font-weight: 600; font-variant-numeric: tabular-nums; }
+html.host-mac td, html.host-mac .rating { font-variant-numeric: tabular-nums; }
+
+/* surfaces: flat, hairline, 12px */
+html.host-mac .card, html.host-mac .panel, html.host-mac .modal .box { background: var(--glass); border: 1px solid var(--line2); border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+html.host-mac .card.ink, html.host-mac .card.hero { background: var(--glass); }
+html.host-mac .well, html.host-mac .statbox, html.host-mac .srow, html.host-mac .pillbox { background: var(--well); border: 1px solid var(--line2); border-radius: 9px; }
+html.host-mac .kpi { background: var(--glass); border: 1px solid var(--line2); border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+html.host-mac .kpi.ink { background: var(--well); }
+html.host-mac .kpi.hot { background: var(--accent); border-color: transparent; color: #fff; box-shadow: none; }
+html.host-mac .kpi.hot .k-lbl, html.host-mac .kpi.hot .k-sub { color: rgba(255,255,255,.82); }
+html.host-mac .callout { border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; background: rgba(10,132,255,.1); }
+html.host-mac .callout.inj { border-left-color: var(--bad); background: rgba(255,69,58,.12); }
+
+/* controls: Mac buttons, segmented controls, fields */
+html.host-mac button { font-size: 13px; font-weight: 500; line-height: 1.2; padding: 6px 13px; border-radius: 7px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.05); box-shadow: 0 1px 1px rgba(0,0,0,.25); }
+html.host-mac button:hover { background: rgba(255,255,255,.15); border-color: rgba(255,255,255,.05); }
+html.host-mac button:active { background: rgba(255,255,255,.22); transform: none; }
+html.host-mac button.primary { background: var(--accent); border-color: transparent; color: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.35); }
+html.host-mac button.primary:hover { background: #3396ff; filter: none; }
+html.host-mac button.big-btn { padding: 9px 20px; font-size: 14px; border-radius: 8px; }
+html.host-mac button.ghost { background: rgba(255,255,255,.07); box-shadow: none; }
+html.host-mac button.tiny { padding: 3px 10px; font-size: 12px; border-radius: 6px; }
+html.host-mac button.danger { background: rgba(255,69,58,.14); border-color: transparent; color: var(--bad); box-shadow: none; }
+html.host-mac button.wide { border-radius: 10px; padding: 11px; }
+html.host-mac .seg2, html.host-mac .dtabs, html.host-mac .mtabs, html.host-mac .tabs, html.host-mac #nav { background: rgba(255,255,255,.08); border: 0; border-radius: 9px; padding: 2px; gap: 2px; box-shadow: none; }
+html.host-mac .seg2 button, html.host-mac .dtabs button, html.host-mac .mtabs button, html.host-mac .tabs button, html.host-mac #nav button { background: transparent; border: 0; box-shadow: none; color: var(--text); font-size: 13px; font-weight: 500; padding: 5px 14px; border-radius: 7px; }
+html.host-mac .seg2 button:hover, html.host-mac .dtabs button:hover, html.host-mac .mtabs button:hover, html.host-mac .tabs button:hover, html.host-mac #nav button:hover { background: rgba(255,255,255,.07); }
+html.host-mac .seg2 button.on, html.host-mac .dtabs button.on, html.host-mac .mtabs button.on, html.host-mac .tabs button.on, html.host-mac #nav button.on { background: rgba(255,255,255,.22); color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.35); }
+html.host-mac input[type=text], html.host-mac select, html.host-mac textarea { font-size: 13px; background: rgba(255,255,255,.07); border: 1px solid var(--line); border-radius: 7px; padding: 6px 10px; }
+html.host-mac input:focus, html.host-mac select:focus, html.host-mac textarea:focus { outline: 3px solid rgba(10,132,255,.5); outline-offset: 0; border-color: var(--accent); }
+html.host-mac input[type=checkbox], html.host-mac input[type=radio], html.host-mac input[type=range] { accent-color: var(--accent); }
+html.host-mac .pill, html.host-mac .badge { font-size: 12px; font-weight: 500; border-radius: 6px; padding: 2px 9px; background: rgba(255,255,255,.07); border: 0; color: var(--text); }
+html.host-mac .pill.gold { color: var(--gold); background: rgba(255,214,10,.14); } html.host-mac .pill.good { color: var(--good); background: rgba(50,215,75,.14); } html.host-mac .pill.bad { color: var(--bad); background: rgba(255,69,58,.14); }
+html.host-mac .nbadge { border-radius: 9px; font-size: 11px; font-weight: 600; }
+
+/* numbers and tables */
+html.host-mac .rating { border-radius: 5px; font-weight: 700; font-size: 17px; }
+html.host-mac .rating.sm { font-size: 22px; } html.host-mac .rating.xs { font-size: 13px; }
+html.host-mac table { font-size: 13px; }
+html.host-mac th, html.host-mac td { border-bottom: 1px solid var(--line2); }
+html.host-mac table.st tr.me td { background: rgba(10,132,255,.22); }
+html.host-mac .bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,.12); }
+html.host-mac .bar > i { background: var(--accent); border-radius: 3px; }
+
+/* the game's own top bar, if the toolbar tabs are switched off */
+html.host-mac header { background: rgba(28,28,30,.85); border-bottom: 1px solid var(--line2); padding: 8px 18px; }
+html.host-mac .brand small { display: none; } html.host-mac .brand b { font-size: 14px; font-weight: 600; }
+html.host-mac .whotxt { font-size: 12px; font-weight: 500; }
+
+/* pop-ups look like sheets */
+html.host-mac .dlg-back { background: rgba(0,0,0,.42); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+html.host-mac .dlg { background: #2c2c2f; border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 24px 70px rgba(0,0,0,.55); }
+html.host-mac button.tlink { all: unset; cursor: default; display: inline-flex; border-radius: 6px; padding: 2px 4px; margin: -2px -4px; color: inherit; font-family: inherit !important; }
+html.host-mac button.tlink:hover, html.host-mac button.tlink:focus-visible { background: rgba(255,255,255,.1); text-decoration: none; }
+html.host-mac button.plink { background: none; border: 0; box-shadow: none; padding: 0; border-radius: 0; font-size: inherit; font-weight: inherit; }
+html.host-mac .speed { background: rgba(255,255,255,.08); border: 0; border-radius: 9px; padding: 2px 2px 2px 12px; }
+html.host-mac .speed span { font-size: 12px; font-weight: 600; }
+html.host-mac .speed button { background: transparent; border: 0; box-shadow: none; padding: 5px 12px; border-radius: 7px; color: var(--text); }
+html.host-mac .speed button.on { background: rgba(255,255,255,.22); color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.35); }
+html.host-mac input[type=password], html.host-mac input[type=search], html.host-mac input[type=number] { font-size: 13px; background: rgba(255,255,255,.07); border: 1px solid var(--line); border-radius: 7px; padding: 6px 10px; }

@@ -1239,3 +1239,4 @@ When you take the assignment ("Give me…", the coach's offer before a game agai
 - `window.__NBA_UI.host` (setView, newCareer, settings, sync) plus a state message to `webkit.messageHandlers.nbacs`, used only by the SwiftUI app in `macos/`. Absent in a browser, so nothing changes there.
 - The web header stays: the app window shows the normal top navigation bar.
 - No engine change; calibration unchanged.
+- Mac look (`html.host-mac` in style.css, only inside the app): system font, sentence case, flat 12px surfaces, Mac-style buttons and segmented controls, sheet-style pop-ups, no right-click browser menu. `html.host-nav` hides the web top bar when the window toolbar has the tabs. `host.look(mac, nav)` switches both; they default on and are remembered. The website is unchanged.

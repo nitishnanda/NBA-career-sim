@@ -6,6 +6,17 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            Section("Appearance") {
+                Toggle("Mac look", isOn: $model.macLook)
+                Text("System font, flat surfaces and Mac-style buttons. Off shows the game's original look.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Toggle("Tabs in the window toolbar", isOn: $model.toolbarTabs)
+                Text("Off shows the game's own top bar instead.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Display") {
                 HStack {
                     Slider(value: $model.zoom, in: 0.7...1.6, step: 0.1) {

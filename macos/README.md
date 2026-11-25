@@ -1,7 +1,9 @@
 # NBA Career Sim for macOS
 
-A SwiftUI app around the same game as the website. The game itself (all the simulation, screens and AI features) is still `dist/index.html` running in a `WKWebView`, so the UI, the top navigation bar (Season, Team, Around the League, Career) and the saves match the web version exactly. What is native:
+A SwiftUI app around the same game as the website. The game itself (all the simulation, screens and AI features) is still `dist/index.html` running in a `WKWebView`, so the screens, the simulation and the saves match the web version. What is native:
 
+- **Mac look**: inside the app the page switches to a Mac style (system font, sentence case, flat cards, Mac-style buttons and segmented controls, sheet-style pop-ups, no browser right-click menu). The website keeps the original look. Both can be switched off in Settings.
+- **Toolbar tabs**: Season / Team / League / Career is a native segmented control in the window toolbar, with Sim, Game Settings and New Career buttons on the right. Settings can switch back to the game's own top bar.
 - **Menus and shortcuts**: screens on ⌘1–⌘4, Sim Next Game (⌘↩), New Career (⌘N), Game Settings (⇧⌘G), zoom (⌘= ⌘- ⌘0), reload (⌘R).
 - **Window**: the title and subtitle show your player, team and record. Dark mode only, like the game.
 - **Settings** (⌘,): page zoom and "Erase all game data".
