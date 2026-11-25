@@ -1234,3 +1234,8 @@ When you take the assignment ("Give me…", the coach's offer before a game agai
 - A shared FACT_RULE is prepended to all 11 AI prompts: numbers only from facts, last season stays labelled, no invented stats, one clear idea per line.
 - League page: the standings/award grid used class `dlg`, which clashed with the modal `.dlg` styles (660px width, clipped overflow). Renamed to `.lgrid`.
 - No engine change; calibration unchanged.
+
+## v128 — native macOS shell hooks
+- `window.__NBA_UI.host` (setView, newCareer, settings, sync) plus a state message to `webkit.messageHandlers.nbacs`, used only by the SwiftUI app in `macos/`. Absent in a browser, so nothing changes there.
+- CSS: `html.host-mac` hides the web header (the native sidebar replaces it).
+- No engine change; calibration unchanged.

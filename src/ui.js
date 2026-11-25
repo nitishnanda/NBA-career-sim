@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 2 Nov · BallerSim dashboard v127';
+  const BUILD = 'build 2 Nov · BallerSim dashboard v128';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -2600,7 +2600,25 @@
     if (S && !overlayUi && !AUTOMATED && S.stage === 'season_play' && !S.autoPlay && !prefs().tipsDone) { tipStep = 0; overlayUi = 'tips'; }
     const ov = S || overlayUi === 'settings' ? overlayView() : null; if (ov) app.append(ov);
     document.body.classList.toggle('dlg-open', !!app.querySelector('.dlg-back'));
+    hostSync();
   }
+  // ---- native macOS shell (SwiftUI sidebar, macos/): it shows our state and sends commands back; absent in a normal browser
+  const HOST = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nbacs;
+  let hostLast = '';
+  if (HOST) document.documentElement.classList.add('host-mac');
+  function hostSync() {
+    if (!HOST) return;
+    try {
+      const live = !!S && S.stage !== 'create' && !!S.player, p = live ? S.player : null;
+      let record = null; if (live && S.stage === 'season_play' && G.seasonSoFar) { try { record = G.seasonSoFar(S, S.matchIdx || 0).record; } catch (e) { record = null; } }
+      const badge = (k) => { try { return live ? navBadge(k) : null; } catch (e) { return null; } };
+      const info = JSON.stringify({ hasCareer: live, view, stage: S ? S.stage : 'create', name: p ? p.name : '', pos: p ? p.pos : '', age: p ? p.age : 0, ovr: p ? Math.round(NBA.ovr(p)) : 0, arch: p ? archLabel(p) : '', year: live ? S.proSeasons.length : 0, team: live ? myTeamNick() : null, record, badges: { season: badge('season'), team: badge('team'), league: badge('league'), career: badge('career') } });
+      if (info !== hostLast) { hostLast = info; HOST.postMessage(info); }
+    } catch (e) { /* the shell is optional */ }
+  }
+  function hostSetView(k) { if (!S || S.stage === 'create' || !['season', 'team', 'league', 'career'].includes(k)) return; overlayUi = null; if (view !== k) { stopAuto(); view = k; leagueTeam = null; } render(); window.scrollTo(0, 0); }
+  function hostNewCareer() { wipe(); S = null; view = 'season'; overlayUi = null; stopAuto(); boot(); }
+  function hostSettings() { if (!S) return; overlayUi = 'settings'; render(); }
   function render0() {
     renderHeader();
     app.replaceChildren();
@@ -2616,6 +2634,6 @@
     document.body.classList.toggle('dlg-open', !!app.querySelector('.dlg-back'));
   }
   function boot() { S = null; draft.name = ''; render(); }
-  window.__NBA_UI = { get state() { return S; }, set state(v) { S = v; }, get live() { return LV; }, go, render, saveSnap, silence, HOLD_FLAGS };
+  window.__NBA_UI = { get state() { return S; }, set state(v) { S = v; }, get live() { return LV; }, go, render, saveSnap, silence, HOLD_FLAGS, host: { setView: hostSetView, newCareer: hostNewCareer, settings: hostSettings, sync: () => { hostLast = ''; hostSync(); } } };
   boot();
 })();
