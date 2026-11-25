@@ -2632,6 +2632,8 @@
     const gk = lg ? S.matchIdx + ':' + lg.n + ':' + lg.f + '-' + lg.a : null;
     if (hostPrev.game != null && gk && gk !== hostPrev.game && lg.r >= 9) hostPost({ kind: 'haptic', style: 'level' }); hostPrev.game = gk;
   }
+  // the team is only shown once the game has told you (no peeking at where you land before draft night)
+  const hostTeamKnown = () => S.proSeasons.length > 0 || ['pro_ready', 'season_play', 'season_recap', 'camp', 'agent', 'promise', 'decision', 'gm', 'retired'].includes(S.stage) || (S.stage === 'training' && S.afterTraining === 'pro');
   function hostSync() {
     if (!HOST) return;
     try {
@@ -2639,7 +2641,7 @@
       let record = null; if (live && S.stage === 'season_play' && G.seasonSoFar) { try { record = G.seasonSoFar(S, S.matchIdx || 0).record; } catch (e) { record = null; } }
       const badge = (k) => { try { return live ? navBadge(k) : null; } catch (e) { return null; } };
       const inbox = live ? (S.inbox || []).length + (S.dec && S.dec.pending ? 1 : 0) : 0;
-      const info = JSON.stringify({ kind: 'state', hasCareer: live, view, stage: S ? S.stage : 'create', name: p ? p.name : '', pos: p ? p.pos : '', age: p ? p.age : 0, ovr: p ? Math.round(NBA.ovr(p)) : 0, arch: p ? archLabel(p) : '', year: live ? S.proSeasons.length : 0, team: live ? myTeamNick() : null, record, inbox, badges: { season: badge('season'), team: badge('team'), league: badge('league'), career: badge('career') } });
+      const info = JSON.stringify({ kind: 'state', hasCareer: live, view, stage: S ? S.stage : 'create', name: p ? p.name : '', pos: p ? p.pos : '', age: p ? p.age : 0, ovr: p ? Math.round(NBA.ovr(p)) : 0, arch: p ? archLabel(p) : '', year: live ? S.proSeasons.length : 0, team: live && hostTeamKnown() ? myTeamNick() : null, record, inbox, badges: { season: badge('season'), team: badge('team'), league: badge('league'), career: badge('career') } });
       hostEvents(live);
       if (info !== hostLast) { hostLast = info; HOST.postMessage(info); }
     } catch (e) { /* the shell is optional */ }

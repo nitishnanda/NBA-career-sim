@@ -70,7 +70,8 @@ final class AppModel: NSObject, ObservableObject {
 
     var windowSubtitle: String {
         guard info.hasCareer else { return "Create your player" }
-        return [info.team, info.record].compactMap { $0 }.joined(separator: " · ")
+        let age: String? = info.age > 0 ? "Age \(info.age)" : nil
+        return [age, info.team, info.record].compactMap { $0 }.joined(separator: " · ")
     }
 
     var canSimNextGame: Bool { info.hasCareer && info.stage == "season_play" }
