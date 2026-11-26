@@ -1803,6 +1803,7 @@
     let swing = false;
     if (mod > 0 && !g && r() < Math.min(1, mod / Math.max(0.05, 1 - p))) swing = true; else if (mod < 0 && g && r() < Math.min(1, -mod / Math.max(0.05, p))) swing = true;
     it.rs = 1;
+    if (!SNAP) swing = false;   // without the season's snapshot nothing can be replayed: a flipped game would leave the series (3-2 wins a round) and the seeding (no play-in) wrong, so decisions cannot swing a result
     if (swing) { g = !g; if (!it.po) flipGame(st, it, g); else playoffSwing(st, idx, g); }
     const cur0 = st.matchLog[idx]; cur0.rs = 1;
     if (!cur0.po && !st.matchLog.some((x) => x.k === 'g' && !x.po && !x.rs)) reseed(st, idx);   // the regular season is over: the standings are what was really played

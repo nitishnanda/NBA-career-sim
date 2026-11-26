@@ -2153,7 +2153,7 @@
     if (!it || it.k !== 'g' || it.dnp) { advanceOne(); save(); render(); return; }
     const idx = S.matchIdx, L = S.league, p = S.player, tm = L.teams[S.teamId], opT = L.teams.find((x) => x.nick === it.o), Dc = DEC();
     let clutch = null;
-    if (it.cl && !it.cd) { if (!(S.dec && S.dec.pending && S.dec.pending.id === 'clutch')) Dc.offer(S, 'clutch'); if (S.dec && S.dec.pending && S.dec.pending.id === 'clutch') clutch = { text: G.clutchInfo(S).text }; else it.cd = 1; }
+    if (it.cl && !it.cd && G.getSnap && G.getSnap()) { if (!(S.dec && S.dec.pending && S.dec.pending.id === 'clutch')) Dc.offer(S, 'clutch'); if (S.dec && S.dec.pending && S.dec.pending.id === 'clutch') clutch = { text: G.clutchInfo(S).text }; else it.cd = 1; }
     const ctxL = { key: (S.seasonSeed || 0) + '|' + it.n + '|' + (it.po ? 1 : 0), me: p.name, nick: tm.nick, oppNick: it.o, mates: NBA.rosterOf(L, tm).filter((q) => q.id !== 'user').map((q) => q.name), opps: opT ? NBA.rosterOf(L, opT).map((q) => q.name) : [], shots: it.sh || G.shotsFor(it, p, G.shotSeed(S, idx)), clutch  };
     ctxL.mkShots = (rem) => G.shotsFor(rem, p, G.shotSeed(S, 8000 + idx + 17 * ((ctxL._n = (ctxL._n || 0) + 1))));
     if (clutch) G.clutchLock(S, idx);
