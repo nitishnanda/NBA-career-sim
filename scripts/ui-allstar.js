@@ -20,7 +20,8 @@ const { chromium } = require(require('child_process').execSync('npm root -g').to
   const ck = (name, ok, extra) => { console.log(name, ok ? 'OK' : 'MISMATCH', extra ? JSON.stringify(extra) : ''); if (!ok) errors.push(name + ' ' + JSON.stringify(extra || '')); };
   await page.click('text=/Tip off the .* season/'); await page.waitForSelector('text=Sim next game');
   // make sure you are an All-Star this year (the selection is the award model's; here the test just guarantees one) and invited to the contests
-  await page.evaluate(() => { const S = window.__NBA_UI.state, R = S.asRoster; if (!R.sel) { R.E[4] = { id: 'user', name: S.player.name, pos: S.player.pos, team: S.league.teams[S.teamId].nick, ovr: 80, starter: true, isUser: true }; R.sel = true; R.starter = true; } S.player.attrs.three = 99; S.player.attrs.ath = 99; S.player.age = 24; S.noSocial = true; window.__NBA_UI.silence(S); });
+  await page.evaluate(() => { const S = window.__NBA_UI.state, R = S.asRoster; S.matchLog.forEach((x) => { if (x.k === 'g' && x.n >= 50 && x.n <= 55) delete x.ib; });   /* this test is about a healthy All-Star weekend; the injured one is scripts/allstar-injury-check.js */
+    if (!R.sel) { R.E[4] = { id: 'user', name: S.player.name, pos: S.player.pos, team: S.league.teams[S.teamId].nick, ovr: 80, starter: true, isUser: true }; R.sel = true; R.starter = true; } S.player.attrs.three = 99; S.player.attrs.ath = 99; S.player.age = 24; S.noSocial = true; window.__NBA_UI.silence(S); });
   await page.click('button:has-text("Instant")');
   for (let k = 0; k < 6; k++) {
     if (await page.$('button:has-text("Sim to All-Star")')) await page.click('button:has-text("Sim to All-Star")'); await page.waitForTimeout(400);
