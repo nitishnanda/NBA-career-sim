@@ -26,7 +26,7 @@
       comps: 'LeBron · Jordan · Jokic · Shaq · Giannis',
       typical: '26/9/6 at the peak, 11 All-Stars, 9 All-NBA, 18 seasons: a Paul Pierce / Dwyane Wade career',
       best: 'LeBron James · Michael Jordan · Kobe Bryant · Tim Duncan · Karl Malone',
-      odds: 'About 4 in 10 reach MVP level (38% win one); 97% make All-NBA',
+      odds: 'About 6 in 10 win an MVP (1.8 on average over a career); 97% make All-NBA',
       boost: { inside: 14, mid: 12, three: 10, ft: 10, handling: 8, passing: -4, iq: 20, reb: -4, perD: -8, rimP: 8, ath: 12, dur: 6 },
       weights: { inside: .11, mid: .08, three: .08, ft: .04, handling: .09, passing: .1, iq: .14, reb: .08, perD: .07, rimP: .05, ath: .12, dur: .04 },
       usg: -0.036, ts: 0.028, declineMult: 0.8, ceilingBonus: 3, mins: 0.5, injury: 0.65,

@@ -48,8 +48,7 @@
       gap = 20 + rand() * 6;
     }
     if (!stars) stars = +weighted(STAR_ODDS);
-    if (ceiling == null) ceiling = NBA.rollCeiling(stars, o.arch) + (o.arch === 'generational' ? NBA.tuning.userGenCeil : 0);   // the Generational Talent build is the LeBron / Jordan pick: its player's ceiling sits above the league's own generational draftees (userGenCeil 0 turns it off)
-    ceiling = clamp(ceiling, 55, 99);
+    if (ceiling == null) ceiling = NBA.rollCeiling(stars, o.arch);
     const genBonus = genLevel && !lateBloomer ? (genLevel === 2 ? 8 : 4) : 0; // true generational talents are seen as such by scouts
     const p = NBA.makePlayer({ id: 'user', name: o.name || 'Rookie', pos: o.pos, arch: o.arch, sec: o.sec && o.sec !== o.arch ? o.sec : null, home: o.home, ht: o.ht, wt: o.wt, ws: o.ws, ceiling, age: 18, stars, gap });
     p.vis = clamp(0.15 + 0.19 * (stars - 1), 0.15, 0.92);
