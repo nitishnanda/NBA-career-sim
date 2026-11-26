@@ -325,8 +325,6 @@
     const pace = c.pace || T.pace;
     const used = usg * (mins / 48) * pace;
     let pts = used * 1.82 * ts;
-    // young scorers: a soft ceiling on points that rises with age (real players under 25 almost never average 34+: Jordan at 23 is the one case); youthKnee 0 turns it off
-    if (T.youthKnee && p.age < 28) { const kn = T.youthKnee + T.youthKneeStep * Math.max(0, p.age - 20); if (pts > kn) pts = kn + (pts - kn) * T.youthK; }
     const pm = 0.65 * a.passing + 0.35 * a.handling;
     const soft = (x, knee, k) => (x > knee ? knee + (x - knee) * k : x);
     const reb36 = soft(Math.max(1.6, 0.18 * a.reb - 3.8), T.rebKnee, T.rebK);

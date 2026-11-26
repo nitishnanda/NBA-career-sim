@@ -697,6 +697,8 @@
     m.ast = NBA.capAst(m.ast, p);
     // rookies: even Wembanyama / Luka / LeBron / Iverson topped out around 21-23.5 ppg (real rookie ppg vs the rating-based expectation)
     if (rookie && m.pts > 18.5) m.pts = 18.5 + (m.pts - 18.5) * 0.36;
+    // young scorers: a soft ceiling on the season's points that rises with age, after the year's noise (real players under 25 almost never average 34+: Jordan at 23 is the one case); youthKnee 0 turns it off
+    { const TT = NBA.tuning; if (TT.youthKnee && p.age < 28) { const kn = TT.youthKnee + TT.youthKneeStep * Math.max(0, p.age - 20); if (m.pts > kn) m.pts = kn + (m.pts - kn) * TT.youthK; } }
     const games = [];
     for (let i = 0; i < gp; i++) {
       const gs = styleAt(seq, Math.min(81, Math.floor(((i + 0.5) * 82) / Math.max(1, gp)))), f = STYLE_MULT[gs], mj = Object.assign({}, m);
