@@ -1277,3 +1277,9 @@ When you take the assignment ("Give me…", the coach's offer before a game agai
   - `userGenRookie 76` (+1.5 per year of age over 19) minimum overall when he enters the league (`startPro`): lifts only the weak tail (the user's rookie at 70 became 76+; rookie 10th percentile 79 -> 80).
 - Nothing else moves: his scoring is identical (median career 25.6 ppg, 21.0k points over 12 seasons), the other five archetypes in the 150-career batch are identical, and the league's own MVP race and MVP team wins (median 60) are unchanged. Generational batch row: MVPs 1.36 -> 1.60, HOF score 144 -> 155, 30+ ppg seasons 19 -> 25, 35+ still 0.
 - Archetype blurb updated: "About 6 in 10 win an MVP (1.8 on average over a career)".
+
+## v133 — redshirts and transfer admissions
+- Report: redshirts did nothing, and a player could transfer to Duke without the 3.4 GPA.
+- Redshirt (a human career with a core GPA of 2.0-2.29, `acadRS`): the old rule capped the freshman season at 9 games but the year still counted as one of the four, so it only cost you a year. Now the year is a real redshirt: at most 4 games (the modern NCAA rule), the year does not count against eligibility (the forced-declare year is 5, not 4: `st.rsUsed`), and the extra practice gives one training point. Autopilot careers are unchanged.
+- Transfer portal: `transferCollege` skipped the admissions check that `chooseCollege` has and the card showed locked schools with a button. It now refuses a school whose GPA requirement you do not meet (and a core GPA under 2.0), the card shows locked schools with the reason instead of a button, and a refusal shows a message instead of failing silently. Autopilot transfers are unchanged.
+- Test: `scripts/redshirt-check.js` (redshirt year, five seasons, four seasons without a redshirt, Duke refused at 2.68 and allowed at 3.6).

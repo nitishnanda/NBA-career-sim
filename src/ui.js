@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 2 Nov · BallerSim dashboard v132';
+  const BUILD = 'build 2 Nov · BallerSim dashboard v133';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -302,7 +302,7 @@
       h('div', { class: 'card' }, h('div', { class: 'grid stats' }, statBox(f1(l.pts), 'PPG'), statBox(f1(l.reb), 'RPG'), statBox(f1(l.ast), 'APG'), statBox(f1(l.stl), 'SPG'), statBox(f1(l.blk), 'BPG'), statBox(pct(l.ts) + '%', 'TS%')),
         h('p', { style: 'margin-top:12px' }, h('b', null, y.record), ' · ' + y.tourney), y.honors.length ? h('div', null, y.honors.map((x) => h('span', { class: 'pill gold' }, '🏅 ' + x))) : null),
       (!S.transferred && !y.mustDeclare && (y.mock.mid > 20 || !y.honors.length) ? h('div', { class: 'card' }, h('h2', null, 'Transfer portal'), h('p', { class: 'small muted' }, 'It is not going the way you hoped here. You can leave for a new school and a new role, but you lose a year of chemistry and the new place may not be better. Once.'),
-        h('div', { class: 'wkgrid' }, (S.transferOpts && S.transferOpts.y === S.collegeYears.length ? S.transferOpts : (S.transferOpts = { y: S.collegeYears.length, l: G.collegeOptions(S).filter((c) => c.id !== S.college.id).slice(0, 4) })).l.map((c) => h('div', { class: 'wkcard' }, h('b', null, c.name), h('div', { class: 'small muted' }, c.state + ' · program ' + '★'.repeat(c.prestige)), h('div', { style: 'margin-top:8px' }, confirmBtn('Transfer here', '', () => { G.transferCollege(S, c.id); alloc = {}; go(); })))))) : null),
+        h('div', { class: 'wkgrid' }, (S.transferOpts && S.transferOpts.y === S.collegeYears.length ? S.transferOpts : (S.transferOpts = { y: S.collegeYears.length, l: G.collegeOptions(S).filter((c) => c.id !== S.college.id).slice(0, 4) })).l.map((c) => h('div', { class: 'wkcard' }, h('b', null, c.name), h('div', { class: 'small muted' }, c.state + ' · program ' + '★'.repeat(c.prestige)), c.locked ? h('div', { class: 'small', style: 'margin-top:8px' }, '🔒 ' + c.locked) : h('div', { style: 'margin-top:8px' }, confirmBtn('Transfer here', '', () => { try { G.transferCollege(S, c.id); alloc = {}; go(); } catch (e) { S.flash = e.message; render(); } })))))) : null),
       h('div', { class: 'card' }, h('h2', null, 'Draft stock'), h('p', null, 'Where the mock drafts have you: ', h('b', null, proj)),
         h('p', { class: 'muted small' }, 'Staying develops your game (and adds upgrade points) but draft boards move on, and you only get so many years of eligibility.'),
         h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { G.declare(S); go(); } }, 'Declare for the NBA Draft'),

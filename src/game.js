@@ -151,7 +151,7 @@
     return r2(clamp(st.gpa0 + (STUDY[st.study || 'balance'] || STUDY.balance).gpa + (st.gpaAdj || 0), 1.4, 4));
   }
   const eligibility = (st) => { const g = gpaOf(st); return g < 2.0 ? 'ineligible' : g < 2.3 ? 'redshirt' : 'qualifier'; };
-  const ELIG_TXT = { ineligible: 'Not eligible for Division I this year (core GPA under 2.0)', redshirt: 'Academic redshirt: you can join a D1 team and practice, but you sit most of your freshman season', qualifier: 'NCAA full qualifier: eligible to play as a freshman' };
+  const ELIG_TXT = { ineligible: 'Not eligible for Division I this year (core GPA under 2.0)', redshirt: 'Academic redshirt: you can join a D1 team and practice, but you play almost nothing as a freshman (the year does not count against your eligibility: you get five seasons)', qualifier: 'NCAA full qualifier: eligible to play as a freshman' };
   function setStudy(st, k) { if (!STUDY[k]) throw new Error('bad study'); if (st.college) throw new Error('too late'); st.study = k; st.collegeOpts = null; return gpaOf(st); }
   // a postgrad year at a prep school: a year older, a summer of classes, grades up (once)
   function prepYear(st) {
@@ -204,7 +204,7 @@
     const e = expLine(p, { pace: 81.6, minsFixed: minsFixed + role.m, usgMult: role.u * (1.03 + ({ 1: 0, 2: 0.04, 3: 0.1, 4: 0.19, 5: 0.27 }[st.stars] || 0) + 0.02 * (5 - c.prestige) + (c.home ? 0.01 : 0)), tsAdj: -0.012 + 0.003 * (oEff - 70) / 5, rebMult: 0.97, astMult: 1.05, coTax: 0 });
     const av = rollAvail(p, { noRest: true });
     let gp = clamp(34 - Math.round(av.miss * 0.35), 12, 36), acadNote = null;
-    if (!st.autoPlay && yr === 1 && st.acadRS) { gp = Math.min(gp, 9); acadNote = 'Academic redshirt: you sat until late in the season'; }
+    if (!st.autoPlay && yr === 1 && st.acadRS) { gp = Math.min(gp, 4); st.rsUsed = true; st.bonusPoints = (st.bonusPoints || 0) + 1; acadNote = 'Academic redshirt: you practised all year and played only 4 games, so the year does not count against your eligibility (you get a fifth season) and the extra practice gave you a training point'; }
     else if (!st.autoPlay && st.acadProb) { gp = Math.min(gp, 17); acadNote = 'Academic probation: ineligible for the first half of the season'; }
     const m = { pts: e.pts * (1 + 0.04 * randn()), reb: e.reb, ast: e.ast, stl: e.stl * 1.1, blk: e.blk * 1.1, tov: e.tov, mins: e.mins };
     const games = []; for (let i = 0; i < gp; i++) games.push(genGame(m));
@@ -409,7 +409,7 @@
     NBA.runYear(st.league, { draft: false });
     const mock = NBA.mockRange(st.league, p, stockBonus(st));
     rec.mock = mock;
-    rec.mustDeclare = rec.year >= 4;
+    rec.mustDeclare = rec.year - (st.rsUsed ? 1 : 0) >= 4;   // a redshirt year does not count: five seasons in school
     st.stage = 'college_decision';
     return rec;
   }
@@ -417,6 +417,7 @@
   function transferCollege(st, id) {
     const c = D.COLLEGES[id], old = st.college.name;
     if (st.transferred) throw new Error('already transferred');
+    if (!st.autoPlay) { const g = gpaOf(st); if (eligibility(st) === 'ineligible') throw new Error(ELIG_TXT.ineligible + '.'); if (c.acad && g < c.acad) throw new Error(c.name + ' wants a ' + c.acad.toFixed(1) + ' GPA (yours: ' + g.toFixed(2) + ').'); }   // admissions look at your grades for a transfer too
     st.college = { id: c.id, name: c.name, state: c.state, prestige: c.prestige, home: c.state === D.STATE_ABBR[st.player.home], ivy: !!c.ivy, acad: c.acad || 0 }; st.transferred = true; st.collegeRole = null;
     NBA.Decisions.log(st, { kind: 'college', title: 'Transfer', tone: 'neutral', text: 'Left ' + old + ' through the transfer portal for ' + c.name + '.' });
     return stayInCollege(st);
