@@ -48,7 +48,8 @@
       gap = 20 + rand() * 6;
     }
     if (!stars) stars = +weighted(STAR_ODDS);
-    if (ceiling == null) ceiling = NBA.rollCeiling(stars, o.arch);
+    if (ceiling == null) ceiling = NBA.rollCeiling(stars, o.arch) + (o.arch === 'generational' ? NBA.tuning.userGenCeil : 0);   // the Generational Talent build is the LeBron / Jordan pick: its player's ceiling sits above the league's own generational draftees (userGenCeil 0 turns it off)
+    ceiling = clamp(ceiling, 55, 99);
     const genBonus = genLevel && !lateBloomer ? (genLevel === 2 ? 8 : 4) : 0; // true generational talents are seen as such by scouts
     const p = NBA.makePlayer({ id: 'user', name: o.name || 'Rookie', pos: o.pos, arch: o.arch, sec: o.sec && o.sec !== o.arch ? o.sec : null, home: o.home, ht: o.ht, wt: o.wt, ws: o.ws, ceiling, age: 18, stars, gap });
     p.vis = clamp(0.15 + 0.19 * (stars - 1), 0.15, 0.92);
@@ -583,6 +584,10 @@
   }
   function startPro(st) {
     if (st.origin && st.origin.intl && st.euroDeal && !st.stash && !st.euroDeal.paid) { const bo = euroBuyout(st); if (bo) { st.earnings = Math.max(0, st.earnings - bo); st.euroDeal.paid = bo; NBA.Decisions.log(st, { kind: 'draft', title: 'Buyout', tone: 'neutral', text: 'Left ' + st.euroDeal.club + ' early: a buyout of about $' + bo.toFixed(2) + 'M.' }); } else st.euroDeal.paid = 0; }
+    { // a generational talent does not arrive in the league as a 70: he enters at a floor that rises with his age (userGenRookie 0 turns it off)
+      const T = NBA.tuning, p = st.player;
+      if (T.userGenRookie && p.arch === 'generational') { const want = T.userGenRookie + T.userGenRookieStep * Math.max(0, Math.min(4, p.age - 19)); for (let k = 0; k < 40 && NBA.ovrOf(p) < want; k++) ATTRS.forEach((a) => { p.attrs[a] = Math.min(97, p.attrs[a] + 0.5); }); }
+    }
     st.stage = 'training'; st.afterTraining = 'pro_first';
     return trainingInfo(st);
   }
