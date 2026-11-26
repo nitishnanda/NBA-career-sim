@@ -10011,7 +10011,8 @@ new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
 
     // ---- shot telemetry: every shot of the games played so far, as the sim recorded them with each box score (shots = FGA, makes = FGM, threes = 3PA / 3PM).
     // Regular season and playoffs are separate charts; the last game's shots are picked out in gold, so each game visibly adds to the chart.
-    const scope = !poG.length ? 'reg' : S.shotScope || 'po';
+    const poPlayed = poG.filter((x) => !x.dnp);   // sat out the playoffs hurt: there is no playoff chart to show
+    const scope = !poPlayed.length ? 'reg' : S.shotScope || 'po';
     const sGames = (scope === 'po' ? poG : reg).filter((x) => !x.dnp), ZT = ['paint', 'paint', 'mid', 'three', 'three'];   // rim and short paint tries are both Paint; corner and above-the-break threes both 3PT
     const dots = [], box = { fga: 0, fgm: 0, tpa: 0, tpm: 0 };
     sGames.forEach((g, gi) => {
@@ -10028,7 +10029,7 @@ new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
       : '<g stroke="' + col + '" stroke-width="' + (rad > 4 ? 1.8 : 1.3) + '"><line x1="' + (d.x - arm).toFixed(1) + '" y1="' + (d.y - arm).toFixed(1) + '" x2="' + (d.x + arm).toFixed(1) + '" y2="' + (d.y + arm).toFixed(1) + '"/><line x1="' + (d.x + arm).toFixed(1) + '" y1="' + (d.y - arm).toFixed(1) + '" x2="' + (d.x - arm).toFixed(1) + '" y2="' + (d.y + arm).toFixed(1) + '"/></g>';
     const shotSvg = '<svg viewBox="0 0 500 470" class="court">' + COURT + vis.filter((d) => !d.last).map((d) => mark(d, d.made ? '#fff' : 'rgba(255,255,255,.5)')).join('') + lastVis.map((d) => mark(d, '#ffd166')).join('') + '</svg>';
     const tabBtn = (k, lbl, pc) => h('button', { class: shotTab === k ? 'on' : '', onclick: () => setShotTab(k) }, lbl + ' (' + pc + '%)');
-    const scopeBtn = (k, lbl) => h('button', { class: scope === k ? 'on' : '', disabled: k === 'po' && !poG.length, onclick: () => { S.shotScope = k; render(); } }, lbl);
+    const scopeBtn = (k, lbl) => h('button', { class: scope === k ? 'on' : '', disabled: k === 'po' && !poPlayed.length, onclick: () => { S.shotScope = k; render(); } }, lbl);
     const lastMade = lastVis.filter((d) => d.made).length;
     const telemetry = h('section', { class: 'panel mp', 'data-mt': 'shots' }, h('div', { class: 'ph' }, h('span', { class: 'pi' }, '◎'), h('div', null, h('h2', null, 'Shot telemetry'), h('div', { class: 'cap2' }, 'Every shot this ' + (scope === 'po' ? 'postseason' : 'regular season') + ' · ' + sGames.length + ' game' + (sGames.length === 1 ? '' : 's'))), h('span', { class: 'spacer' }), h('span', { class: 'badge' }, NBA.seasonLabel(L.year))),
       h('div', { class: 'seg2' }, scopeBtn('reg', 'Regular season'), scopeBtn('po', 'Playoffs')),
