@@ -2,7 +2,7 @@
   'use strict';
   const NBA = window.NBA, D = NBA.data, G = NBA.Game;
   const KEY = 'nba-career-sim-save-v1';
-  const BUILD = 'build 2 Nov · BallerSim dashboard v129';
+  const BUILD = 'build 2 Nov · BallerSim dashboard v130';
   const app = document.getElementById('app');
   let S = null;           // game state
   let draft = { name: '', pos: 'SF', arch: 'scorer', sec: '', home: 'Illinois', sizeMode: 'random', roll: null, ht: null, wd: 0, wsd: 0 };   // size: a random roll for his position, or chosen by hand (ht inches, wd lb above what his height predicts, wsd inches of wingspan beyond the position's norm)
@@ -771,7 +771,7 @@
       S.matchIdx++; save(); return holdAt();
     }
     if (it.k === 'g') {
-      if (it.pc && !it.pd && !it.po) {
+      if (it.pc && !it.pd && !it.po && !it.dnp) {
         if (!pend('press')) Dc.offer(S, 'press');
         if (pend('press')) { if (S.autoDec) { Dc.autoResolve(S); save(); return holdAt(); } return true; }
         it.pd = 1;
@@ -792,7 +792,7 @@
         if (!S.noSocial && !S.autoPlay && prev && prev.k === 'g' && !prev.dnp && !prev.sij) {
           if (pend('starinjury')) { if (S.autoDec) { Dc.autoResolve(S); prev.sij = 1; save(); return holdAt(); } return true; }
           prev.sij = 1; if (Dc.offer(S, 'starinjury')) { if (S.autoDec) { Dc.autoResolve(S); save(); return holdAt(); } if (toInbox()) return holdAt(); save(); return true; } } }
-      if (!S.autoPlay && NBA.Core && it.po && !it.smd) {   // a series moment before a big playoff game
+      if (!S.autoPlay && NBA.Core && it.po && !it.smd && !it.dnp) {   // a series moment before a big playoff game
         if (!pend('seriesmoment') && !Dc.offer(S, 'seriesmoment')) it.smd = 1;
         if (pend('seriesmoment')) { if (S.autoDec) { Dc.autoResolve(S); it.smd = 1; save(); return holdAt(); } return true; }
       }
@@ -807,7 +807,11 @@
         if (pend(id)) { if (S.autoDec) { Dc.autoResolve(S); it[fk] = 1; save(); return holdAt(); } return true; }
       }
       for (const [id, n] of HOLD_TIMED) {   // the co-star question, a coach cutting your minutes, trade rumors, the buyout market
-        const fk = 'h_' + id; if (S.autoPlay || it.po || it.n !== n || it[fk]) continue;
+        // "whose team is it" and "the coach is cutting your minutes" mean nothing while you are hurt: they wait for your first game back
+        const late = S.dec.flags['late_' + id] === S.league.year, hurtNow = (id === 'alpha' || id === 'benched') && [S.matchLog[S.matchIdx || 0], S.matchLog[(S.matchIdx || 0) - 1]].some((x) => x && x.k === 'g' && x.dnp && x.ib);
+        const fk = 'h_' + id; if (S.autoPlay || it.po || !(it.n === n || (late && it.n > n) || pend(id)) || it[fk]) continue;
+        if (hurtNow && !pend(id)) { S.dec.flags['late_' + id] = S.league.year; continue; }
+        if (late) S.dec.flags['late_' + id] = null;
         if (!pend(id) && !Dc.offer(S, id)) { it[fk] = 1; continue; }
         if (pend(id)) { if (S.autoDec) { Dc.autoResolve(S); it[fk] = 1; save(); return holdAt(); } return true; }
       }
