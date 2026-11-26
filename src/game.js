@@ -699,6 +699,8 @@
     if (rookie && m.pts > 18.5) m.pts = 18.5 + (m.pts - 18.5) * 0.36;
     // young scorers: a soft ceiling on the season's points that rises with age, after the year's noise (real players under 25 almost never average 34+: Jordan at 23 is the one case); youthKnee 0 turns it off
     { const TT = NBA.tuning; if (TT.youthKnee && p.age < 28) { const kn = TT.youthKnee + TT.youthKneeStep * Math.max(0, p.age - 20); if (m.pts > kn) m.pts = kn + (m.pts - kn) * TT.youthK; } }
+    // ... and a big step up on last year is shared out: young stars climb 5-8 ppg a year in the real record (Durant +5 +5, LeBron +6, Wade +8), not 14 (youthJump 0 turns it off)
+    { const TT = NBA.tuning, last = st.proSeasons && st.proSeasons[st.proSeasons.length - 1]; if (TT.youthJump && last && last.pts && p.age < 26 && m.pts > last.pts + TT.youthJump) m.pts = last.pts + TT.youthJump + (m.pts - last.pts - TT.youthJump) * TT.youthJumpK; }
     const games = [];
     for (let i = 0; i < gp; i++) {
       const gs = styleAt(seq, Math.min(81, Math.floor(((i + 0.5) * 82) / Math.max(1, gp)))), f = STYLE_MULT[gs], mj = Object.assign({}, m);
