@@ -1,0 +1,66 @@
+{
+ "source": "data/sources (Basketball-Reference dumps); seasons are end years",
+ "modern_seasons": "2020-2026",
+ "team": {
+  "ppg": 113.2,
+  "fg_pct": 46.8,
+  "3p_pct": 36.1,
+  "ft_pct": 77.9,
+  "ts_pct": 57.5,
+  "3pa_rate": 40.0,
+  "fta_rate": 25.3
+ },
+ "modern": {
+  "rotation_fg_pct": 47.3,
+  "rotation_3p_pct": 36.0,
+  "rotation_ft_pct": 78.3,
+  "rotation_ppg": 14.1,
+  "scorers_25plus_per_season": 14.0,
+  "scorers_30plus_per_season": 2.9,
+  "scoring_leader_ppg": 32.9,
+  "rebound_leader_rpg": 13.9,
+  "assist_leader_apg": 10.9,
+  "mvp_ppg": 29.2,
+  "peak_scoring_age_median": 26.0,
+  "peak_scoring_age_mean": 26.4,
+  "rotation_ppg_peak_age": 26
+ },
+ "draft": {
+  "classes": "1995-2014",
+  "n_picks": 1178,
+  "career_len_pct": {
+   "1-3": 31.2,
+   "4-7": 20.8,
+   "8-12": 27.2,
+   "13+": 20.8
+  },
+  "avg_career_yrs": 7.6,
+  "allstar_avg_career_yrs": 15.0,
+  "tiers": {
+   "lottery": {
+    "n": 280,
+    "allstar_rate": 26.1,
+    "never_played_pct": 0.4,
+    "avg_career_yrs": 11.1
+   },
+   "late_first": {
+    "n": 317,
+    "allstar_rate": 8.2,
+    "never_played_pct": 1.6,
+    "avg_career_yrs": 7.9
+   },
+   "second_round": {
+    "n": 581,
+    "allstar_rate": 2.8,
+    "never_played_pct": 28.1,
+    "avg_career_yrs": 5.0
+   }
+  }
+ },
+ "parity": {
+  "years": 40,
+  "unique_champions": 15,
+  "unique_champions_20y": 12,
+  "top3_share_pct": 47.5
+ }
+}

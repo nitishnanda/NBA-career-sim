@@ -82,22 +82,26 @@
     }
     while (t.bench.length < (T.benchMin || 4)) makeBench(L, t);
     while (t.bench.length > (T.benchMax || 6)) {
-      const worst = t.bench.map((id) => L.players[id]).sort((a, b) => ovr(a) - ovr(b))[0];
+      const worst = t.bench.map((id) => L.players[id]).sort((a, b) => onRookieDeal(a) - onRookieDeal(b) || ovr(a) - ovr(b))[0];
       t.bench.splice(t.bench.indexOf(worst.id), 1); delete L.players[worst.id];
     }
   }
   const fillCore = fillRoster;
+  // a drafted player on his rookie deal is not cut for a veteran: first-rounders' scale deals run four seasons (two guaranteed, two team options nearly
+  // always picked up), second-rounders get two. Without this, 65% of picks 15-30 were out of the league inside three years (real 1995-2014 classes: late-first careers average 7.9 years)
+  const onRookieDeal = (p) => (!!p.draftSlot && (p.yearsPro || 0) < (p.draftSlot <= 30 ? T.rookieYears1 || 0 : T.rookieYears2 || 0))
+    || (!!T.protectCeil && p.age <= (T.protectAge || 24) && p.ceiling >= T.protectCeil);   // and a young player the staff believe in (high ceiling) is not waived for a veteran before he breaks out
   // rotation minutes by the coach's pecking order (rating order), fitted to real 2025-26 minutes by roster spot; soft above the cap (40%, 60% for the top two)
   const ROT = [32, 32, 26, 23, 24, 19, 19, 19, 18, 7, 8, 7, 6];
   const softCap = (m, i) => { const c = ROT[Math.min(i, ROT.length - 1)]; return m > c ? c + (i < 2 ? 0.6 : 0.4) * (m - c) : m; };
   // replacement level: a real front office does not carry a 26-year-old who has stalled well below the league's minimum-contract veterans; it waives
   // him and signs one of those veterans (real: the 9th/10th men are ~70-rated in our scale, the sim's own pipeline left them near 58 by year 5)
   function replaceBench(L, t) {
-    const low = (t.bench || []).map((id) => L.players[id]).filter((q) => q && !q.rookie).sort((a, b) => ovr(b) - ovr(a)).slice(0, 6).filter((q) => ovr(q) < T.replLevel);   // the rotation only: the 11th and 12th men are end-of-bench by design
-    const keep = low.filter((q) => q.age < 25 && q.yearsPro < 4 && ovr(q) >= T.replLevel - (T.replYoungGap || 99)).sort((a, b) => b.ceiling - a.ceiling).slice(0, T.replYoung != null ? T.replYoung : 2);   // two development projects at most
+    const low = (t.bench || []).map((id) => L.players[id]).filter((q) => q && !q.rookie).sort((a, b) => ovr(b) - ovr(a)).slice(0, 6).filter((q) => ovr(q) < T.replLevel && !onRookieDeal(q));   // the rotation only: the 11th and 12th men are end-of-bench by design
+    const keep = low.filter((q) => q.age < (T.replYoungAge || 25) && q.yearsPro < (T.replYoungYrs || 4) && ovr(q) >= T.replLevel - (T.replYoungGap || 99)).sort((a, b) => b.ceiling - a.ceiling).slice(0, T.replYoung != null ? T.replYoung : 2);   // two development projects at most
     low.filter((q) => !keep.includes(q)).forEach((q) => {
       t.bench = t.bench.filter((id) => id !== q.id); delete L.players[q.id];
-      const goal = T.replLevel + (T.replRange || 5) * rand(), p = makeNPC(L, rint(25, 31), { ceiling: goal + 1, bonus: 0 });
+      const goal = (T.replVet || T.replLevel) + (T.replRange || 5) * rand(), p = makeNPC(L, rint(25, 31), { ceiling: goal + 1, bonus: 0 });
       for (let i = 0; i < 4; i++) { const d = (goal - ovr(p)) / T.ovrStretch; ATTRS.forEach((a) => (p.attrs[a] = clamp(p.attrs[a] + d, 8, 99))); }   // a veteran is what he is: put him at his level (as makeReal does)
       p.teamId = t.id; p.since = L.year; L.players[p.id] = p; t.bench.push(p.id);
     });
@@ -398,7 +402,31 @@
         npc.forEach((e, i) => { if (i === 0 && top) return; e.l[k] *= f; });
       });
     });
-    entries.forEach((e) => { if (!e.isUser && byTeam[e.t.id]) e.l.perf = perfOf(e.l); });
+    // 240 minutes a game: the soft caps leave ~18 team minutes a night unlogged (injured players' and the 11th-15th men's). They go to the deep bench at
+    // each player's own per-minute rate. Then one ball: the team's usage-weighted minutes average oneBall (20%), so a star's extra shots (usgDisp)
+    // come out of role players' shots instead of adding points. Never the user; TS stays each player's own, so the shooting splits do not move.
+    if (T.fillMins) {
+      const tm = {}; entries.forEach((e) => { if (e.l.gp > 0) (tm[e.t.id] = tm[e.t.id] || []).push(e); });
+      const mg = (e) => e.l.mins * e.l.gp;
+      Object.values(tm).forEach((es) => {
+        let D = 240 * 82 - sum(es.map(mg));
+        const deep = es.filter((e) => !e.isUser && e.l.mins > 0.5).sort((a, b) => ovr(a.p) - ovr(b.p)).slice(0, Math.max(0, es.length - 5));   // lowest-rated first, never the top five
+        for (let pass = 0; pass < 3 && D > 1; pass++) {
+          const room = deep.filter((e) => e.l.mins < T.fillMins), g = sum(room.map((e) => e.l.gp)); if (!g) break;
+          const add = D / g;
+          room.forEach((e) => { const m2 = Math.min(T.fillMins, e.l.mins + add), f = m2 / e.l.mins; D -= (m2 - e.l.mins) * e.l.gp; ['pts', 'reb', 'ast', 'stl', 'blk', 'tov'].forEach((k) => { if (e.l[k] != null) e.l[k] *= f; }); e.l.mins = m2; });
+        }
+        if (!T.oneBall) return;
+        const npc = es.filter((e) => !e.isUser), M = sum(es.map(mg)), uU = sum(es.filter((e) => e.isUser).map((e) => (e.l.usg || 0) * mg(e))), uN = sum(npc.map((e) => (e.l.usg || 0) * mg(e)));
+        if (uN <= 0) return;
+        // usgDisp: the second options (19-25 ppg) take a bigger share of the shots, tapering to nothing by 31 ppg so the scoring title and MVP lines stay put
+        const band = (x) => (x <= 15 ? 0 : x < 21 ? (x - 15) / 6 : x <= 25 ? 1 : x < 31 ? (31 - x) / 6 : 0);
+        const f = clamp((T.oneBall * M - uU) / uN, 0.8, 1.2), w = npc.map((e) => 1 + (T.usgDisp || 0) * band(e.l.pts));
+        const P = sum(npc.map((e) => e.l.pts * e.l.gp)), Pw = sum(npc.map((e, i) => e.l.pts * e.l.gp * w[i]));
+        npc.forEach((e, i) => { const k = Pw > 0 ? (f * w[i] * P) / Pw : f; e.l.pts *= k; e.l.usg = (e.l.usg || 0) * k; });
+      });
+    }
+    entries.forEach((e) => { if (!e.isUser && (byTeam[e.t.id] || T.fillMins)) e.l.perf = perfOf(e.l); });
     L.lines = lines;
 
     // awards
@@ -644,6 +672,8 @@
       const t = order[slot - 1];
       p.teamId = t.id; p.rookie = true; p.draftSlot = slot; p.yearsPro = 0;
       L.players[p.id] = p;
+      // late bloomers the scouts missed (Jokic 41st, Butler 30th, Draymond 35th): a few picks after the lottery develop past where their stock had them
+      if (slot > 14 && rand() < (slot <= 30 ? T.sleeperP1 || 0 : T.sleeperP2 || 0)) { p.ceiling = clamp(Math.max(p.ceiling + T.sleeperBoost, T.sleeperCeil || 0), 55, 99); p.target = NBA.buildTarget(p, p.ceiling); }   // an All-Star-tier ceiling, not just a nudge
     });
   }
   function npcDraft(L) {
@@ -847,9 +877,9 @@
     const fa = [], yr = L.year + 1;
     L.teams.forEach((t) => rosterOf(L, t).forEach((p) => {
       deal(L, p);
-      if (p.cEnd > L.year) return;
+      if (p.cEnd > L.year || onRookieDeal(p)) return;
       const o = ovr(p), tn = tenureAt(L, p, 'offseason');
-      const keep = clamp(0.58 + 0.014 * (o - 66) + (tn >= 3 ? 0.1 : 0) - (p.age >= 33 ? 0.2 : 0) + (o >= 82 ? 0.15 : 0), 0.25, 0.97);
+      const keep = clamp(0.58 + 0.014 * (o - 66) + (tn >= 3 ? 0.1 : 0) - (p.age >= 33 ? 0.2 : 0) + (o >= 82 ? 0.15 : 0) + (p.age < 27 ? T.youngKeep || 0 : 0), 0.25, 0.97);   // youngKeep: teams re-sign their own developing players more often than fading veterans
       if (!p.gmWalk && rand() < keep) { p.cEnd = L.year + 1 + (p.age >= 33 ? rint(0, 1) : p.age >= 30 ? rint(0, 2) : rint(1, 4)); return; }
       t.core = t.core.filter((id) => id !== p.id); t.bench = (t.bench || []).filter((id) => id !== p.id);
       fa.push({ p, from: t });

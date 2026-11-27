@@ -1,3 +1,7 @@
 scripts/__pycache__/
 # LEBRON is a paid bball-index export: kept locally for scripts/build-real.py, not published
 data/sources/lebron-*.csv
+
+# Raw NBA datasets: local only
+data/sources/
+.DS_Store
