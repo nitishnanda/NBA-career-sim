@@ -120,11 +120,12 @@
     return { ok: false, why: w + (st.stars >= 4 ? '.' : ' (need-based scholarships go to 4-star prospects and up).') };
   }
   // ---- real high schools: the ones in your home state, plus the national boarding prep powerhouses (NBA.HS, built from Wikipedia)
+  const PUBLIC_RE = /Career Academy|Lincoln College Preparatory/;   // public schools whose names look private (Chicago's career academies, Kansas City's magnet prep)
   const PRIVATE_RE = /Catholic|Academy|Preparatory|Prep\b|Christian|Country Day|Jesuit|Lutheran|Newman|Ensworth|Punahou|Brophy|Gonzaga|DeMatha|Mater Dei|Sierra Canyon|Harvard-Westlake|Pace|Kingswood|Sanford|Salesianum|Trinity|Brother Martin|St\.|Saint|Bishop|Archbishop|Christ the King|Power Memorial|Rice|The Patrick|Calvert Hall|Mount Saint Joseph|Cretin|Minnehaha|Flint Hill|Seattle Prep|O'Dea|Phillips Exeter|Tilton|New Hampton|Worcester Academy|Cushing|Buckingham|Lake Highland|Ravenscroft|Charlotte Christian|Charlotte Latin|Wesleyan|Word of God|Memphis University|Detroit Country Day|Christian Brothers|Chaminade|Creighton|Juan Diego|Vermont Academy|Gould|South Kent|Hargrave|Fork Union|St\. Christopher/;
   function hsOptions(st) {
     const H = NBA.HS; if (!H) return [];
     const ab = D.STATE_ABBR[st.player.home], local = st.origin && st.origin.usRoute ? [] : ((H.states[ab] || []).slice(0, 8));
-    const fin = (x, kind) => { const priv = kind !== 'national' && PRIVATE_RE.test(x.n), a = kind === 'national' ? canAfford(st, 'prep') : priv ? canAfford(st, 'privatehs') : { ok: true };
+    const fin = (x, kind) => { const priv = kind !== 'national' && PRIVATE_RE.test(x.n) && !PUBLIC_RE.test(x.n), a = kind === 'national' ? canAfford(st, 'prep') : priv ? canAfford(st, 'privatehs') : { ok: true };
       return Object.assign({}, x, { kind, priv, state: kind === 'national' ? x.city.split(', ').pop() : ab, locked: a.ok ? null : a.why, paidBy: a.scholarship ? 'scholarship' : null }); };
     return local.map((x) => fin(x, x.type === 'power' ? 'power' : 'local')).concat((H.national || []).map((x) => fin(x, 'national')));
   }
@@ -242,6 +243,7 @@
     b += ({ takeover: 2.4, fit: 0.8, quiet: -2.2 })[st.collegeRole] || 0;   // running the offense puts the numbers up; a development year does not
     const hs = ((NBA.Decisions.state(st).journal || []).find((e) => e.kind === 'hs') || { text: '' }).text;
     b += /prep powerhouse/.test(hs) ? 1.0 : /state powerhouse/.test(hs) ? 0.5 : /stayed home/.test(hs) ? -0.8 : /blew up/.test(hs) ? 1.8 : /circuit/.test(hs) ? -0.6 : 0;
+    if (last.line) b += clamp((last.line.pts - 12) * 0.45, -5, 5);   // what he produced: a 3-ppg year sinks a stock, a 22-ppg year lifts it
     if (last.honors.includes('National Player of the Year')) b += 3;
     else if (last.honors.includes('Consensus All-American')) b += 1.5;
     if (st.collegeYears.some((y) => y.tourney.includes('Won the National'))) b += 0.8;
@@ -298,6 +300,14 @@
     return out.map((x) => ({ nick: x.t.nick, team: x.t.name, slot: x.slot, fit: clamp(Math.round(52 + x.need * 42 - Math.abs(x.slot - mid) * 0.8), 35, 96), line: NBA.needText(L, x.t) }));
   }
   const MEDIA_OUTLETS = ['Hoops Abroad', 'The Draft Wire', 'Euro Prospect Report'];
+  // once drafted and stashed, the coverage is about the club that holds his rights, not the draft
+  const STASH_OUTLETS = { gl: ['G League Insider', 'The Call-Up Report', 'Hoops Wire'], europe: ['Hoops Abroad', 'Euro Stash Watch', 'Hoops Wire'] };
+  const STASH_BANK = {
+    great: ['{name} was the best player on the floor most nights ({pts} ppg). The {club} have seen enough.', 'The {club} are getting calls about {name}. {pts} a night will do that.', 'Nobody in {league} looked more ready: {name} belongs on the {club} roster next season.'],
+    good: ['A solid year for {name}: {pts} points and {reb} rebounds. The {club} like the progress.', '{name} keeps checking boxes for the {club}. A call-up is a real conversation now.', 'The {club} staff see a rotation player in {name}. Not yet, but close.'],
+    ok: ['A quiet year for {name} ({pts} ppg): the {club} still see the tools, but want more.', 'The {club} want to see more from {name}. Nothing wrong, nothing that forces a call-up.', '{name} is still a project for the {club}. Another year of reps would not hurt.'],
+    poor: ['A tough year for {name}: {pts} ppg in {mins} minutes. The {club} are being patient, for now.', 'Not the year the {club} hoped for. {name} needs a bigger role or a better summer.', 'Questions are growing about whether {name} fits the {club} long term.'],
+  };
   const MEDIA_BANK = {
     great: ['{name} was the story of the year in {league}: {pts} a night and a real case that he is ready for the NBA.', 'Scouts left the gym raving. {name} {honor}, and the buzz is already at lottery level.', '{pts} ppg against grown men is not normal for a {age}-year-old. {name} is a first-round talent.'],
     good: ['A solid year for {name}: {pts} points and {reb} rebounds and a team that trusted him. The NBA likes what it sees.', '{name} keeps checking boxes. Not a lock, but a clear NBA-caliber prospect.', 'The tape says rotation player at the next level. {name} is moving the right way.'],
@@ -307,7 +317,8 @@
   function mediaTakes(st, rec, interest, nat) {
     const grade = rec.pf >= 36 ? 'great' : rec.pf >= 26 ? 'good' : rec.pf >= 16 ? 'ok' : 'poor', rnd = NBA.Decisions.rng(st, 'media|' + st.league.year + '|' + rec.year), p = st.player;
     const fill = (t) => t.replace(/\{name\}/g, p.name).replace(/\{league\}/g, rec.league).replace(/\{pts\}/g, rec.line.pts.toFixed(1)).replace(/\{reb\}/g, rec.line.reb.toFixed(1)).replace(/\{mins\}/g, Math.round(rec.line.mins)).replace(/\{age\}/g, rec.age).replace(/\{honor\}/g, rec.honors[0] ? 'earned ' + rec.honors[0] : 'showed out');
-    const bank = MEDIA_BANK[grade].slice().sort(() => rnd() - 0.5), out = MEDIA_OUTLETS.map((o, i) => ({ outlet: o, text: fill(bank[i % bank.length]) }));
+    const sh = st.stash, bank = (sh ? STASH_BANK : MEDIA_BANK)[grade].slice().sort(() => rnd() - 0.5), outlets = sh ? STASH_OUTLETS[sh.kind === 'gl' ? 'gl' : 'europe'] : MEDIA_OUTLETS;
+    const out = outlets.map((o, i) => ({ outlet: o, text: fill(bank[i % bank.length]).replace(/\{club\}/g, sh ? sh.nick : '') }));
     if (nat) out[2].text = (nat.mvp ? p.name + ' was the star of the ' + nat.event + ' (' + nat.result.toLowerCase() + '): ' : 'At the ' + nat.event + ' (' + nat.result.toLowerCase() + '), ') + nat.line.pts.toFixed(1) + ' ppg for ' + nat.country + (nat.mvp ? ' and tournament MVP honors.' : '.');
     return { grade, takes: out };
   }
@@ -376,7 +387,7 @@
     const p = st.player, rec = intlSeason(st);
     if (st.stash && st.stash.kind === 'gl') callupStint(st, rec);
     if (NBA.Euro && !st.autoPlay) NBA.Euro.yearEnd(st);
-    NBA.runYear(st.league, { draft: false });
+    NBA.runYear(st.league, { draft: false });   // the summer's draft runs with the next step: stayIntl (another year) or joinFromStash (called up / came over)
     rec.mock = NBA.mockRange(st.league, p, stockBonus(st)); rec.mustDeclare = rec.year >= 5 && !st.stash; st.clubYears = (st.clubYears || 0) + 1;
     st.stage = 'intl_decision'; return rec;
   }
@@ -405,6 +416,7 @@
   function playCollege(st) {
     const p = st.player;
     const rec = collegeSeason(st);
+    p.vis = Math.min(0.95, (p.vis == null ? 1 : p.vis) + 0.25);   // a college season on tape: scouts judge what they saw, not a guess at an unknown's ceiling
     if (NBA.Euro && !st.autoPlay) NBA.Euro.yearEnd(st);
     NBA.runYear(st.league, { draft: false });
     const mock = NBA.mockRange(st.league, p, stockBonus(st));
@@ -530,7 +542,8 @@
     opts = opts || {}; const d = st.draft, L = st.league, t = L.teams[d ? d.teamId : st.teamId]; if (!t) throw new Error('no club');
     st.stash = { kind: 'gl', teamId: t.id, team: t.name, nick: t.nick, slot: d && d.slot ? d.slot : null, y: L.year, years: 0, news: [], twoWay: !!opts.twoWay, nbaGames: 0 }; if (d) d.stashed = true;
     if (opts.twoWay) { st.stash.twoPay = r1(capFor(L.year) * 0.0072); st.contract = { salary: st.stash.twoPay, years: 2, left: 2, type: 'twoway' }; }
-    st.college = { id: 'gl:' + t.id, name: t.nick + ' G League affiliate', state: t.city + ' (NBA G League)', prestige: 3, home: true, intl: true, tier: 'gleague', country: 'us', league: 'NBA G League' };
+    const aff = ((NBA.EuroData && NBA.EuroData.gleague) || []).find((g) => g.parent === t.nick);   // the club's real affiliate (Heat: Sioux Falls Skyforce)
+    st.college = { id: 'gl:' + t.id, name: aff ? aff.name : t.nick + ' G League affiliate', state: (aff && aff.city) || t.city, prestige: 3, home: true, intl: true, tier: 'gleague', country: 'us', league: 'NBA G League' };
     st.glYears = st.glYears || []; st.clubYears = 0; st.teamId = -1; st.player.teamId = -1;
     NBA.Decisions.log(st, { kind: 'draft', title: opts.twoWay ? 'Two-way contract' : 'G League', tone: 'neutral', text: opts.twoWay ? 'You signed a two-way contract with the ' + t.nick + ': mostly the G League, with up to 50 days with the NBA club.' : 'The ' + t.nick + ' assigned you to their G League affiliate to develop. They decide when you are ready.' });
     st.stage = 'training'; st.afterTraining = 'intl'; return trainingInfo(st);
@@ -566,16 +579,17 @@
     const w = teamWant(st), r = NBA.Decisions.rng(st, 'push|' + st.league.year + '|' + st.stash.years)(), pOk = clamp(0.38 + 0.05 * w.score, 0.05, 0.7);
     if (r < pOk) { NBA.Decisions.log(st, { kind: 'draft', title: 'Pushed for a spot', tone: 'good', text: 'You pushed the ' + st.stash.nick + ' for a roster spot and they agreed.' }); return { ok: true, text: 'The ' + st.stash.nick + ' gave in: you are on the roster.' }; }
     NBA.Decisions.apply(st, [{ k: 'rel', id: 'coach' + st.stash.teamId, name: st.stash.nick + ' staff', d: -0.8 }, { k: 'meter', f: 'media', d: -0.2 }]);
-    st.stash.news.push('The ' + st.stash.nick + ' did not like being pushed. They want you to stay and develop.'); st.stash.forced = (st.stash.forced || 0) + 1;
+    st.stash.forced = (st.stash.forced || 0) + 1;
     return { ok: false, text: 'The ' + st.stash.nick + ' said no, and they were not happy about being pushed. Stay and develop.' };
   }
   function stashStay(st) {
-    const sh = st.stash, L = st.league; sh.years++;
+    const sh = st.stash, L = st.league; sh.years++; sh.news = [];   // only this summer's news reaches next season's page
     if (NBA.Decisions.rng(st, 'stash|' + L.year)() < 0.22) { const others = L.teams.filter((t) => t.id !== sh.teamId), nt = others[Math.floor(NBA.Decisions.rng(st, 'stash2|' + L.year)() * others.length)]; sh.news.push('Your rights were traded from the ' + sh.nick + ' to the ' + nt.nick + '.'); sh.teamId = nt.id; sh.team = nt.name; sh.nick = nt.nick; st.draft.team = nt.name; st.draft.teamId = nt.id; }
     return stayIntl(st);
   }
   function joinFromStash(st) {
     const sh = st.stash, L = st.league, p = st.player, bo = buyoutM(st);
+    NBA.npcDraft(L);   // the league's draft that summer (staying another year runs it in stayIntl; leaving the stash skipped it, so the rookie class he joins was missing)
     if (sh.kind !== 'gl' || sh.twoWay) { st.contract = sh.slot ? rookieDeal(st, sh.slot) : rookieDeal(st, null); if (bo) st.earnings = Math.max(0, st.earnings - bo); }
     st.teamId = sh.teamId; p.teamId = sh.teamId; st.draft.team = sh.team; st.draft.teamId = sh.teamId; st.draft.cameOver = L.year; sh.joined = L.year;
     NBA.Decisions.log(st, { kind: 'draft', title: sh.kind === 'gl' ? 'Called up' : 'Came over', tone: 'good', text: sh.kind === 'gl' ? 'After ' + (sh.years + 1) + ' G League year' + (sh.years ? 's' : '') + ', the ' + sh.nick + ' called you up to the roster.' : 'After ' + (sh.years + 1) + ' more year' + (sh.years ? 's' : '') + ' with ' + st.college.name + ', you joined the ' + sh.nick + (bo ? ' (buyout: $' + bo.toFixed(1) + 'M)' : '') + ' on a rookie deal.' });
@@ -613,7 +627,7 @@
   function preseason(st) {
     const Dc = NBA.Decisions; st.stage = 'pro_ready';
     if (st.autoPlay) { if (st.autoDecide && Dc.offer(st, 'camp')) Dc.autoResolve(st); return; }
-    if (!st.promiseDone && st.proSeasons.length === 0 && st.draft) { st.promiseDone = true; if (Dc.offer(st, 'promise')) { st.stage = 'promise'; return; } }
+    if (!st.promiseDone && st.proSeasons.length === 0 && st.draft) { st.promiseDone = true; const fresh = st.draft.year === st.league.year && !st.draft.stashed; if (fresh && Dc.offer(st, 'promise')) { st.stage = 'promise'; return; } }
     if (!st.agent) { st.stage = 'agent'; return; }
     if (Dc.offer(st, 'camp')) st.stage = 'camp';
   }
@@ -633,10 +647,11 @@
     const total = sum(ATTRS.map((a) => alloc[a] || 0));
     if (total > cap) throw new Error('too many training points');
     applyTraining(p, alloc);
+    const trainedTo = {}; ATTRS.forEach((a) => (trainedTo[a] = p.attrs[a]));
     const ovrAfterTrain = ovr(p);
     progress(p);
     st.bonusPoints = 0;
-    const rep = { age: p.age, ovr0: Math.round(ovr0), ovr1: Math.round(ovr(p)), trainGain: r1(ovrAfterTrain - ovr0), changes: ATTRS.map((a) => ({ key: a, label: D.ATTR_LABELS[a], from: Math.round(before[a]), to: Math.round(p.attrs[a]) })) };
+    const rep = { age: p.age, ovr0: Math.round(ovr0), ovr1: Math.round(ovr(p)), trainGain: r1(ovrAfterTrain - ovr0), changes: ATTRS.map((a) => ({ key: a, label: D.ATTR_LABELS[a], from: Math.round(before[a]), to: Math.round(p.attrs[a]), trained: Math.round(trainedTo[a] - before[a]) })) };
     st.lastTrainRep = rep; const next = st.afterTraining;
     if (next === 'college') st.stage = 'college_ready';
     else if (next === 'intl') st.stage = 'intl_ready';
@@ -1817,6 +1832,17 @@
     recomputeFromLog(st); gameFeed(st, st.matchLog, st.league.teams[st.teamId], idx);
     return { w: !!cur.w, flipped: !!cur.w !== was, swing };
   }
+  // the team's row in the league (and the snapshot's standings) to the record the user's games add up to; each game moved is taken off (or given to) that game's opponent
+  function syncPlayedRecord(st, rec) {
+    const L = st.league, t = L.teams[st.teamId], sn = st.leagueSnap, rows = (sn && sn.standings) || [], row = rows.find((x) => x.id === st.teamId);
+    let d = rec.wins - t.wins; if (!d) return;
+    const s = d > 0 ? 1 : -1, games = st.matchLog.filter((x) => x.k === 'g' && !x.po && !x.pi && (s > 0 ? x.w : !x.w));
+    for (let i = 0; i < games.length && d !== 0; i++) {
+      const ot = L.teams.find((x) => x.nick === games[i].o && x.id !== st.teamId); if (!ot) continue;
+      t.wins += s; t.losses -= s; ot.wins -= s; ot.losses += s; if (row) { row.wins += s; row.losses -= s; }
+      const r2 = rows.find((x) => x.id === ot.id); if (r2) { r2.wins -= s; r2.losses += s; } d -= s;
+    }
+  }
   // the regular season as it was really played: if live results moved any team's record, the league re-seeds from the real records
   // (seeding, the play-in, the bracket, the awards' team-wins inputs), keeping every game already played
   function reseed(st, idx) {
@@ -1827,6 +1853,7 @@
     replay(st, st.seasonMoves || [], { force: true });
     st.matchLog[idx] = keep; recomputeFromLog(st);
     const rec = st.proSeasons[st.proSeasons.length - 1]; rec.wins = st.matchLog.filter((x) => x.k === 'g' && !x.po && x.w).length; rec.losses = st.matchLog.filter((x) => x.k === 'g' && !x.po).length - rec.wins;
+    syncPlayedRecord(st, rec);
     return true;
   }
   // a decision swung a playoff game: the rest of the series is played out at the matchup's odds and the season replays with that series result
@@ -1879,7 +1906,7 @@
     d.pressYear = rec.label; const lk = d.flags.locker || 0, md = d.flags.media || 0;
     if (lk >= 3) { Dc.apply(st, [{ k: 'season', v: { depth: 0.8 } }]); Dc.log(st, { kind: 'press', title: 'The locker room', tone: 'good', text: 'The way you handled the press kept the locker room tight.' }); }
     else if (lk <= -3) { Dc.apply(st, [{ k: 'season', v: { depth: -1 } }]); Dc.log(st, { kind: 'press', title: 'The locker room', tone: 'bad', text: 'What you said to the press put a strain on the locker room.' }); }
-    if (md >= 4) Dc.log(st, { kind: 'press', title: 'Media', tone: 'good', text: 'The media loves you. You are a favourite in the press room.' });
+    if (md >= 4) Dc.log(st, { kind: 'press', title: 'Media', tone: 'good', text: 'The media loves you. You are a favorite in the press room.' });
     else if (md <= -4) Dc.log(st, { kind: 'press', title: 'Media', tone: 'bad', text: 'The media has turned on you.' });
     d.flags.locker = Math.round(lk * 0.5 * 10) / 10; d.flags.media = Math.round(md * 0.5 * 10) / 10;
   }

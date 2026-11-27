@@ -59,7 +59,12 @@ final class AppModel: NSObject, ObservableObject {
         webView.pageZoom = zoom
         webView.allowsBackForwardNavigationGestures = false
         webView.allowsMagnification = false          // no pinch zoom
-        webView.underPageBackgroundColor = NSColor(red: 0.11, green: 0.11, blue: 0.118, alpha: 1)
+        let dark = NSColor(red: 0.11, green: 0.11, blue: 0.118, alpha: 1)
+        webView.underPageBackgroundColor = dark
+        // no white frame before index.html paints: the web view draws nothing itself, so the dark window shows through
+        webView.setValue(false, forKey: "drawsBackground")
+        webView.wantsLayer = true
+        webView.layer?.backgroundColor = dark.cgColor
         if #available(macOS 13.3, *) { webView.isInspectable = true }
         load()
     }

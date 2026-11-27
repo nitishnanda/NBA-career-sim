@@ -181,7 +181,7 @@
     // the cap grows with every good player ahead of you: a third option behind two stars gives up more shots than a second option behind one
     return clamp(tax, -0.03, T.coTaxMax * (1 + T.coTaxStack * Math.max(0, above - 1)));
   }
-  // star gravity: a great #1 draws the defence, so his teammates get easier looks (real 2016-25: the #2-#4 scorers shoot +2 to +3 TS% next to a
+  // star gravity: a great #1 draws the defense, so his teammates get easier looks (real 2016-25: the #2-#4 scorers shoot +2 to +3 TS% next to a
   // 26+ ppg #1 than next to a sub-22 one); weak rosters' supporting cast shoots worse. The best player on the roster gets nothing from it.
   function gravityFor(self, roster) {
     const best = Math.max(...roster.filter(Boolean).map(ovr));
@@ -406,6 +406,7 @@
     // each player's own per-minute rate. Then one ball: the team's usage-weighted minutes average oneBall (20%), so a star's extra shots (usgDisp)
     // come out of role players' shots instead of adding points. Never the user; TS stays each player's own, so the shooting splits do not move.
     if (T.fillMins) {
+      const FILL36 = { pts: 14, reb: 7, ast: 3, stl: 1, blk: 0.7, tov: 1.6 }, CAP36 = { pts: 24, reb: 15 };   // replacement bench per 36; the bench's per-36 ceiling
       const tm = {}; entries.forEach((e) => { if (e.l.gp > 0) (tm[e.t.id] = tm[e.t.id] || []).push(e); });
       const mg = (e) => e.l.mins * e.l.gp;
       Object.values(tm).forEach((es) => {
@@ -414,8 +415,11 @@
         for (let pass = 0; pass < 3 && D > 1; pass++) {
           const room = deep.filter((e) => e.l.mins < T.fillMins), g = sum(room.map((e) => e.l.gp)); if (!g) break;
           const add = D / g;
-          room.forEach((e) => { const m2 = Math.min(T.fillMins, e.l.mins + add), f = m2 / e.l.mins; D -= (m2 - e.l.mins) * e.l.gp; ['pts', 'reb', 'ast', 'stl', 'blk', 'tov'].forEach((k) => { if (e.l[k] != null) e.l[k] *= f; }); e.l.mins = m2; });
+          // the extra minutes are garbage-time and spot minutes: they come at the lower of his own rate and a replacement bench rate (a short-minute
+          // line can carry a per-minute rate no real player keeps over more floor time: 12 boards in 19 minutes)
+          room.forEach((e) => { const m0 = e.l.mins, m2 = Math.min(T.fillMins, m0 + add), x = m2 - m0; D -= x * e.l.gp; Object.keys(FILL36).forEach((k) => { if (e.l[k] != null) e.l[k] += x * Math.min(e.l[k] / m0, FILL36[k] / 36); }); e.l.mins = m2; });
         }
+        deep.forEach((e) => Object.keys(CAP36).forEach((k) => { const c = (CAP36[k] * e.l.mins) / 36; if (e.l[k] > c) e.l[k] = c; }));   // and no bench line keeps an outlier per-36 rate
         if (!T.oneBall) return;
         const npc = es.filter((e) => !e.isUser), M = sum(es.map(mg)), uU = sum(es.filter((e) => e.isUser).map((e) => (e.l.usg || 0) * mg(e))), uN = sum(npc.map((e) => (e.l.usg || 0) * mg(e)));
         if (uN <= 0) return;
@@ -449,7 +453,8 @@
     // All-Stars are the top 12 per conference, All-Defense the top 10 in the league (positionless since 2024)
     const ASM = { b0: -15.572, perf: 0.2108, pts: 0.1557, wins: 0.0916, prevAS: 1.485 }, ADM = { b0: -14.619, stl: 2.4768, blk: 1.5368, reb: 0.0154, mins: 0.0591, wins: 0.1055, prevAD: 3.0275 };
     const allDef = q65.map((e) => ({ e, s: ADM.b0 + ADM.stl * e.l.stl + ADM.blk * e.l.blk + ADM.reb * e.l.reb + ADM.mins * e.l.mins + ADM.wins * e.l.wins + (e.p.prevAD ? ADM.prevAD : 0) + logisticNoise() })).sort((a, b) => b.s - a.s).slice(0, 10);
-    const asCand = entries.filter((e) => e.l.gp >= 40).map((e) => ({ e, s: ASM.b0 + ASM.perf * e.l.perf + ASM.pts * e.l.pts + ASM.wins * e.l.wins + (e.p.prevAS ? ASM.prevAS : 0) + logisticNoise() })).sort((a, b) => b.s - a.s);
+    // userAsBias: the user's archetypes land on their intended All-Star odds in the stronger v134 league (NPCs untouched)
+    const asCand = entries.filter((e) => e.l.gp >= 40).map((e) => ({ e, s: ASM.b0 + ASM.perf * e.l.perf + ASM.pts * e.l.pts + ASM.wins * e.l.wins + (e.p.prevAS ? ASM.prevAS : 0) + (e.isUser ? (T.userAsBias || {})[e.p.arch] || 0 : 0) + logisticNoise() })).sort((a, b) => b.s - a.s);
     const stars = ['E', 'W'].reduce((acc, c) => acc.concat(asCand.filter((x) => x.e.t.conf === c).slice(0, 12)), []);
     entries.forEach((e) => { e.p.prevAS = false; e.p.prevAD = false; e.p.prevAN = false; e.p.mvpStreak = mvpAll[0] && mvpAll[0].e === e ? (e.p.mvpStreak || 0) + 1 : 0; });
     stars.forEach((x) => { x.e.p.prevAS = true; }); allDef.forEach((x) => { x.e.p.prevAD = true; }); allNBA.forEach((x) => { x.e.p.prevAN = true; });
